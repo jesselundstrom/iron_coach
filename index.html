@@ -20,20 +20,20 @@
   --green:#34d399;--blue:#3b82f6;--orange:#f59e0b;--purple:#a78bfa;
   --radius:16px;
 }
-html{-webkit-text-size-adjust:100%}
-body{background:var(--bg);color:var(--text);font-family:'Outfit',system-ui,-apple-system,sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;line-height:1.5}
+html{-webkit-text-size-adjust:100%;background:var(--bg);overscroll-behavior:none}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',system-ui,-apple-system,sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;line-height:1.5;overscroll-behavior:none}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
 
 /* ── NAV ── */
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(16,16,24,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom);max-width:520px;margin:0 auto}
-.nav-btn{flex:1;padding:10px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;font-weight:600;letter-spacing:0.5px;color:var(--muted);background:none;border:none;cursor:pointer;transition:color 0.2s}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(16,16,24,0.98);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom);max-width:520px;margin:0 auto}
+.nav-btn{flex:1;padding:14px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;letter-spacing:0.5px;color:var(--muted);background:none;border:none;cursor:pointer;transition:color 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .nav-btn.active{color:var(--accent)}
-.nav-btn svg{width:20px;height:20px;transition:transform 0.2s}
+.nav-btn svg{width:24px;height:24px;transition:transform 0.2s}
 .nav-btn.active svg{transform:scale(1.1)}
 
 /* ── PAGES ── */
-.page{display:none;padding:16px 16px 110px;max-width:520px;margin:0 auto;animation:fadeUp 0.3s ease}
+.page{display:none;padding:16px 16px calc(85px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;animation:fadeUp 0.3s ease}
 .page.active{display:block}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .header{padding:20px 16px 10px;max-width:520px;margin:0 auto}
