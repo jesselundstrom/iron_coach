@@ -182,3 +182,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* ── NAME INPUT MODAL ── */
 .name-input-row{display:flex;gap:8px;margin-top:12px}
 .name-input-row input{flex:1}
+
+/* ── LOGIN SCREEN ── */
+.login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-box{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;text-align:center}

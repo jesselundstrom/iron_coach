@@ -240,6 +240,11 @@
     <div style="font-size:11px;color:var(--muted)">Export saves all data as a JSON file. Import from another device to sync your training history.</div>
   </div>
   <div class="card">
+    <div class="card-title">Account</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="account-email"></div>
+    <button class="btn btn-ghost" onclick="logout()">Sign Out</button>
+  </div>
+  <div class="card">
     <div class="card-title">Danger Zone</div>
     <button class="btn btn-ghost" onclick="showConfirm('Clear All Data','Delete ALL training data? This cannot be undone.',clearAllData)">Clear All Data</button>
   </div>
@@ -265,6 +270,20 @@
   </button>
 </nav>
 
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <h1 style="font-size:32px;margin-bottom:4px">Ironforge</h1>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:28px">Forge Protocol · Sign in to sync your training</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="email">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <div id="login-error" style="font-size:12px;min-height:18px;margin-top:-4px"></div>
+    <button class="btn btn-primary" onclick="loginWithEmail()">Sign In</button>
+    <button class="btn btn-ghost" onclick="signUpWithEmail()">Create Account</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

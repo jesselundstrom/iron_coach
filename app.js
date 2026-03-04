@@ -1,5 +1,12 @@
 const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+// ── SUPABASE ─────────────────────────────────────────────────
+const _SB=supabase.createClient(
+  'https://koreqcjrpzcbfgkptvfx.supabase.co',
+  'sb_publishable_Ccuq9Bwyxmyy4JfrWqXlhg_qiWmCYpn'
+);
+let currentUser=null;
+
 // ── STATE (persisted via localStorage) ──────────
 let workouts=[];
 let schedule={hockeyDays:[3,0]};
@@ -138,20 +145,16 @@ const FORGE={
 
 // ── STORAGE ──────────────────────────────────────────────────
 async function loadData(){
-  try{
-    const w=localStorage.getItem('ic_workouts');
-    if(w) workouts=JSON.parse(w);
-  }catch(e){}
-  try{
-  }catch(e){}
-  try{
-    const s=localStorage.getItem('ic_schedule');
-    if(s) schedule=JSON.parse(s);
-  }catch(e){}
-  try{
-    const pr=localStorage.getItem('ic_profile');
-    if(pr) profile=JSON.parse(pr);
-  }catch(e){}
+  try{const w=localStorage.getItem('ic_workouts');if(w)workouts=JSON.parse(w);}catch(e){}
+  try{const s=localStorage.getItem('ic_schedule');if(s)schedule=JSON.parse(s);}catch(e){}
+  try{const pr=localStorage.getItem('ic_profile');if(pr)profile=JSON.parse(pr);}catch(e){}
+  // Pull fresher data from cloud if logged in
+  const gotCloud=await pullFromCloud();
+  if(gotCloud){
+    try{localStorage.setItem('ic_workouts',JSON.stringify(workouts));}catch(e){}
+    try{localStorage.setItem('ic_schedule',JSON.stringify(schedule));}catch(e){}
+    try{localStorage.setItem('ic_profile',JSON.stringify(profile));}catch(e){}
+  }
   // Migrate legacy ats* keys to forge* (one-time migration)
   if(profile.atsLifts&&!profile.forgeLifts){profile.forgeLifts=profile.atsLifts;profile.forgeWeek=profile.atsWeek||1;profile.forgeRounding=profile.atsRounding||2.5;profile.forgeDaysPerWeek=profile.atsDaysPerWeek||3;profile.forgeDayNum=profile.atsDayNum||1;profile.forgeBackExercise=profile.atsBackExercise||'Barbell Rows';profile.forgeBackWeight=profile.atsBackWeight||0;profile.forgeMode=profile.atsMode||'sets';profile.forgeWeekStartDate=profile.atsWeekStartDate||new Date().toISOString();}
   workouts.forEach(w=>{if(w.type==='ats'){w.type='forge';if(w.atsWeek){w.forgeWeek=w.atsWeek;}if(w.atsDayNum){w.forgeDayNum=w.atsDayNum;}}});
@@ -182,9 +185,71 @@ async function loadData(){
   updateDashboard();
   updateForgeDisplay();
 }
-async function saveWorkouts(){ try{localStorage.setItem('ic_workouts',JSON.stringify(workouts));}catch(e){} }
-async function saveScheduleData(){ try{localStorage.setItem('ic_schedule',JSON.stringify(schedule));}catch(e){} }
-async function saveProfileData(){ try{localStorage.setItem('ic_profile',JSON.stringify(profile));}catch(e){} }
+async function saveWorkouts(){ try{localStorage.setItem('ic_workouts',JSON.stringify(workouts));}catch(e){} pushToCloud(); }
+async function saveScheduleData(){ try{localStorage.setItem('ic_schedule',JSON.stringify(schedule));}catch(e){} pushToCloud(); }
+async function saveProfileData(){ try{localStorage.setItem('ic_profile',JSON.stringify(profile));}catch(e){} pushToCloud(); }
+
+// ── CLOUD SYNC ────────────────────────────────────────────────
+async function pushToCloud(){
+  if(!currentUser)return;
+  try{await _SB.from('profiles').upsert({id:currentUser.id,data:{profile,schedule,workouts},updated_at:new Date().toISOString()});}catch(e){}
+}
+async function pullFromCloud(){
+  if(!currentUser)return false;
+  try{
+    const{data,error}=await _SB.from('profiles').select('data').eq('id',currentUser.id).single();
+    if(error||!data?.data)return false;
+    const c=data.data;
+    if(c.profile)profile=c.profile;
+    if(c.schedule)schedule=c.schedule;
+    if(c.workouts)workouts=c.workouts;
+    return true;
+  }catch(e){return false;}
+}
+
+// ── AUTH ─────────────────────────────────────────────────────
+async function initAuth(){
+  const{data:{session}}=await _SB.auth.getSession();
+  currentUser=session?.user??null;
+  if(currentUser){hideLoginScreen();await loadData();}
+  else showLoginScreen();
+
+  _SB.auth.onAuthStateChange(async(_event,session)=>{
+    const wasLoggedIn=!!currentUser;
+    currentUser=session?.user??null;
+    if(currentUser&&!wasLoggedIn){hideLoginScreen();await loadData();}
+    else if(!currentUser){showLoginScreen();}
+  });
+}
+function showLoginScreen(){document.getElementById('login-screen').style.display='flex';}
+function hideLoginScreen(){
+  document.getElementById('login-screen').style.display='none';
+  const el=document.getElementById('account-email');
+  if(el)el.textContent=currentUser?.email??'';
+}
+async function loginWithEmail(){
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  errEl.style.color='var(--accent)';errEl.textContent='Signing in...';
+  const{error}=await _SB.auth.signInWithPassword({email,password});
+  if(error){errEl.style.color='#f87171';errEl.textContent=error.message;}
+}
+async function signUpWithEmail(){
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  if(password.length<6){errEl.style.color='#f87171';errEl.textContent='Password must be at least 6 characters.';return;}
+  errEl.style.color='var(--accent)';errEl.textContent='Creating account...';
+  const{error}=await _SB.auth.signUp({email,password});
+  if(error){errEl.style.color='#f87171';errEl.textContent=error.message;}
+  else{errEl.style.color='var(--accent)';errEl.textContent='Account created! Check your email to confirm, then sign in.';}
+}
+async function logout(){
+  await _SB.auth.signOut();
+  workouts=[];schedule={hockeyDays:[3,0]};profile={defaultRest:120};currentUser=null;
+  updateDashboard();
+}
 
 // ── NAV ──────────────────────────────────────────────────────
 function showPage(name,btn){
@@ -1080,7 +1145,7 @@ async function clearAllData(){
 }
 
 // ── INIT ─────────────────────────────────────────────────────
-loadData();
+initAuth();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); });
