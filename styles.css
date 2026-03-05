@@ -274,8 +274,137 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .name-input-row input{flex:1}
 
 /* ── LOGIN SCREEN ── */
-.login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px}
-.login-box{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.login-page,
+.login-screen{
+  min-height:100vh;
+  min-height:100dvh;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  padding:calc(24px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));
+  background-image:
+    radial-gradient(140% 100% at 50% 115%, rgba(0,0,0,0.00) 0%, rgba(0,0,0,0.16) 100%),
+    linear-gradient(to bottom, rgba(6,9,15,0.08) 0%, rgba(8,10,16,0.12) 42%, rgba(8,10,16,0.2) 100%),
+    radial-gradient(850px 430px at 50% 41%, rgba(0,0,0,0.01) 0%, rgba(0,0,0,0.09) 75%, rgba(0,0,0,0.14) 100%),
+    url("/assets/ironforge_bg.webp"),
+    url("/assets/ironforge_bg.png");
+  background-size:cover;
+  background-position:center bottom;
+  background-repeat:no-repeat;
+}
+.login-page::before,
+.login-screen::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background:
+    radial-gradient(70% 54% at 50% 40%, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.00) 65%, rgba(0,0,0,0) 100%),
+    linear-gradient(to top, rgba(0,0,0,0.03) 2%, rgba(0,0,0,0.00) 33%, rgba(0,0,0,0) 63%);
+}
+.login-page::after,
+.login-screen::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:0.17;
+  background-image:radial-gradient(circle, rgba(255,255,255,0.022) 1px, transparent 1px);
+  background-size:3px 3px;
+}
+#sparks{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:1;
+  pointer-events:none;
+}
+.login-wrap{
+  position:relative;
+  z-index:2;
+  width:min(360px,92vw);
+  max-width:100%;
+  text-align:center;
+  transform:translateY(-8vh);
+}
+.login-form{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.login-input{
+  width:100%;
+  height:56px;
+  border-radius:15px;
+  border:1px solid rgba(255,255,255,0.1);
+  background:rgba(15,18,28,0.55);
+  color:rgba(255,255,255,0.92);
+  padding:0 16px;
+  outline:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.04), 0 12px 24px rgba(0,0,0,0.22);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  transition:border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.login-input::placeholder{color:rgba(223,228,240,0.38)}
+.login-input:focus{
+  border-color:rgba(255,122,58,0.76);
+  box-shadow:0 0 0 3px rgba(255,122,58,0.16), 0 12px 28px rgba(0,0,0,0.25);
+}
+.login-form #login-error{
+  min-height:18px;
+  margin-top:-1px;
+  font-size:12px;
+  color:rgba(255,186,161,0.94);
+  text-shadow:0 1px 8px rgba(0,0,0,0.55);
+}
+.login-form .btn-primary,
+.login-form .btn-secondary{
+  width:100%;
+  height:56px;
+  margin-top:8px;
+  border-radius:18px;
+  font-size:16px;
+  font-weight:700;
+  font-family:inherit;
+  cursor:pointer;
+  transition:transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.login-form .btn-primary{
+  border:none;
+  color:#fff;
+  background:linear-gradient(90deg, #E36A2C 0%, #FF8A3D 100%);
+  box-shadow:0 14px 36px rgba(255,122,58,0.2), 0 0 24px rgba(255,122,58,0.16);
+}
+.login-form .btn-primary:hover{
+  transform:translateY(-1px);
+  box-shadow:0 18px 42px rgba(255,122,58,0.26), 0 0 26px rgba(255,122,58,0.23);
+}
+.login-form .btn-secondary{
+  border:1px solid rgba(255,122,58,0.58);
+  background:rgba(0,0,0,0.18);
+  color:rgba(255,139,63,0.98);
+}
+.login-form .btn-secondary:hover{
+  transform:translateY(-1px);
+  border-color:rgba(255,139,63,0.72);
+  box-shadow:0 0 0 1px rgba(255,122,58,0.26) inset, 0 0 18px rgba(255,122,58,0.22);
+}
+@media (max-width:640px){
+  .login-page,
+  .login-screen{padding:calc(18px + env(safe-area-inset-top)) 14px calc(22px + env(safe-area-inset-bottom))}
+  .login-wrap{width:min(360px,100%);transform:translateY(-6vh)}
+}
+@media (max-height:700px){
+  .login-wrap{transform:translateY(-4vh)}
+}
 
 /* ── PROGRAM CARDS ── */
 .program-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;margin-bottom:8px;transition:all 0.15s}

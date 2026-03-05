@@ -248,15 +248,16 @@
 </nav>
 
 <!-- LOGIN SCREEN -->
-<div class="login-screen" id="login-screen">
-  <div class="login-box">
-    <h1 style="font-size:32px;margin-bottom:4px">Ironforge</h1>
-    <p style="color:var(--muted);font-size:14px;margin-bottom:28px">Forge Protocol · Sign in to sync your training</p>
-    <input type="email" id="login-email" placeholder="Email" autocomplete="email">
-    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
-    <div id="login-error" style="font-size:12px;min-height:18px;margin-top:-4px"></div>
-    <button class="btn btn-primary" onclick="loginWithEmail()">Sign In</button>
-    <button class="btn btn-ghost" onclick="signUpWithEmail()">Create Account</button>
+<div class="login-page" id="login-screen">
+  <canvas id="sparks" aria-hidden="true"></canvas>
+  <div class="login-wrap">
+    <div class="login-form">
+      <input class="login-input" type="email" id="login-email" placeholder="Email" autocomplete="email">
+      <input class="login-input" type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+      <div id="login-error"></div>
+      <button class="btn-primary" onclick="loginWithEmail()">Sign In</button>
+      <button class="btn-secondary" onclick="signUpWithEmail()">Create Account</button>
+    </div>
   </div>
 </div>
 
