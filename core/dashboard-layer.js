@@ -31,6 +31,11 @@ function wasSportRecently(hours){
 // Backward-compat alias used by program files
 function wasHockeyRecently(hours){return wasSportRecently(hours);}
 function getRecoveryColor(r){return r>=65?'var(--green)':r>=35?'var(--orange)':'var(--accent)';}
+function getRecoveryGradient(r){
+  if(r>=65)return{start:'#2eddb1',mid:'#7cf2d6',end:'#119b79',glow:'rgba(46,221,177,0.48)'};
+  if(r>=35)return{start:'#ffd166',mid:'#ffc24a',end:'#f08a22',glow:'rgba(255,185,78,0.44)'};
+  return{start:'#ff9b76',mid:'#ff7a5c',end:'#ff5a44',glow:'rgba(255,106,84,0.42)'};
+}
 function getReadinessLabel(o){
   const r=100-o;
   if(r>=75)return{label:'Fully Recovered',color:'var(--green)'};
@@ -42,7 +47,14 @@ function updateFatigueBars(f){
   ['muscular','cns','overall'].forEach(k=>{
     const el=document.getElementById('f-'+k),vEl=document.getElementById('f-'+k+'-val');
     const recovery=100-f[k];
-    if(el){el.style.width=recovery+'%';el.style.background=getRecoveryColor(recovery);}
+    if(el){
+      const bars=getRecoveryGradient(recovery);
+      el.style.width=recovery+'%';
+      el.style.setProperty('--bar-start',bars.start);
+      el.style.setProperty('--bar-mid',bars.mid);
+      el.style.setProperty('--bar-end',bars.end);
+      el.style.setProperty('--bar-glow',bars.glow);
+    }
     if(vEl)vEl.textContent=recovery+'%';
   });
   const{label,color}=getReadinessLabel(f.overall);

@@ -103,23 +103,26 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* ── FATIGUE ── */
 .fatigue-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .fatigue-label{font-size:13px;min-width:80px;font-weight:600}
-.fatigue-bar-wrap{flex:1;background:var(--surface2);border-radius:99px;height:8px;overflow:hidden}
-.fatigue-fill{height:100%;border-radius:99px;transition:width 0.6s ease}
+.fatigue-bar-wrap{flex:1;background:linear-gradient(180deg,#1d2742,#141d33);border-radius:99px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:inset 0 1px 2px rgba(0,0,0,0.35)}
+.fatigue-fill{--bar-start:#1dd1a1;--bar-mid:#3ce6c0;--bar-end:#10ac84;--bar-glow:rgba(29,209,161,0.45);height:100%;border-radius:99px;position:relative;overflow:hidden;background:linear-gradient(100deg,var(--bar-start) 0%,var(--bar-mid) 45%,var(--bar-end) 100%);box-shadow:0 0 12px var(--bar-glow),inset 0 0 1px rgba(255,255,255,0.2);transition:width 0.8s ease}
+.fatigue-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.36) 50%,transparent 100%);animation:energyFlow 2s linear infinite;pointer-events:none}
+@keyframes energyFlow{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.fatigue-fill{transition:width 0.2s linear}.fatigue-fill::after{animation:none;opacity:0.2}}
 .fatigue-value{font-size:12px;color:var(--muted);min-width:36px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500}
 
 /* ── PR GRID ── */
 .lifts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.lift-stat{background:linear-gradient(155deg,rgba(255,136,66,0.13) 0%,rgba(255,122,58,0.03) 28%,var(--surface) 72%);border:1px solid rgba(255,140,60,0.2);border-radius:var(--radius);padding:14px;text-align:center;position:relative;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,0.33),0 0 16px rgba(255,140,60,0.12),inset 0 1px 0 rgba(255,255,255,0.05);transition:border-color 0.2s,box-shadow 0.2s,transform 0.2s}
-.lift-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--gold));opacity:0.8}
-.lift-stat::after{content:'';position:absolute;inset:-35% -15% auto -15%;height:75%;background:radial-gradient(ellipse at top,rgba(255,190,130,0.28) 0%,rgba(255,150,88,0.1) 36%,rgba(255,122,58,0) 74%);pointer-events:none;mix-blend-mode:screen}
-.lift-stat:hover{border-color:rgba(255,160,84,0.42);box-shadow:0 14px 34px rgba(0,0,0,0.35),0 0 24px rgba(255,140,60,0.22),inset 0 1px 0 rgba(255,255,255,0.07);transform:translateY(-1px)}
+.lift-stat{background:linear-gradient(160deg,#162438 0%,#0d1929 100%);border:1px solid rgba(255,160,84,0.14);border-radius:16px;padding:14px;text-align:center;position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 0 14px rgba(255,140,60,0.18),0 10px 24px rgba(0,0,0,0.35);transition:border-color 0.2s,box-shadow 0.2s,transform 0.2s}
+.lift-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--gold));opacity:0.75;pointer-events:none}
+.lift-stat::after{content:'';position:absolute;inset:-40% -20% auto -20%;height:72%;background:radial-gradient(ellipse at top,rgba(255,182,120,0.14) 0%,rgba(255,140,60,0.04) 40%,rgba(255,122,58,0) 78%);pointer-events:none}
+.lift-stat:hover{border-color:rgba(255,160,84,0.28);box-shadow:inset 0 1px 0 rgba(255,255,255,0.07),0 0 22px rgba(255,140,60,0.25),0 12px 28px rgba(0,0,0,0.38);transform:translateY(-1px)}
 .lift-stat.tm-updated{animation:tmCardPulse 0.58s cubic-bezier(0.22,1,0.36,1) both;animation-delay:var(--tm-delay,0ms)}
 .lift-stat .value{font-size:28px;font-weight:900;color:var(--gold);font-family:'JetBrains Mono',monospace;letter-spacing:-1px}
 .lift-stat .label{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:1px;font-weight:600}
 @keyframes tmCardPulse{
-  0%{transform:scale(1);box-shadow:0 10px 28px rgba(0,0,0,0.33),0 0 16px rgba(255,140,60,0.12),inset 0 1px 0 rgba(255,255,255,0.05)}
-  45%{transform:scale(1.035);box-shadow:0 16px 36px rgba(0,0,0,0.38),0 0 34px rgba(255,140,60,0.34),inset 0 1px 0 rgba(255,255,255,0.08)}
-  100%{transform:scale(1);box-shadow:0 10px 28px rgba(0,0,0,0.33),0 0 16px rgba(255,140,60,0.12),inset 0 1px 0 rgba(255,255,255,0.05)}
+  0%{transform:scale(1);box-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 0 14px rgba(255,140,60,0.18),0 10px 24px rgba(0,0,0,0.35)}
+  45%{transform:scale(1.03);box-shadow:inset 0 1px 0 rgba(255,255,255,0.09),0 0 28px rgba(255,140,60,0.42),0 14px 30px rgba(0,0,0,0.4)}
+  100%{transform:scale(1);box-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 0 14px rgba(255,140,60,0.18),0 10px 24px rgba(0,0,0,0.35)}
 }
 
 /* ── SET ROWS ── */
@@ -315,6 +318,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* ── NAME INPUT MODAL ── */
 .name-input-row{display:flex;gap:8px;margin-top:12px}
 .name-input-row input{flex:1}
+
 
 /* ── LOGIN BACKGROUND (body::before avoids iOS fixed-bg bug) ── */
 body.login-active::before{
