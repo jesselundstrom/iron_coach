@@ -18,6 +18,7 @@
 <body class="login-active">
 
 <div class="toast" id="toast"></div>
+<div class="app" id="app-root">
 
 <!-- REST TIMER BAR -->
 <div class="rest-timer-bar" id="rest-timer-bar">
@@ -68,6 +69,8 @@
     </div>
   </div>
 </div>
+
+<main class="content">
 
 <div class="header">
   <h1>Ironforge</h1>
@@ -227,6 +230,7 @@
     <button class="btn btn-ghost" onclick="showConfirm('Clear All Data','Delete ALL training data? This cannot be undone.',clearAllData)">Clear All Data</button>
   </div>
 </div>
+</main>
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
@@ -247,10 +251,12 @@
     Settings
   </button>
 </nav>
+</div>
 
 <!-- LOGIN SCREEN -->
 <div class="login-page" id="login-screen">
   <canvas id="sparks" aria-hidden="true"></canvas>
+  <div class="login-hero" aria-hidden="true"></div>
   <div class="login-wrap">
     <div class="login-form">
       <input class="login-input" type="email" id="login-email" placeholder="Email" autocomplete="email">
