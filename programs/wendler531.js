@@ -66,7 +66,7 @@ let _readiness = 'default'; // 'default' | 'light' | 'none'
 const WENDLER_531 = {
   id:   'wendler531',
   name: '5/3/1 (Wendler)',
-  description: "Hockey-optimized 5/3/1. Off-season: 5's PRO + BBB. In-season: Minimum reps + Triumvirate.",
+  description: "Classic 4-week strength cycles with auto progression.",
   icon: '💪',
 
   // Leg-containing lifts for hockey fatigue awareness

@@ -5,7 +5,7 @@
 const STRONGLIFTS_5X5={
   id:'stronglifts5x5',
   name:'StrongLifts 5×5',
-  description:'Linear progression A/B alternating, 3×/week. Add weight every session.',
+  description:'Beginner strength builder — add weight every session.',
   icon:'📈',
   legLifts:['squat','deadlift'],
 

@@ -94,7 +94,7 @@ const LEG_LIFTS=['squat','front squat','paused squat','high bar squat','beltless
 const FORGE_PROGRAM={
   id:'forge',
   name:'Forge Protocol',
-  description:'21-week periodization: Hypertrophy → Strength → Peaking. Built for hockey athletes.',
+  description:'21-week periodization built for hockey athletes.',
   icon:'⚒️',
   legLifts:LEG_LIFTS,
 

@@ -99,7 +99,7 @@ function isNextWeek(keyA, keyB) {
 const CASUAL_FULL_BODY = {
   id:          'casualfullbody',
   name:        'Casual Full Body',
-  description: 'Slot-based variety engine: 2-3x/week full body. Exercises rotate each session — always something fresh.',
+  description: 'Flexible full body training, 2-3x/week. No maxes needed.',
   icon:        '🎯',
   dashboardStatsLabel: 'Session Stats',
 
