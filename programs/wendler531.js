@@ -395,7 +395,39 @@ const WENDLER_531 = {
 
   dateCatchUp: null,   // 5/3/1 advances by sessions, not calendar weeks
 
-  // ─── Aux/Back Swap (not used by this program) ────────────────────────────
+  // ─── State Migration (called on load for existing users missing new fields) ─
+  // Safe to call multiple times — only fills in absent keys, never overwrites.
+  migrateState(state) {
+    const s = state;
+    if (s.season        === undefined) s.season           = 'off';
+    if (s.stalledLifts  === undefined) s.stalledLifts      = {};
+    if (s.testWeekPending=== undefined) s.testWeekPending  = false;
+    if (s.tmTestedThisCycle===undefined) s.tmTestedThisCycle = false;
+    if (s.triumvirate   === undefined) s.triumvirate       = JSON.parse(JSON.stringify(W531.defaultTriumvirate));
+    // Ensure each main lift has a category (old state stored name+tm only)
+    if (s.lifts?.main) {
+      const legNames = ['squat','deadlift'];
+      s.lifts.main.forEach(l => {
+        if (!l.category) l.category = legNames.some(n => l.name.toLowerCase().includes(n)) ? 'legs' : 'upper';
+      });
+    }
+    return s;
+  },
+
+  // ─── Workout Metadata Snapshot (saved with each workout record) ────────────
+  // Captures structured state at session time — allows history/analytics queries
+  // without parsing the human-readable programLabel string.
+  getWorkoutMeta(state) {
+    return {
+      week:            state.week    || 1,
+      cycle:           state.cycle   || 1,
+      season:          state.season  || 'off',
+      testWeekPending: !!state.testWeekPending,
+      daysPerWeek:     state.daysPerWeek || 4
+    };
+  },
+
+  // ─── Aux/Back Swap (not used by this program) ─────────────────────────────
   getAuxSwapOptions() { return null; },
   getBackSwapOptions() { return []; },
   onAuxSwap(_si, _n, s) { return s; },

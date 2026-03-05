@@ -69,6 +69,8 @@ async function loadData(){
   // Initialize program states for all registered programs (fills in defaults for new programs)
   if(!profile.programs)profile.programs={};
   Object.values(PROGRAMS).forEach(prog=>{if(!profile.programs[prog.id])profile.programs[prog.id]=prog.getInitialState();});
+  // Backfill new fields for programs that carry existing state (missing keys get safe defaults)
+  Object.values(PROGRAMS).forEach(prog=>{if(prog.migrateState&&profile.programs[prog.id])profile.programs[prog.id]=prog.migrateState(profile.programs[prog.id]);});
   // Apply date-based catch-up for the active program
   const activeProg=getActiveProgram();
   if(activeProg.dateCatchUp&&profile.programs[activeProg.id]){const caught=activeProg.dateCatchUp(profile.programs[activeProg.id]);if(caught!==profile.programs[activeProg.id])profile.programs[activeProg.id]=caught;}
@@ -625,12 +627,15 @@ async function finishWorkout(){
   const prog=getActiveProgram();
   const state=getActiveProgramState();
 
+  // Structured state snapshot at session time (program-agnostic; used by history + analytics)
+  const programMeta=prog.getWorkoutMeta?prog.getWorkoutMeta(state):{week:state.week,cycle:state.cycle};
   // Push workout record (keep legacy forge fields for history backwards-compat)
   workouts.push({id:Date.now(),date:new Date().toISOString(),
     program:prog.id,type:prog.id,
     programOption:activeWorkout.programOption,
     programDayNum:activeWorkout.programDayNum,
     programLabel:activeWorkout.programLabel||'',
+    programMeta,
     forgeWeek:state.week||undefined,forgeDayNum:activeWorkout.programDayNum||undefined,
     duration:workoutSeconds,exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets});
 
@@ -644,10 +649,13 @@ async function finishWorkout(){
   // Advance program state (week, cycle, A/B, etc.)
   const advancedState=prog.advanceState?prog.advanceState(newState,sessionsThisWeek):newState;
 
-  // Toast if Forge week advanced
-  if(prog.id==='forge'&&advancedState.week!==newState.week){
-    const bi=prog.getBlockInfo(advancedState);
-    setTimeout(()=>showToast(prog.name+' · '+bi.name+' · Week '+advancedState.week+' starts next!','var(--purple)'),500);
+  // Toast on week or cycle advance (any program)
+  if(advancedState.cycle!==undefined&&advancedState.cycle!==(newState.cycle)){
+    const bi=prog.getBlockInfo?prog.getBlockInfo(advancedState):{name:''};
+    setTimeout(()=>showToast(prog.name+' · Cycle '+advancedState.cycle+' starting — TMs updated!','var(--purple)'),500);
+  } else if(advancedState.week!==undefined&&advancedState.week!==newState.week){
+    const bi=prog.getBlockInfo?prog.getBlockInfo(advancedState):{name:'',weekLabel:''};
+    setTimeout(()=>showToast(prog.name+' · '+(bi.name||'Week '+advancedState.week)+' up next!','var(--purple)'),500);
   }
 
   setProgramState(prog.id,advancedState);
