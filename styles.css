@@ -368,6 +368,12 @@ body.login-active::before{
   padding-top:6px;
   padding-bottom:10px;
 }
+@media (max-width:480px) and (orientation:portrait){
+  .login-hero{
+    min-height:clamp(200px,32vh,280px);
+    max-height:clamp(220px,36vh,310px);
+  }
+}
 .login-wrap{
   position:relative;
   z-index:3;
@@ -404,6 +410,14 @@ body.login-active::before{
   transition:border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .login-input::placeholder{color:rgba(223,228,240,0.38)}
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus{
+  -webkit-box-shadow:0 0 0 1000px rgba(15,18,28,0.85) inset;
+  -webkit-text-fill-color:rgba(255,255,255,0.92);
+  caret-color:rgba(255,255,255,0.92);
+  transition:background-color 5000s ease-in-out 0s;
+}
 .login-input:focus{
   border-color:rgba(255,122,58,0.76);
   box-shadow:0 0 0 3px rgba(255,122,58,0.16), 0 12px 28px rgba(0,0,0,0.25);
