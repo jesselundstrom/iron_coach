@@ -81,11 +81,13 @@ async function initAuth(){
 }
 
 function showLoginScreen(){
+  document.body.classList.add('login-active');
   document.getElementById('login-screen').style.display='flex';
   if(typeof window.startLoginSparks==='function')window.startLoginSparks();
 }
 
 function hideLoginScreen(){
+  document.body.classList.remove('login-active');
   document.getElementById('login-screen').style.display='none';
   if(typeof window.stopLoginSparks==='function')window.stopLoginSparks();
   const el=document.getElementById('account-email');
