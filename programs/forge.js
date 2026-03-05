@@ -99,7 +99,7 @@ const FORGE_PROGRAM={
   legLifts:LEG_LIFTS,
 
   getInitialState(){
-    return{week:1,dayNum:1,daysPerWeek:3,mode:'sets',rounding:2.5,weekStartDate:new Date().toISOString(),backExercise:'Barbell Rows',backWeight:0,
+    return{week:1,dayNum:1,daysPerWeek:3,mode:'sets',rounding:2.5,skipPeakBlock:false,weekStartDate:new Date().toISOString(),backExercise:'Barbell Rows',backWeight:0,
       lifts:{main:[{name:'Squat',tm:100},{name:'Bench Press',tm:80},{name:'Deadlift',tm:120},{name:'OHP',tm:50}],
         aux:[{name:'Front Squat',tm:80},{name:'Pause Squat',tm:90},{name:'Close-Grip Bench',tm:70},{name:'Spoto Press',tm:75},{name:'Stiff Leg Deadlift',tm:100},{name:'Push Press',tm:50}]}};
   },
@@ -173,7 +173,8 @@ const FORGE_PROGRAM={
     else if(mode==='sets')modeDesc='Do sets of '+reps+' until RIR ≤'+rir+'. Aim for 4-6 sets.';
     else if(mode==='rtf')modeDesc=reps+' reps × 4 sets, then AMRAP last set (target '+(reps*2)+'+).';
     else if(mode==='rir')modeDesc='5 sets of '+reps+'. Note reps left in tank on last set.';
-    return{name:FORGE_INTERNAL.blockNames[week]||'',weekLabel:'Week '+week,pct,isDeload,totalWeeks:21,mode,modeName:FORGE_INTERNAL.modes[mode]?.short||'Sets',modeDesc,reps,rir};
+    if(state.skipPeakBlock&&week===14)modeDesc+=' Peak block skipped — program restarts from Hypertrophy after this deload.';
+    return{name:FORGE_INTERNAL.blockNames[week]||'',weekLabel:'Week '+week,pct,isDeload,totalWeeks:state.skipPeakBlock?14:21,mode,modeName:FORGE_INTERNAL.modes[mode]?.short||'Sets',modeDesc,reps,rir};
   },
 
   adjustAfterSession(exercises,state){
@@ -198,7 +199,10 @@ const FORGE_PROGRAM={
   advanceState(state,sessionsThisWeek){
     const freq=state.daysPerWeek||3,week=state.week||1;
     if(sessionsThisWeek>=freq&&week<21){
-      return{...state,week:week+1,weekStartDate:new Date().toISOString()};
+      const next=week+1;
+      // Skip peak block (weeks 15-20): jump back to week 1 after the strength deload
+      if(state.skipPeakBlock&&next===15)return{...state,week:1,weekStartDate:new Date().toISOString()};
+      return{...state,week:next,weekStartDate:new Date().toISOString()};
     }
     return state;
   },
@@ -206,7 +210,12 @@ const FORGE_PROGRAM={
   dateCatchUp(state){
     const week=state.week||1;if(week>=21)return state;
     const daysSince=(Date.now()-new Date(state.weekStartDate||Date.now()).getTime())/864e5;
-    if(daysSince>=7){const elapsed=Math.floor(daysSince/7);return{...state,week:Math.min(21,week+elapsed),weekStartDate:new Date().toISOString()};}
+    if(daysSince>=7){
+      const elapsed=Math.floor(daysSince/7);
+      let next=Math.min(21,week+elapsed);
+      if(state.skipPeakBlock&&next>=15)next=1;
+      return{...state,week:next,weekStartDate:new Date().toISOString()};
+    }
     return state;
   },
 
@@ -240,7 +249,7 @@ const FORGE_PROGRAM={
   },
 
   renderSettings(state,container){
-    const week=state.week||1,mode=state.mode||'sets',rounding=state.rounding||2.5,freq=state.daysPerWeek||3;
+    const week=state.week||1,mode=state.mode||'sets',rounding=state.rounding||2.5,freq=state.daysPerWeek||3,skipPeak=!!state.skipPeakBlock;
     const backEx=state.backExercise||'Barbell Rows',backWt=state.backWeight||0;
     const lifts=state.lifts;
     const modeOpts=Object.entries(FORGE_INTERNAL.modes).map(([k,v])=>`<option value="${k}"${k===mode?' selected':''}>${v.name} — ${v.desc}</option>`).join('');
@@ -257,6 +266,18 @@ const FORGE_PROGRAM={
         <input type="number" id="prog-week" min="1" max="21" value="${week}" style="flex:1">
         <button class="btn btn-sm btn-secondary" onclick="document.getElementById('prog-week').value=1" style="width:auto">Reset</button>
       </div>
+
+      <label style="margin-top:14px">Peak Block (Weeks 15–20) <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+        The highest-intensity phase. Skip it to loop back to Hypertrophy after the Strength deload — runs as a continuous 14-week cycle.
+      </div>
+      <input type="hidden" id="prog-skip-peak" value="${skipPeak?'1':'0'}">
+      <button class="btn ${skipPeak?'btn-primary':'btn-secondary'}" id="forge-skip-peak-btn"
+        onclick="window._forgeToggleSkipPeak()"
+        style="width:100%;text-align:left;padding:10px 14px">
+        ${skipPeak?'🏃 Peak Block skipped — program loops to Hypertrophy after Strength':'🏔️ Skip Peak Block — loop back after Strength instead of peaking'}
+      </button>
+
       <label style="margin-top:12px">Weight Rounding (kg)</label>
       <select id="prog-rounding">${roundOpts}</select>
       <label style="margin-top:12px">Sessions Per Week</label>
@@ -313,10 +334,25 @@ const FORGE_PROGRAM={
     const week=parseInt(document.getElementById('prog-week')?.value)||1;
     const rounding=parseFloat(document.getElementById('prog-rounding')?.value)||2.5;
     const daysPerWeek=parseInt(document.getElementById('prog-days')?.value)||3;
+    const skipPeakBlock=document.getElementById('prog-skip-peak')?.value==='1';
     const backExercise=document.getElementById('prog-back-exercise')?.value||'Barbell Rows';
     const backWeight=parseFloat(document.getElementById('prog-back-weight')?.value)||0;
-    return{...state,mode,week,rounding,daysPerWeek,dayNum:1,backExercise,backWeight};
+    return{...state,mode,week,rounding,daysPerWeek,dayNum:1,skipPeakBlock,backExercise,backWeight};
   }
+};
+
+// Peak block toggle button (called from rendered HTML)
+window._forgeToggleSkipPeak=function(){
+  const hidden=document.getElementById('prog-skip-peak');
+  const btn=document.getElementById('forge-skip-peak-btn');
+  if(!hidden||!btn)return;
+  const next=hidden.value!=='1';
+  hidden.value=next?'1':'0';
+  btn.className='btn '+(next?'btn-primary':'btn-secondary');
+  btn.style.cssText='width:100%;text-align:left;padding:10px 14px';
+  btn.textContent=next
+    ?'🏃 Peak Block skipped — program loops to Hypertrophy after Strength'
+    :'🏔️ Skip Peak Block — loop back after Strength instead of peaking';
 };
 
 registerProgram(FORGE_PROGRAM);
