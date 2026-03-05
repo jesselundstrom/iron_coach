@@ -23,18 +23,21 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',system-ui,-appl
 .page.active{display:block}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .header{padding:20px 16px 10px;max-width:520px;margin:0 auto}
-.header h1{font-size:28px;font-weight:900;letter-spacing:-0.5px;background:linear-gradient(120deg,#FF7A3A 0%,#FFB27A 60%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header h1{font-size:28px;font-weight:900;letter-spacing:-0.5px;background:linear-gradient(120deg,#FF7A3A 0%,#FFB27A 60%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 18px rgba(255,122,58,0.22))}
 .header p{color:var(--muted);font-size:13px;margin-top:2px;font-weight:500}
 
 /* ── CARDS ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 4px 24px rgba(0,0,0,0.3);transition:border-color 0.2s,box-shadow 0.2s}
 .card:hover{border-color:rgba(255,255,255,0.12);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
 .card-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;font-weight:700}
+.card-title::before{content:'◆ ';color:var(--accent);opacity:0.5;font-size:7px;vertical-align:middle;letter-spacing:0}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:var(--radius);border:none;font-size:15px;font-weight:700;cursor:pointer;width:100%;font-family:inherit;transition:transform 0.1s,opacity 0.15s,box-shadow 0.2s}
 .btn:active{transform:scale(0.97);opacity:0.9}
-.btn-primary{background:linear-gradient(90deg,#E36A2C,#FF8A3A);color:white;min-height:52px;box-shadow:0 4px 24px rgba(255,122,58,0.3),0 1px 0 rgba(255,255,255,0.08) inset}
+.btn-primary{background:linear-gradient(90deg,#E36A2C,#FF8A3A);color:white;min-height:52px;box-shadow:0 4px 24px rgba(255,122,58,0.3),0 1px 0 rgba(255,255,255,0.08) inset;position:relative;overflow:hidden}
+.btn-primary::after{content:'';position:absolute;top:0;bottom:0;width:50%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);transform:skewX(-20deg);animation:forgeShimmer 5s ease-in-out infinite;pointer-events:none}
+@keyframes forgeShimmer{0%{left:-60%}30%{left:160%}100%{left:160%}}
 .btn-primary:hover{box-shadow:0 6px 32px rgba(255,122,58,0.4),0 1px 0 rgba(255,255,255,0.08) inset}
 .btn-secondary{background:transparent;color:var(--accent);border:1px solid rgba(255,122,58,0.5)}
 .btn-secondary:hover{background:rgba(255,122,58,0.06)}
@@ -82,6 +85,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .lifts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .lift-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;position:relative;overflow:hidden}
 .lift-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--gold));opacity:0.7}
+.lift-stat:hover{border-color:rgba(255,122,58,0.22);box-shadow:0 0 22px rgba(255,122,58,0.1)}
 .lift-stat .value{font-size:28px;font-weight:900;color:var(--gold);font-family:'JetBrains Mono',monospace;letter-spacing:-1px}
 .lift-stat .label{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:1px;font-weight:600}
 
@@ -90,6 +94,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .set-num{font-size:12px;color:var(--muted);min-width:20px;font-family:'JetBrains Mono',monospace;font-weight:700}
 .set-row input{text-align:center;font-size:15px}
 .set-check{width:36px;height:36px;border-radius:10px;border:2px solid var(--border);background:transparent;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.2s;color:transparent;position:relative;overflow:visible}
+.set-check:hover:not(.done){border-color:rgba(255,122,58,0.45);box-shadow:0 0 0 3px rgba(255,122,58,0.08),0 0 12px rgba(255,122,58,0.12)}
 .set-check.done{background:var(--green);border-color:var(--green);color:white;box-shadow:0 2px 10px rgba(52,211,153,0.3)}
 @keyframes hammerSwing{0%{transform:translate(14px,-8px) rotate(55deg);opacity:1}58%{transform:translate(2px,49px) rotate(-6deg);opacity:1}75%{transform:translate(1px,42px) rotate(-2deg);opacity:1}88%{transform:translate(1px,44px) rotate(-4deg);opacity:0.7}100%{transform:translate(1px,44px) rotate(-4deg);opacity:0}}
 @keyframes setStamp{0%{transform:scale(0.6)}55%{transform:scale(1.18)}78%{transform:scale(0.95)}100%{transform:scale(1)}}
@@ -112,7 +117,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .rest-timer-ring{width:44px;height:44px;flex-shrink:0}
 .rest-timer-info{flex:1}
 .rest-timer-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:600}
-.rest-timer-count{font-size:26px;font-weight:900;color:var(--gold);line-height:1;font-family:'JetBrains Mono',monospace}
+.rest-timer-count{font-size:26px;font-weight:900;color:var(--accent);line-height:1;font-family:'JetBrains Mono',monospace}
 .rest-timer-count.warning{color:var(--orange)}
 .rest-timer-count.done{color:var(--green)}
 .rest-skip-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--muted);font-size:12px;cursor:pointer;font-weight:600;font-family:inherit}
@@ -143,7 +148,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 /* ── MISC ── */
 .progress-bar{background:var(--surface2);border-radius:99px;height:6px;overflow:hidden;margin-top:8px}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width 0.6s ease}
+.progress-fill{height:100%;background:linear-gradient(90deg,#E36A2C,#FF8A3A);border-radius:99px;transition:width 0.6s ease;position:relative;overflow:hidden}
+.progress-fill::after{content:'';position:absolute;top:0;bottom:0;width:60%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.28),transparent);animation:progressShimmer 2.4s ease-in-out infinite;pointer-events:none}
+@keyframes progressShimmer{from{left:-60%}to{left:140%}}
 .tabs{display:flex;gap:4px;background:var(--surface2);border-radius:12px;padding:4px;margin-bottom:16px;border:1px solid var(--border)}
 .tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:600;border-radius:9px;cursor:pointer;color:var(--muted);transition:all 0.2s}
 .tab.active{background:var(--surface);color:var(--text);box-shadow:0 2px 12px rgba(0,0,0,0.3)}
@@ -158,6 +165,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .empty-state{text-align:center;padding:48px 24px;color:var(--muted);font-size:14px;font-weight:500}
 .divider-label{display:flex;align-items:center;gap:10px;margin:18px 0}
 .divider-label span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;white-space:nowrap;font-weight:600}
+.divider-label span::before{content:'✦ ';color:var(--accent);opacity:0.55;font-size:8px;vertical-align:middle;letter-spacing:0}
 .divider-label::before,.divider-label::after{content:'';flex:1;border-top:1px solid var(--border)}
 .quick-log-row{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px}
 .quick-log-card{border-radius:var(--radius);padding:14px 18px;cursor:pointer;border:2px solid transparent;transition:all 0.15s;display:flex;align-items:center;gap:14px}
@@ -257,7 +265,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
 .heatmap-day-label{text-align:center;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;padding-bottom:2px}
 .heatmap-cell{aspect-ratio:1;border-radius:3px;background:var(--surface2)}
-.heatmap-cell.lift{background:var(--accent2)}
+.heatmap-cell.lift{background:var(--accent2);box-shadow:0 0 6px rgba(255,122,58,0.35)}
 .heatmap-cell.hockey{background:var(--blue)}
 .heatmap-cell.sport{background:var(--blue)}
 .heatmap-cell.both{background:var(--purple)}

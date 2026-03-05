@@ -80,10 +80,14 @@ async function initAuth(){
   });
 }
 
-function showLoginScreen(){document.getElementById('login-screen').style.display='flex';}
+function showLoginScreen(){
+  document.getElementById('login-screen').style.display='flex';
+  if(typeof window.startLoginSparks==='function')window.startLoginSparks();
+}
 
 function hideLoginScreen(){
   document.getElementById('login-screen').style.display='none';
+  if(typeof window.stopLoginSparks==='function')window.stopLoginSparks();
   const el=document.getElementById('account-email');
   if(el)el.textContent=currentUser?.email??'';
 }
