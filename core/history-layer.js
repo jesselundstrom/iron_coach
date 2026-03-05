@@ -369,17 +369,23 @@ function deleteWorkout(id){
   const label=isSportWorkout(w)?(schedule.sportName||'Sport')+' session':'Workout';
   const dateStr=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
   showConfirm('Delete '+label,'Remove '+label.toLowerCase()+' from '+dateStr+'?',async()=>{
+    const programsBackup=JSON.parse(JSON.stringify(profile.programs||{}));
     const backup=workouts.find(x=>x.id===id);
+    const affectedProgramId=getWorkoutProgramId(backup);
     workouts=workouts.filter(x=>x.id!==id);
     buildExerciseIndex();
+    if(affectedProgramId)recomputeProgramStateFromWorkouts(affectedProgramId);
     await saveWorkouts();
-    renderHistory();updateStats();updateDashboard();
+    await saveProfileData();
+    renderHistory();updateStats();updateDashboard();updateProgramDisplay();
     showToast('Session deleted','var(--muted)',async()=>{
       workouts.push(backup);
       workouts.sort((a,b)=>new Date(a.date)-new Date(b.date));
+      profile.programs=programsBackup;
       buildExerciseIndex();
       await saveWorkouts();
-      renderHistory();updateStats();updateDashboard();
+      await saveProfileData();
+      renderHistory();updateStats();updateDashboard();updateProgramDisplay();
       showToast('Session restored!','var(--green)');
     });
   });

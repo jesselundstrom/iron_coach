@@ -246,16 +246,21 @@ async function finishWorkout(){
 
   const prog=getActiveProgram();
   const state=getActiveProgramState();
+  const stateBeforeSession=JSON.parse(JSON.stringify(state));
 
   // Structured state snapshot at session time (program-agnostic; used by history + analytics)
   const programMeta=prog.getWorkoutMeta?prog.getWorkoutMeta(state):{week:state.week,cycle:state.cycle};
+  const workoutId=Date.now();
+  const workoutDate=new Date().toISOString();
+
   // Push workout record (keep legacy forge fields for history backwards-compat)
-  workouts.push({id:Date.now(),date:new Date().toISOString(),
+  workouts.push({id:workoutId,date:workoutDate,
     program:prog.id,type:prog.id,
     programOption:activeWorkout.programOption,
     programDayNum:activeWorkout.programDayNum,
     programLabel:activeWorkout.programLabel||'',
     programMeta,
+    programStateBefore:stateBeforeSession,
     forgeWeek:state.week||undefined,forgeDayNum:activeWorkout.programDayNum||undefined,
     duration:workoutSeconds,exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets});
 
@@ -268,6 +273,8 @@ async function finishWorkout(){
 
   // Advance program state (week, cycle, A/B, etc.)
   const advancedState=prog.advanceState?prog.advanceState(newState,sessionsThisWeek):newState;
+  const savedWorkout=workouts[workouts.length-1];
+  if(savedWorkout)savedWorkout.programStateAfter=JSON.parse(JSON.stringify(advancedState));
 
   // Toast on week or cycle advance (any program)
   if(advancedState.cycle!==undefined&&advancedState.cycle!==(newState.cycle)){

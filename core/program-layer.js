@@ -6,6 +6,48 @@ function registerProgram(p){PROGRAMS[p.id]=p;}
 function getActiveProgram(){return PROGRAMS[profile.activeProgram||'forge']||PROGRAMS.forge||Object.values(PROGRAMS)[0]||{};}
 function getActiveProgramState(){return profile.programs?.[profile.activeProgram||'forge']||{};}
 function setProgramState(id,state){if(!profile.programs)profile.programs={};profile.programs[id]=state;}
+function getWorkoutProgramId(w){
+  if(!w)return null;
+  if(w.program)return w.program;
+  if(!w.type||w.type==='sport'||w.type==='hockey')return null;
+  return w.type;
+}
+function recomputeProgramStateFromWorkouts(programId){
+  const prog=PROGRAMS[programId];
+  if(!prog)return null;
+  if(!profile.programs)profile.programs={};
+
+  const programWorkouts=workouts
+    .filter(w=>getWorkoutProgramId(w)===programId)
+    .sort((a,b)=>{
+      const d=new Date(a.date)-new Date(b.date);
+      if(d!==0)return d;
+      return (a.id||0)-(b.id||0);
+    });
+
+  let state=programWorkouts[0]?.programStateBefore
+    ? JSON.parse(JSON.stringify(programWorkouts[0].programStateBefore))
+    : (prog.getInitialState?prog.getInitialState():{});
+  if(prog.migrateState)state=prog.migrateState(state);
+
+  programWorkouts.forEach((w,idx)=>{
+    const exercises=Array.isArray(w.exercises)?w.exercises:[];
+    if(prog.adjustAfterSession)state=prog.adjustAfterSession(exercises,state,w.programOption);
+    if(prog.advanceState){
+      const wd=new Date(w.date);
+      const sow=new Date(wd);
+      sow.setDate(wd.getDate()-((wd.getDay()+6)%7));
+      sow.setHours(0,0,0,0);
+      const sessionsThisWeek=programWorkouts
+        .slice(0,idx+1)
+        .filter(sw=>new Date(sw.date)>=sow).length;
+      state=prog.advanceState(state,sessionsThisWeek);
+    }
+  });
+
+  profile.programs[programId]=state;
+  return state;
+}
 
 function renderProgramSwitcher(){
   const container=document.getElementById('program-switcher-container');if(!container)return;
