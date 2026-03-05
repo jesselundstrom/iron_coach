@@ -253,18 +253,22 @@ const CASUAL_FULL_BODY = {
     const last   = state.lastExercisesUsed || [];
 
     const todayDow          = new Date().getDay();
-    const isHockeyDay       = schedule?.hockeyDays?.includes(todayDow);
-    const hadHockeyRecently = workouts?.some(w =>
-      w.type === 'hockey' && (Date.now() - new Date(w.date).getTime()) / 3600000 <= 30
+    const sportDays         = schedule?.sportDays||schedule?.hockeyDays||[];
+    const legsHeavy         = schedule?.sportLegsHeavy!==false;
+    const recentHours       = {easy:18,moderate:24,hard:30}[schedule?.sportIntensity||'hard'];
+    const sportName         = schedule?.sportName||'Sport';
+    const isSportDay        = sportDays.includes(todayDow);
+    const hadSportRecently  = workouts?.some(w =>
+      (w.type === 'sport' || w.type === 'hockey') && (Date.now() - new Date(w.date).getTime()) / 3600000 <= recentHours
     );
 
-    if (isHockeyDay || hadHockeyRecently) {
+    if ((isSportDay || hadSportRecently) && legsHeavy) {
+      const sportLabel = isSportDay ? sportName+' day' : 'Post-'+sportName.toLowerCase();
       return {
         style:  'rgba(59,130,246,0.1)',
         border: 'rgba(59,130,246,0.25)',
         color:  'var(--blue)',
-        html:   (isHockeyDay ? 'Hockey day' : 'Post-hockey')
-              + ' — session includes Squats &amp; Hinges. Consider going lighter or resting today.'
+        html:   '🏃 '+sportLabel+' — session includes Squats &amp; Hinges. Consider going lighter or resting today.'
       };
     }
 

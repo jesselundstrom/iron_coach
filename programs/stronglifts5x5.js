@@ -94,13 +94,18 @@ const STRONGLIFTS_5X5={
     const next=state.nextWorkout||'A',sc=state.sessionCount||0;
     const lifts=state.lifts||{};
     const sqWt=(lifts.squat?.weight||0)+'kg';
-    // Hockey awareness: both A and B include Squat (leg-heavy)
+    // Sport awareness: both A and B include Squat (leg-heavy)
     const todayDow=new Date().getDay();
-    const isHockeyDay=schedule&&schedule.hockeyDays.includes(todayDow);
-    const hadHockeyRecently=workouts&&workouts.some(w=>w.type==='hockey'&&(Date.now()-new Date(w.date).getTime())/3600000<=30);
-    if(isHockeyDay||hadHockeyRecently){
+    const sportDays=schedule?.sportDays||schedule?.hockeyDays||[];
+    const legsHeavy=schedule?.sportLegsHeavy!==false;
+    const recentHours={easy:18,moderate:24,hard:30}[schedule?.sportIntensity||'hard'];
+    const sportName=schedule?.sportName||'Sport';
+    const isSportDay=schedule&&sportDays.includes(todayDow);
+    const hadSportRecently=workouts&&workouts.some(w=>(w.type==='sport'||w.type==='hockey')&&(Date.now()-new Date(w.date).getTime())/3600000<=recentHours);
+    if((isSportDay||hadSportRecently)&&legsHeavy){
+      const sportLabel=isSportDay?sportName+' day':'Post-'+sportName.toLowerCase();
       return{style:'rgba(59,130,246,0.1)',border:'rgba(59,130,246,0.25)',color:'var(--blue)',
-        html:'🏒 '+(isHockeyDay?'Hockey day':'Post-hockey')+' — both workouts include Squat. Consider going lighter or resting today.'};
+        html:'🏃 '+sportLabel+' — both workouts include Squat. Consider going lighter or resting today.'};
     }
     return{style:'rgba(167,139,250,0.08)',border:'rgba(167,139,250,0.15)',color:'var(--purple)',html:'📈 Session '+(sc+1)+' · <strong>Workout '+next+'</strong> is next · Squat: '+sqWt};
   },

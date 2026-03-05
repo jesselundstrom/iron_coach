@@ -468,22 +468,27 @@ const WENDLER_531 = {
       };
     }
 
-    // Hockey awareness — warn if recommended session is leg-heavy
+    // Sport awareness — warn if recommended session is leg-heavy
     const todayDow = new Date().getDay();
-    const isHockeyDay      = schedule?.hockeyDays?.includes(todayDow);
-    const hadHockeyRecently = workouts?.some(w =>
-      w.type==='hockey' && (Date.now()-new Date(w.date).getTime())/3600000 <= 30
+    const sportDays = schedule?.sportDays||schedule?.hockeyDays||[];
+    const legsHeavy = schedule?.sportLegsHeavy!==false;
+    const recentHours = {easy:18,moderate:24,hard:30}[schedule?.sportIntensity||'hard'];
+    const sportName = schedule?.sportName||'Sport';
+    const isSportDay = sportDays.includes(todayDow);
+    const hadSportRecently = workouts?.some(w =>
+      (w.type==='sport'||w.type==='hockey') && (Date.now()-new Date(w.date).getTime())/3600000 <= recentHours
     );
-    if ((isHockeyDay||hadHockeyRecently) && bestOpt) {
+    if ((isSportDay||hadSportRecently) && legsHeavy && bestOpt) {
       const liftIdxes = this._dayLifts(parseInt(bestOpt.value), freq);
       const hasLegs   = liftIdxes.some(i => state.lifts?.main?.[i]?.category==='legs');
       if (hasLegs) {
         const upperOpt = options.find(o => !o.done &&
           this._dayLifts(parseInt(o.value),freq).every(i => state.lifts?.main?.[i]?.category==='upper')
         );
+        const sportLabel = isSportDay ? sportName+' day' : 'Post-'+sportName.toLowerCase();
         return {
           style:'rgba(59,130,246,0.1)', border:'rgba(59,130,246,0.25)', color:'var(--blue)',
-          html: '🏒 '+(isHockeyDay?'Hockey day':'Post-hockey')
+          html: '🏃 '+sportLabel
               +' — recommended session is leg-heavy. '
               +(upperOpt?'Consider <strong>'+upperOpt.label+'</strong> instead.':'Only leg sessions remain — go lighter or rest today.')
         };

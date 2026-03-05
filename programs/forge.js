@@ -94,7 +94,7 @@ const LEG_LIFTS=['squat','front squat','paused squat','high bar squat','beltless
 const FORGE_PROGRAM={
   id:'forge',
   name:'Forge Protocol',
-  description:'21-week periodization built for hockey athletes.',
+  description:'21-week periodization for strength athletes.',
   icon:'⚒️',
   legLifts:LEG_LIFTS,
 
@@ -107,9 +107,12 @@ const FORGE_PROGRAM={
   getSessionOptions(state,workouts,schedule){
     const freq=state.daysPerWeek||3,week=state.week||1,lifts=state.lifts;
     const todayDow=new Date().getDay();
-    const isHockeyDay=schedule.hockeyDays.includes(todayDow);
-    const hadHockeyRecently=workouts.some(w=>w.type==='hockey'&&(Date.now()-new Date(w.date).getTime())/3600000<=30);
-    const hockeyLegs=isHockeyDay||hadHockeyRecently;
+    const sportDays=schedule?.sportDays||schedule?.hockeyDays||[];
+    const legsHeavy=schedule?.sportLegsHeavy!==false;
+    const recentHours={easy:18,moderate:24,hard:30}[schedule?.sportIntensity||'hard'];
+    const isSportDay=sportDays.includes(todayDow);
+    const hadSportRecently=workouts.some(w=>(w.type==='sport'||w.type==='hockey')&&(Date.now()-new Date(w.date).getTime())/3600000<=recentHours);
+    const sportLegs=(isSportDay||hadSportRecently)&&legsHeavy;
     const now=new Date(),sow=new Date(now);sow.setDate(now.getDate()-((now.getDay()+6)%7));sow.setHours(0,0,0,0);
     const doneThisWeek=workouts.filter(w=>(w.program==='forge'||(!w.program&&w.type==='forge'))&&new Date(w.date)>=sow).map(w=>w.programDayNum||w.forgeDayNum);
     let bestDay=1,bestScore=-999;
@@ -119,7 +122,7 @@ const FORGE_PROGRAM={
       const hasLegs=exs.some(e=>LEG_LIFTS.includes(e.name.toLowerCase()));
       const done=doneThisWeek.includes(d);
       let score=0;
-      if(done)score-=100;if(hockeyLegs&&hasLegs)score-=30;if(!done)score+=10;if(!hasLegs&&hockeyLegs)score+=15;
+      if(done)score-=100;if(sportLegs&&hasLegs)score-=30;if(!done)score+=10;if(!hasLegs&&sportLegs)score+=15;
       dayScores.push({d,hasLegs,done,score});
       if(score>bestScore){bestScore=score;bestDay=d;}
     }
@@ -128,9 +131,9 @@ const FORGE_PROGRAM={
       const label=exs.map(e=>e.name).join(' + ');
       const badges=[];
       if(done)badges.push('✅');
-      if(hockeyLegs&&hasLegs&&!FORGE_INTERNAL.deloadWeeks.includes(week))badges.push('🏒⚠️');
+      if(sportLegs&&hasLegs&&!FORGE_INTERNAL.deloadWeeks.includes(week))badges.push('🏃⚠️');
       if(d===bestDay&&!done)badges.push('⭐');
-      return{value:String(d),label:badges.join('')+' Day '+d+': '+label,isRecommended:d===bestDay,done,hasLegs,hockeyLegs};
+      return{value:String(d),label:badges.join('')+' Day '+d+': '+label,isRecommended:d===bestDay,done,hasLegs,sportLegs};
     });
   },
 
@@ -235,15 +238,20 @@ const FORGE_PROGRAM={
     const doneCount=options.filter(o=>o.done).length;
     const allDone=options.every(o=>o.done);
     const todayDow=new Date().getDay();
-    const isHockeyDay=schedule.hockeyDays.includes(todayDow);
-    const hadHockeyRecently=workouts.some(w=>w.type==='hockey'&&(Date.now()-new Date(w.date).getTime())/3600000<=30);
-    const hockeyLegs=isHockeyDay||hadHockeyRecently;
+    const sportDays=schedule?.sportDays||schedule?.hockeyDays||[];
+    const legsHeavy=schedule?.sportLegsHeavy!==false;
+    const recentHours={easy:18,moderate:24,hard:30}[schedule?.sportIntensity||'hard'];
+    const sportName=schedule?.sportName||'Sport';
+    const isSportDay=sportDays.includes(todayDow);
+    const hadSportRecently=workouts.some(w=>(w.type==='sport'||w.type==='hockey')&&(Date.now()-new Date(w.date).getTime())/3600000<=recentHours);
+    const sportLegs=(isSportDay||hadSportRecently)&&legsHeavy;
+    const sportLabel=isSportDay?sportName+' day':'Post-'+sportName.toLowerCase();
     const recovery=fatigue?100-fatigue.overall:100;
     const bestOpt=options.find(o=>o.isRecommended);
     const left=freq-doneCount;
     if(allDone)return{style:'rgba(34,197,94,0.1)',border:'rgba(34,197,94,0.25)',color:'var(--green)',html:'✅ All '+freq+' sessions done this week! Rest up and recover.'};
-    if(hockeyLegs&&bestOpt&&!bestOpt.hasLegs)return{style:'rgba(59,130,246,0.1)',border:'rgba(59,130,246,0.25)',color:'var(--blue)',html:'🏒 '+(isHockeyDay?'Hockey day':'Post-hockey')+' — recommending <strong>Day '+bestOpt.value+'</strong> (upper-focused). Spare those legs.'};
-    if(hockeyLegs&&bestOpt&&bestOpt.hasLegs)return{style:'rgba(251,146,60,0.1)',border:'rgba(251,146,60,0.25)',color:'var(--orange)',html:'🏒 Hockey legs but only leg days remain. Go lighter or rest today.'};
+    if(sportLegs&&bestOpt&&!bestOpt.hasLegs)return{style:'rgba(59,130,246,0.1)',border:'rgba(59,130,246,0.25)',color:'var(--blue)',html:'🏃 '+sportLabel+' — recommending <strong>Day '+bestOpt.value+'</strong> (upper-focused). Spare those legs.'};
+    if(sportLegs&&bestOpt&&bestOpt.hasLegs)return{style:'rgba(251,146,60,0.1)',border:'rgba(251,146,60,0.25)',color:'var(--orange)',html:'🏃 '+sportName+' legs but only leg days remain. Go lighter or rest today.'};
     if(recovery<40)return{style:'rgba(251,146,60,0.1)',border:'rgba(251,146,60,0.25)',color:'var(--orange)',html:'⚠️ Recovery '+recovery+'% — consider resting. If training, <strong>Day '+(bestOpt?.value||1)+'</strong> is next.'};
     return{style:'rgba(167,139,250,0.08)',border:'rgba(167,139,250,0.15)',color:'var(--purple)',html:'⭐ Recommended: <strong>Day '+(bestOpt?.value||1)+'</strong> · '+left+' session'+(left!==1?'s':'')+' left this week · Recovery '+recovery+'%'};
   },

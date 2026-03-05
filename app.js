@@ -9,7 +9,7 @@ let currentUser=null;
 
 // ── STATE (persisted via localStorage) ──────────
 let workouts=[];
-let schedule={hockeyDays:[]};
+let schedule={sportName:'Hockey',sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
 let profile={defaultRest:120};
 let activeWorkout=null, workoutTimer=null, workoutSeconds=0;
 let restInterval=null, restSecondsLeft=0, restTotal=0, restDuration=120;
@@ -35,10 +35,16 @@ const FATIGUE_CONFIG={
   muscularBase:40,muscularDecay:15,
   cnsBase:50,cnsDecay:20,
   setsWeight:3,
-  hockeyMuscularBonus:20,hockeyCnsBonus:15,
-  rpeWeight:8,extraHockeyCns:10,
-  hockeyRecentHours:30
+  rpeWeight:8
 };
+
+// Sport/cardio intensity fatigue bonuses
+const SPORT_INTENSITY={
+  easy:    {muscularBonus:6, cnsBonus:4, extraCns:2, recentHours:18},
+  moderate:{muscularBonus:12,cnsBonus:9, extraCns:5, recentHours:24},
+  hard:    {muscularBonus:20,cnsBonus:15,extraCns:10,recentHours:30},
+};
+function getSportConfig(){return SPORT_INTENSITY[schedule.sportIntensity||'hard']||SPORT_INTENSITY.hard;}
 
 
 
@@ -54,8 +60,12 @@ async function loadData(){
     try{localStorage.setItem('ic_schedule',JSON.stringify(schedule));}catch(e){}
     try{localStorage.setItem('ic_profile',JSON.stringify(profile));}catch(e){}
   }
-  // Ensure schedule shape is valid after local + cloud load
-  if(!schedule.hockeyDays)schedule.hockeyDays=[];
+  // Migrate legacy hockeyDays → sportDays (one-time migration)
+  if(schedule.hockeyDays&&!schedule.sportDays){schedule.sportDays=schedule.hockeyDays;delete schedule.hockeyDays;}
+  if(!schedule.sportDays)schedule.sportDays=[];
+  if(!schedule.sportName)schedule.sportName='Hockey';
+  if(!schedule.sportIntensity)schedule.sportIntensity='hard';
+  if(schedule.sportLegsHeavy===undefined)schedule.sportLegsHeavy=true;
   // Migrate legacy ats* keys to forge* (one-time migration)
   if(profile.atsLifts&&!profile.forgeLifts){profile.forgeLifts=profile.atsLifts;profile.forgeWeek=profile.atsWeek||1;profile.forgeRounding=profile.atsRounding||2.5;profile.forgeDaysPerWeek=profile.atsDaysPerWeek||3;profile.forgeDayNum=profile.atsDayNum||1;profile.forgeBackExercise=profile.atsBackExercise||'Barbell Rows';profile.forgeBackWeight=profile.atsBackWeight||0;profile.forgeMode=profile.atsMode||'sets';profile.forgeWeekStartDate=profile.atsWeekStartDate||new Date().toISOString();}
   workouts.forEach(w=>{if(w.type==='ats'){w.type='forge';if(w.atsWeek){w.forgeWeek=w.atsWeek;}if(w.atsDayNum){w.forgeDayNum=w.atsDayNum;}}});
@@ -65,7 +75,7 @@ async function loadData(){
     profile.activeProgram='forge';
   }
   // Stamp old workout records with program field
-  workouts.forEach(w=>{if(!w.program&&w.type&&w.type!=='hockey')w.program=w.type;});
+  workouts.forEach(w=>{if(!w.program&&w.type&&w.type!=='hockey'&&w.type!=='sport')w.program=w.type;});
   // Ensure activeProgram is set
   if(!profile.activeProgram)profile.activeProgram='forge';
   // Initialize program states for all registered programs (fills in defaults for new programs)
@@ -143,7 +153,7 @@ async function signUpWithEmail(){
 }
 async function logout(){
   await _SB.auth.signOut();
-  workouts=[];schedule={hockeyDays:[]};profile={defaultRest:120};currentUser=null;
+  workouts=[];schedule={sportName:'Hockey',sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};profile={defaultRest:120};currentUser=null;
   updateDashboard();
 }
 
@@ -266,32 +276,37 @@ function selectRPE(val){document.getElementById('rpe-modal').classList.remove('a
 function skipRPE(){document.getElementById('rpe-modal').classList.remove('active');if(pendingRPECallback)pendingRPECallback(null);pendingRPECallback=null;}
 
 // ── FATIGUE ENGINE ───────────────────────────────────────────
+function isSportWorkout(w){return w.type==='sport'||w.type==='hockey';}
 function computeFatigue(){
   const now=Date.now();
-  const liftS=workouts.filter(w=>w.type!=='hockey').sort((a,b)=>new Date(b.date)-new Date(a.date));
-  const hockS=workouts.filter(w=>w.type==='hockey').sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const liftS=workouts.filter(w=>!isSportWorkout(w)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const sportS=workouts.filter(w=>isSportWorkout(w)).sort((a,b)=>new Date(b.date)-new Date(a.date));
   const daysSinceLift=liftS.length?(now-new Date(liftS[0].date).getTime())/864e5:99;
-  const daysSinceHockey=hockS.length?(now-new Date(hockS[0].date).getTime())/864e5:99;
+  const daysSinceSport=sportS.length?(now-new Date(sportS[0].date).getTime())/864e5:99;
   const last72h=workouts.filter(w=>now-new Date(w.date).getTime()<3*864e5);
   let recentSets=0,recentRPE=0,rpeCount=0;
   last72h.forEach(w=>{
-    if(w.type!=='hockey')w.exercises?.forEach(e=>recentSets+=e.sets.length);
+    if(!isSportWorkout(w))w.exercises?.forEach(e=>recentSets+=e.sets.length);
     if(w.rpe){recentRPE+=w.rpe;rpeCount++;}
   });
   const avgRecentRPE=rpeCount?recentRPE/rpeCount:7;
-  const recentTypes=last72h.map(w=>w.type);
+  const recentHasSport=last72h.some(w=>isSportWorkout(w));
+  const sc=getSportConfig();
   const cfg=FATIGUE_CONFIG;
-  let muscular=Math.max(0,cfg.muscularBase-daysSinceLift*cfg.muscularDecay)+Math.min(30,recentSets*cfg.setsWeight)+(recentTypes.includes('hockey')?cfg.hockeyMuscularBonus:0);
-  let cns=Math.max(0,cfg.cnsBase-daysSinceLift*cfg.cnsDecay)+(avgRecentRPE-5)*cfg.rpeWeight+(recentTypes.includes('hockey')?cfg.hockeyCnsBonus:0);
-  const extraToday=last72h.filter(w=>w.type==='hockey'&&w.subtype==='extra').length;
-  cns+=extraToday*cfg.extraHockeyCns;
+  let muscular=Math.max(0,cfg.muscularBase-daysSinceLift*cfg.muscularDecay)+Math.min(30,recentSets*cfg.setsWeight)+(recentHasSport?sc.muscularBonus:0);
+  let cns=Math.max(0,cfg.cnsBase-daysSinceLift*cfg.cnsDecay)+(avgRecentRPE-5)*cfg.rpeWeight+(recentHasSport?sc.cnsBonus:0);
+  const extraToday=last72h.filter(w=>isSportWorkout(w)&&w.subtype==='extra').length;
+  cns+=extraToday*sc.extraCns;
   muscular=Math.min(100,Math.max(0,muscular));cns=Math.min(100,Math.max(0,cns));
-  return{muscular:Math.round(muscular),cns:Math.round(cns),overall:Math.round(muscular*.5+cns*.5),daysSinceLift,daysSinceHockey,recentSets,avgRecentRPE};
+  return{muscular:Math.round(muscular),cns:Math.round(cns),overall:Math.round(muscular*.5+cns*.5),daysSinceLift,daysSinceSport,recentSets,avgRecentRPE};
 }
-function wasHockeyRecently(hours){
-  hours=hours||FATIGUE_CONFIG.hockeyRecentHours;
-  return workouts.some(w=>w.type==='hockey'&&(Date.now()-new Date(w.date).getTime())<hours*3600000);
+function wasSportRecently(hours){
+  const sc=getSportConfig();
+  hours=hours||sc.recentHours;
+  return workouts.some(w=>isSportWorkout(w)&&(Date.now()-new Date(w.date).getTime())<hours*3600000);
 }
+// Backward-compat alias used by program files
+function wasHockeyRecently(hours){return wasSportRecently(hours);}
 function getRecoveryColor(r){return r>=65?'var(--green)':r>=35?'var(--orange)':'var(--accent)';}
 function getReadinessLabel(o){
   const r=100-o;
@@ -309,8 +324,9 @@ function updateFatigueBars(f){
   });
   const{label,color}=getReadinessLabel(f.overall);
   const days=f.daysSinceLift<99?`Last lift: ${f.daysSinceLift<1?'today':Math.round(f.daysSinceLift)+'d ago'}`:'No lifts yet';
-  const hock=f.daysSinceHockey<99?` · Hockey: ${f.daysSinceHockey<1?'today':Math.round(f.daysSinceHockey)+'d ago'}`:'';
-  document.getElementById('recovery-msg').innerHTML=`<span style="color:${color};font-weight:700">${label}</span><br><span style="color:var(--muted)">${days}${hock}</span>`;
+  const sn=schedule.sportName||'Sport';
+  const sport=f.daysSinceSport<99?` · ${sn}: ${f.daysSinceSport<1?'today':Math.round(f.daysSinceSport)+'d ago'}`:'';
+  document.getElementById('recovery-msg').innerHTML=`<span style="color:${color};font-weight:700">${label}</span><br><span style="color:var(--muted)">${days}${sport}</span>`;
 }
 
 // ── DATA HELPERS ─────────────────────────────────────────────
@@ -331,25 +347,26 @@ function renderWeekStrip(){
   const strip=document.getElementById('week-strip');
   const today=new Date(),todayDow=today.getDay();
   const start=new Date(today);start.setDate(today.getDate()-((todayDow+6)%7));
+  const sn=schedule.sportName||'Sport';
   strip.innerHTML='';
   for(let i=0;i<7;i++){
     const d=new Date(start);d.setDate(start.getDate()+i);
     const dow=d.getDay(),isToday=d.toDateString()===today.toDateString();
     const logged=workouts.filter(w=>new Date(w.date).toDateString()===d.toDateString());
-    const isHockey=schedule.hockeyDays.includes(dow);
-    const hasLift=logged.some(w=>w.type!=='hockey'),hasHockey=logged.some(w=>w.type==='hockey');
-    let cls='day-pill'+(isHockey?' hockey':'')+(isToday?' today':'');
-    let icon=hasLift&&hasHockey?'🏋️🏒':hasLift?'✅':hasHockey?'🏒':(isHockey?'🏒':'');
+    const isSportDay=schedule.sportDays.includes(dow);
+    const hasLift=logged.some(w=>!isSportWorkout(w)),hasSport=logged.some(w=>isSportWorkout(w));
+    let cls='day-pill'+(isSportDay?' sport':'')+(isToday?' today':'');
+    let icon=hasLift&&hasSport?'🏋️🏃':hasLift?'✅':hasSport?'🏃':(isSportDay?'🏃':'');
     strip.innerHTML+=`<div class="${cls}"><div class="day-label">${DAY_NAMES[dow]}</div><div class="day-num">${d.getDate()}</div><div style="font-size:11px;margin-top:2px;min-height:14px">${icon}</div></div>`;
   }
-  const todayIsHockey=schedule.hockeyDays.includes(todayDow);
+  const todayIsSportDay=schedule.sportDays.includes(todayDow);
   const todayLogged=workouts.filter(w=>new Date(w.date).toDateString()===today.toDateString());
-  const tHasLift=todayLogged.some(w=>w.type!=='hockey'),tHasHockey=todayLogged.some(w=>w.type==='hockey');
+  const tHasLift=todayLogged.some(w=>!isSportWorkout(w)),tHasSport=todayLogged.some(w=>isSportWorkout(w));
   let s='';
-  if(tHasLift&&tHasHockey)s=`<span style="color:var(--green);font-weight:700">✅ Workout + hockey logged</span>`;
+  if(tHasLift&&tHasSport)s=`<span style="color:var(--green);font-weight:700">✅ Workout + ${sn} logged</span>`;
   else if(tHasLift)s=`<span style="color:var(--green);font-weight:700">✅ Workout logged</span>`;
-  else if(tHasHockey)s=`<span style="color:var(--blue);font-weight:700">🏒 Hockey logged</span>`;
-  else if(todayIsHockey)s=`<span style="color:var(--blue);font-weight:700">🏒 Hockey day — go easy on legs if you lift</span>`;
+  else if(tHasSport)s=`<span style="color:var(--blue);font-weight:700">🏃 ${sn} logged</span>`;
+  else if(todayIsSportDay)s=`<span style="color:var(--blue);font-weight:700">🏃 ${sn} day — go easy on legs if you lift</span>`;
   else{s='';}
   document.getElementById('today-status').innerHTML=s;
 }
@@ -373,26 +390,27 @@ function updateDashboard(){
   const now=new Date(),sow=new Date(now);sow.setDate(now.getDate()-((now.getDay()+6)%7));sow.setHours(0,0,0,0);
   const freq=ps.daysPerWeek||3;
   const doneThisWeek=workouts.filter(w=>(w.program===prog.id||(!w.program&&w.type===prog.id))&&new Date(w.date)>=sow).length;
-  const hockeyThisWeek=workouts.filter(w=>w.type==='hockey'&&new Date(w.date)>=sow).length;
+  const sportThisWeek=workouts.filter(w=>isSportWorkout(w)&&new Date(w.date)>=sow).length;
   const pctDone=Math.min(100,doneThisWeek/freq*100);
   document.getElementById('volume-bar').style.width=pctDone+'%';
   let volText=doneThisWeek+'/'+freq+' sessions done';
-  if(hockeyThisWeek) volText+=' · '+hockeyThisWeek+' hockey';
+  const sn=schedule.sportName||'Sport';
+  if(sportThisWeek) volText+=' · '+sportThisWeek+' '+(sn.toLowerCase());
   if(doneThisWeek>=freq) volText+=' ✅';
   document.getElementById('volume-text').textContent=volText;
 
   // Today's Plan — uses program's getBlockInfo
   const recovery=100-f.overall,todayDow=new Date().getDay();
-  const isHockeyDay=schedule.hockeyDays.includes(todayDow);
-  const hadHockeyYesterday=wasHockeyRecently(36);
+  const isSportDay=schedule.sportDays.includes(todayDow);
+  const hadSportRecently=wasSportRecently(36);
   const bi=prog.getBlockInfo?prog.getBlockInfo(ps):{name:'',weekLabel:'',isDeload:false,pct:null,modeDesc:'',modeName:''};
   const modeDescHtml=bi.modeDesc?`<div style="font-size:11px;color:var(--muted);margin-bottom:10px;padding:0 2px">${bi.modeDesc}</div>`:'';
   const startBtn=`<button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="goToLog()">Start Session →</button>`;
   let rec='',cardAccent=false;
   if(doneThisWeek>=freq) rec=modeDescHtml+`<div style="font-weight:700;color:var(--green);margin-bottom:6px">✅ Week complete!</div><div style="font-size:13px;color:var(--muted)">All ${freq} sessions done. Rest up.</div>`;
   else if(recovery<40) rec=modeDescHtml+`<div style="font-weight:700;color:var(--accent);margin-bottom:6px">⚠️ High fatigue — rest or deload</div><div style="font-size:13px;color:var(--muted)">Recovery ${recovery}%. ${bi.isDeload?'Good timing — deload!':'Consider resting today.'} ${freq-doneThisWeek} session${freq-doneThisWeek>1?'s':''} left.</div>`;
-  else if(isHockeyDay){cardAccent=true;rec=modeDescHtml+`<div style="font-weight:700;color:var(--blue);margin-bottom:6px">🏒 Hockey day</div><div style="font-size:13px;color:var(--muted)">Pick an upper-body day on the Log tab, or rest. ${freq-doneThisWeek} session${freq-doneThisWeek>1?'s':''} left this week.</div>${startBtn}`;}
-  else if(hadHockeyYesterday){cardAccent=true;rec=modeDescHtml+`<div style="font-weight:700;color:var(--blue);margin-bottom:6px">🏒 Post-hockey</div><div style="font-size:13px;color:var(--muted)">Legs may be fatigued. The Log tab will suggest an upper-focused day. ${freq-doneThisWeek} left.</div>${startBtn}`;}
+  else if(isSportDay){cardAccent=true;rec=modeDescHtml+`<div style="font-weight:700;color:var(--blue);margin-bottom:6px">🏃 ${sn} day</div><div style="font-size:13px;color:var(--muted)">Pick an upper-body day on the Log tab, or rest. ${freq-doneThisWeek} session${freq-doneThisWeek>1?'s':''} left this week.</div>${startBtn}`;}
+  else if(hadSportRecently){cardAccent=true;rec=modeDescHtml+`<div style="font-weight:700;color:var(--blue);margin-bottom:6px">🏃 Post-${sn.toLowerCase()}</div><div style="font-size:13px;color:var(--muted)">Legs may be fatigued. The Log tab will suggest an upper-focused day. ${freq-doneThisWeek} left.</div>${startBtn}`;}
   else if(bi.isDeload){cardAccent=true;rec=modeDescHtml+`<div style="font-weight:700;color:var(--green);margin-bottom:6px">🌊 Deload week</div><div style="font-size:13px;color:var(--muted)">Recovery ${recovery}%. ${freq-doneThisWeek} session${freq-doneThisWeek>1?'s':''} left.</div>${startBtn}`;}
   else{cardAccent=true;rec=modeDescHtml+`<div style="font-weight:700;color:var(--accent);margin-bottom:6px">🏋️ Training day</div><div style="font-size:13px;color:var(--muted)">Recovery ${recovery}% — ${recovery>=75?'feeling fresh, push it':'moderate effort'}. ${freq-doneThisWeek} session${freq-doneThisWeek>1?'s':''} left this week.</div>${startBtn}`;}
   document.getElementById('next-session-content').innerHTML=rec;
@@ -404,11 +422,12 @@ function updateDashboard(){
 
 function resetNotStartedView(){
   const prog=getActiveProgram();
+  const _sn=schedule.sportName||'Sport';
   document.getElementById('workout-not-started').innerHTML=`
     <div class="quick-log-row">
-      <div class="quick-log-card ql-hockey" onclick="quickLogHockey()">
-        <div class="ql-icon">🏒</div>
-        <div><div class="ql-title">Log Extra Hockey</div><div class="ql-sub">Unscheduled practice or game</div></div>
+      <div class="quick-log-card ql-sport" onclick="quickLogSport()">
+        <div class="ql-icon">🏃</div>
+        <div><div class="ql-title">Log Extra ${_sn}</div><div class="ql-sub">Unscheduled session or game</div></div>
       </div>
     </div>
     <div class="divider-label"><span>${(prog.icon||'🏋️')+' '+(prog.name||'Training')+' Session'}</span></div>
@@ -451,27 +470,30 @@ function startWorkout(){
   startWorkoutTimer();renderExercises();
   showToast(bi.isDeload?'Deload — keep it light':(prog.name||'Training'),bi.isDeload?'var(--blue)':'var(--purple)');
 
-  // Hockey warning for leg-heavy days
+  // Sport warning for leg-heavy days
   const legLifts=prog.legLifts||[];
   const todayDow=new Date().getDay();
-  const isHockeyDay=schedule.hockeyDays.includes(todayDow);
-  const hadHockeyRecently=wasHockeyRecently();
-  if((isHockeyDay||hadHockeyRecently)&&!bi.isDeload){
+  const _isSportDay=schedule.sportDays.includes(todayDow);
+  const _hadSportRecently=wasSportRecently();
+  if((_isSportDay||_hadSportRecently)&&!bi.isDeload&&schedule.sportLegsHeavy!==false){
     const hasLegs=activeWorkout.exercises.some(e=>legLifts.includes(e.name.toLowerCase()));
-    if(hasLegs)setTimeout(()=>showToast('🏒 Hockey legs — consider fewer sets or swapping day order','var(--blue)'),1500);
+    const _sn2=schedule.sportName||'Sport';
+    if(hasLegs)setTimeout(()=>showToast(`🏃 ${_sn2} legs — consider fewer sets or swapping day order`,'var(--blue)'),1500);
   }
 }
 
 
 // ── QUICK LOG ────────────────────────────────────────────────
-function quickLogHockey(){
-  showConfirm('Log Hockey','Log an extra hockey practice for today?',async()=>{
-    workouts.push({id:Date.now(),date:new Date().toISOString(),type:'hockey',subtype:'extra',duration:5400,exercises:[],rpe:7,sets:0});
+function quickLogSport(){
+  const _sn=schedule.sportName||'Sport';
+  showConfirm('Log '+_sn,'Log an extra '+_sn.toLowerCase()+' session for today?',async()=>{
+    workouts.push({id:Date.now(),date:new Date().toISOString(),type:'sport',subtype:'extra',duration:5400,exercises:[],rpe:7,sets:0});
     await saveWorkouts();
-    showToast('🏒 Extra hockey logged!','var(--blue)');
+    showToast('🏃 Extra '+_sn+' logged!','var(--blue)');
     updateDashboard();
   });
 }
+function quickLogHockey(){quickLogSport();}
 
 
 
@@ -786,10 +808,10 @@ function histGroupWorkouts(){
   }
 
   for(const w of sorted){
-    const isHockey=w.type==='hockey';
-    if(isHockey){
+    if(isSportWorkout(w)){
+      const sportLabel=w.type==='hockey'?'Hockey':(schedule.sportName||'Sport');
       const mo=new Date(w.date).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
-      addToGroup('hockey-'+mo,'Hockey · '+mo,'🏒','hockey','all','',w);
+      addToGroup('sport-'+mo,sportLabel+' · '+mo,'🏃','sport','all','',w);
       continue;
     }
     const prog=w.program||w.type||'other';
@@ -834,19 +856,19 @@ function histRenderCard(w,isPR,recovery){
   const d=new Date(w.date);
   const dateStr=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'});
   const mins=Math.floor((w.duration||0)/60);
-  const isHockey=w.type==='hockey';
   const isExtra=w.subtype==='extra';
 
-  if(isHockey){
-    const hLabel=isExtra?'Extra Hockey Practice':'Hockey Practice';
-    return`<div class="hist-card hist-hockey-card">
+  if(isSportWorkout(w)){
+    const sportLabel=w.type==='hockey'?'Hockey':(schedule.sportName||'Sport');
+    const sLabel=isExtra?`Extra ${sportLabel} Session`:`${sportLabel} Session`;
+    return`<div class="hist-card hist-sport-card">
       <div class="hist-card-header">
         <div class="hist-card-left">
-          <span class="hist-lift-icon">🏒</span>
+          <span class="hist-lift-icon">🏃</span>
           <div>
-            <div class="hist-card-title">${hLabel}</div>
+            <div class="hist-card-title">${sLabel}</div>
             <div class="hist-card-date">${dateStr}</div>
-            ${mins>0?`<div class="hist-hockey-duration">${mins} min</div>`:''}
+            ${mins>0?`<div class="hist-sport-duration">${mins} min</div>`:''}
           </div>
         </div>
         <div class="hist-card-badges">
@@ -987,8 +1009,8 @@ function renderHeatmap(){
   workouts.forEach(w=>{
     const d=new Date(w.date);d.setHours(0,0,0,0);
     const k=d.toISOString().slice(0,10);
-    if(!dayMap[k])dayMap[k]={lift:false,hockey:false};
-    if(w.type==='hockey')dayMap[k].hockey=true;
+    if(!dayMap[k])dayMap[k]={lift:false,sport:false};
+    if(isSportWorkout(w))dayMap[k].sport=true;
     else dayMap[k].lift=true;
   });
 
@@ -1006,7 +1028,7 @@ function renderHeatmap(){
     const ws=new Date(weekStart);ws.setDate(weekStart.getDate()-i*7);
     const we=new Date(ws);we.setDate(ws.getDate()+6);
     const hasLift=workouts.some(w=>{
-      if(w.type==='hockey')return false;
+      if(isSportWorkout(w))return false;
       const wd=new Date(w.date);wd.setHours(0,0,0,0);
       return wd>=ws&&wd<=we;
     });
@@ -1017,7 +1039,7 @@ function renderHeatmap(){
 
   // Sessions per week over last 28 days
   const cut28=new Date(today);cut28.setDate(today.getDate()-27);
-  const last28=workouts.filter(w=>w.type!=='hockey'&&new Date(w.date)>=cut28).length;
+  const last28=workouts.filter(w=>!isSportWorkout(w)&&new Date(w.date)>=cut28).length;
   const perWeek=(last28/4).toFixed(1);
 
   const DAY_LABELS=['M','T','W','T','F','S','S'];
@@ -1025,9 +1047,9 @@ function renderHeatmap(){
   const gridCells=cells.map(c=>{
     let cls='heatmap-cell';
     if(c.isFuture)cls+=' future';
-    else if(c.lift&&c.hockey)cls+=' both';
+    else if(c.lift&&c.sport)cls+=' both';
     else if(c.lift)cls+=' lift';
-    else if(c.hockey)cls+=' hockey';
+    else if(c.sport)cls+=' sport';
     if(c.isToday)cls+=' today';
     return`<div class="${cls}"></div>`;
   }).join('');
@@ -1039,7 +1061,7 @@ function renderHeatmap(){
 
   const legendHtml=`<div class="heatmap-legend">
     <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--accent2)"></div>Lift</div>
-    <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--blue)"></div>Hockey</div>
+    <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--blue)"></div>${schedule.sportName||'Sport'}</div>
     <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--purple)"></div>Both</div>
   </div>`;
 
@@ -1067,7 +1089,7 @@ function deleteWorkout(id){
   const w=workouts.find(w=>w.id===id);
   if(!w)return;
   const d=new Date(w.date);
-  const label=w.type==='hockey'?'Hockey session':'Workout';
+  const label=isSportWorkout(w)?(schedule.sportName||'Sport')+' session':'Workout';
   const dateStr=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
   showConfirm('Delete '+label,'Remove '+label.toLowerCase()+' from '+dateStr+'?',async()=>{
     const backup=workouts.find(x=>x.id===id);
@@ -1088,22 +1110,35 @@ function deleteWorkout(id){
 
 function updateStats(){
   document.getElementById('stat-total').textContent=workouts.length;
-  document.getElementById('stat-hockey').textContent=workouts.filter(w=>w.type==='hockey').length;
+  document.getElementById('stat-sport').textContent=workouts.filter(w=>isSportWorkout(w)).length;
   const m=new Date().getMonth();let s=0;
-  workouts.filter(w=>new Date(w.date).getMonth()===m&&w.type!=='hockey').forEach(w=>w.exercises?.forEach(e=>s+=e.sets.length));
+  workouts.filter(w=>new Date(w.date).getMonth()===m&&!isSportWorkout(w)).forEach(w=>w.exercises?.forEach(e=>s+=e.sets.length));
   document.getElementById('stat-sets').textContent=s;
   const allRPE=workouts.filter(w=>w.rpe).map(w=>w.rpe);
   document.getElementById('stat-rpe').textContent=allRPE.length?(allRPE.reduce((a,b)=>a+b,0)/allRPE.length).toFixed(1):'—';
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────
-function initSettings(){
-  {const grid=document.getElementById('hockey-day-toggles');grid.innerHTML='';
-    for(let i=0;i<7;i++){
-      const dow=(i+1)%7,active=schedule.hockeyDays.includes(dow);
-      grid.innerHTML+=`<div class="day-toggle ${active?'hockey-day':''}" onclick="toggleDay('hockey',${dow},this)">${DAY_NAMES[dow]}</div>`;
-    }
+function renderSportDayToggles(){
+  const grid=document.getElementById('sport-day-toggles');if(!grid)return;
+  grid.innerHTML='';
+  for(let i=0;i<7;i++){
+    const dow=(i+1)%7,active=schedule.sportDays.includes(dow);
+    grid.innerHTML+=`<div class="day-toggle ${active?'sport-day':''}" onclick="toggleDay('sport',${dow},this)">${DAY_NAMES[dow]}</div>`;
   }
+}
+function setSportIntensity(val,el){
+  schedule.sportIntensity=val;
+  document.querySelectorAll('#sport-intensity-btns button').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+}
+function initSettings(){
+  {const inp=document.getElementById('sport-name');if(inp)inp.value=schedule.sportName||'Hockey';}
+  {const btns=document.querySelectorAll('#sport-intensity-btns button');
+    btns.forEach(b=>{b.classList.toggle('active',b.dataset.intensity===(schedule.sportIntensity||'hard'));});
+  }
+  {const cb=document.getElementById('sport-legs-heavy');if(cb)cb.checked=schedule.sportLegsHeavy!==false;}
+  renderSportDayToggles();
   document.getElementById('default-rest').value=profile.defaultRest||120;
   renderProgramSwitcher();
   const prog=getActiveProgram(),state=getActiveProgramState();
@@ -1223,12 +1258,17 @@ function updateProgramDisplay(){
 function onDaySelectChange(){updateProgramDisplay();}
 
 function toggleDay(kind,dow,el){
-  const key=kind+'Days';
-  if(el.classList.contains(kind+'-day')){el.classList.remove(kind+'-day');schedule[key]=schedule[key].filter(d=>d!==dow);}
-  else{el.classList.add(kind+'-day');if(!schedule[key].includes(dow))schedule[key].push(dow);}
+  const key=kind==='sport'?'sportDays':kind+'Days';
+  const cls=kind+'-day';
+  if(el.classList.contains(cls)){el.classList.remove(cls);schedule[key]=schedule[key].filter(d=>d!==dow);}
+  else{el.classList.add(cls);if(!schedule[key])schedule[key]=[];if(!schedule[key].includes(dow))schedule[key].push(dow);}
 }
 
 function saveSchedule(){
+  const nameInp=document.getElementById('sport-name');
+  if(nameInp)schedule.sportName=nameInp.value.trim()||'Sport';
+  const cb=document.getElementById('sport-legs-heavy');
+  if(cb)schedule.sportLegsHeavy=cb.checked;
   profile.defaultRest=parseInt(document.getElementById('default-rest').value)||120;
   restDuration=profile.defaultRest;
   saveScheduleData();saveProfileData();updateProgramDisplay();updateDashboard();showToast('Settings saved!','var(--blue)');
@@ -1272,7 +1312,7 @@ function importData(event){
 
 async function clearAllData(){
   try{localStorage.removeItem('ic_workouts');localStorage.removeItem('ic_schedule');localStorage.removeItem('ic_profile');}catch(e){}
-  workouts=[];schedule={hockeyDays:[]};
+  workouts=[];schedule={sportName:'Hockey',sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
   profile={defaultRest:120,activeProgram:'forge',programs:{}};
   Object.values(PROGRAMS).forEach(prog=>{profile.programs[prog.id]=prog.getInitialState();});
   updateDashboard();showToast('All data cleared','var(--accent)');
