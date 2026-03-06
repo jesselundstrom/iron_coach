@@ -512,6 +512,37 @@ body.login-active::before{
   .login-input{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 }
 
+/* ── DASHBOARD COMPACT LAYOUT ── */
+.dash-week-card{margin-bottom:8px}
+.dash-row{display:flex;gap:8px;margin-bottom:8px}
+.dash-row .card{margin-bottom:0;flex:1;min-width:0}
+.dash-col .fatigue-row{margin-bottom:4px;gap:6px}
+.dash-col .fatigue-label{font-size:11px;min-width:52px}
+.dash-col .fatigue-bar-wrap{height:6px}
+.dash-col .fatigue-value{font-size:11px;min-width:28px}
+.dash-col .lifts-grid{gap:5px;margin-bottom:0}
+.dash-col .lift-stat{padding:7px 8px}
+.dash-col .lift-stat .value{font-size:16px}
+.dash-col .lift-stat .label{font-size:9px}
+/* Session pills */
+.week-progress-row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.week-progress-row .session-pills{flex:1}
+.session-pills{display:flex;gap:5px}
+.session-pill{flex:1;height:6px;border-radius:99px;background:var(--surface3);border:1px solid var(--border)}
+.session-pill.done{background:linear-gradient(90deg,#E36A2C,#FF8A3A);border-color:transparent;box-shadow:0 0 6px rgba(255,122,58,0.3)}
+/* Readiness badge */
+.readiness-badge{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:0.5px;font-family:'JetBrains Mono',monospace}
+.rbadge-go{background:rgba(52,211,153,0.12);color:var(--green);border:1px solid rgba(52,211,153,0.3)}
+.rbadge-caution{background:rgba(245,158,11,0.12);color:var(--orange);border:1px solid rgba(245,158,11,0.3)}
+.rbadge-rest{background:rgba(255,122,58,0.12);color:var(--accent);border:1px solid rgba(255,122,58,0.3)}
+/* Day strip interactions */
+.day-check{font-size:10px;color:var(--green);font-weight:800;margin-top:2px;min-height:14px}
+.day-pill.logged .day-num{color:var(--green)}
+.day-pill.active{background:rgba(255,122,58,0.12)!important;border-color:rgba(255,122,58,0.5)!important}
+.day-pill{cursor:pointer}
+#day-detail-panel{margin-top:8px;padding:8px 10px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);animation:fadeUp 0.18s ease}
+.day-detail-item{font-size:12px;padding:2px 0;color:var(--text)}
+
 /* ── PROGRAM CARDS ── */
 .program-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;margin-bottom:8px;transition:all 0.15s}
 .program-card:active{transform:scale(0.98)}

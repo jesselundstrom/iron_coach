@@ -30,10 +30,10 @@ function wasSportRecently(hours){
 }
 // Backward-compat alias used by program files
 function wasHockeyRecently(hours){return wasSportRecently(hours);}
-function getRecoveryColor(r){return r>=65?'var(--green)':r>=35?'var(--orange)':'var(--accent)';}
+function getRecoveryColor(r){return r>=85?'var(--green)':r>=60?'var(--orange)':'var(--accent)';}
 function getRecoveryGradient(r){
-  if(r>=65)return{start:'#2eddb1',mid:'#7cf2d6',end:'#119b79',glow:'rgba(46,221,177,0.48)'};
-  if(r>=35)return{start:'#ffd166',mid:'#ffc24a',end:'#f08a22',glow:'rgba(255,185,78,0.44)'};
+  if(r>=85)return{start:'#2eddb1',mid:'#7cf2d6',end:'#119b79',glow:'rgba(46,221,177,0.48)'};
+  if(r>=60)return{start:'#ffd166',mid:'#ffc24a',end:'#f08a22',glow:'rgba(255,185,78,0.44)'};
   return{start:'#ff9b76',mid:'#ff7a5c',end:'#ff5a44',glow:'rgba(255,106,84,0.42)'};
 }
 function getReadinessLabel(o){
@@ -57,11 +57,13 @@ function updateFatigueBars(f){
     }
     if(vEl)vEl.textContent=recovery+'%';
   });
-  const{label,color}=getReadinessLabel(f.overall);
-  const days=f.daysSinceLift<99?`Last lift: ${f.daysSinceLift<1?'today':Math.round(f.daysSinceLift)+'d ago'}`:'No lifts yet';
-  const sn=schedule.sportName||'Sport';
-  const sport=f.daysSinceSport<99?` - ${sn}: ${f.daysSinceSport<1?'today':Math.round(f.daysSinceSport)+'d ago'}`:'';
-  document.getElementById('recovery-msg').innerHTML=`<span style="color:${color};font-weight:700">${label}</span><br><span style="color:var(--muted)">${days}${sport}</span>`;
+  const overallRec=100-f.overall;
+  let badgeText,badgeCls;
+  if(overallRec>=85){badgeText='GO';badgeCls='rbadge-go';}
+  else if(overallRec>=60){badgeText='CAUTION';badgeCls='rbadge-caution';}
+  else{badgeText='REST';badgeCls='rbadge-rest';}
+  const badgeEl=document.getElementById('recovery-badge');
+  if(badgeEl)badgeEl.innerHTML=`<span class="readiness-badge ${badgeCls}">${badgeText}</span>`;
 }
 
 // DATA HELPERS
@@ -90,9 +92,11 @@ function renderWeekStrip(){
     const logged=workouts.filter(w=>new Date(w.date).toDateString()===d.toDateString());
     const isSportDay=schedule.sportDays.includes(dow);
     const hasLift=logged.some(w=>!isSportWorkout(w)),hasSport=logged.some(w=>isSportWorkout(w));
-    let cls='day-pill'+(isSportDay?' sport':'')+(isToday?' today':'');
+    const isLogged=hasLift||hasSport;
+    let cls='day-pill'+(isSportDay?' sport':'')+(isToday?' today':'')+(isLogged?' logged':'');
     let icon=hasLift&&hasSport?'WS':hasLift?'W':hasSport?'S':(isSportDay?'S':'');
-    strip.innerHTML+=`<div class="${cls}"><div class="day-label">${DAY_NAMES[dow]}</div><div class="day-num">${d.getDate()}</div><div style="font-size:11px;margin-top:2px;min-height:14px">${icon}</div></div>`;
+    const bottom=isLogged?`<div class="day-check">✓</div>`:`<div style="font-size:11px;margin-top:2px;min-height:14px">${icon}</div>`;
+    strip.innerHTML+=`<div class="${cls}" onclick="toggleDayDetail(${i})"><div class="day-label">${DAY_NAMES[dow]}</div><div class="day-num">${d.getDate()}</div>${bottom}</div>`;
   }
   const todayIsSportDay=schedule.sportDays.includes(todayDow);
   const todayLogged=workouts.filter(w=>new Date(w.date).toDateString()===today.toDateString());
@@ -101,9 +105,43 @@ function renderWeekStrip(){
   if(tHasLift&&tHasSport)s=`<span style="color:var(--green);font-weight:700">Workout + ${sn} logged</span>`;
   else if(tHasLift)s=`<span style="color:var(--green);font-weight:700">Workout logged</span>`;
   else if(tHasSport)s=`<span style="color:var(--blue);font-weight:700">${sn} logged</span>`;
-  else if(todayIsSportDay)s=`<span style="color:var(--blue);font-weight:700">${sn} day - go easy on legs if you lift</span>`;
-  else{s='';}
+  else if(todayIsSportDay)s=`<span style="color:var(--blue);font-weight:700">${sn} day</span>`;
   document.getElementById('today-status').innerHTML=s;
+}
+
+function toggleDayDetail(dayIdx){
+  const panel=document.getElementById('day-detail-panel');
+  if(!panel)return;
+  if(panel.dataset.active===String(dayIdx)&&panel.style.display!=='none'){
+    panel.style.display='none';
+    panel.dataset.active='';
+    document.querySelectorAll('#week-strip .day-pill').forEach(p=>p.classList.remove('active'));
+    return;
+  }
+  panel.dataset.active=String(dayIdx);
+  document.querySelectorAll('#week-strip .day-pill').forEach((p,i)=>p.classList.toggle('active',i===dayIdx));
+  const today=new Date(),todayDow=today.getDay();
+  const start=new Date(today);start.setDate(today.getDate()-((todayDow+6)%7));
+  const d=new Date(start);d.setDate(start.getDate()+dayIdx);
+  const logged=workouts.filter(w=>new Date(w.date).toDateString()===d.toDateString());
+  if(logged.length){
+    const items=[];
+    logged.forEach(w=>{
+      if(isSportWorkout(w)){
+        items.push(`<div class="day-detail-item"><span style="color:var(--blue)">${w.name||(schedule.sportName||'Sport')}</span></div>`);
+      } else {
+        const names=(w.exercises||[]).map(e=>e.name);
+        if(names.length)names.forEach(n=>items.push(`<div class="day-detail-item">${n}</div>`));
+        else items.push(`<div class="day-detail-item" style="color:var(--muted)">Workout</div>`);
+      }
+    });
+    panel.innerHTML=items.join('');
+  } else {
+    const dow=d.getDay(),isSportDay=schedule.sportDays.includes(dow),isPast=d<today&&!d.toDateString()===today.toDateString();
+    const label=isSportDay?(schedule.sportName||'Sport')+' day':'No session logged';
+    panel.innerHTML=`<div class="day-detail-item" style="color:var(--muted)">${label}</div>`;
+  }
+  panel.style.display='block';
 }
 
 // DASHBOARD
@@ -129,12 +167,12 @@ function updateDashboard(){
   const freq=ps.daysPerWeek||3;
   const doneThisWeek=workouts.filter(w=>(w.program===prog.id||(!w.program&&w.type===prog.id))&&new Date(w.date)>=sow).length;
   const sportThisWeek=workouts.filter(w=>isSportWorkout(w)&&new Date(w.date)>=sow).length;
-  const pctDone=Math.min(100,doneThisWeek/freq*100);
-  document.getElementById('volume-bar').style.width=pctDone+'%';
-  let volText=doneThisWeek+'/'+freq+' sessions done';
   const sn=schedule.sportName||'Sport';
-  if(sportThisWeek) volText+=' - '+sportThisWeek+' '+(sn.toLowerCase());
-  if(doneThisWeek>=freq) volText+=' [done]';
+  const pillsEl=document.getElementById('session-pills');
+  if(pillsEl)pillsEl.innerHTML=Array.from({length:freq},(_,i)=>`<div class="session-pill${i<doneThisWeek?' done':''}"></div>`).join('');
+  let volText=doneThisWeek+'/'+freq+' sessions';
+  if(sportThisWeek)volText+=' · '+sportThisWeek+' '+sn.toLowerCase();
+  if(doneThisWeek>=freq)volText+=' ✓';
   document.getElementById('volume-text').textContent=volText;
 
   // Today's Plan - uses program's getBlockInfo

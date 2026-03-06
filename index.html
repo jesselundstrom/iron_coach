@@ -79,30 +79,31 @@
 
 <!-- ===== DASHBOARD ===== -->
 <div class="page active" id="page-dashboard">
-  <div class="card">
-    <div class="card-title">This Week</div>
+  <div class="card dash-week-card">
     <div class="week-strip" id="week-strip"></div>
-    <div id="today-status" style="font-size:13px;margin-top:4px"></div>
+    <div class="week-progress-row">
+      <div id="today-status" style="font-size:12px;flex:1"></div>
+      <div id="session-pills" class="session-pills"></div>
+      <div id="volume-text" style="font-size:11px;color:var(--muted);white-space:nowrap">0/2 sessions</div>
+    </div>
+    <div id="day-detail-panel" style="display:none"></div>
   </div>
-  <div class="card">
-    <div class="card-title">Recovery Status</div>
-    <div class="fatigue-row"><div class="fatigue-label">Muscular</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-muscular" style="width:0%"></div></div><div class="fatigue-value" id="f-muscular-val">—</div></div>
-    <div class="fatigue-row"><div class="fatigue-label">Nervous Sys.</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-cns" style="width:0%"></div></div><div class="fatigue-value" id="f-cns-val">—</div></div>
-    <div class="fatigue-row"><div class="fatigue-label">Overall</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-overall" style="width:0%"></div></div><div class="fatigue-value" id="f-overall-val">—</div></div>
-    <div style="font-size:12px;color:var(--muted);margin-top:6px" id="recovery-msg">Log workouts to see recovery data</div>
-  </div>
-  <div class="card">
-    <div class="card-title" id="tm-section-title">Training Maxes</div>
-    <div class="lifts-grid" id="tm-grid"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">This Week's Progress</div>
-    <div class="progress-bar"><div class="progress-fill" id="volume-bar" style="width:0%"></div></div>
-    <div style="font-size:12px;color:var(--muted);margin-top:5px" id="volume-text">0 sessions done</div>
-  </div>
-  <div class="card">
+  <div class="card" id="todays-plan-card">
     <div class="card-title">Today's Plan</div>
-    <div id="next-session-content" style="color:var(--muted);font-size:14px">Loading...</div>
+    <div id="next-session-content" style="color:var(--muted);font-size:13px">Loading...</div>
+  </div>
+  <div class="dash-row">
+    <div class="card dash-col">
+      <div class="card-title">Recovery</div>
+      <div class="fatigue-row"><div class="fatigue-label">Muscular</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-muscular" style="width:0%"></div></div><div class="fatigue-value" id="f-muscular-val">—</div></div>
+      <div class="fatigue-row"><div class="fatigue-label">Nervous</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-cns" style="width:0%"></div></div><div class="fatigue-value" id="f-cns-val">—</div></div>
+      <div class="fatigue-row"><div class="fatigue-label">Overall</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-overall" style="width:0%"></div></div><div class="fatigue-value" id="f-overall-val">—</div></div>
+      <div id="recovery-badge" style="margin-top:6px"><span style="font-size:11px;color:var(--muted)">Log workouts to see data</span></div>
+    </div>
+    <div class="card dash-col">
+      <div class="card-title" id="tm-section-title">Maxes</div>
+      <div class="lifts-grid" id="tm-grid"></div>
+    </div>
   </div>
 </div>
 
