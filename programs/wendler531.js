@@ -42,6 +42,41 @@ const W531 = {
     3: ['Chin-ups',               'Dips']                  // OHP day
   },
 
+  triumvirateSwapOptions: {
+    '0-0': {
+      category: 'single-leg',
+      options: ['Bulgarian Split Squats', 'Walking Lunges', 'Reverse Lunges', 'Step-Ups', 'Leg Press']
+    },
+    '0-1': {
+      category: 'core',
+      options: ['Weighted Planks', 'Ab Wheel Rollouts', 'Hanging Leg Raises', 'Cable Crunches', 'Pallof Press']
+    },
+    '1-0': {
+      category: 'upper back',
+      options: ['Dumbbell Rows', 'Chest-Supported Rows', 'Seated Cable Rows', 'Barbell Rows', 'Machine Rows']
+    },
+    '1-1': {
+      category: 'pressing',
+      options: ['DB Incline Press', 'Machine Chest Press', 'Push-ups', 'Close-Grip Bench Press', 'Dips']
+    },
+    '2-0': {
+      category: 'posterior chain',
+      options: ['Romanian Deadlifts (RDL)', 'Back Extensions', '45° Hip Extensions', 'Hamstring Curls', 'Good Mornings']
+    },
+    '2-1': {
+      category: 'core',
+      options: ['Ab Wheel Rollouts', 'Weighted Planks', 'Hanging Leg Raises', 'Cable Crunches', 'Dead Bugs']
+    },
+    '3-0': {
+      category: 'vertical pull',
+      options: ['Chin-ups', 'Lat Pulldowns', 'Neutral-Grip Pull-ups', 'Assisted Chin-ups', 'Pull-ups']
+    },
+    '3-1': {
+      category: 'triceps',
+      options: ['Dips', 'Cable Triceps Pressdowns', 'Close-Grip Push-ups', 'Skull Crushers', 'Overhead Triceps Extensions']
+    }
+  },
+
   // Light-recovery circuit substituted when readiness === 'light'
   recoveryCircuit: [
     { name:'Band Pull-Aparts',   sets:3, reps:20    },
@@ -51,6 +86,20 @@ const W531 = {
   ],
 
   rnd(v, inc) { return Math.round(v / inc) * inc; },
+
+  getTriumvirateSlot(slotIdx) {
+    return { liftIdx: Math.floor(slotIdx / 2), slot: slotIdx % 2 };
+  },
+
+  getTriumvirateSwapInfo(slotIdx, currentName) {
+    const { liftIdx, slot } = this.getTriumvirateSlot(slotIdx);
+    const key = liftIdx + '-' + slot;
+    const swapInfo = this.triumvirateSwapOptions[key];
+    if (!swapInfo) return null;
+    const options = swapInfo.options.slice();
+    if (currentName && !options.includes(currentName)) options.unshift(currentName);
+    return { category: swapInfo.category, options };
+  },
 
   // Epley estimated 1RM from a performed set
   epley1RM(weight, reps) {
@@ -221,7 +270,7 @@ const WENDLER_531 = {
           exercises.push({
             id: Date.now()+Math.random(), name:rc.name,
             note: 'Light recovery · '+rc.sets+'×'+rc.reps,
-            isAux:true, isAccessory:true, tm:0, auxSlotIdx:-1,
+            isAux:true, isAccessory:false, tm:0, auxSlotIdx:-1,
             sets: Array.from({length:rc.sets}, () => ({weight:0, reps:rc.reps, done:false, rpe:null}))
           });
         });
@@ -238,7 +287,7 @@ const WENDLER_531 = {
             id: Date.now()+Math.random(),
             name: opp.name+' (BBB)',
             note: 'Boring But Big · 5×10 @ '+bw+'kg (50% of '+opp.name+' TM: '+opp.tm+'kg)',
-            isAux:true, isAccessory:true, tm:opp.tm, auxSlotIdx:-1,
+            isAux:true, isAccessory:false, tm:opp.tm, auxSlotIdx:-1,
             sets: Array.from({length:5}, () => ({weight:bw, reps:10, done:false, rpe:null}))
           });
         }
@@ -247,12 +296,12 @@ const WENDLER_531 = {
         // Triumvirate: exactly 2 exercises, 3×10-15 reps
         const tri      = state.triumvirate || W531.defaultTriumvirate;
         const exNames  = tri[liftIdx] || W531.defaultTriumvirate[liftIdx] || [];
-        exNames.slice(0,2).forEach(exName => {
+        exNames.slice(0,2).forEach((exName, triSlotIdx) => {
           if (!exName) return;
           exercises.push({
             id: Date.now()+Math.random(), name:exName,
             note: 'Triumvirate · 3 sets × 10-15 reps',
-            isAux:true, isAccessory:true, tm:0, auxSlotIdx:-1,
+            isAux:true, isAccessory:false, tm:0, auxSlotIdx: liftIdx * 2 + triSlotIdx,
             sets: Array.from({length:3}, () => ({weight:'', reps:12, done:false, rpe:null}))
           });
         });
@@ -427,10 +476,21 @@ const WENDLER_531 = {
     };
   },
 
-  // ─── Aux/Back Swap (not used by this program) ─────────────────────────────
-  getAuxSwapOptions() { return null; },
+  // ─── Aux/Back Swap ────────────────────────────────────────────────────────
+  getAuxSwapOptions(exercise) {
+    if (!exercise || exercise.auxSlotIdx === undefined || exercise.auxSlotIdx < 0) return null;
+    return W531.getTriumvirateSwapInfo(exercise.auxSlotIdx, exercise.name);
+  },
   getBackSwapOptions() { return []; },
-  onAuxSwap(_si, _n, s) { return s; },
+  onAuxSwap(slotIdx, newName, state) {
+    const { liftIdx, slot } = W531.getTriumvirateSlot(slotIdx);
+    const nextState = JSON.parse(JSON.stringify(state));
+    const tri = nextState.triumvirate || JSON.parse(JSON.stringify(W531.defaultTriumvirate));
+    if (!Array.isArray(tri[liftIdx])) tri[liftIdx] = (W531.defaultTriumvirate[liftIdx] || []).slice(0, 2);
+    tri[liftIdx][slot] = newName;
+    nextState.triumvirate = tri;
+    return nextState;
+  },
   onBackSwap(_n, s)    { return s; },
 
   // ─── Dashboard TMs ────────────────────────────────────────────────────────
