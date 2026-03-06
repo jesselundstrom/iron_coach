@@ -516,7 +516,7 @@ body.login-active::before{
 @media (max-width:600px){
   :root{--nav-h:54px}
   .bottom-nav{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-  .bottom-nav{padding-top:3px;padding-bottom:3px}
+  .bottom-nav{padding-top:3px;padding-bottom:calc(3px + var(--sab))}
   .nav-btn{padding:3px 4px 1px;gap:2px;font-size:10px;line-height:1}
   .nav-btn svg{width:20px;height:20px}
   .forge-btn{padding-top:18px;padding-bottom:1px}
