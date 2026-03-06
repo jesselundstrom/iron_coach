@@ -28,23 +28,13 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',system-ui,-appl
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
 
-/* ── NAV ── */
-/* Keep nav flush to the physical bottom; safe-area is handled as internal padding. */
-.bottom-nav{position:fixed;bottom:0;left:var(--sal);right:var(--sar);background:rgba(10,14,24,0.85);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,0.05);display:flex;z-index:100;min-height:var(--nav-h);padding-top:4px;padding-bottom:calc(4px + var(--sab));max-width:520px;margin:0 auto;overflow:visible}
-.nav-btn{flex:1;padding:0 4px 6px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;font-size:11px;font-weight:600;letter-spacing:0.5px;line-height:1;color:var(--muted);opacity:0.65;background:none;border:none;cursor:pointer;transition:color 0.2s,transform 0.08s ease,opacity 0.2s ease;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.nav-btn.active{color:var(--accent);opacity:1}
-.nav-btn:active{transform:scale(0.94)}
-.nav-btn svg{width:24px;height:24px;transition:transform 0.2s}
-.nav-btn.active svg{transform:scale(1.1);filter:drop-shadow(0 0 6px rgba(255,122,58,0.5))}
-/* ── FORGE CORE (+) ── */
-.forge-btn{position:relative;padding-top:0;padding-bottom:6px}
-.forge-btn:active{transform:none}
-.forge-core{position:absolute;top:-20px;left:50%;transform:translateX(-50%) scale(1);width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#ff8c3c,#ffb347);box-shadow:0 0 12px rgba(255,140,60,0.6),0 0 24px rgba(255,140,60,0.3);display:flex;align-items:center;justify-content:center;animation:forgePulse 3s ease-in-out infinite;flex-shrink:0;transition:transform 0.14s ease,box-shadow 0.2s ease}
-.forge-core:active,.forge-btn:active .forge-core{transform:translateX(-50%) scale(0.9)}
-.forge-core.opened{transform:translateX(-50%) scale(1.05)}
-.forge-core svg{width:24px;height:24px;stroke:#fff;transition:none}
-.forge-btn.active .forge-core svg,.forge-btn .forge-core svg{transform:none;filter:none}
-@keyframes forgePulse{0%{box-shadow:0 0 12px rgba(255,140,60,0.5),0 0 24px rgba(255,140,60,0.2)}50%{box-shadow:0 0 20px rgba(255,140,60,0.8),0 0 36px rgba(255,140,60,0.35)}100%{box-shadow:0 0 12px rgba(255,140,60,0.5),0 0 24px rgba(255,140,60,0.2)}}
+/* ── NAV (Spotify-style: flat, flush to screen bottom) ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;display:flex;align-items:stretch;background:#0B0E16;border-top:1px solid rgba(255,255,255,0.08);padding:0;padding-bottom:var(--sab);max-width:520px;margin:0 auto}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 0 8px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:0.3px;line-height:1;transition:color 0.15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.nav-btn.active{color:var(--accent)}
+.nav-btn:active{opacity:0.7}
+.nav-btn svg{width:24px;height:24px}
+.nav-btn span{pointer-events:none}
 
 /* ── PAGES ── */
 .page{display:none;padding:10px 16px 14px;max-width:520px;margin:0 auto;animation:fadeUp 0.3s ease}
@@ -515,13 +505,8 @@ body.login-active::before{
 }
 @media (max-width:600px){
   :root{--nav-h:54px}
-  .bottom-nav{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-  .bottom-nav{padding-top:3px;padding-bottom:calc(3px + var(--sab))}
-  .nav-btn{padding:3px 4px 1px;gap:2px;font-size:10px;line-height:1}
-  .nav-btn svg{width:20px;height:20px}
-  .forge-btn{padding-top:18px;padding-bottom:1px}
-  .forge-core{top:-16px;width:44px;height:44px}
-  .forge-core svg{width:20px;height:20px}
+  .nav-btn{gap:3px;padding:8px 0 6px}
+  .nav-btn svg{width:22px;height:22px}
   .rest-timer-bar{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   .login-input{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 }
