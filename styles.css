@@ -7,7 +7,7 @@
   --radius:16px;
   --sat:env(safe-area-inset-top,0px);--sab:0px;
   --sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);
-  --page-pad:18px;--section-gap:12px;--nav-h:70px;
+  --page-pad:18px;--section-gap:12px;--nav-h:56px;
 }
 :root{--app-vh:100vh}
 @supports (height:100dvh){:root{--app-vh:100dvh}}
@@ -29,7 +29,7 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',system-ui,-appl
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
 
 /* ── NAV ── */
-.bottom-nav{position:fixed;bottom:0;left:var(--sal);right:var(--sar);background:rgba(10,14,24,0.85);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,0.05);display:flex;z-index:100;min-height:var(--nav-h);padding-top:6px;padding-bottom:calc(10px + var(--sab));max-width:520px;margin:0 auto;overflow:visible}
+.bottom-nav{position:fixed;bottom:0;left:var(--sal);right:var(--sar);background:rgba(10,14,24,0.85);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,0.05);display:flex;z-index:100;min-height:var(--nav-h);padding-top:4px;padding-bottom:calc(4px + var(--sab));max-width:520px;margin:0 auto;overflow:visible}
 .nav-btn{flex:1;padding:0 4px 8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;font-size:11px;font-weight:600;letter-spacing:0.5px;color:var(--muted);opacity:0.65;background:none;border:none;cursor:pointer;transition:color 0.2s,transform 0.08s ease,opacity 0.2s ease;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .nav-btn.active{color:var(--accent);opacity:1}
 .nav-btn:active{transform:scale(0.94)}
