@@ -1,5 +1,5 @@
 ﻿function getSportQuickLogMeta(){
-  const sportName=(schedule.sportName||'Cardio').trim()||'Cardio';
+  const sportName=(schedule.sportName||getDefaultSportName()).trim()||getDefaultSportName();
   const displayName=displaySportName(sportName);
   const normalized=sportName.toLowerCase();
   let icon='S';
@@ -11,7 +11,7 @@
   else if(normalized.includes('soccer')||normalized.includes('football'))icon='⚽';
   else if(normalized.includes('basket'))icon='🏀';
   else if(normalized.includes('tennis'))icon='🎾';
-  const subtitle=i18nText('workout.unscheduled_session','Unscheduled {sport} session',{sport:normalized==='cardio'?normalized:displayName});
+  const subtitle=i18nText('workout.unscheduled_session','Unscheduled {sport} session',{sport:(normalized==='cardio'||normalized==='kestävyys')?displayName.toLowerCase():displayName});
   return {sportName:displayName,icon,subtitle};
 }
 
@@ -71,6 +71,8 @@ function displaySportName(input){
   if(!raw)return raw;
   const locale=window.I18N&&I18N.getLanguage?I18N.getLanguage():'en';
   if(locale==='fi'&&raw.toLowerCase()==='hockey')return 'Jääkiekko';
+  if(locale==='fi'&&raw.toLowerCase()==='cardio')return 'Kestävyys';
+  if(locale==='en'&&raw.toLowerCase()==='kestävyys')return 'Cardio';
   return raw;
 }
 

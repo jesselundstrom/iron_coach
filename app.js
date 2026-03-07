@@ -20,7 +20,7 @@ let currentUser=null;
 
 // STATE (persisted via localStorage)
 let workouts=[];
-let schedule={sportName:'Hockey',sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
+let schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
 let profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};
 let activeWorkout=null, workoutTimer=null, workoutSeconds=0;
 let restInterval=null, restSecondsLeft=0, restTotal=0, restDuration=120;
@@ -29,6 +29,16 @@ let confirmCallback=null;
 let nameModalCallback=null;
 let _toastTimeout=null;
 let exerciseIndex={};
+
+function getDefaultSportName(){
+  const locale=window.I18N&&I18N.getLanguage?I18N.getLanguage():'en';
+  return locale==='fi'?'Kestävyys':'Cardio';
+}
+
+function isLegacyDefaultSportName(name){
+  const raw=String(name||'').trim().toLowerCase();
+  return raw===''||raw==='hockey'||raw==='jääkiekko'||raw==='cardio'||raw==='sport'||raw==='urheilu'||raw==='kestävyys';
+}
 
 const RPE_FEELS={6:'Easy',7:'Moderate',8:'Hard',9:'Very Hard',10:'Max'};
 function logWarn(context,error){console.warn('[Ironforge]',context,error);}
@@ -411,7 +421,7 @@ function closeProgramSetupSheet(e){
 }
 function initSettings(){
   refreshDayNames();
-  {const inp=document.getElementById('sport-name');if(inp)inp.value=schedule.sportName||'Hockey';}
+  {const inp=document.getElementById('sport-name');if(inp)inp.value=schedule.sportName||getDefaultSportName();}
   {const btns=document.querySelectorAll('#sport-intensity-btns button');
     btns.forEach(b=>{b.classList.toggle('active',b.dataset.intensity===(schedule.sportIntensity||'hard'));});
   }
@@ -452,7 +462,7 @@ function saveLanguageSetting(){
 }
 function saveSchedule(){
   const nameInp=document.getElementById('sport-name');
-  if(nameInp)schedule.sportName=nameInp.value.trim()||'Sport';
+  if(nameInp)schedule.sportName=nameInp.value.trim()||getDefaultSportName();
   const cb=document.getElementById('sport-legs-heavy');
   if(cb)schedule.sportLegsHeavy=cb.checked;
   if(!activeWorkout)resetNotStartedView();
@@ -497,7 +507,7 @@ function importData(event){
 
 async function clearAllData(){
   try{localStorage.removeItem('ic_workouts');localStorage.removeItem('ic_schedule');localStorage.removeItem('ic_profile');}catch(e){}
-  workouts=[];schedule={sportName:'Hockey',sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
+  workouts=[];schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
   profile={defaultRest:120,activeProgram:'forge',programs:{},language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};
   Object.values(PROGRAMS).forEach(prog=>{profile.programs[prog.id]=prog.getInitialState();});
   updateDashboard();showToast(tr('toast.all_data_cleared','All data cleared'),'var(--accent)');

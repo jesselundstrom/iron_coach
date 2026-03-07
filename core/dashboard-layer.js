@@ -71,7 +71,7 @@ function updateFatigueBars(f){
   else if(overallRec>=60){badgeText=trDash('dashboard.badge.caution','CAUTION');badgeCls='rbadge-caution';}
   else{badgeText=trDash('dashboard.badge.rest','REST');badgeCls='rbadge-rest';}
   const badgeEl=document.getElementById('recovery-badge');
-  if(badgeEl)badgeEl.innerHTML=`<span class="readiness-badge ${badgeCls}">${badgeText}</span>`;
+  if(badgeEl)badgeEl.innerHTML=`<span class="readiness-status ${badgeCls}"><span class="readiness-status-dot" aria-hidden="true"></span><span class="readiness-status-text">${badgeText}</span></span>`;
 }
 
 // DATA HELPERS

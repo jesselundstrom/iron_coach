@@ -15,7 +15,7 @@ async function loadData(){
   // Migrate legacy hockeyDays -> sportDays (one-time migration)
   if(schedule.hockeyDays&&!schedule.sportDays){schedule.sportDays=schedule.hockeyDays;delete schedule.hockeyDays;}
   if(!schedule.sportDays)schedule.sportDays=[];
-  if(!schedule.sportName)schedule.sportName='Hockey';
+  if(isLegacyDefaultSportName(schedule.sportName))schedule.sportName=getDefaultSportName();
   if(!schedule.sportIntensity)schedule.sportIntensity='hard';
   if(schedule.sportLegsHeavy===undefined)schedule.sportLegsHeavy=true;
   // Migrate legacy ats* keys to forge* (one-time migration)
@@ -122,6 +122,6 @@ async function signUpWithEmail(){
 
 async function logout(){
   await _SB.auth.signOut();
-  workouts=[];schedule={sportName:'Hockey',sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};currentUser=null;
+  workouts=[];schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};currentUser=null;
   updateDashboard();
 }

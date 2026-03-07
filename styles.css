@@ -547,16 +547,21 @@ body.login-active::before{
 .dash-col .lift-stat .value{font-size:16px}
 .dash-col .lift-stat .label{font-size:8px;letter-spacing:0.45px;line-height:1.15}
 /* Session pills */
-.week-progress-row{display:flex;align-items:center;gap:8px;margin-top:5px}
-.week-progress-row .session-pills{flex:1}
-.session-pills{display:flex;gap:5px}
-.session-pill{flex:1;height:6px;border-radius:99px;background:var(--surface3);border:1px solid var(--border)}
-.session-pill.done{background:linear-gradient(90deg,#E36A2C,#FF8A3A);border-color:transparent;box-shadow:0 0 6px rgba(255,122,58,0.3)}
+.week-progress-row{display:grid;grid-template-columns:1fr;justify-items:center;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.05)}
+.week-progress-row .session-pills{width:min(164px,100%)}
+.week-progress-row #today-status{width:100%;font-size:11px;line-height:1.3;color:var(--muted);text-align:left}
+.week-progress-row #today-status:empty{display:none}
+.week-progress-row #volume-text{font-size:10px!important;letter-spacing:0.04em;text-transform:uppercase;text-align:center}
+.session-pills{display:flex;align-items:center;justify-content:center;gap:4px;min-width:0}
+.session-pill{flex:1;height:4px;border-radius:3px;background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03));box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06)}
+.session-pill.done{background:linear-gradient(90deg,rgba(227,106,44,0.95),rgba(255,138,58,0.95));box-shadow:inset 0 0 0 1px rgba(255,190,150,0.16),0 0 10px rgba(255,122,58,0.14)}
 /* Readiness badge */
-.readiness-badge{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:0.5px;font-family:'JetBrains Mono',monospace}
-.rbadge-go{background:rgba(52,211,153,0.12);color:var(--green);border:1px solid rgba(52,211,153,0.3)}
-.rbadge-caution{background:rgba(245,158,11,0.12);color:var(--orange);border:1px solid rgba(245,158,11,0.3)}
-.rbadge-rest{background:rgba(255,122,58,0.12);color:var(--accent);border:1px solid rgba(255,122,58,0.3)}
+.readiness-status{display:inline-flex;align-items:center;gap:7px;font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+.readiness-status-dot{width:8px;height:8px;border-radius:2px;background:currentColor;box-shadow:0 0 10px currentColor}
+.readiness-status-text{font-family:'JetBrains Mono',monospace}
+.rbadge-go{color:var(--green)}
+.rbadge-caution{color:var(--orange)}
+.rbadge-rest{color:var(--accent)}
 /* Day strip interactions */
 .day-check{font-size:10px;color:var(--green);font-weight:800;margin-top:2px;min-height:14px}
 .day-pill.logged .day-num{color:var(--green)}
