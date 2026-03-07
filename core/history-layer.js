@@ -385,6 +385,7 @@ function deleteWorkout(id){
     workouts=workouts.filter(x=>x.id!==id);
     buildExerciseIndex();
     if(affectedProgramId)recomputeProgramStateFromWorkouts(affectedProgramId);
+    await softDeleteWorkoutRecord(id);
     await saveWorkouts();
     await saveProfileData();
     renderHistory();updateStats();updateDashboard();updateProgramDisplay();
@@ -393,6 +394,7 @@ function deleteWorkout(id){
       workouts.sort((a,b)=>new Date(a.date)-new Date(b.date));
       profile.programs=programsBackup;
       buildExerciseIndex();
+      await upsertWorkoutRecord(backup);
       await saveWorkouts();
       await saveProfileData();
       renderHistory();updateStats();updateDashboard();updateProgramDisplay();

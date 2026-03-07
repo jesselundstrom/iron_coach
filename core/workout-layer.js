@@ -156,7 +156,9 @@ function startWorkout(){
 function quickLogSport(){
   const {sportName}=getSportQuickLogMeta();
   showConfirm(i18nText('workout.log_extra','Log Extra {sport}',{sport:sportName}),i18nText('workout.log_extra_confirm','Log an extra {sport} session for today?',{sport:sportName.toLowerCase()}),async()=>{
-    workouts.push({id:Date.now(),date:new Date().toISOString(),type:'sport',subtype:'extra',duration:5400,exercises:[],rpe:7,sets:0});
+    const workout={id:Date.now(),date:new Date().toISOString(),type:'sport',subtype:'extra',duration:5400,exercises:[],rpe:7,sets:0};
+    workouts.push(workout);
+    await upsertWorkoutRecord(workout);
     await saveWorkouts();
     showToast(i18nText('workout.extra_logged','Extra {sport} logged!',{sport:sportName}),'var(--accent)');
     updateDashboard();
@@ -454,7 +456,7 @@ async function finishWorkout(){
   const workoutDate=new Date().toISOString();
 
   // Push workout record (keep legacy forge fields for history backwards-compat)
-  workouts.push({id:workoutId,date:workoutDate,
+  const savedWorkout={id:workoutId,date:workoutDate,
     program:prog.id,type:prog.id,
     programOption:activeWorkout.programOption,
     programDayNum:activeWorkout.programDayNum,
@@ -462,7 +464,8 @@ async function finishWorkout(){
     programMeta,
     programStateBefore:stateBeforeSession,
     forgeWeek:state.week||undefined,forgeDayNum:activeWorkout.programDayNum||undefined,
-    duration:getWorkoutElapsedSeconds(),exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets});
+    duration:getWorkoutElapsedSeconds(),exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets};
+  workouts.push(savedWorkout);
 
   // Program state adjustment — wrapped in try/catch so a program bug never loses the workout.
   // If anything throws, the workout is already in the array and will be saved below.
@@ -478,7 +481,6 @@ async function finishWorkout(){
 
     // Advance program state (week, cycle, A/B, etc.)
     advancedState=prog.advanceState?prog.advanceState(newState,sessionsThisWeek):newState;
-    const savedWorkout=workouts[workouts.length-1];
     if(savedWorkout)savedWorkout.programStateAfter=JSON.parse(JSON.stringify(advancedState));
 
     // Toast on week or cycle advance (any program)
@@ -496,6 +498,7 @@ async function finishWorkout(){
 
   setProgramState(prog.id,advancedState);
   saveProfileData();
+  await upsertWorkoutRecord(savedWorkout);
   await saveWorkouts();
   buildExerciseIndex();
 

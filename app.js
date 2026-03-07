@@ -534,6 +534,7 @@ function importData(event){
         if(data.workouts) workouts=data.workouts;
         if(data.schedule) schedule=data.schedule;
         if(data.profile) profile=data.profile;
+        await replaceWorkoutTableSnapshot(workouts);
         await saveWorkouts();await saveScheduleData();await saveProfileData();
         showToast(tr('toast.data_imported','Data imported! Reloading...'),"var(--green)");
         setTimeout(()=>location.reload(),1000);
@@ -549,6 +550,8 @@ async function clearAllData(){
   workouts=[];schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
   profile={defaultRest:120,activeProgram:'forge',programs:{},language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};
   Object.values(PROGRAMS).forEach(prog=>{profile.programs[prog.id]=prog.getInitialState();});
+  await replaceWorkoutTableSnapshot([]);
+  await saveWorkouts();await saveScheduleData();await saveProfileData();
   updateDashboard();showToast(tr('toast.all_data_cleared','All data cleared'),'var(--accent)');
 }
 

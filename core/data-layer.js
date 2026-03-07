@@ -7,14 +7,42 @@ function loadLocalData(){
   try{const pr=localStorage.getItem('ic_profile');if(pr)profile=JSON.parse(pr);}catch(e){logWarn('Failed to load profile from localStorage',e);}
 }
 
+function workoutClientId(workout){
+  if(!workout||workout.id===undefined||workout.id===null)return'';
+  return String(workout.id);
+}
+
+function mergeWorkoutLists(primary,fallback,deletedIds){
+  const removed=deletedIds||new Set();
+  const seen=new Set();
+  const merged=[];
+
+  function add(items){
+    (items||[]).forEach(workout=>{
+      const id=workoutClientId(workout);
+      if(!id||removed.has(id)||seen.has(id))return;
+      seen.add(id);
+      merged.push(workout);
+    });
+  }
+
+  add(primary);
+  add(fallback);
+  merged.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  return merged;
+}
+
 async function loadData(options){
   const opts=options||{};
   const allowCloudSync=opts.allowCloudSync!==false;
   loadLocalData();
   // Pull fresher data from cloud if logged in, but do not let an empty cloud snapshot wipe local workouts.
   const cloudResult=allowCloudSync?await pullFromCloud():{usedCloud:false};
+  const tableResult=allowCloudSync?await pullWorkoutsFromTable(workouts):{usedTable:false,didBackfill:false};
   const gotCloud=!!cloudResult.usedCloud;
-  if(gotCloud){
+  const gotWorkoutTable=!!tableResult.usedTable||!!tableResult.didBackfill;
+  if(gotWorkoutTable&&Array.isArray(tableResult.workouts))workouts=tableResult.workouts;
+  if(gotCloud||gotWorkoutTable){
     try{localStorage.setItem('ic_workouts',JSON.stringify(workouts));}catch(e){logWarn('Failed to persist cloud workouts snapshot locally',e);}
     try{localStorage.setItem('ic_schedule',JSON.stringify(schedule));}catch(e){logWarn('Failed to persist cloud schedule snapshot locally',e);}
     try{localStorage.setItem('ic_profile',JSON.stringify(profile));}catch(e){logWarn('Failed to persist cloud profile snapshot locally',e);}
@@ -57,13 +85,105 @@ async function loadData(options){
   updateDashboard();
 }
 
-async function saveWorkouts(){ try{localStorage.setItem('ic_workouts',JSON.stringify(workouts));}catch(e){logWarn('Failed to save workouts to localStorage',e);} pushToCloud(); }
+async function saveWorkouts(){ try{localStorage.setItem('ic_workouts',JSON.stringify(workouts));}catch(e){logWarn('Failed to save workouts to localStorage',e);} }
 async function saveScheduleData(){ try{localStorage.setItem('ic_schedule',JSON.stringify(schedule));}catch(e){logWarn('Failed to save schedule to localStorage',e);} pushToCloud(); }
 async function saveProfileData(){ try{localStorage.setItem('ic_profile',JSON.stringify(profile));}catch(e){logWarn('Failed to save profile to localStorage',e);} pushToCloud(); }
 
+function toWorkoutRow(workout){
+  if(!workout)return null;
+  return{
+    user_id:currentUser.id,
+    client_workout_id:String(workout.id),
+    program:workout.program||null,
+    type:workout.type,
+    subtype:workout.subtype||null,
+    performed_at:workout.date,
+    payload:workout,
+    deleted_at:null
+  };
+}
+
+async function upsertWorkoutRecord(workout){
+  if(!currentUser||!workout)return;
+  try{
+    await _SB.from('workouts').upsert(toWorkoutRow(workout),{onConflict:'user_id,client_workout_id'});
+  }catch(e){logWarn('Failed to upsert workout row',e);}
+}
+
+async function upsertWorkoutRecords(items){
+  if(!currentUser||!Array.isArray(items)||!items.length)return;
+  const rows=items.map(toWorkoutRow).filter(Boolean);
+  if(!rows.length)return;
+  try{
+    await _SB.from('workouts').upsert(rows,{onConflict:'user_id,client_workout_id'});
+  }catch(e){logWarn('Failed to upsert workout rows',e);}
+}
+
+async function softDeleteWorkoutRecord(workoutId){
+  if(!currentUser||workoutId===undefined||workoutId===null)return;
+  try{
+    await _SB.from('workouts')
+      .update({deleted_at:new Date().toISOString()})
+      .eq('user_id',currentUser.id)
+      .eq('client_workout_id',String(workoutId));
+  }catch(e){logWarn('Failed to soft-delete workout row',e);}
+}
+
+async function replaceWorkoutTableSnapshot(items){
+  if(!currentUser)return;
+  const nextItems=Array.isArray(items)?items:[];
+  const nextIds=new Set(nextItems.map(workoutClientId).filter(Boolean));
+  await upsertWorkoutRecords(nextItems);
+  try{
+    const{data,error}=await _SB.from('workouts')
+      .select('client_workout_id,deleted_at')
+      .eq('user_id',currentUser.id);
+    if(error){logWarn('Failed to read workout rows for snapshot replace',error);return;}
+    const rows=Array.isArray(data)?data:[];
+    const staleIds=rows
+      .filter(row=>!row.deleted_at&&!nextIds.has(String(row.client_workout_id)))
+      .map(row=>String(row.client_workout_id));
+    if(!staleIds.length)return;
+    await _SB.from('workouts')
+      .update({deleted_at:new Date().toISOString()})
+      .eq('user_id',currentUser.id)
+      .in('client_workout_id',staleIds);
+  }catch(e){logWarn('Failed to replace workout table snapshot',e);}
+}
+
+async function pullWorkoutsFromTable(fallbackWorkouts){
+  if(!currentUser)return{usedTable:false,didBackfill:false};
+  try{
+    const{data,error}=await _SB.from('workouts')
+      .select('client_workout_id,payload,deleted_at,performed_at')
+      .eq('user_id',currentUser.id)
+      .order('performed_at',{ascending:true});
+    if(error)return{usedTable:false,didBackfill:false};
+
+    const rows=Array.isArray(data)?data:[];
+    const deletedIds=new Set(rows.filter(row=>row.deleted_at).map(row=>String(row.client_workout_id)));
+    const knownIds=new Set(rows.map(row=>String(row.client_workout_id)));
+    const activeRows=rows.filter(row=>!row.deleted_at&&row.payload&&typeof row.payload==='object');
+    const tableWorkouts=activeRows.map(row=>row.payload);
+    const merged=mergeWorkoutLists(tableWorkouts,fallbackWorkouts,deletedIds);
+    const missingFromTable=merged.filter(workout=>!knownIds.has(workoutClientId(workout)));
+
+    if(missingFromTable.length)await upsertWorkoutRecords(missingFromTable);
+
+    return{
+      usedTable:rows.length>0,
+      didBackfill:missingFromTable.length>0,
+      workouts:merged
+    };
+  }catch(e){
+    logWarn('Failed to pull workouts from table',e);
+    return{usedTable:false,didBackfill:false};
+  }
+}
+
 async function pushToCloud(){
   if(!currentUser)return;
-  try{await _SB.from('profiles').upsert({id:currentUser.id,data:{profile,schedule,workouts},updated_at:new Date().toISOString()});}catch(e){logWarn('Failed to push data to cloud',e);}
+  try{await _SB.from('profiles').upsert({id:currentUser.id,data:{profile,schedule},updated_at:new Date().toISOString()});}catch(e){logWarn('Failed to push data to cloud',e);}
 }
 
 async function pullFromCloud(){
