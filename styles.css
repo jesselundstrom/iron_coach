@@ -17,6 +17,7 @@
 }
 html{-webkit-text-size-adjust:100%;background:var(--bg);overscroll-behavior:none;height:100%;width:100%;overflow:hidden;position:fixed}
 body{background:var(--bg);color:var(--text);font-family:'Outfit',system-ui,-apple-system,sans-serif;height:100%;width:100%;overflow:hidden;position:fixed;inset:0;line-height:1.5;overscroll-behavior:none;touch-action:none}
+button,[type=button],[type=submit],.btn,[onclick]{touch-action:manipulation}
 .app{height:var(--app-vh);overflow:hidden;display:flex;flex-direction:column}
 .content{height:var(--app-vh);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;touch-action:pan-y;padding-top:calc(var(--sat) + 6px);padding-left:calc(var(--sal) + var(--page-pad));padding-right:calc(var(--sar) + var(--page-pad));padding-bottom:var(--nav-h)}
 .section{margin-bottom:var(--section-gap)}
