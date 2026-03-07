@@ -1,12 +1,19 @@
 ﻿// Data and auth layer extracted from app.js.
 // Keeps runtime behavior the same while reducing app.js size/responsibility.
 
-async function loadData(){
+function loadLocalData(){
   try{const w=localStorage.getItem('ic_workouts');if(w)workouts=JSON.parse(w);}catch(e){logWarn('Failed to load workouts from localStorage',e);}
   try{const s=localStorage.getItem('ic_schedule');if(s)schedule=JSON.parse(s);}catch(e){logWarn('Failed to load schedule from localStorage',e);}
   try{const pr=localStorage.getItem('ic_profile');if(pr)profile=JSON.parse(pr);}catch(e){logWarn('Failed to load profile from localStorage',e);}
-  // Pull fresher data from cloud if logged in
-  const gotCloud=await pullFromCloud();
+}
+
+async function loadData(options){
+  const opts=options||{};
+  const allowCloudSync=opts.allowCloudSync!==false;
+  loadLocalData();
+  // Pull fresher data from cloud if logged in, but do not let an empty cloud snapshot wipe local workouts.
+  const cloudResult=allowCloudSync?await pullFromCloud():{usedCloud:false};
+  const gotCloud=!!cloudResult.usedCloud;
   if(gotCloud){
     try{localStorage.setItem('ic_workouts',JSON.stringify(workouts));}catch(e){logWarn('Failed to persist cloud workouts snapshot locally',e);}
     try{localStorage.setItem('ic_schedule',JSON.stringify(schedule));}catch(e){logWarn('Failed to persist cloud schedule snapshot locally',e);}
@@ -60,28 +67,35 @@ async function pushToCloud(){
 }
 
 async function pullFromCloud(){
-  if(!currentUser)return false;
+  if(!currentUser)return{usedCloud:false};
   try{
     const{data,error}=await _SB.from('profiles').select('data').eq('id',currentUser.id).single();
-    if(error||!data?.data)return false;
+    if(error||!data?.data)return{usedCloud:false};
     const c=data.data;
+    const localHasWorkouts=Array.isArray(workouts)&&workouts.length>0;
+    const cloudHasWorkoutList=Array.isArray(c.workouts);
+    const cloudHasWorkouts=cloudHasWorkoutList&&c.workouts.length>0;
     if(c.profile)profile=c.profile;
     if(c.schedule)schedule=c.schedule;
-    if(c.workouts)workouts=c.workouts;
-    return true;
-  }catch(e){return false;}
+    if(cloudHasWorkouts||!localHasWorkouts){
+      if(cloudHasWorkoutList)workouts=c.workouts;
+    }
+    return{usedCloud:true};
+  }catch(e){return{usedCloud:false};}
 }
 
 async function initAuth(){
+  await loadData({allowCloudSync:false});
   const{data:{session}}=await _SB.auth.getSession();
   currentUser=session?.user??null;
-  if(currentUser){hideLoginScreen();await loadData();}
+  if(currentUser){hideLoginScreen();await loadData({allowCloudSync:true});}
   else showLoginScreen();
 
   _SB.auth.onAuthStateChange(async(_event,session)=>{
     const wasLoggedIn=!!currentUser;
     currentUser=session?.user??null;
-    if(currentUser&&!wasLoggedIn){hideLoginScreen();await loadData();}
+    if(currentUser&&!wasLoggedIn){hideLoginScreen();await loadData({allowCloudSync:true});}
+    else if(!currentUser&&wasLoggedIn){await loadData({allowCloudSync:false});showLoginScreen();}
     else if(!currentUser){showLoginScreen();}
   });
 }
