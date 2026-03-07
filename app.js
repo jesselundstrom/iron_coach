@@ -21,7 +21,7 @@ let currentUser=null;
 // STATE (persisted via localStorage)
 let workouts=[];
 let schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
-let profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};
+let profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en'),preferences:getDefaultTrainingPreferences()};
 let activeWorkout=null, workoutTimer=null, workoutSeconds=0;
 let restInterval=null, restSecondsLeft=0, restTotal=0, restDuration=120, restEndsAt=0, restHideTimeout=null;
 let pendingRPECallback=null;
@@ -472,6 +472,17 @@ function initSettings(){
     const langSel=document.getElementById('app-language');
     if(langSel)langSel.value=profile.language||(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en');
   }
+  {
+    const prefs=normalizeTrainingPreferences(profile);
+    const goalSel=document.getElementById('training-goal');
+    if(goalSel)goalSel.value=prefs.goal;
+    const minutesSel=document.getElementById('training-session-minutes');
+    if(minutesSel)minutesSel.value=String(prefs.sessionMinutes);
+    const equipmentSel=document.getElementById('training-equipment');
+    if(equipmentSel)equipmentSel.value=prefs.equipmentAccess;
+    const notesEl=document.getElementById('training-preferences-notes');
+    if(notesEl)notesEl.value=prefs.notes||'';
+  }
   renderSportDayToggles();
   document.getElementById('default-rest').value=profile.defaultRest||120;
   renderProgramSwitcher();
@@ -493,6 +504,17 @@ function saveRestTimer(){
   restDuration=profile.defaultRest;
   saveProfileData({docKeys:['profile_core']});
   showToast(tr('toast.rest_updated','Rest timer updated'),'var(--blue)');
+}
+function saveTrainingPreferences(){
+  const prefs=normalizeTrainingPreferences(profile);
+  const goal=document.getElementById('training-goal')?.value||prefs.goal;
+  const sessionMinutes=parseInt(document.getElementById('training-session-minutes')?.value,10)||prefs.sessionMinutes;
+  const equipmentAccess=document.getElementById('training-equipment')?.value||prefs.equipmentAccess;
+  const notes=document.getElementById('training-preferences-notes')?.value||'';
+  profile.preferences=normalizeTrainingPreferences({...profile,preferences:{...prefs,goal,sessionMinutes,equipmentAccess,notes}});
+  saveProfileData({docKeys:['profile_core']});
+  updateDashboard();
+  showToast(tr('toast.preferences_saved','Training preferences saved'),'var(--purple)');
 }
 function saveLanguageSetting(){
   const lang=document.getElementById('app-language')?.value||'en';
@@ -537,6 +559,8 @@ function importData(event){
         if(data.workouts) workouts=data.workouts;
         if(data.schedule) schedule=data.schedule;
         if(data.profile) profile=data.profile;
+        cleanupLegacyProfileFields(profile);
+        normalizeTrainingPreferences(profile);
         await replaceWorkoutTableSnapshot(workouts);
         await saveWorkouts();await saveScheduleData();await saveProfileData({docKeys:getAllProfileDocumentKeys(profile)});
         showToast(tr('toast.data_imported','Data imported! Reloading...'),"var(--green)");
@@ -551,7 +575,7 @@ function importData(event){
 async function clearAllData(){
   try{localStorage.removeItem('ic_workouts');localStorage.removeItem('ic_schedule');localStorage.removeItem('ic_profile');}catch(e){}
   workouts=[];schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};
-  profile={defaultRest:120,activeProgram:'forge',programs:{},language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};
+  profile={defaultRest:120,activeProgram:'forge',programs:{},language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en'),preferences:getDefaultTrainingPreferences()};
   Object.values(PROGRAMS).forEach(prog=>{profile.programs[prog.id]=prog.getInitialState();});
   await replaceWorkoutTableSnapshot([]);
   await saveWorkouts();await saveScheduleData();await saveProfileData({docKeys:getAllProfileDocumentKeys(profile)});

@@ -245,6 +245,35 @@
         <option value="0" data-i18n="common.off">Off</option>
       </select>
     </div>
+    <div class="card">
+      <div class="card-title" data-i18n="settings.preferences.title">Training Preferences</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px" data-i18n="settings.preferences.help">These preferences shape future smart recommendations and AI-generated training.</div>
+      <label data-i18n="settings.preferences.goal">Primary Goal</label>
+      <select id="training-goal">
+        <option value="strength" data-i18n="settings.preferences.goal.strength">Strength</option>
+        <option value="hypertrophy" data-i18n="settings.preferences.goal.hypertrophy">Hypertrophy</option>
+        <option value="general_fitness" data-i18n="settings.preferences.goal.general_fitness">General Fitness</option>
+        <option value="sport_support" data-i18n="settings.preferences.goal.sport_support">Sport Support</option>
+      </select>
+      <label style="margin-top:12px" data-i18n="settings.preferences.session_duration">Target Session Length</label>
+      <select id="training-session-minutes">
+        <option value="30" data-i18n="settings.preferences.duration_value.30">30 min</option>
+        <option value="45" data-i18n="settings.preferences.duration_value.45">45 min</option>
+        <option value="60" data-i18n="settings.preferences.duration_value.60">60 min</option>
+        <option value="75" data-i18n="settings.preferences.duration_value.75">75 min</option>
+        <option value="90" data-i18n="settings.preferences.duration_value.90">90 min</option>
+      </select>
+      <label style="margin-top:12px" data-i18n="settings.preferences.equipment">Equipment Access</label>
+      <select id="training-equipment">
+        <option value="full_gym" data-i18n="settings.preferences.equipment.full_gym">Full Gym</option>
+        <option value="basic_gym" data-i18n="settings.preferences.equipment.basic_gym">Basic Gym</option>
+        <option value="home_gym" data-i18n="settings.preferences.equipment.home_gym">Home Gym</option>
+        <option value="minimal" data-i18n="settings.preferences.equipment.minimal">Minimal Equipment</option>
+      </select>
+      <label style="margin-top:12px" data-i18n="settings.preferences.notes">Notes, limitations, preferences</label>
+      <textarea id="training-preferences-notes" rows="4" data-i18n-placeholder="settings.preferences.notes_placeholder" placeholder="e.g. Avoid high-impact jumps, prefer barbell compounds, 60 min cap"></textarea>
+      <button class="btn btn-primary" style="margin-top:14px" onclick="saveTrainingPreferences()" data-i18n="settings.preferences.save">Save Preferences</button>
+    </div>
     <button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="openProgramSetupSheet()" data-i18n="settings.edit_program">Edit Program Setup</button>
   </div>
 

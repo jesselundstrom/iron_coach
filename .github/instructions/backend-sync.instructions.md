@@ -7,6 +7,7 @@ description: "Use when changing Supabase sync, persistence, import/export, worko
 
 - Workout history sync now uses the dedicated `public.workouts` table in Supabase. Treat that table as the source of truth for synced workouts.
 - Profile and schedule sync now use `public.profile_documents` as the primary source of truth. Use separate document keys such as `profile_core`, `schedule`, and `program:<id>`.
+- `profile_core` now includes durable user-preference data under `profile.preferences`. Preserve that shape when changing sync, import/export, or migration logic.
 - `profiles.data` is a compatibility mirror/fallback for `profile` and `schedule` only. Do not add `workouts` back into the profile blob.
 - `profile` and `schedule` sync use section-level timestamps stored in `profile.syncMeta`. Preserve that merge behavior when changing profile persistence.
 - Keep targeted saves targeted. Program-state writes should update the relevant `program:<id>` document instead of re-writing every program state blob.

@@ -41,6 +41,7 @@
 - Be careful with Supabase-related code in `app.js` and `core/data-layer.js`.
 - Treat `public.workouts` as the source of truth for workout history sync.
 - Treat `public.profile_documents` as the primary sync source for profile core, schedule, and per-program state.
+- Treat `profile.preferences` as a durable part of `profile_core`. Preserve and migrate it when changing profile persistence or recommendation logic.
 - Treat `profiles.data` as a compatibility mirror/fallback for profile and schedule only; do not reintroduce `profiles.data.workouts`.
 - Keep workout-table changes compatible with the additive migration flow under `supabase/migrations/`.
 - Keep profile-document sync compatible with the additive migration flow under `supabase/migrations/`.
@@ -57,6 +58,7 @@
 - Avoid unrelated refactors.
 - If adding a feature, update all affected layers, translations, and UI states.
 - When a change alters architecture, persistence, sync behavior, migrations, or contributor workflow, also update the relevant AI instructions under `.github/` before committing.
+- When changing recommendation logic, readiness logic, or future AI-training groundwork, check whether `profile.preferences` shape or related guidance in `.github/` needs to be updated too.
 - Before committing and pushing meaningful project changes, explicitly check whether `.github/copilot-instructions.md` or a matching file under `.github/instructions/` should be updated to reflect the new reality.
 - When changing cached runtime assets or PWA update behavior, also decide whether `sw.js` cache versioning or fetch strategy needs an update.
 - Do not add instruction-only churn for trivial edits, but do document durable workflow or architecture changes once they become part of the project standard.

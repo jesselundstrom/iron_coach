@@ -105,6 +105,64 @@ function getAllProfileDocumentKeys(profileLike){
   return uniqueDocKeys([PROFILE_CORE_DOC_KEY,SCHEDULE_DOC_KEY,...listProgramIds(profileLike).map(programDocKey)]);
 }
 
+function getDefaultTrainingPreferences(){
+  return{
+    goal:'strength',
+    sessionMinutes:60,
+    equipmentAccess:'full_gym',
+    notes:''
+  };
+}
+
+function normalizeTrainingPreferences(profileLike){
+  if(!profileLike||typeof profileLike!=='object')return getDefaultTrainingPreferences();
+  const defaults=getDefaultTrainingPreferences();
+  const next={...defaults,...(profileLike.preferences||{})};
+  const allowedGoals=new Set(['strength','hypertrophy','general_fitness','sport_support']);
+  const allowedEquipment=new Set(['full_gym','basic_gym','home_gym','minimal']);
+  const allowedMinutes=new Set([30,45,60,75,90]);
+  if(!allowedGoals.has(next.goal))next.goal=defaults.goal;
+  if(!allowedEquipment.has(next.equipmentAccess))next.equipmentAccess=defaults.equipmentAccess;
+  const minutes=parseInt(next.sessionMinutes,10);
+  next.sessionMinutes=allowedMinutes.has(minutes)?minutes:defaults.sessionMinutes;
+  next.notes=String(next.notes||'').trim().slice(0,500);
+  profileLike.preferences=next;
+  return next;
+}
+
+function getTrainingGoalLabel(goal){
+  const map={
+    strength:['settings.preferences.goal.strength','Strength'],
+    hypertrophy:['settings.preferences.goal.hypertrophy','Hypertrophy'],
+    general_fitness:['settings.preferences.goal.general_fitness','General Fitness'],
+    sport_support:['settings.preferences.goal.sport_support','Sport Support']
+  };
+  const [key,fallback]=map[goal]||map.strength;
+  return window.I18N&&I18N.t?I18N.t(key,null,fallback):fallback;
+}
+
+function getEquipmentAccessLabel(value){
+  const map={
+    full_gym:['settings.preferences.equipment.full_gym','Full Gym'],
+    basic_gym:['settings.preferences.equipment.basic_gym','Basic Gym'],
+    home_gym:['settings.preferences.equipment.home_gym','Home Gym'],
+    minimal:['settings.preferences.equipment.minimal','Minimal Equipment']
+  };
+  const [key,fallback]=map[value]||map.full_gym;
+  return window.I18N&&I18N.t?I18N.t(key,null,fallback):fallback;
+}
+
+function getTrainingPreferencesSummary(profileLike){
+  const prefs=normalizeTrainingPreferences(profileLike||profile||{});
+  const goal=getTrainingGoalLabel(prefs.goal);
+  const minutes=window.I18N&&I18N.t?I18N.t('settings.preferences.duration_value',{minutes:prefs.sessionMinutes},'{minutes} min'):prefs.sessionMinutes+' min';
+  const equipment=getEquipmentAccessLabel(prefs.equipmentAccess);
+  const fallback='Goal: '+goal+' · '+minutes+' · '+equipment;
+  return window.I18N&&I18N.t
+    ? I18N.t('dashboard.preferences_context',{goal,minutes,equipment},fallback)
+    : fallback;
+}
+
 function normalizeWorkoutRecord(workout){
   if(!workout||typeof workout!=='object')return workout;
   let changed=false;
@@ -294,6 +352,7 @@ async function loadData(options){
     profile.activeProgram='forge';
   }
   cleanupLegacyProfileFields(profile);
+  normalizeTrainingPreferences(profile);
   const normalizedWorkouts=normalizeWorkoutRecords(workouts);
   workouts=normalizedWorkouts.items;
   // Ensure activeProgram is set
@@ -745,6 +804,6 @@ async function signUpWithEmail(){
 async function logout(){
   teardownRealtimeSync();
   await _SB.auth.signOut();
-  workouts=[];schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en')};currentUser=null;
+  workouts=[];schedule={sportName:getDefaultSportName(),sportDays:[],sportIntensity:'hard',sportLegsHeavy:true};profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en'),preferences:getDefaultTrainingPreferences()};currentUser=null;
   updateDashboard();
 }
