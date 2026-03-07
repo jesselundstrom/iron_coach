@@ -4,6 +4,10 @@ function trDash(key,fallback,params){
   if(window.I18N)return I18N.t(key,params,fallback);
   return fallback;
 }
+function dashExerciseName(name){
+  if(window.EXERCISE_LIBRARY&&EXERCISE_LIBRARY.getDisplayName)return EXERCISE_LIBRARY.getDisplayName(name);
+  return name;
+}
 function computeFatigue(){
   const now=Date.now();
   const liftS=workouts.filter(w=>!isSportWorkout(w)).sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -177,6 +181,7 @@ function updateDashboard(){
   renderWeekStrip();
   const f=computeFatigue();updateFatigueBars(f);
   const prog=getActiveProgram(),ps=getActiveProgramState();
+  const programName=window.I18N&&I18N.t?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):prog.name||'Training';
 
   // Training Maxes - dynamic per program
   const tmGrid=document.getElementById('tm-grid');
@@ -186,7 +191,7 @@ function updateDashboard(){
     const tmSignature=tms.map(t=>`${t.name}:${t.value}`).join('|');
     const tmChanged=!!_lastTmSignature&&tmSignature!==_lastTmSignature;
     _lastTmSignature=tmSignature;
-    tmGrid.innerHTML=tms.map((t,i)=>`<div class="lift-stat${tmChanged?' tm-updated':''}" style="--tm-delay:${i*65}ms"><div class="value">${t.value}</div><div class="label">${t.name}</div></div>`).join('');
+    tmGrid.innerHTML=tms.map((t,i)=>`<div class="lift-stat${tmChanged?' tm-updated':''}" style="--tm-delay:${i*65}ms"><div class="value">${t.value}</div><div class="label">${dashExerciseName(t.name)}</div></div>`).join('');
     if(tmTitle)tmTitle.textContent=prog.dashboardStatsLabel||trDash('dashboard.training_maxes','Training Maxes');
   }
 
@@ -219,6 +224,6 @@ function updateDashboard(){
   else{cardAccent=true;rec=modeDescHtml+`<div style="font-weight:700;color:var(--accent);margin-bottom:6px">${trDash('dashboard.training_day','Training day')}</div><div style="font-size:13px;color:var(--muted)">${trDash('dashboard.recovery_pct','Recovery {recovery}%',{recovery})} - ${recovery>=75?trDash('dashboard.feeling_fresh','feeling fresh, push it'):trDash('dashboard.moderate_effort','moderate effort')}. ${freq-doneThisWeek} ${freq-doneThisWeek>1?trDash('dashboard.sessions_left','sessions left'):trDash('dashboard.session_left','session left')}.</div>${startBtn}`;}
   document.getElementById('next-session-content').innerHTML=rec;
   document.getElementById('next-session-content').parentElement.style.borderColor=cardAccent?'var(--accent)':'';
-  document.getElementById('header-sub').textContent=trDash('dashboard.header_sub','{program} - {block} - {week} - Recovery {recovery}%',{program:prog.name||'Training',block:bi.name||'',week:bi.weekLabel||'',recovery});
+  document.getElementById('header-sub').textContent=trDash('dashboard.header_sub','{program} - {block} - {week} - Recovery {recovery}%',{program:programName,block:bi.name||'',week:bi.weekLabel||'',recovery});
 }
 

@@ -27,20 +27,20 @@
     <circle cx="22" cy="22" r="19" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="119.4" stroke-dashoffset="0" id="timer-arc" stroke-linecap="round" transform="rotate(-90 22 22)" style="transition:stroke-dashoffset 1s linear"/>
   </svg>
   <div class="rest-timer-info">
-    <div class="rest-timer-label">Rest Timer</div>
+    <div class="rest-timer-label" data-i18n="workout.rest_timer">Rest Timer</div>
     <div class="rest-timer-count" id="rest-timer-count">2:00</div>
   </div>
-  <button class="rest-skip-btn" onclick="skipRest()">Skip ›</button>
+  <button class="rest-skip-btn" onclick="skipRest()" data-i18n="common.skip">Skip</button>
 </div>
 
 <!-- RPE MODAL -->
 <div class="modal-overlay" id="rpe-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">How hard was this session?</div>
-    <div class="modal-sub" id="rpe-modal-sub">Rate overall effort (6 = easy, 10 = max)</div>
+    <div class="modal-title" data-i18n="rpe.session_title">How hard was this session?</div>
+    <div class="modal-sub" id="rpe-modal-sub" data-i18n="rpe.session_prompt">Rate overall effort (6 = easy, 10 = max)</div>
     <div class="rpe-grid" id="rpe-grid"></div>
-    <div class="rpe-skip" onclick="skipRPE()">Skip</div>
+    <div class="rpe-skip" onclick="skipRPE()" data-i18n="common.skip">Skip</div>
   </div>
 </div>
 
@@ -84,20 +84,20 @@
     <div class="week-progress-row">
       <div id="today-status" style="font-size:12px;flex:1"></div>
       <div id="session-pills" class="session-pills"></div>
-      <div id="volume-text" style="font-size:11px;color:var(--muted);white-space:nowrap">0/2 sessions</div>
+      <div id="volume-text" style="font-size:11px;color:var(--muted);white-space:nowrap" data-i18n="common.loading">Loading...</div>
     </div>
     <div id="day-detail-panel" style="display:none"></div>
   </div>
   <div class="card" id="todays-plan-card">
     <div class="card-title" data-i18n="dashboard.today_plan">Today's Plan</div>
-    <div id="next-session-content" style="color:var(--muted);font-size:13px">Loading...</div>
+    <div id="next-session-content" style="color:var(--muted);font-size:13px" data-i18n="common.loading">Loading...</div>
   </div>
   <div class="dash-row">
     <div class="card dash-col">
       <div class="card-title" data-i18n="dashboard.recovery">Recovery</div>
-      <div class="fatigue-row"><div class="fatigue-label">Muscular</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-muscular" style="width:0%"></div></div><div class="fatigue-value" id="f-muscular-val">—</div></div>
-      <div class="fatigue-row"><div class="fatigue-label">Nervous</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-cns" style="width:0%"></div></div><div class="fatigue-value" id="f-cns-val">—</div></div>
-      <div class="fatigue-row"><div class="fatigue-label">Overall</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-overall" style="width:0%"></div></div><div class="fatigue-value" id="f-overall-val">—</div></div>
+      <div class="fatigue-row"><div class="fatigue-label" data-i18n="dashboard.muscular">Muscular</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-muscular" style="width:0%"></div></div><div class="fatigue-value" id="f-muscular-val">—</div></div>
+      <div class="fatigue-row"><div class="fatigue-label" data-i18n="dashboard.nervous">Nervous</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-cns" style="width:0%"></div></div><div class="fatigue-value" id="f-cns-val">—</div></div>
+      <div class="fatigue-row"><div class="fatigue-label" data-i18n="dashboard.overall">Overall</div><div class="fatigue-bar-wrap"><div class="fatigue-fill" id="f-overall" style="width:0%"></div></div><div class="fatigue-value" id="f-overall-val">—</div></div>
       <div id="recovery-badge" style="margin-top:6px"><span style="font-size:11px;color:var(--muted)" data-i18n="dashboard.log_to_see">Log workouts to see data</span></div>
     </div>
     <div class="card dash-col">
@@ -113,7 +113,7 @@
     <div class="quick-log-row">
       <div class="quick-log-card ql-sport" onclick="quickLogSport()">
         <div class="ql-icon">S</div>
-        <div><div class="ql-title">Log Extra Cardio</div><div class="ql-sub">Unscheduled cardio session</div></div>
+        <div><div class="ql-title" data-i18n="workout.log_extra_sport">Log Extra Sport</div><div class="ql-sub" data-i18n="workout.unscheduled_sport_session">Unscheduled sport session</div></div>
       </div>
     </div>
     <div class="divider-label"><span data-i18n="workout.training_session">Training Session</span></div>
@@ -129,7 +129,7 @@
     <div id="workout-active" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;margin-top:8px">
         <div>
-          <div style="font-weight:800;font-size:18px" id="active-session-title">Session</div>
+          <div style="font-weight:800;font-size:18px" id="active-session-title" data-i18n="common.session">Session</div>
           <div id="active-session-description" style="font-size:12px;color:var(--muted);margin-top:3px;max-width:280px"></div>
           <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace" id="active-session-timer">00:00</div>
         </div>
@@ -149,7 +149,7 @@
       </div>
       <div id="exercises-container"></div>
       <button class="btn btn-primary" style="margin-top:8px" onclick="finishWorkout()" data-i18n="workout.finish_session">✅ Finish Session</button>
-      <button class="btn btn-ghost" style="margin-top:8px" onclick="showConfirm(I18N.t('workout.cancel_session',null,'Cancel Session'),I18N.t('workout.discard_session',null,'Discard this workout? Data won\\'t be saved.'),cancelWorkout)" data-i18n="common.cancel">Cancel</button>
+      <button class="btn btn-ghost" style="margin-top:8px" onclick="showConfirm(I18N.t('workout.cancel_session',null,'Discard Workout'),I18N.t('workout.discard_session',null,'Discard this in-progress workout? Sets won\'t be saved.'),cancelWorkout)" data-i18n="workout.cancel_session">Discard Workout</button>
     </div>
 </div>
 
@@ -157,7 +157,7 @@
 <div class="page" id="page-history">
   <div class="header" style="padding:20px 0 10px">
     <h1 class="page-title" data-i18n="nav.history">History</h1>
-    <p>Your training record</p>
+    <p data-i18n="history.subtitle">Your training record</p>
   </div>
   <div id="history-heatmap"></div>
   <div class="tabs">
@@ -280,11 +280,11 @@
 <nav class="bottom-nav">
   <button class="nav-btn active" onclick="showPage('dashboard',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-    <span>Dashboard</span>
+    <span data-i18n="nav.dashboard">Dashboard</span>
   </button>
   <button class="nav-btn" onclick="showPage('log',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="10" width="4" height="4" rx="1"/><rect x="19" y="10" width="4" height="4" rx="1"/><rect x="7" y="8" width="3" height="8" rx="1"/><rect x="14" y="8" width="3" height="8" rx="1"/><line x1="5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="19" y2="12"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-    <span>Train</span>
+    <span data-i18n="nav.train">Train</span>
   </button>
   <button class="nav-btn" onclick="showPage('history',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>

@@ -4,6 +4,32 @@
 
 const catalogById={};
 const lookupByName={};
+const localizedNameByLocale={
+  fi:{
+    'squat':'Takakyykky',
+    'back squat':'Takakyykky',
+    'barbell back squat':'Takakyykky',
+    'front squat':'Etukyykky',
+    'paused squat':'Pysaytyskyykky',
+    'pause squat':'Pysaytyskyykky',
+    'bench':'Penkkipunnerrus',
+    'bench press':'Penkkipunnerrus',
+    'barbell bench press':'Penkkipunnerrus',
+    'incline press':'Vinopenkkipunnerrus',
+    'close-grip bench':'Kapean otteen penkkipunnerrus',
+    'close-grip bench press':'Kapean otteen penkkipunnerrus',
+    'spoto press':'Spoto-punnerrus',
+    'deadlift':'Maastaveto',
+    'sumo deadlift':'Sumomaastaveto',
+    'stiff leg deadlift':'Suorajalkainen maastaveto',
+    'ohp':'Pystypunnerrus',
+    'overhead press':'Pystypunnerrus',
+    'overhead press (ohp)':'Pystypunnerrus',
+    'push press':'Tyontopunnerrus',
+    'barbell rows':'Kulmasoutu',
+    'barbell row':'Kulmasoutu'
+  }
+};
 
 function normalize(value){
   return String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
@@ -11,6 +37,15 @@ function normalize(value){
 
 function slugify(value){
   return normalize(value).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+
+function getDisplayName(input,locale){
+  const current=(window.I18N&&I18N.normalizeLocale)?I18N.normalizeLocale(locale||I18N.getLanguage()):'en';
+  const exercise=getExercise(input);
+  const rawName=exercise?.name||String(input||'').trim();
+  if(!rawName)return '';
+  const translated=localizedNameByLocale[current]?.[normalize(rawName)];
+  return translated||rawName;
 }
 
 function inferCategory(name){
@@ -25,10 +60,12 @@ function inferCategory(name){
 }
 
 function guidanceFor(name,category){
+  const localizedNameEn=getDisplayName(name,'en')||name;
+  const localizedNameFi=getDisplayName(name,'fi')||name;
   if(category==='squat'){
     return{
       en:{
-        description:name+' is a lower-body strength movement that trains quads and glutes while reinforcing bracing.',
+        description:localizedNameEn+' is a lower-body strength movement that trains quads and glutes while reinforcing bracing.',
         setup:'Set feet about shoulder-width, root your whole foot, and brace your trunk before each rep.',
         execution:[
           'Sit down and slightly back while keeping chest and hips moving together.',
@@ -40,7 +77,7 @@ function guidanceFor(name,category){
         media:{}
       },
       fi:{
-        description:name+' on alavartalon voimaliike, joka kehittaa etu- ja pakaralihaksia seka keskivartalon tukea.',
+        description:localizedNameFi+' on alavartalon voimaliike, joka kehittaa etu- ja pakaralihaksia seka keskivartalon tukea.',
         setup:'Aseta jalat noin hartialeveyteen, pida koko jalkapohja maassa ja tue keskivartalo ennen jokaista toistoa.',
         execution:[
           'Istuudu alas ja hieman taakse niin, etta rinta ja lantio liikkuvat yhdessa.',
@@ -56,7 +93,7 @@ function guidanceFor(name,category){
   if(category==='hinge'){
     return{
       en:{
-        description:name+' develops posterior-chain strength and teaches powerful hip extension with a stable spine.',
+        description:localizedNameEn+' develops posterior-chain strength and teaches powerful hip extension with a stable spine.',
         setup:'Stand balanced over mid-foot, hinge from the hips, and lock in a neutral spine before you move the weight.',
         execution:[
           'Load hips back while keeping the bar or implement close to your body.',
@@ -68,7 +105,7 @@ function guidanceFor(name,category){
         media:{}
       },
       fi:{
-        description:name+' kehittaa takaketjun voimaa ja opettaa tehokasta lonkan ojennusta neutraalilla selalla.',
+        description:localizedNameFi+' kehittaa takaketjun voimaa ja opettaa tehokasta lonkan ojennusta neutraalilla selalla.',
         setup:'Seiso tasapainoisesti keskijalalla, taita lonkasta ja lukitse neutraali selka ennen nostoa.',
         execution:[
           'Vie lantiota taakse ja pida tanko tai valine lahella vartaloa.',
@@ -84,7 +121,7 @@ function guidanceFor(name,category){
   if(category==='press'){
     return{
       en:{
-        description:name+' builds pressing strength through chest, shoulders, and triceps while demanding upper-body stability.',
+        description:localizedNameEn+' builds pressing strength through chest, shoulders, and triceps while demanding upper-body stability.',
         setup:'Set shoulder position first, grip evenly, and brace before initiating each press.',
         execution:[
           'Lower with control to a consistent touch point or bottom position.',
@@ -96,7 +133,7 @@ function guidanceFor(name,category){
         media:{}
       },
       fi:{
-        description:name+' kehittaa punnerrusvoimaa rintalihaksille, olkapaille ja ojentajille seka vaatii ylavartalon hallintaa.',
+        description:localizedNameFi+' kehittaa punnerrusvoimaa rintalihaksille, olkapaille ja ojentajille seka vaatii ylavartalon hallintaa.',
         setup:'Aseta olkapaat ensin, ota tasainen ote ja tue keskivartalo ennen jokaista toistoa.',
         execution:[
           'Laske hallitusti samaan ala-asentoon jokaisella toistolla.',
@@ -112,7 +149,7 @@ function guidanceFor(name,category){
   if(category==='pull'){
     return{
       en:{
-        description:name+' trains upper-back pulling strength and improves shoulder mechanics through controlled scapular movement.',
+        description:localizedNameEn+' trains upper-back pulling strength and improves shoulder mechanics through controlled scapular movement.',
         setup:'Start with ribs down, shoulder blades set, and a grip that allows full range without shrugging.',
         execution:[
           'Initiate by pulling elbows toward hips or torso.',
@@ -124,7 +161,7 @@ function guidanceFor(name,category){
         media:{}
       },
       fi:{
-        description:name+' kehittaa ylaselan vetovoimaa ja parantaa olkapaan liikekontrollia lapaluun hallinnan kautta.',
+        description:localizedNameFi+' kehittaa ylaselan vetovoimaa ja parantaa olkapaan liikekontrollia lapaluun hallinnan kautta.',
         setup:'Aloita kyljet alhaalla, lapaluut hallinnassa ja otteella, jolla saat tayden liikeradan ilman hartioiden nousua.',
         execution:[
           'Aloita veto viemalla kyynarpaat kohti lantiota tai vartaloa.',
@@ -140,7 +177,7 @@ function guidanceFor(name,category){
   if(category==='core'){
     return{
       en:{
-        description:name+' targets trunk control and anti-movement capacity to support heavier compound lifting.',
+        description:localizedNameEn+' targets trunk control and anti-movement capacity to support heavier compound lifting.',
         setup:'Establish a neutral pelvis and rib position before each rep or hold.',
         execution:[
           'Move slowly and keep breathing controlled through the set.',
@@ -152,7 +189,7 @@ function guidanceFor(name,category){
         media:{}
       },
       fi:{
-        description:name+' kehittaa keskivartalon hallintaa ja anti-liikekapasiteettia tukemaan raskaampia perusliikkeita.',
+        description:localizedNameFi+' kehittaa keskivartalon hallintaa ja anti-liikekapasiteettia tukemaan raskaampia perusliikkeita.',
         setup:'Loyda neutraali lantion ja rintakehan asento ennen jokaista toistoa tai pitoa.',
         execution:[
           'Liiku rauhallisesti ja hengita hallitusti koko sarjan ajan.',
@@ -168,7 +205,7 @@ function guidanceFor(name,category){
   if(category==='isolation'){
     return{
       en:{
-        description:name+' is an accessory movement for targeted hypertrophy and joint-friendly volume.',
+        description:localizedNameEn+' is an accessory movement for targeted hypertrophy and joint-friendly volume.',
         setup:'Choose a stable body position and start with a controllable load.',
         execution:[
           'Use smooth reps with full control through both phases.',
@@ -180,7 +217,7 @@ function guidanceFor(name,category){
         media:{}
       },
       fi:{
-        description:name+' on apuliike kohdennettuun lihaskasvuun ja nivelystavalliseen harjoitusvolyymiin.',
+        description:localizedNameFi+' on apuliike kohdennettuun lihaskasvuun ja nivelystavalliseen harjoitusvolyymiin.',
         setup:'Valitse vakaa asento ja kuorma, jonka hallitset koko sarjan ajan.',
         execution:[
           'Tee toistot tasaisesti ja hallitusti molempiin suuntiin.',
@@ -195,7 +232,7 @@ function guidanceFor(name,category){
   }
   return{
     en:{
-      description:name+' is a general strength accessory used to build capacity around main lifts.',
+      description:localizedNameEn+' is a general strength accessory used to build capacity around main lifts.',
       setup:'Use a stable start position and brace before each rep.',
       execution:[
         'Move through a controlled and repeatable range.',
@@ -207,7 +244,7 @@ function guidanceFor(name,category){
       media:{}
     },
     fi:{
-      description:name+' on yleinen voimaharjoittelun apuliike, jolla rakennetaan kapasiteettia paa liikkeiden tueksi.',
+      description:localizedNameFi+' on yleinen voimaharjoittelun apuliike, jolla rakennetaan kapasiteettia paa liikkeiden tueksi.',
       setup:'Aloita vakaasta asennosta ja tue keskivartalo ennen jokaista toistoa.',
       execution:[
         'Liiku hallitulla ja toistettavalla liikeradalla.',
@@ -286,7 +323,7 @@ function getExerciseGuidance(input,locale){
   const localized=pickLocale(exercise,locale);
   return{
     id:exercise.id,
-    name:exercise.name,
+    name:getDisplayName(exercise.name,locale),
     category:exercise.category,
     description:localized.description,
     setup:localized.setup,
@@ -327,6 +364,7 @@ registerAlias('lat pull-down','Pull-downs');
 window.EXERCISE_LIBRARY={
   resolveExerciseId,
   getExercise,
+  getDisplayName,
   getExerciseGuidance,
   getAllExercises,
   registerExercise,

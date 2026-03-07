@@ -1,5 +1,6 @@
 ﻿function getSportQuickLogMeta(){
   const sportName=(schedule.sportName||'Cardio').trim()||'Cardio';
+  const displayName=displaySportName(sportName);
   const normalized=sportName.toLowerCase();
   let icon='S';
   if(normalized.includes('hock'))icon='🏒';
@@ -10,8 +11,8 @@
   else if(normalized.includes('soccer')||normalized.includes('football'))icon='⚽';
   else if(normalized.includes('basket'))icon='🏀';
   else if(normalized.includes('tennis'))icon='🎾';
-  const subtitle=i18nText('workout.unscheduled_session','Unscheduled {sport} session').replace('{sport}',normalized==='cardio'?normalized:sportName);
-  return {sportName,icon,subtitle};
+  const subtitle=i18nText('workout.unscheduled_session','Unscheduled {sport} session',{sport:normalized==='cardio'?normalized:displayName});
+  return {sportName:displayName,icon,subtitle};
 }
 
 function resetNotStartedView(){
@@ -21,7 +22,7 @@ function resetNotStartedView(){
     <div class="quick-log-row">
       <div class="quick-log-card ql-sport" onclick="quickLogSport()">
         <div class="ql-icon">${icon}</div>
-        <div><div class="ql-title">${i18nText('workout.log_extra','Log Extra {sport}').replace('{sport}',sportName)}</div><div class="ql-sub">${subtitle}</div></div>
+        <div><div class="ql-title">${i18nText('workout.log_extra','Log Extra {sport}',{sport:sportName})}</div><div class="ql-sub">${subtitle}</div></div>
       </div>
     </div>
     <div class="divider-label"><span>${(prog.icon||'Lift')+' '+(prog.name||'Training')+' '+i18nText('common.session','Session')}</span></div>
@@ -46,8 +47,8 @@ function withResolvedExerciseId(ex){
   return exerciseId?{...ex,exerciseId}:{...ex,exerciseId:null};
 }
 
-function i18nText(key,fallback){
-  if(window.I18N&&I18N.t)return I18N.t(key);
+function i18nText(key,fallback,params){
+  if(window.I18N&&I18N.t)return I18N.t(key,params,fallback);
   return fallback;
 }
 
@@ -58,6 +59,19 @@ function escapeHtml(text){
     .replaceAll('>','&gt;')
     .replaceAll('"','&quot;')
     .replaceAll("'",'&#39;');
+}
+
+function displayExerciseName(input){
+  if(window.EXERCISE_LIBRARY&&EXERCISE_LIBRARY.getDisplayName)return EXERCISE_LIBRARY.getDisplayName(input);
+  return String(input||'');
+}
+
+function displaySportName(input){
+  const raw=String(input||'').trim();
+  if(!raw)return raw;
+  const locale=window.I18N&&I18N.getLanguage?I18N.getLanguage():'en';
+  if(locale==='fi'&&raw.toLowerCase()==='hockey')return 'Jääkiekko';
+  return raw;
 }
 
 function renderExerciseGuidance(ex){
@@ -138,7 +152,7 @@ function startWorkout(){
   if((_isSportDay||_hadSportRecently)&&!bi.isDeload&&schedule.sportLegsHeavy!==false){
     const hasLegs=activeWorkout.exercises.some(e=>legLifts.includes(e.name.toLowerCase()));
     const _sn2=schedule.sportName||'Sport';
-    if(hasLegs)setTimeout(()=>showToast(i18nText('workout.sport_legs_warning','{sport} legs - consider fewer sets or swapping day order').replace('{sport}',_sn2),'var(--blue)'),1500);
+    if(hasLegs)setTimeout(()=>showToast(i18nText('workout.sport_legs_warning','{sport} legs - consider fewer sets or swapping day order',{sport:_sn2}),'var(--blue)'),1500);
   }
 }
 
@@ -146,10 +160,10 @@ function startWorkout(){
 // QUICK LOG
 function quickLogSport(){
   const {sportName}=getSportQuickLogMeta();
-  showConfirm(i18nText('workout.log_extra','Log Extra {sport}').replace('{sport}',sportName),i18nText('workout.log_extra_confirm','Log an extra {sport} session for today?').replace('{sport}',sportName.toLowerCase()),async()=>{
+  showConfirm(i18nText('workout.log_extra','Log Extra {sport}',{sport:sportName}),i18nText('workout.log_extra_confirm','Log an extra {sport} session for today?',{sport:sportName.toLowerCase()}),async()=>{
     workouts.push({id:Date.now(),date:new Date().toISOString(),type:'sport',subtype:'extra',duration:5400,exercises:[],rpe:7,sets:0});
     await saveWorkouts();
-    showToast(i18nText('workout.extra_logged','Extra {sport} logged!').replace('{sport}',sportName),'var(--accent)');
+    showToast(i18nText('workout.extra_logged','Extra {sport} logged!',{sport:sportName}),'var(--accent)');
     updateDashboard();
   });
 }
@@ -188,28 +202,33 @@ function renderExercises(){
     const suggested=getSuggested(ex);
     const block=document.createElement('div');block.className='exercise-block';
     let badges='';
-    if(suggested)badges+=`<div class="suggest-badge">\ud83d\udcc8 ${i18nText('workout.last_best','Last best: {weight}kg').replace('{weight}',suggested)}</div>`;
-    if(ex.note)badges+=`<div class="ai-badge" style="background:rgba(167,139,250,0.1);color:var(--purple);border-color:rgba(167,139,250,0.2)">\ud83d\udccb ${ex.note}</div>`;
+    if(suggested)badges+=`<div class="suggest-badge">📈 ${i18nText('workout.last_best','Last best: {weight}kg',{weight:suggested})}</div>`;
+    if(ex.note)badges+=`<div class="ai-badge">📋 ${escapeHtml(ex.note)}</div>`;
     const guidanceHtml=renderExerciseGuidance(ex);
-
-    // Swap button for auxiliary exercises
     let swapBtn='';
     if(ex.isAux&&ex.auxSlotIdx>=0){
-      swapBtn=`<button class="btn btn-icon btn-secondary" onclick="swapAuxExercise(${ei})" title="${i18nText('workout.swap','Swap')}" style="font-size:14px">${i18nText('workout.swap','Swap')}</button>`;
+      swapBtn=`<button class="btn btn-icon btn-secondary exercise-action-btn" onclick="swapAuxExercise(${ei})" title="${escapeHtml(i18nText('workout.swap','Swap'))}" aria-label="${escapeHtml(i18nText('workout.swap','Swap'))}">${escapeHtml(i18nText('workout.swap','Swap'))}</button>`;
     }
-    // Swap button for back accessory
     if(ex.isAccessory){
-      swapBtn=`<button class="btn btn-icon btn-secondary" onclick="swapBackExercise(${ei})" title="${i18nText('workout.swap_back','Swap back exercise')}" style="font-size:14px">${i18nText('workout.swap','Swap')}</button>`;
+      swapBtn=`<button class="btn btn-icon btn-secondary exercise-action-btn" onclick="swapBackExercise(${ei})" title="${escapeHtml(i18nText('workout.swap_back','Swap back exercise'))}" aria-label="${escapeHtml(i18nText('workout.swap_back','Swap back exercise'))}">${escapeHtml(i18nText('workout.swap','Swap'))}</button>`;
     }
-    const typeLabel=ex.isAux?'<span style="font-size:10px;color:var(--muted);font-weight:600;margin-left:6px">'+i18nText('workout.aux','AUX')+'</span>':ex.isAccessory?'<span style="font-size:10px;color:var(--blue);font-weight:600;margin-left:6px">'+i18nText('workout.back','BACK')+'</span>':'';
+    const typeLabel=ex.isAux?`<span class="exercise-chip">${escapeHtml(i18nText('workout.aux','AUX'))}</span>`:ex.isAccessory?`<span class="exercise-chip exercise-chip-blue">${escapeHtml(i18nText('workout.back','BACK'))}</span>`:'';
+    const badgesHtml=badges?`<div class="exercise-badges">${badges}</div>`:'';
 
     block.innerHTML=`
-      <div class="exercise-header">
-        <div class="exercise-name">${ex.name}${typeLabel}</div>
-        <div style="display:flex;gap:4px">${swapBtn}<button class="btn btn-icon btn-secondary" onclick="removeEx(${ei})">\u2715</button></div>
+      <div class="exercise-top">
+        <div class="exercise-header">
+          <div class="exercise-title-stack">
+            <div class="exercise-title-row">
+              <div class="exercise-name">${escapeHtml(displayExerciseName(ex.name))}</div>
+              ${typeLabel}
+            </div>
+            <div class="last-session">${prevText}</div>
+          </div>
+          <div class="exercise-action-row">${swapBtn}<button class="btn btn-icon btn-secondary exercise-action-btn exercise-remove-btn" onclick="removeEx(${ei})" title="${escapeHtml(i18nText('workout.remove_exercise','Remove exercise'))}" aria-label="${escapeHtml(i18nText('workout.remove_exercise','Remove exercise'))}">✕</button></div>
+        </div>
+        ${badgesHtml}
       </div>
-      <div class="last-session">${prevText}</div>
-      ${badges}
       ${guidanceHtml}
       <div id="sets-${ei}"></div>
       <button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="addSet(${ei})">${i18nText('workout.add_set','+ Set')}</button>`;
@@ -221,17 +240,17 @@ function renderExercises(){
       const mode=activeWorkout?.programMode||'sets';
       const isLastSet=si===ex.sets.length-1;
       const showRir=mode==='rir'&&isLastSet&&!ex.isAccessory;
-      const setLabel=isAmrap?'MAX':String(si+1);
+      const setLabel=isAmrap?i18nText('workout.max_short','MAX'):String(si+1);
       const repVal=isAmrap&&set.reps==='AMRAP'?'':set.reps;
       if(isAmrap)row.style.cssText='background:rgba(167,139,250,0.12);border-radius:8px;padding:2px 0';
       row.innerHTML=`
         <span class="set-num"${isAmrap?' style="color:var(--purple);font-weight:800"':''}>${setLabel}</span>
-        <input type="number" placeholder="kg" value="${set.weight}" onchange="updateSet(${ei},${si},'weight',this.value)" style="width:62px">
-        <input type="number" placeholder="${isAmrap?'reps hit':'reps'}" value="${repVal}" onchange="updateSet(${ei},${si},'reps',this.value)" style="width:56px${isAmrap?';border-color:var(--purple)':''}">
-        ${showRir?`<select onchange="updateSet(${ei},${si},'rir',this.value)" style="width:56px;padding:6px 4px;font-size:12px;border-radius:8px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);color:var(--blue);font-weight:700;text-align:center">
-          <option value="">RIR</option><option value="0"${set.rir==='0'||set.rir===0?' selected':''}>0</option><option value="1"${set.rir==='1'||set.rir===1?' selected':''}>1</option><option value="2"${set.rir==='2'||set.rir===2?' selected':''}>2</option><option value="3"${set.rir==='3'||set.rir===3?' selected':''}>3</option><option value="4"${set.rir==='4'||set.rir===4?' selected':''}>4</option><option value="5"${set.rir==='5'||set.rir===5?' selected':''}>5+</option>
+        <input class="set-input" type="number" placeholder="${escapeHtml(i18nText('workout.weight_placeholder','kg'))}" value="${set.weight}" onchange="updateSet(${ei},${si},'weight',this.value)">
+        <input class="set-input" type="number" placeholder="${escapeHtml(isAmrap?i18nText('workout.reps_hit','reps hit'):i18nText('workout.reps_placeholder','reps'))}" value="${repVal}" onchange="updateSet(${ei},${si},'reps',this.value)"${isAmrap?' style="border-color:var(--purple)"':''}>
+        ${showRir?`<select class="set-rir" onchange="updateSet(${ei},${si},'rir',this.value)">
+          <option value="">${escapeHtml(i18nText('workout.rir','RIR'))}</option><option value="0"${set.rir==='0'||set.rir===0?' selected':''}>0</option><option value="1"${set.rir==='1'||set.rir===1?' selected':''}>1</option><option value="2"${set.rir==='2'||set.rir===2?' selected':''}>2</option><option value="3"${set.rir==='3'||set.rir===3?' selected':''}>3</option><option value="4"${set.rir==='4'||set.rir===4?' selected':''}>4</option><option value="5"${set.rir==='5'||set.rir===5?' selected':''}>5+</option>
         </select>`:''}
-        <div class="set-check ${set.done?'done':''}" onclick="toggleSet(${ei},${si})">\u2713</div>`;
+        <div class="set-check ${set.done?'done':''}" onclick="toggleSet(${ei},${si})">✓</div>`;
       sc.appendChild(row);
     });
   });
@@ -271,8 +290,8 @@ function swapAuxExercise(ei){
   const swapInfo=prog.getAuxSwapOptions?prog.getAuxSwapOptions(ex):null;
   if(!swapInfo)return;
   const cat=swapInfo.category||'',opts=swapInfo.options||[];
-  const title=cat?i18nText('workout.swap_aux_category','Swap {cat} auxiliary').replace('{cat}',cat.charAt(0).toUpperCase()+cat.slice(1)):i18nText('workout.swap_exercise','Swap exercise');
-  let optHtml=opts.map(o=>`<div class="swap-option${o===ex.name?' swap-active':''}" onclick="doAuxSwap(${ei},'${o.replace(/'/g,"\\'")}',${ex.auxSlotIdx})">${o}</div>`).join('');
+  const title=cat?i18nText('workout.swap_aux_category','Swap {cat} auxiliary',{cat:cat.charAt(0).toUpperCase()+cat.slice(1)}):i18nText('workout.swap_exercise','Swap exercise');
+  let optHtml=opts.map(o=>`<div class="swap-option${o===ex.name?' swap-active':''}" onclick="doAuxSwap(${ei},'${o.replace(/'/g,"\\'")}',${ex.auxSlotIdx})">${escapeHtml(displayExerciseName(o))}</div>`).join('');
   showCustomModal(title,`<div style="max-height:300px;overflow-y:auto">${optHtml}</div>`);
 }
 
@@ -284,13 +303,13 @@ function doAuxSwap(ei,newName,slotIdx){
   setProgramState(prog.id,newState);
   saveProfileData();
   closeCustomModal();renderExercises();
-  showToast(i18nText('workout.swapped_to','Swapped to {name}').replace('{name}',newName),'var(--purple)');
+  showToast(i18nText('workout.swapped_to','Swapped to {name}',{name:displayExerciseName(newName)}),'var(--purple)');
 }
 
 function swapBackExercise(ei){
   const prog=getActiveProgram();
   const opts=prog.getBackSwapOptions?prog.getBackSwapOptions():[];
-  let optHtml=opts.map(o=>`<div class="swap-option${o===activeWorkout.exercises[ei].name?' swap-active':''}" onclick="doBackSwap(${ei},'${o.replace(/'/g,"\\'")}')"> ${o}</div>`).join('');
+  let optHtml=opts.map(o=>`<div class="swap-option${o===activeWorkout.exercises[ei].name?' swap-active':''}" onclick="doBackSwap(${ei},'${o.replace(/'/g,"\\'")}')"> ${escapeHtml(displayExerciseName(o))}</div>`).join('');
   showCustomModal(i18nText('workout.swap_back_title','Swap Back Exercise'),`<div style="max-height:300px;overflow-y:auto">${optHtml}</div>`);
 }
 
@@ -302,7 +321,7 @@ function doBackSwap(ei,newName){
   setProgramState(prog.id,newState);
   saveProfileData();
   closeCustomModal();renderExercises();
-  showToast(i18nText('workout.swapped_to','Swapped to {name}').replace('{name}',newName),'var(--purple)');
+  showToast(i18nText('workout.swapped_to','Swapped to {name}',{name:displayExerciseName(newName)}),'var(--purple)');
 }
 
 function showCustomModal(title,bodyHtml){
@@ -329,10 +348,11 @@ async function finishWorkout(){
   activeWorkout.exercises.forEach(e=>{totalSets+=e.sets.length;});
 
   const sessionRPE = await new Promise(resolve=>{
-    showRPEPicker('Session',-1,(val)=>resolve(val||7));
+    showRPEPicker(i18nText('common.session','Session'),-1,(val)=>resolve(val||7));
   });
 
   const prog=getActiveProgram();
+  const programName=window.I18N&&I18N.t?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):prog.name||'Training';
   const state=getActiveProgramState();
   const stateBeforeSession=JSON.parse(JSON.stringify(state));
 
@@ -367,10 +387,10 @@ async function finishWorkout(){
   // Toast on week or cycle advance (any program)
   if(advancedState.cycle!==undefined&&advancedState.cycle!==(newState.cycle)){
     const bi=prog.getBlockInfo?prog.getBlockInfo(advancedState):{name:''};
-    setTimeout(()=>showToast(prog.name+' - Cycle '+advancedState.cycle+' starting - TMs updated!','var(--purple)'),500);
+    setTimeout(()=>showToast(i18nText('workout.next_cycle','{program} - cycle {cycle} starts now.',{program:programName,cycle:advancedState.cycle}),'var(--purple)'),500);
   } else if(advancedState.week!==undefined&&advancedState.week!==newState.week){
     const bi=prog.getBlockInfo?prog.getBlockInfo(advancedState):{name:'',weekLabel:''};
-    setTimeout(()=>showToast(prog.name+' - '+(bi.name||'Week '+advancedState.week)+' up next!','var(--purple)'),500);
+    setTimeout(()=>showToast(i18nText('workout.next_week','{program} - {label} up next!',{program:programName,label:(bi.name||('Week '+advancedState.week))}),'var(--purple)'),500);
   }
 
   setProgramState(prog.id,advancedState);
@@ -391,4 +411,5 @@ function cancelWorkout(){
   document.getElementById('workout-not-started').style.display='block';
   document.getElementById('workout-active').style.display='none';
   resetNotStartedView();
+  showToast(i18nText('workout.session_discarded','Workout discarded.'));
 }

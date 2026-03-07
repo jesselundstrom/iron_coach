@@ -8,6 +8,11 @@ function trForge(key,fallback,params){
   return fallback;
 }
 
+function forgeExerciseName(name){
+  if(window.EXERCISE_LIBRARY&&EXERCISE_LIBRARY.getDisplayName)return EXERCISE_LIBRARY.getDisplayName(name);
+  return name;
+}
+
 function getForgeBlockName(rawName){
   if(!rawName)return rawName;
   const keyMap={Hypertrophy:'program.forge.block.hypertrophy',Strength:'program.forge.block.strength',Peaking:'program.forge.block.peaking',Deload:'program.forge.block.deload'};
@@ -148,7 +153,7 @@ const FORGE_PROGRAM={
     }
     return dayScores.map(({d,hasLegs,done})=>{
       const exs=FORGE_INTERNAL.getDayExercises(d,freq,lifts);
-      const label=exs.map(e=>e.name).join(' + ');
+      const label=exs.map(e=>forgeExerciseName(e.name)).join(' + ');
       const badges=[];
       if(done)badges.push('✅');
       if(sportLegs&&hasLegs&&!FORGE_INTERNAL.deloadWeeks.includes(week))badges.push('🏃⚠️');
@@ -197,7 +202,7 @@ const FORGE_PROGRAM={
     else if(mode==='rtf')modeDesc=trForge('program.forge.blockinfo.rtf',reps+' reps × 4 sets, then AMRAP last set (target '+(reps*2)+'+).',{reps,target:reps*2});
     else if(mode==='rir')modeDesc=trForge('program.forge.blockinfo.rir','5 sets of '+reps+'. Note reps left in tank on last set.',{reps});
     if(state.skipPeakBlock&&week===14)modeDesc+=trForge('program.forge.blockinfo.skip_peak',' Peak block skipped — program restarts from Hypertrophy after this deload.');
-    return{name:getForgeBlockName(FORGE_INTERNAL.blockNames[week]||''),weekLabel:'Week '+week,pct,isDeload,totalWeeks:state.skipPeakBlock?14:21,mode,modeName:getForgeModeName(mode),modeDesc,reps,rir};
+    return{name:getForgeBlockName(FORGE_INTERNAL.blockNames[week]||''),weekLabel:trForge('program.forge.week_label','Week {week}',{week}),pct,isDeload,totalWeeks:state.skipPeakBlock?14:21,mode,modeName:getForgeModeName(mode),modeDesc,reps,rir};
   },
 
   adjustAfterSession(exercises,state){

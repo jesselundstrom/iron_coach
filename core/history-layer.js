@@ -11,6 +11,11 @@ function trHist(key,fallback,params){
   return fallback;
 }
 
+function histDisplayName(input){
+  if(window.EXERCISE_LIBRARY&&EXERCISE_LIBRARY.getDisplayName)return EXERCISE_LIBRARY.getDisplayName(input);
+  return String(input||'');
+}
+
 // History helpers
 
 function histLiftIcon(name){
@@ -190,7 +195,7 @@ function histRenderCard(w,isPR,recovery){
     const amrapStr=lastHeavy&&parseInt(lastHeavy.reps)>0
       ?` - <span class="hist-amrap-reps">${lastHeavy.reps}+ reps</span>` :'';
     return`<div class="hist-exercise-row">
-      <span>${ex.name}</span>
+      <span>${histDisplayName(ex.name)}</span>
       <span class="hist-exercise-vol">${done.length}x${maxKg>0?maxKg+'kg':'bw'}${amrapStr}</span>
     </div>`;
   }).join('');

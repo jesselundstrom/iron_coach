@@ -37,6 +37,8 @@ function tr(key,fallback,params){
   return fallback;
 }
 
+refreshDayNames();
+
 // LOGIN SPARKS CANVAS
 const loginSparks=(()=>{
   const MIN_EMBERS=18;
@@ -506,6 +508,11 @@ function updateLanguageDependentUI(){
   if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(document);
   renderSportDayToggles();
   if(activeWorkout){
+    const prog=getActiveProgram();
+    const titleEl=document.getElementById('active-session-title');
+    if(titleEl&&prog&&typeof prog.getSessionLabel==='function'){
+      titleEl.textContent=prog.getSessionLabel(activeWorkout.programOption,getActiveProgramState());
+    }
     renderExercises();
     const descEl=document.getElementById('active-session-description');
     if(descEl){
