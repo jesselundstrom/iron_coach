@@ -356,8 +356,8 @@ const WENDLER_531 = {
     const scheme = W531.weekScheme[week] || W531.weekScheme[1];
     const isTest = week===4 && !!state.testWeekPending;
     return {
-      name:      isTest ? trW531('program.w531.tm_test_week','TM Test Week') : scheme.label,
-      weekLabel: 'Cycle '+cycle+' · Week '+week+' · '+(W531.seasons[season]?.name||season),
+      name:      isTest ? trW531('program.w531.tm_test_week','TM Test Week') : getW531SchemeName(week),
+      weekLabel: trW531('program.w531.block.week_label','Cycle {cycle} · Week {week} · {season}',{cycle,week,season:trW531('program.season.'+season,season)}),
       pct:       Math.round((scheme.pcts[2]||0.85)*100),
       isDeload:  scheme.isDeload && !isTest,
       totalWeeks: null,

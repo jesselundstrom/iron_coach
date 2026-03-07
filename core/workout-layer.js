@@ -17,6 +17,7 @@
 
 function resetNotStartedView(){
   const prog=getActiveProgram();
+  const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):(prog.name||'Training');
   const {sportName,icon,subtitle}=getSportQuickLogMeta();
   document.getElementById('workout-not-started').innerHTML=`
     <div class="quick-log-row">
@@ -25,7 +26,7 @@ function resetNotStartedView(){
         <div><div class="ql-title">${escapeHtml(i18nText('workout.log_extra','Log Extra {sport}',{sport:sportName}))}</div><div class="ql-sub">${escapeHtml(subtitle)}</div></div>
       </div>
     </div>
-    <div class="divider-label"><span>${escapeHtml((prog.icon||'Lift')+' '+(prog.name||'Training')+' '+i18nText('common.session','Session'))}</span></div>
+    <div class="divider-label"><span>${escapeHtml((prog.icon||'Lift')+' '+progName+' '+i18nText('common.session','Session'))}</span></div>
     <div class="card" style="padding:20px">
       <div style="font-weight:800;font-size:16px;margin-bottom:4px">${i18nText('workout.start_session','Start a Session')}</div>
       <label style="margin-top:8px">${i18nText('workout.training_day','Training Day')}</label>
@@ -137,7 +138,8 @@ function startWorkout(){
   }
   restDuration=parseInt(document.getElementById('rest-duration')?.value)||profile.defaultRest||120;
   startWorkoutTimer();renderExercises();
-  showToast(bi.isDeload?i18nText('workout.deload_light','Deload - keep it light'):(prog.name||'Training'),bi.isDeload?'var(--blue)':'var(--purple)');
+  const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):(prog.name||'Training');
+  showToast(bi.isDeload?i18nText('workout.deload_light','Deload - keep it light'):progName,bi.isDeload?'var(--blue)':'var(--purple)');
 
   // Sport warning for leg-heavy days
   const legLifts=prog.legLifts||[];

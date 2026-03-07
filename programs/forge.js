@@ -124,7 +124,7 @@ const FORGE_PROGRAM={
   legLifts:LEG_LIFTS,
 
   getInitialState(){
-    return{week:1,dayNum:1,daysPerWeek:3,mode:'sets',rounding:2.5,skipPeakBlock:false,weekStartDate:new Date().toISOString(),backExercise:'Barbell Rows',backWeight:0,
+    return{week:1,daysPerWeek:3,mode:'sets',rounding:2.5,skipPeakBlock:false,weekStartDate:new Date().toISOString(),backExercise:'Barbell Rows',backWeight:0,
       lifts:{main:[{name:'Squat',tm:100},{name:'Bench Press',tm:80},{name:'Deadlift',tm:120},{name:'OHP',tm:50}],
         aux:[{name:'Front Squat',tm:80},{name:'Pause Squat',tm:90},{name:'Close-Grip Bench',tm:70},{name:'Spoto Press',tm:75},{name:'Stiff Leg Deadlift',tm:100},{name:'Push Press',tm:50}]}};
   },
@@ -163,7 +163,7 @@ const FORGE_PROGRAM={
   },
 
   buildSession(selectedOption,state){
-    const dayNum=parseInt(selectedOption)||state.dayNum||1;
+    const dayNum=parseInt(selectedOption)||1;
     const week=state.week||1,freq=state.daysPerWeek||3,rounding=state.rounding||2.5,mode=state.mode||'sets';
     const lifts=state.lifts;
     const isDeload=FORGE_INTERNAL.deloadWeeks.includes(week);
@@ -175,7 +175,7 @@ const FORGE_PROGRAM={
       let sets;
       if(mode==='rtf'&&!isDeload){sets=Array.from({length:rx.normalSets},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));sets.push({weight:rx.weight,reps:'AMRAP',done:false,rpe:null,isAmrap:true,repOutTarget:rx.repOutTarget});}
       else if(mode==='rir'&&!isDeload){sets=Array.from({length:rx.fixedSets},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));}
-      else{sets=Array.from({length:5},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));}
+      else{const count=isDeload?5:FORGE_INTERNAL.setHigh;sets=Array.from({length:count},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));}
       exercises.push({id:Date.now()+Math.random(),name:ex.name,note:rx.note||'',isAux:ex.isAux,tm:ex.tm,auxSlotIdx,prescribedWeight:rx.weight,prescribedReps:rx.reps,rirCutoff:rx.rir,isDeload:rx.isDeload,repOutTarget:rx.repOutTarget||0,sets});
     });
     const backEx=state.backExercise||'Barbell Rows',backWt=state.backWeight||0;
@@ -373,7 +373,7 @@ const FORGE_PROGRAM={
     const skipPeakBlock=document.getElementById('prog-skip-peak')?.value==='1';
     const backExercise=document.getElementById('prog-back-exercise')?.value||'Barbell Rows';
     const backWeight=parseFloat(document.getElementById('prog-back-weight')?.value)||0;
-    return{...state,mode,week,rounding,daysPerWeek,dayNum:1,skipPeakBlock,backExercise,backWeight};
+    return{...state,mode,week,rounding,daysPerWeek,skipPeakBlock,backExercise,backWeight};
   }
 };
 

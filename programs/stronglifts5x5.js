@@ -89,6 +89,19 @@ const STRONGLIFTS_5X5={
     return{...state,nextWorkout:next,sessionCount:(state.sessionCount||0)+1};
   },
 
+  migrateState(state){
+    if(state.sessionCount===undefined)state.sessionCount=0;
+    if(state.nextWorkout===undefined)state.nextWorkout='A';
+    if(state.rounding===undefined)state.rounding=2.5;
+    if(!state.lifts)state.lifts={};
+    const defaults={squat:60,bench:50,row:50,ohp:40,deadlift:80};
+    Object.keys(defaults).forEach(k=>{
+      if(!state.lifts[k])state.lifts[k]={weight:defaults[k],failures:0};
+      if(state.lifts[k].failures===undefined)state.lifts[k].failures=0;
+    });
+    return state;
+  },
+
   dateCatchUp:null,
   getAuxSwapOptions(){return null;},
   getBackSwapOptions(){return[];},

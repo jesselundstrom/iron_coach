@@ -450,7 +450,10 @@ function openProgramSetupSheet(){
   const container=document.getElementById('program-settings-container');
   if(container&&prog.renderSettings)prog.renderSettings(state,container);
   const title=document.getElementById('program-setup-sheet-title');
-  if(title)title.textContent=prog.name+' '+tr('settings.program_setup_suffix','Setup');
+  if(title){
+    const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name):prog.name;
+    title.textContent=progName+' '+tr('settings.program_setup_suffix','Setup');
+  }
   document.getElementById('program-setup-sheet').classList.add('active');
 }
 function closeProgramSetupSheet(e){

@@ -71,14 +71,15 @@ function renderProgramSwitcher(){
 function switchProgram(id){
   if(id===profile.activeProgram)return;
   const prog=PROGRAMS[id];if(!prog)return;
-  showConfirm(trProg('program.switch_to','Switch to {name}',{name:prog.name}),trProg('program.switch_msg','Your current program is paused. {name} will start where you left off.',{name:prog.name}),()=>{
+  const progName=trProg('program.'+prog.id+'.name',prog.name);
+  showConfirm(trProg('program.switch_to','Switch to {name}',{name:progName}),trProg('program.switch_msg','Your current program is paused. {name} will start where you left off.',{name:progName}),()=>{
     profile.activeProgram=id;
     if(!profile.programs)profile.programs={};
     if(!profile.programs[id])profile.programs[id]=prog.getInitialState();
     saveProfileData({docKeys:[PROFILE_CORE_DOC_KEY,programDocKey(id)]});
     initSettings();
     updateDashboard();
-    showToast(trProg('program.switched','Switched to {name}',{name:prog.name}),'var(--purple)');
+    showToast(trProg('program.switched','Switched to {name}',{name:progName}),'var(--purple)');
   });
 }
 
