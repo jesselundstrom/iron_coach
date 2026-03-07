@@ -42,6 +42,7 @@
 - Treat `public.workouts` as the source of truth for workout history sync.
 - Treat `public.profile_documents` as the primary sync source for profile core, schedule, and per-program state.
 - Treat `profile.preferences` as a durable part of `profile_core`. Preserve and migrate it when changing profile persistence or recommendation logic.
+- Treat `profile.preferences.sportReadinessCheckEnabled` as an opt-in feature flag. Do not introduce sport check-in prompts into the workout start flow unless that preference explicitly enables them.
 - Treat `profiles.data` as a compatibility mirror/fallback for profile and schedule only; do not reintroduce `profiles.data.workouts`.
 - Keep workout-table changes compatible with the additive migration flow under `supabase/migrations/`.
 - Keep profile-document sync compatible with the additive migration flow under `supabase/migrations/`.
@@ -52,6 +53,8 @@
 - Files under `programs/` define training logic and metadata.
 - Keep new program implementations consistent with the existing program modules.
 - Avoid mixing program logic into unrelated UI code when a program file or layer file is the correct home.
+- Exercise metadata such as movement tags, muscle groups, and equipment tags belongs in `core/exercise-library.js`. Reuse that catalog instead of scattering duplicate exercise heuristics across program files.
+- User-facing muscle-load UI should use the display-group mapping from `core/exercise-library.js` instead of inventing separate dashboard-only muscle labels.
 
 ## Change Strategy
 - Fix root causes instead of layering on narrow patches when feasible.

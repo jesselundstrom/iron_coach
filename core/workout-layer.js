@@ -19,6 +19,10 @@ function resetNotStartedView(){
   const prog=getActiveProgram();
   const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):(prog.name||'Training');
   const {sportName,icon,subtitle}=getSportQuickLogMeta();
+  const prefs=normalizeTrainingPreferences(profile);
+  const sportCheckBanner=prefs.sportReadinessCheckEnabled
+    ? `<div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);font-size:12px;color:var(--blue)">${escapeHtml(i18nText('workout.sport_check.enabled_hint','Sport check-in is enabled. You will be asked about leg-heavy sport before the workout starts.'))}</div>`
+    : '';
   document.getElementById('workout-not-started').innerHTML=`
     <div class="quick-log-row">
       <div class="quick-log-card ql-sport" onclick="quickLogSport()">
@@ -32,6 +36,7 @@ function resetNotStartedView(){
       <label style="margin-top:8px">${i18nText('workout.training_day','Training Day')}</label>
       <select id="program-day-select" onchange="onDaySelectChange()"></select>
       <div id="program-week-display" style="margin-top:14px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--purple)"></div>
+      ${sportCheckBanner}
       <div style="margin-top:18px"><button class="btn btn-primary" onclick="startWorkout()">${i18nText('workout.start_workout','Start Workout')}</button></div>
     </div>`;
   updateProgramDisplay();
@@ -53,6 +58,54 @@ function i18nText(key,fallback,params){
   return fallback;
 }
 
+let pendingSportReadinessCallback=null;
+
+function isLowerBodyExercise(ex){
+  if(!window.EXERCISE_LIBRARY||!EXERCISE_LIBRARY.getExerciseMeta)return false;
+  const meta=EXERCISE_LIBRARY.getExerciseMeta(ex?.exerciseId||ex?.name||ex);
+  if(!meta)return false;
+  const groups=new Set(meta.displayMuscleGroups||[]);
+  return groups.has('quads')||groups.has('hamstrings')||groups.has('glutes')||groups.has('calves');
+}
+
+function getSportStressLevel(sportContext){
+  const signal=sportContext?.legsStress||'none';
+  if(signal==='both')return 3;
+  if(signal==='yesterday')return 2;
+  if(signal==='tomorrow')return 1;
+  return 0;
+}
+
+function buildSportReadinessContext(signal){
+  return{
+    legsStress:signal||'none',
+    checkedAt:new Date().toISOString(),
+    sportName:(schedule?.sportName||getDefaultSportName()).trim()||getDefaultSportName()
+  };
+}
+
+function showSportReadinessCheck(callback){
+  pendingSportReadinessCallback=callback;
+  const sportLabel=displaySportName((schedule?.sportName||getDefaultSportName()).trim()||getDefaultSportName());
+  const titleEl=document.getElementById('sport-check-title');
+  const subEl=document.getElementById('sport-check-sub');
+  if(titleEl)titleEl.textContent=i18nText('workout.sport_check.title','Sport check-in');
+  if(subEl)subEl.textContent=i18nText('workout.sport_check.sub','Have you had a leg-heavy {sport} session yesterday, or do you have one tomorrow?',{sport:sportLabel.toLowerCase()});
+  document.getElementById('sport-check-modal')?.classList.add('active');
+}
+
+function selectSportReadiness(signal){
+  document.getElementById('sport-check-modal')?.classList.remove('active');
+  const cb=pendingSportReadinessCallback;
+  pendingSportReadinessCallback=null;
+  if(cb)cb(buildSportReadinessContext(signal));
+}
+
+function cancelSportReadinessCheck(){
+  document.getElementById('sport-check-modal')?.classList.remove('active');
+  pendingSportReadinessCallback=null;
+}
+
 function cloneWorkoutExercises(exercises){
   return(exercises||[]).map(ex=>({
     ...ex,
@@ -60,7 +113,44 @@ function cloneWorkoutExercises(exercises){
   }));
 }
 
-function applyTrainingPreferencesToExercises(exercises){
+function applySportReadinessAdjustments(adjusted,sportContext){
+  const changes=[];
+  const stressLevel=getSportStressLevel(sportContext);
+  if(!stressLevel)return{exercises:adjusted,changes};
+  let changed=false;
+  adjusted.forEach(ex=>{
+    if(!isLowerBodyExercise(ex))return;
+    if(ex.isAccessory){
+      return;
+    }
+    if(Array.isArray(ex.sets)&&ex.sets.length){
+      const currentCount=ex.sets.length;
+      let targetCount=currentCount;
+      if(ex.isAux){
+        targetCount=stressLevel>=2?Math.min(currentCount,2):Math.min(currentCount,3);
+      }else{
+        const trimBy=stressLevel>=3?2:1;
+        targetCount=Math.max(3,currentCount-trimBy);
+      }
+      if(targetCount<currentCount){
+        ex.sets=ex.sets.slice(0,targetCount);
+        changed=true;
+      }
+    }
+  });
+  if(changed){
+    const keyMap={
+      1:['workout.pref_adjustment.sport_tomorrow','Tomorrow looks leg-heavy, so lower-body work was kept slightly lighter.'],
+      2:['workout.pref_adjustment.sport_yesterday','Yesterday was leg-heavy, so lower-body work was kept lighter today.'],
+      3:['workout.pref_adjustment.sport_both','Leg-heavy sport sits on both sides of this session, so lower-body work was trimmed.']
+    };
+    const [key,fallback]=keyMap[stressLevel]||keyMap[1];
+    changes.push(i18nText(key,fallback));
+  }
+  return{exercises:adjusted,changes};
+}
+
+function applyTrainingPreferencesToExercises(exercises,sportContext){
   const prefs=normalizeTrainingPreferences(profile);
   const next=cloneWorkoutExercises(exercises);
   const changes=[];
@@ -111,6 +201,10 @@ function applyTrainingPreferencesToExercises(exercises){
       changes.push(i18nText('workout.pref_adjustment.aux_volume','Auxiliary volume reduced to fit your time cap.'));
     }
   }
+
+  const sportAdjusted=applySportReadinessAdjustments(adjusted,sportContext);
+  adjusted=sportAdjusted.exercises;
+  sportAdjusted.changes.forEach(change=>changes.push(change));
 
   return{
     exercises:adjusted,
@@ -171,12 +265,24 @@ function renderExerciseGuidance(ex){
 
 // WORKOUT STARTER
 function startWorkout(){
+  const prefs=normalizeTrainingPreferences(profile);
+  if(prefs.sportReadinessCheckEnabled){
+    showSportReadinessCheck((sportContext)=>{
+      if(!sportContext)return;
+      beginWorkoutStart(sportContext);
+    });
+    return;
+  }
+  beginWorkoutStart(null);
+}
+
+function beginWorkoutStart(sportContext){
   const prog=getActiveProgram();
   const state=getActiveProgramState();
   const selectedOption=document.getElementById('program-day-select')?.value;
 
   const builtExercises=(prog.buildSession(selectedOption,state)||[]).map(withResolvedExerciseId);
-  const sessionPrefs=applyTrainingPreferencesToExercises(builtExercises);
+  const sessionPrefs=applyTrainingPreferencesToExercises(builtExercises,sportContext);
   const exercises=sessionPrefs.exercises;
   const label=prog.getSessionLabel(selectedOption,state);
   const bi=prog.getBlockInfo?prog.getBlockInfo(state):{isDeload:false};
@@ -191,6 +297,7 @@ function startWorkout(){
     programDayNum:parseInt(selectedOption)||1,
     programMode:state.mode||undefined,
     programLabel:label,
+    sportContext:sportContext||undefined,
     sessionDescription,
     exercises,
     startTime:Date.now()
@@ -539,6 +646,7 @@ async function finishWorkout(){
     programOption:activeWorkout.programOption,
     programDayNum:activeWorkout.programDayNum,
     programLabel:activeWorkout.programLabel||'',
+    sportContext:activeWorkout.sportContext||undefined,
     programMeta,
     programStateBefore:stateBeforeSession,
     duration:getWorkoutElapsedSeconds(),exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets};

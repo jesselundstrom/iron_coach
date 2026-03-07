@@ -152,6 +152,148 @@ function inferCategory(name){
   return 'general';
 }
 
+function uniqueList(items){
+  return [...new Set((items||[]).filter(Boolean))];
+}
+
+const DISPLAY_MUSCLE_GROUP_BY_MUSCLE={
+  chest:'chest',
+  upper_chest:'chest',
+  lats:'back',
+  upper_back:'back',
+  lower_back:'back',
+  shoulders:'shoulders',
+  front_delts:'shoulders',
+  side_delts:'shoulders',
+  rear_delts:'shoulders',
+  upper_traps:'shoulders',
+  biceps:'biceps',
+  triceps:'triceps',
+  forearms:'forearms',
+  grip:'forearms',
+  quads:'quads',
+  hamstrings:'hamstrings',
+  glutes:'glutes',
+  adductors:'glutes',
+  calves:'calves',
+  core:'core',
+  abs:'core',
+  obliques:'core'
+};
+
+function mapMuscleToDisplayGroup(muscle){
+  return DISPLAY_MUSCLE_GROUP_BY_MUSCLE[normalize(muscle)]||null;
+}
+
+function getDisplayMuscleGroups(primaryMuscles,secondaryMuscles){
+  return uniqueList([...(primaryMuscles||[]),...(secondaryMuscles||[])].map(mapMuscleToDisplayGroup).filter(Boolean));
+}
+
+function inferMovementTags(name,category){
+  const n=normalize(name);
+  const tags=[];
+  if(category==='squat')tags.push('squat');
+  if(category==='hinge')tags.push('hinge');
+  if(category==='press'){
+    if(/ohp|overhead|push press|behind the neck|seated ohp|overhead dumbbell press/.test(n))tags.push('vertical_press');
+    else tags.push('horizontal_press');
+  }
+  if(category==='pull'){
+    if(/pull-up|pull up|chin-up|chin up|pulldown|pull-down|dead hang/.test(n))tags.push('vertical_pull');
+    else tags.push('horizontal_pull');
+  }
+  if(category==='core')tags.push('core');
+  if(category==='isolation')tags.push('isolation');
+  if(/lunge|split squat|step-up|step ups|reverse lunges/.test(n))tags.push('single_leg');
+  if(/bench|press|dip|push-up|push up/.test(n)&&!tags.includes('horizontal_press')&&!tags.includes('vertical_press'))tags.push('press');
+  if(/row|pull/.test(n)&&!tags.includes('horizontal_pull')&&!tags.includes('vertical_pull'))tags.push('pull');
+  return uniqueList(tags.length?tags:[category||'general']);
+}
+
+function inferEquipmentTags(name){
+  const n=normalize(name);
+  const tags=[];
+  if(/barbell|bench press|squat|deadlift|ohp|good morning|row|board press|pin press/.test(n))tags.push('barbell');
+  if(/dumbbell|db /.test(n))tags.push('dumbbell');
+  if(/machine|leg press|hamstring curls|machine rows|machine chest press/.test(n))tags.push('machine');
+  if(/cable/.test(n))tags.push('cable');
+  if(/band/.test(n))tags.push('band');
+  if(/pull-up|pull up|chin-up|chin up|dead hangs|dead hang/.test(n))tags.push('pullup_bar');
+  if(/bodyweight|push-ups|push ups|dips|plank|ab wheel|dead bugs|hanging leg raises/.test(n))tags.push('bodyweight');
+  if(/trap bar/.test(n))tags.push('trap_bar');
+  return uniqueList(tags.length?tags:['general']);
+}
+
+function inferMuscleGroups(name,category){
+  const n=normalize(name);
+  if(category==='squat'){
+    if(/split squat|lunge|step-up|step ups|reverse lunges/.test(n))return{primary:['quads','glutes'],secondary:['hamstrings','core']};
+    if(/leg press/.test(n))return{primary:['quads','glutes'],secondary:['hamstrings']};
+    return{primary:['quads','glutes'],secondary:['hamstrings','core']};
+  }
+  if(category==='hinge'){
+    if(/glute bridge/.test(n))return{primary:['glutes','hamstrings'],secondary:['core']};
+    if(/hamstring curl/.test(n))return{primary:['hamstrings'],secondary:['calves']};
+    if(/back extension|hip extension/.test(n))return{primary:['glutes','hamstrings','lower_back'],secondary:['core']};
+    return{primary:['hamstrings','glutes','lower_back'],secondary:['upper_back','core']};
+  }
+  if(category==='press'){
+    if(/incline/.test(n))return{primary:['chest','front_delts','triceps'],secondary:['upper_chest']};
+    if(/ohp|overhead|push press|behind the neck|seated ohp|overhead dumbbell press/.test(n))return{primary:['front_delts','triceps'],secondary:['upper_chest','core']};
+    if(/dip|dips/.test(n))return{primary:['chest','triceps'],secondary:['front_delts']};
+    if(/push-up|push up/.test(n))return{primary:['chest','triceps'],secondary:['front_delts','core']};
+    if(/triceps/.test(n))return{primary:['triceps'],secondary:[]};
+    return{primary:['chest','front_delts','triceps'],secondary:[]};
+  }
+  if(category==='pull'){
+    if(/pull-up|pull up|chin-up|chin up|pulldown|pull-down/.test(n))return{primary:['lats','upper_back'],secondary:['biceps','rear_delts']};
+    if(/dead hang/.test(n))return{primary:['grip','lats'],secondary:['shoulders']};
+    return{primary:['upper_back','lats'],secondary:['biceps','rear_delts']};
+  }
+  if(category==='core'){
+    if(/pallof/.test(n))return{primary:['obliques','core'],secondary:['shoulders']};
+    if(/hanging leg raise|ab wheel|crunch|dead bug/.test(n))return{primary:['abs','core'],secondary:['obliques']};
+    return{primary:['core'],secondary:['abs','obliques']};
+  }
+  if(category==='isolation'){
+    if(/curl/.test(n))return{primary:['biceps'],secondary:['forearms']};
+    if(/lateral raise/.test(n))return{primary:['side_delts'],secondary:['upper_traps']};
+    if(/skull crushers|triceps/.test(n))return{primary:['triceps'],secondary:[]};
+    return{primary:['target_muscle'],secondary:[]};
+  }
+  return{primary:['general'],secondary:[]};
+}
+
+const EXERCISE_METADATA_OVERRIDES={
+  'bench press':{movementTags:['horizontal_press'],primaryMuscles:['chest','front_delts','triceps'],secondaryMuscles:[]},
+  'barbell bench press':{movementTags:['horizontal_press'],primaryMuscles:['chest','front_delts','triceps'],secondaryMuscles:[]},
+  'barbell row':{movementTags:['horizontal_pull'],primaryMuscles:['upper_back','lats'],secondaryMuscles:['biceps','rear_delts']},
+  'barbell rows':{movementTags:['horizontal_pull'],primaryMuscles:['upper_back','lats'],secondaryMuscles:['biceps','rear_delts']},
+  'deadlift':{movementTags:['hinge'],primaryMuscles:['hamstrings','glutes','lower_back'],secondaryMuscles:['upper_back','core']},
+  'sumo deadlift':{movementTags:['hinge'],primaryMuscles:['glutes','adductors','quads'],secondaryMuscles:['hamstrings','core']},
+  'front squat':{movementTags:['squat'],primaryMuscles:['quads','glutes'],secondaryMuscles:['upper_back','core']},
+  'ohp':{movementTags:['vertical_press'],primaryMuscles:['front_delts','triceps'],secondaryMuscles:['upper_chest','core']},
+  'overhead press (ohp)':{movementTags:['vertical_press'],primaryMuscles:['front_delts','triceps'],secondaryMuscles:['upper_chest','core']},
+  'push press':{movementTags:['vertical_press'],primaryMuscles:['front_delts','triceps'],secondaryMuscles:['quads','glutes','core']},
+  'weighted planks':{movementTags:['core'],primaryMuscles:['core','abs'],secondaryMuscles:['obliques']},
+  'ab wheel rollouts':{movementTags:['core'],primaryMuscles:['abs','core'],secondaryMuscles:['lats','shoulders']},
+  'dips':{movementTags:['vertical_press'],primaryMuscles:['chest','triceps'],secondaryMuscles:['front_delts']}
+};
+
+function buildExerciseMetadata(name,category,entry){
+  const inferredMuscles=inferMuscleGroups(name,category);
+  const override=EXERCISE_METADATA_OVERRIDES[normalize(name)]||{};
+  const primaryMuscles=uniqueList(override.primaryMuscles||entry.primaryMuscles||inferredMuscles.primary);
+  const secondaryMuscles=uniqueList(override.secondaryMuscles||entry.secondaryMuscles||inferredMuscles.secondary);
+  return{
+    primaryMuscles,
+    secondaryMuscles,
+    displayMuscleGroups:getDisplayMuscleGroups(primaryMuscles,secondaryMuscles),
+    movementTags:uniqueList(override.movementTags||entry.movementTags||inferMovementTags(name,category)),
+    equipmentTags:uniqueList(override.equipmentTags||entry.equipmentTags||inferEquipmentTags(name))
+  };
+}
+
 function guidanceFor(name,category){
   const localizedNameEn=getDisplayName(name,'en')||name;
   const localizedNameFi=getDisplayName(name,'fi')||name;
@@ -358,12 +500,18 @@ function registerExercise(entry){
   if(existing)return existing;
   const category=entry.category||inferCategory(entry.name);
   const guidance=entry.guidance||guidanceFor(entry.name,category);
+  const metadata=buildExerciseMetadata(entry.name,category,entry);
   const record={
     id,
     name:entry.name,
     category,
     aliases:Array.isArray(entry.aliases)?entry.aliases.slice():[],
-    guidance
+    guidance,
+    primaryMuscles:metadata.primaryMuscles,
+    secondaryMuscles:metadata.secondaryMuscles,
+    displayMuscleGroups:metadata.displayMuscleGroups,
+    movementTags:metadata.movementTags,
+    equipmentTags:metadata.equipmentTags
   };
   catalogById[id]=record;
   lookupByName[normalize(record.name)]=id;
@@ -427,6 +575,22 @@ function getExerciseGuidance(input,locale){
   };
 }
 
+function getExerciseMeta(input,locale){
+  const exercise=getExercise(input);
+  if(!exercise)return null;
+  return{
+    id:exercise.id,
+    name:getDisplayName(exercise.name,locale),
+    canonicalName:exercise.name,
+    category:exercise.category,
+    primaryMuscles:(exercise.primaryMuscles||[]).slice(),
+    secondaryMuscles:(exercise.secondaryMuscles||[]).slice(),
+    displayMuscleGroups:(exercise.displayMuscleGroups||[]).slice(),
+    movementTags:(exercise.movementTags||[]).slice(),
+    equipmentTags:(exercise.equipmentTags||[]).slice()
+  };
+}
+
 function getAllExercises(){
   return Object.values(catalogById);
 }
@@ -457,6 +621,8 @@ registerAlias('lat pull-down','Pull-downs');
 window.EXERCISE_LIBRARY={
   resolveExerciseId,
   getExercise,
+  getExerciseMeta,
+  mapMuscleToDisplayGroup,
   getDisplayName,
   getExerciseGuidance,
   getAllExercises,

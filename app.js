@@ -480,6 +480,8 @@ function initSettings(){
     if(minutesSel)minutesSel.value=String(prefs.sessionMinutes);
     const equipmentSel=document.getElementById('training-equipment');
     if(equipmentSel)equipmentSel.value=prefs.equipmentAccess;
+    const sportCheckEl=document.getElementById('training-sport-check');
+    if(sportCheckEl)sportCheckEl.checked=prefs.sportReadinessCheckEnabled===true;
     const notesEl=document.getElementById('training-preferences-notes');
     if(notesEl)notesEl.value=prefs.notes||'';
   }
@@ -510,8 +512,9 @@ function saveTrainingPreferences(){
   const goal=document.getElementById('training-goal')?.value||prefs.goal;
   const sessionMinutes=parseInt(document.getElementById('training-session-minutes')?.value,10)||prefs.sessionMinutes;
   const equipmentAccess=document.getElementById('training-equipment')?.value||prefs.equipmentAccess;
+  const sportReadinessCheckEnabled=document.getElementById('training-sport-check')?.checked===true;
   const notes=document.getElementById('training-preferences-notes')?.value||'';
-  profile.preferences=normalizeTrainingPreferences({...profile,preferences:{...prefs,goal,sessionMinutes,equipmentAccess,notes}});
+  profile.preferences=normalizeTrainingPreferences({...profile,preferences:{...prefs,goal,sessionMinutes,equipmentAccess,sportReadinessCheckEnabled,notes}});
   saveProfileData({docKeys:['profile_core']});
   updateDashboard();
   showToast(tr('toast.preferences_saved','Training preferences saved'),'var(--purple)');

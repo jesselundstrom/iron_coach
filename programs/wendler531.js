@@ -222,7 +222,7 @@ const WENDLER_531 = {
   },
 
   // ─── Build Session ────────────────────────────────────────────────────────
-  buildSession(selectedOption, state) {
+  buildSession(selectedOption, state, context) {
     const dayNum   = parseInt(selectedOption) || 1;
     const week     = state.week || 1;
     const freq     = state.daysPerWeek || 4;
@@ -232,8 +232,9 @@ const WENDLER_531 = {
     const scheme   = W531.weekScheme[week] || W531.weekScheme[1];
     const isDeload = scheme.isDeload && !state.testWeekPending;
     const isTest   = week === 4 && !!state.testWeekPending;
+    const previewMode=!!context?.preview;
     const readiness = _readiness;
-    _readiness = 'default'; // reset after capturing — prevents stale readiness leaking into next session
+    if(!previewMode)_readiness = 'default'; // reset after capturing — prevents stale readiness leaking into next session
     const exercises = [];
 
     this._dayLifts(dayNum, freq).forEach(liftIdx => {

@@ -21,16 +21,87 @@ function analyzeProgramSessionShape(prog,session){
   return{totalSets,accessoryCount,auxCount,hasLegs,exerciseCount:exercises.length};
 }
 
+function getPlannedSessionDisplayMuscleLoad(session){
+  const totals={};
+  if(!window.EXERCISE_LIBRARY||!EXERCISE_LIBRARY.getExerciseMeta||!EXERCISE_LIBRARY.mapMuscleToDisplayGroup)return totals;
+  (Array.isArray(session)?session:[]).forEach(ex=>{
+    const meta=EXERCISE_LIBRARY.getExerciseMeta(ex?.exerciseId||ex?.name||ex);
+    if(!meta)return;
+    const setCount=Array.isArray(ex?.sets)?ex.sets.length:0;
+    if(!setCount)return;
+    const exerciseScale=ex?.isAccessory?0.6:(ex?.isAux?0.85:1);
+    (meta.primaryMuscles||[]).forEach(muscle=>{
+      const group=EXERCISE_LIBRARY.mapMuscleToDisplayGroup(muscle);
+      if(!group)return;
+      totals[group]=(totals[group]||0)+setCount*exerciseScale;
+    });
+    (meta.secondaryMuscles||[]).forEach(muscle=>{
+      const group=EXERCISE_LIBRARY.mapMuscleToDisplayGroup(muscle);
+      if(!group)return;
+      totals[group]=(totals[group]||0)+setCount*0.5*exerciseScale;
+    });
+  });
+  return totals;
+}
+
+function scoreSessionAgainstRecentMuscleLoad(sessionMuscles,recentMuscles){
+  let score=0;
+  Object.entries(sessionMuscles||{}).forEach(([group,plannedLoad])=>{
+    const recentLoad=recentMuscles?.[group]||0;
+    const emphasis=plannedLoad>=6?1.4:(plannedLoad>=3?1:0.65);
+    if(recentLoad>=8)score-=Math.round(6*emphasis);
+    else if(recentLoad>=4)score-=Math.round(3*emphasis);
+    else if(recentLoad<1.5)score+=Math.round(3*emphasis);
+    else if(recentLoad<4)score+=Math.round(1.5*emphasis);
+  });
+  return score;
+}
+
+function getFreshTargetGroups(sessionMuscles,recentMuscles){
+  return Object.entries(sessionMuscles||{})
+    .filter(([,plannedLoad])=>plannedLoad>=2)
+    .map(([group,plannedLoad])=>({group,plannedLoad,recentLoad:recentMuscles?.[group]||0}))
+    .filter(item=>item.recentLoad<4)
+    .sort((a,b)=>a.recentLoad-b.recentLoad||b.plannedLoad-a.plannedLoad)
+    .slice(0,2)
+    .map(item=>item.group);
+}
+
+function buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMuscles){
+  const reasons=[];
+  if(option?.isRecommended){
+    reasons.push(trProg('program.recommend_reason.progression','Matches your normal training order.'));
+  }
+  if(prefs.sessionMinutes<=30&&shape.totalSets&&shape.totalSets<=14){
+    reasons.push(trProg('program.recommend_reason.short_session','Fits your shorter session target.'));
+  }else if(prefs.sessionMinutes<=45&&shape.totalSets&&shape.totalSets<=18){
+    reasons.push(trProg('program.recommend_reason.lower_volume','Keeps total session volume more manageable today.'));
+  }
+  if(prefs.goal==='sport_support'&&!shape.hasLegs){
+    reasons.push(trProg('program.recommend_reason.sport_support_upper','Keeps leg fatigue lower for sport support.'));
+  }
+  const freshGroups=getFreshTargetGroups(sessionMuscles,recentMuscles);
+  if(freshGroups.length){
+    const groups=freshGroups.map(group=>trProg('dashboard.muscle_group.'+group,group)).join(', ');
+    reasons.push(trProg('program.recommend_reason.fresh_muscles','Targets fresher muscle groups: {groups}.',{groups}));
+  }
+  return [...new Set(reasons)].slice(0,2);
+}
+
 function getProgramPreferenceRecommendation(prog,options,state){
   const prefs=normalizeTrainingPreferences(profile);
   const activeOptions=(options||[]).filter(o=>!o.done);
   if(activeOptions.length<=1)return null;
+  const recentMuscles=(typeof getRecentDisplayMuscleLoads==='function')?getRecentDisplayMuscleLoads(4):{};
   let best=null;
-  activeOptions.forEach((option,idx)=>{
+  activeOptions.forEach((option,idx)=>{ 
     let score=option.isRecommended?20:0;
     let shape={totalSets:0,accessoryCount:0,auxCount:0,hasLegs:false,exerciseCount:0};
+    let sessionMuscles={};
     try{
-      shape=analyzeProgramSessionShape(prog,cloneProgramSession(prog.buildSession?prog.buildSession(option.value,state):[]));
+      const plannedSession=cloneProgramSession(prog.buildSession?prog.buildSession(option.value,state,{preview:true}):[]);
+      shape=analyzeProgramSessionShape(prog,plannedSession);
+      sessionMuscles=getPlannedSessionDisplayMuscleLoad(plannedSession);
     }catch(_e){}
     if(prefs.sessionMinutes<=30){
       score+=shape.totalSets<=14?10:-8;
@@ -46,17 +117,20 @@ function getProgramPreferenceRecommendation(prog,options,state){
       score+=shape.totalSets<=16?2:-2;
       score-=shape.accessoryCount*2;
     }
-    if(best===null||score>best.score||(score===best.score&&idx===0))best={value:option.value,score};
+    score+=scoreSessionAgainstRecentMuscleLoad(sessionMuscles,recentMuscles);
+    const reasons=buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMuscles);
+    if(best===null||score>best.score||(score===best.score&&idx===0))best={value:option.value,score,reasons};
   });
-  return best?.value||null;
+  return best||null;
 }
 
 function applyPreferenceRecommendation(prog,options,state){
-  const preferredValue=getProgramPreferenceRecommendation(prog,options,state);
-  if(!preferredValue)return options;
+  const recommendation=getProgramPreferenceRecommendation(prog,options,state);
+  if(!recommendation?.value)return options;
   return(options||[]).map(option=>({
     ...option,
-    isRecommended:!option.done&&option.value===preferredValue
+    isRecommended:!option.done&&option.value===recommendation.value,
+    preferenceReasons:!option.done&&option.value===recommendation.value?(recommendation.reasons||[]):[]
   }));
 }
 
@@ -227,9 +301,18 @@ function updateProgramDisplay(){
     const guidance=(typeof getPreferenceGuidance==='function'
       ? getPreferenceGuidance(profile,{canPushVolume:(100-fatigue.overall)>=70})
       : []);
+    const selectedOption=(hasMatch?options.find(o=>o.value===prevVal):recommended)||recommended;
+    const reasonTitle=selectedOption===recommended
+      ? trProg('program.recommend_reason.title','Why this session')
+      : trProg('program.recommend_reason.starred_title','Why the starred session is recommended');
+    const reasonLines=recommended?.preferenceReasons||[];
+    const reasonHtml=reasonLines.length
+      ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)"><div style="font-size:10px;letter-spacing:0.9px;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:6px">${escapeHtml(reasonTitle)}</div>${reasonLines.map(line=>`<div style="margin-top:4px;color:var(--text)">${escapeHtml(line)}</div>`).join('')}</div>`
+      : '';
     prefBanner.innerHTML=guidance.length
       ? guidance.map(line=>`<div style="margin-top:4px">${escapeHtml(line)}</div>`).join('')
       : `<div>${escapeHtml(getTrainingPreferencesSummary(profile))}</div>`;
+    prefBanner.innerHTML+=reasonHtml;
   }
   let banner=document.getElementById('program-recommend-banner');
   if(!banner){
