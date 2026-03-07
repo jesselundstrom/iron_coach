@@ -121,7 +121,7 @@ function histGroupWorkouts(){
       const blockNames={1:'Hypertrophy (Wks 1-7)',2:'Strength (Wks 8-14)',3:'Peaking (Wks 15-21)'};
       const gKey='forge-b'+blockNum;
       const gLabel='Forge - '+(blockNames[blockNum]||'Block '+blockNum);
-      addToGroup(gKey,gLabel,'Forge','forge',week?'w'+week:'wx',week?'Week '+week:'Sessions',w);
+      addToGroup(gKey,gLabel,'FG','forge',week?'w'+week:'wx',week?'Week '+week:'Sessions',w);
     } else if(prog==='stronglifts5x5'){
       addToGroup('sl5x5','StrongLifts 5x5','SL','stronglifts5x5','all','',w);
     } else {
@@ -352,8 +352,10 @@ function renderHeatmap(){
   </div>`;
 
   el.innerHTML=`<div class="heatmap-wrap">
-    <div class="heatmap-grid">${labelCells}</div>
-    <div class="heatmap-grid">${gridCells}</div>
+    <div class="heatmap-board">
+      <div class="heatmap-day-labels">${labelCells}</div>
+      <div class="heatmap-grid heatmap-grid-cells">${gridCells}</div>
+    </div>
     <div class="heatmap-foot">
       <div class="heatmap-stats">${streakHtml}${rateHtml}</div>
       ${legendHtml}
