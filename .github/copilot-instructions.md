@@ -27,6 +27,7 @@
 - Avoid large HTML rewrites unless the task requires them.
 - Favor simple DOM updates over heavy component-style rewrites.
 - Keep controls usable on small screens and ensure new UI works with touch input.
+- Keep Settings simple-first: expose clear everyday controls in the main view, and keep technical program tuning behind a separate advanced setup path instead of pushing all knobs into the default UI.
 
 ## Internationalization
 - User-facing strings must go through the translation system.

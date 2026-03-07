@@ -437,12 +437,12 @@ function setSportIntensity(val,el){
 let _settingsTab='schedule';
 function showSettingsTab(name,el){
   _settingsTab=name;
-  ['schedule','program','account'].forEach(t=>{
+  ['schedule','preferences','program','account'].forEach(t=>{
     const d=document.getElementById('settings-tab-'+t);
     if(d)d.style.display=t===name?'':'none';
   });
   document.querySelectorAll('#settings-tabs .tab').forEach((t,i)=>{
-    t.classList.toggle('active',['schedule','program','account'][i]===name);
+    t.classList.toggle('active',['schedule','preferences','program','account'][i]===name);
   });
 }
 function openProgramSetupSheet(){
@@ -455,6 +455,36 @@ function openProgramSetupSheet(){
     title.textContent=progName+' '+tr('settings.program_setup_suffix','Setup');
   }
   document.getElementById('program-setup-sheet').classList.add('active');
+}
+function renderProgramBasics(){
+  const card=document.getElementById('program-basics-panel');
+  const container=document.getElementById('program-basics-container');
+  const summaryEl=document.getElementById('program-basics-summary');
+  const prog=getActiveProgram(),state=getActiveProgramState();
+  if(!card||!container)return;
+  if(prog&&prog.renderSimpleSettings){
+    card.style.display='';
+    prog.renderSimpleSettings(state,container);
+    if(summaryEl)summaryEl.textContent=prog.getSimpleSettingsSummary?prog.getSimpleSettingsSummary(state):'';
+    if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(card);
+    return;
+  }
+  card.style.display='none';
+  container.innerHTML='';
+  if(summaryEl)summaryEl.textContent='';
+}
+function renderTrainingProgramSummary(){
+  const summaryEl=document.getElementById('training-program-summary');
+  const prog=getActiveProgram();
+  if(!summaryEl||!prog)return;
+  const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name):prog.name;
+  const progDesc=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.description',null,prog.description||''):prog.description||'';
+  summaryEl.textContent=progDesc?`${progName} · ${progDesc}`:progName;
+}
+function renderTrainingPreferencesSummary(){
+  const summaryEl=document.getElementById('training-preferences-summary');
+  if(!summaryEl)return;
+  summaryEl.textContent=getTrainingPreferencesSummary(profile);
 }
 function closeProgramSetupSheet(e){
   if(!e||e.target.id==='program-setup-sheet'){
@@ -488,6 +518,9 @@ function initSettings(){
   renderSportDayToggles();
   document.getElementById('default-rest').value=profile.defaultRest||120;
   renderProgramSwitcher();
+  renderTrainingProgramSummary();
+  renderProgramBasics();
+  renderTrainingPreferencesSummary();
   showSettingsTab(_settingsTab);
   if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(document);
 }
@@ -516,8 +549,20 @@ function saveTrainingPreferences(){
   const notes=document.getElementById('training-preferences-notes')?.value||'';
   profile.preferences=normalizeTrainingPreferences({...profile,preferences:{...prefs,goal,sessionMinutes,equipmentAccess,sportReadinessCheckEnabled,notes}});
   saveProfileData({docKeys:['profile_core']});
+  renderTrainingPreferencesSummary();
   updateDashboard();
   showToast(tr('toast.preferences_saved','Training preferences saved'),'var(--purple)');
+}
+function saveSimpleProgramSettings(){
+  const prog=getActiveProgram(),state=getActiveProgramState();
+  if(!prog||!prog.saveSimpleSettings)return;
+  const newState=prog.saveSimpleSettings(state);
+  setProgramState(prog.id,newState);
+  saveProfileData({programIds:[prog.id]});
+  renderProgramBasics();
+  updateProgramDisplay();
+  updateDashboard();
+  showToast(tr('program.setup_saved','Program setup saved!'),'var(--purple)');
 }
 function saveLanguageSetting(){
   const lang=document.getElementById('app-language')?.value||'en';
