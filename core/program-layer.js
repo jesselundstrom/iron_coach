@@ -67,7 +67,7 @@ function getFreshTargetGroups(sessionMuscles,recentMuscles){
     .map(item=>item.group);
 }
 
-function buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMuscles){
+function buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMuscles,sportContext){
   const reasons=[];
   if(option?.isRecommended){
     reasons.push(trProg('program.recommend_reason.progression','Matches your normal training order.'));
@@ -85,10 +85,19 @@ function buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMusc
     const groups=freshGroups.map(group=>trProg('dashboard.muscle_group.'+group,group)).join(', ');
     reasons.push(trProg('program.recommend_reason.fresh_muscles','Targets fresher muscle groups: {groups}.',{groups}));
   }
+  if(!shape.hasLegs&&sportContext?.legsStress&&sportContext.legsStress!=='none'){
+    reasons.push(trProg('program.recommend_reason.sport_context_upper','Keeps the focus away from already busy legs.'));
+  }else if(shape.hasLegs&&sportContext?.legsStress==='yesterday'&&shape.totalSets<=16){
+    reasons.push(trProg('program.recommend_reason.sport_context_yesterday','Keeps lower-body work more manageable after yesterday\'s leg-heavy sport.'));
+  }else if(shape.hasLegs&&sportContext?.legsStress==='tomorrow'&&shape.totalSets<=16){
+    reasons.push(trProg('program.recommend_reason.sport_context_tomorrow','Keeps lower-body work more manageable before tomorrow\'s sport.'));
+  }else if(shape.hasLegs&&sportContext?.legsStress==='both'&&shape.totalSets<=15){
+    reasons.push(trProg('program.recommend_reason.sport_context_both','Keeps lower-body work more manageable with sport load on both sides.'));
+  }
   return [...new Set(reasons)].slice(0,2);
 }
 
-function getProgramPreferenceRecommendation(prog,options,state){
+function getProgramPreferenceRecommendation(prog,options,state,sportContext){
   const prefs=normalizeTrainingPreferences(profile);
   const activeOptions=(options||[]).filter(o=>!o.done);
   if(activeOptions.length<=1)return null;
@@ -117,15 +126,24 @@ function getProgramPreferenceRecommendation(prog,options,state){
       score+=shape.totalSets<=16?2:-2;
       score-=shape.accessoryCount*2;
     }
+    if(sportContext?.legsStress==='yesterday'){
+      score+=shape.hasLegs?-8:4;
+      score+=shape.totalSets<=16?1:0;
+    }else if(sportContext?.legsStress==='tomorrow'){
+      score+=shape.hasLegs?-6:3;
+    }else if(sportContext?.legsStress==='both'){
+      score+=shape.hasLegs?-11:5;
+      score+=shape.totalSets<=15?2:0;
+    }
     score+=scoreSessionAgainstRecentMuscleLoad(sessionMuscles,recentMuscles);
-    const reasons=buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMuscles);
+    const reasons=buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMuscles,sportContext);
     if(best===null||score>best.score||(score===best.score&&idx===0))best={value:option.value,score,reasons};
   });
   return best||null;
 }
 
-function applyPreferenceRecommendation(prog,options,state){
-  const recommendation=getProgramPreferenceRecommendation(prog,options,state);
+function applyPreferenceRecommendation(prog,options,state,sportContext){
+  const recommendation=getProgramPreferenceRecommendation(prog,options,state,sportContext);
   if(!recommendation?.value)return options;
   return(options||[]).map(option=>({
     ...option,
@@ -284,7 +302,8 @@ function updateProgramDisplay(){
   // Preserve any selection the user has already made before rebuilding the list
   const prevVal=ds.value;
   const rawOptions=prog.getSessionOptions?prog.getSessionOptions(state,workouts,schedule):[];
-  const options=applyPreferenceRecommendation(prog,rawOptions,state);
+  const sportContext=(typeof getPendingSportReadinessContext==='function')?getPendingSportReadinessContext():null;
+  const options=applyPreferenceRecommendation(prog,rawOptions,state,sportContext);
   const recommended=options.find(o=>o.isRecommended)||options[0];
   // Use user's current pick if it still exists in the option list; otherwise recommend
   const hasMatch=prevVal&&options.some(o=>o.value===prevVal);

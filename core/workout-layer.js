@@ -18,18 +18,23 @@
 function resetNotStartedView(){
   const prog=getActiveProgram();
   const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):(prog.name||'Training');
-  const {sportName,icon,subtitle}=getSportQuickLogMeta();
   const prefs=normalizeTrainingPreferences(profile);
-  const sportCheckBanner=prefs.sportReadinessCheckEnabled
-    ? `<div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);font-size:12px;color:var(--blue)">${escapeHtml(i18nText('workout.sport_check.enabled_hint','Sport check-in is enabled. You will be asked about leg-heavy sport before the workout starts.'))}</div>`
+  if(prefs.sportReadinessCheckEnabled&&!pendingSportReadinessSignal)pendingSportReadinessSignal='none';
+  const sportCheckControls=prefs.sportReadinessCheckEnabled
+    ? `<div class="sport-readiness-inline">
+        <div class="sport-readiness-inline-header">
+          <div class="sport-readiness-inline-title">${escapeHtml(i18nText('workout.sport_check.inline_title','Sport context'))}</div>
+          <div class="sport-readiness-inline-sub">${escapeHtml(i18nText('workout.sport_check.inline_sub','Use today\'s sport load to guide the session recommendation.'))}</div>
+        </div>
+        <div class="sport-readiness-inline-grid">
+          <button type="button" class="sport-readiness-chip" data-sport-check-option="none" onclick="setPendingSportReadiness('none')">${escapeHtml(i18nText('workout.sport_check.none','No'))}</button>
+          <button type="button" class="sport-readiness-chip" data-sport-check-option="yesterday" onclick="setPendingSportReadiness('yesterday')">${escapeHtml(i18nText('workout.sport_check.yesterday','Yes, yesterday'))}</button>
+          <button type="button" class="sport-readiness-chip" data-sport-check-option="tomorrow" onclick="setPendingSportReadiness('tomorrow')">${escapeHtml(i18nText('workout.sport_check.tomorrow','Yes, tomorrow'))}</button>
+          <button type="button" class="sport-readiness-chip" data-sport-check-option="both" onclick="setPendingSportReadiness('both')">${escapeHtml(i18nText('workout.sport_check.both','Yes, both'))}</button>
+        </div>
+      </div>`
     : '';
   document.getElementById('workout-not-started').innerHTML=`
-    <div class="quick-log-row">
-      <div class="quick-log-card ql-sport" onclick="quickLogSport()">
-        <div class="ql-icon">${escapeHtml(icon)}</div>
-        <div><div class="ql-title">${escapeHtml(i18nText('workout.log_extra','Log Extra {sport}',{sport:sportName}))}</div><div class="ql-sub">${escapeHtml(subtitle)}</div></div>
-      </div>
-    </div>
     <div class="divider-label"><span>${escapeHtml((prog.icon||'Lift')+' '+progName+' '+i18nText('common.session','Session'))}</span></div>
     <div class="card" style="padding:20px">
       <div style="font-weight:800;font-size:16px;margin-bottom:4px">${i18nText('workout.start_session','Start a Session')}</div>
@@ -37,9 +42,10 @@ function resetNotStartedView(){
       <input type="hidden" id="program-day-select" value="">
       <div id="program-day-options" class="program-day-options"></div>
       <div id="program-week-display" style="margin-top:14px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--purple)"></div>
-      ${sportCheckBanner}
+      ${sportCheckControls}
       <div style="margin-top:18px"><button class="btn btn-primary" onclick="startWorkout()">${i18nText('workout.start_workout','Start Workout')}</button></div>
     </div>`;
+  updateSportReadinessChoiceUI();
   updateProgramDisplay();
 }
 
@@ -60,6 +66,7 @@ function i18nText(key,fallback,params){
 }
 
 let pendingSportReadinessCallback=null;
+let pendingSportReadinessSignal='none';
 
 function isLowerBodyExercise(ex){
   if(!window.EXERCISE_LIBRARY||!EXERCISE_LIBRARY.getExerciseMeta)return false;
@@ -85,6 +92,24 @@ function buildSportReadinessContext(signal){
   };
 }
 
+function getPendingSportReadinessContext(){
+  const prefs=normalizeTrainingPreferences(profile);
+  if(!prefs.sportReadinessCheckEnabled)return null;
+  return buildSportReadinessContext(pendingSportReadinessSignal||'none');
+}
+
+function updateSportReadinessChoiceUI(){
+  document.querySelectorAll('[data-sport-check-option]').forEach(btn=>{
+    btn.classList.toggle('active',btn.getAttribute('data-sport-check-option')===(pendingSportReadinessSignal||'none'));
+  });
+}
+
+function setPendingSportReadiness(signal){
+  pendingSportReadinessSignal=signal||'none';
+  updateSportReadinessChoiceUI();
+  if(typeof updateProgramDisplay==='function')updateProgramDisplay();
+}
+
 function showSportReadinessCheck(callback){
   pendingSportReadinessCallback=callback;
   const sportLabel=displaySportName((schedule?.sportName||getDefaultSportName()).trim()||getDefaultSportName());
@@ -97,6 +122,8 @@ function showSportReadinessCheck(callback){
 
 function selectSportReadiness(signal){
   document.getElementById('sport-check-modal')?.classList.remove('active');
+  pendingSportReadinessSignal=signal||'none';
+  updateSportReadinessChoiceUI();
   const cb=pendingSportReadinessCallback;
   pendingSportReadinessCallback=null;
   if(cb)cb(buildSportReadinessContext(signal));
@@ -268,10 +295,7 @@ function renderExerciseGuidance(ex){
 function startWorkout(){
   const prefs=normalizeTrainingPreferences(profile);
   if(prefs.sportReadinessCheckEnabled){
-    showSportReadinessCheck((sportContext)=>{
-      if(!sportContext)return;
-      beginWorkoutStart(sportContext);
-    });
+    beginWorkoutStart(getPendingSportReadinessContext());
     return;
   }
   beginWorkoutStart(null);
