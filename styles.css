@@ -694,3 +694,7 @@ body.login-active::before{
 .settings-panel[open] .settings-panel-chevron{transform:rotate(180deg)}
 .settings-panel-body{padding:0 16px 16px;border-top:1px solid rgba(255,255,255,0.06)}
 .settings-panel-inline-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)}
+@media (max-width:480px){
+  .program-day-option-top{flex-direction:column;align-items:stretch;gap:8px}
+  .program-day-option-badges{justify-content:flex-start}
+}
