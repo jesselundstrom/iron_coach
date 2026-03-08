@@ -67,10 +67,50 @@ function getFreshTargetGroups(sessionMuscles,recentMuscles){
     .map(item=>item.group);
 }
 
+function getAutomaticSportPreferenceContext(schedule,workouts){
+  const sportDays=Array.isArray(schedule?.sportDays)?schedule.sportDays:[];
+  const legsHeavy=schedule?.sportLegsHeavy!==false;
+  const intensity=String(schedule?.sportIntensity||'hard').toLowerCase();
+  const recentHours={easy:18,moderate:24,hard:30}[intensity]||30;
+  const sportName=String(schedule?.sportName||trProg('common.sport','Sport')).trim()||trProg('common.sport','Sport');
+  const todayDow=new Date().getDay();
+  const isSportDay=sportDays.includes(todayDow);
+  const hadSportRecently=Array.isArray(workouts)&&workouts.some(w=>
+    (w.type==='sport'||w.type==='hockey')&&(Date.now()-new Date(w.date).getTime())/3600000<=recentHours
+  );
+  return{
+    preferUpper:legsHeavy&&(isSportDay||hadSportRecently),
+    isSportDay,
+    hadSportRecently,
+    sportName,
+    legsStress:'none',
+    manualLegsStress:'none',
+    hasManualLegsStress:false
+  };
+}
+
+function mergeSportPreferenceContext(autoContext,manualContext){
+  const base=autoContext||getAutomaticSportPreferenceContext({},[]);
+  const manualLegsStress=manualContext?.legsStress||'none';
+  const hasManualLegsStress=manualLegsStress!=='none';
+  return{
+    ...base,
+    ...manualContext,
+    sportName:manualContext?.sportName||base.sportName,
+    legsStress:manualLegsStress,
+    manualLegsStress,
+    hasManualLegsStress,
+    preferUpper:base.preferUpper||hasManualLegsStress
+  };
+}
+
 function buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMuscles,sportContext){
   const reasons=[];
   if(option?.isRecommended){
     reasons.push(trProg('program.recommend_reason.progression','Matches your normal training order.'));
+  }
+  if(sportContext?.preferUpper&&!shape.hasLegs){
+    reasons.push(trProg('program.recommend_reason.sport_context_upper','Keeps the focus away from already busy legs.'));
   }
   if(prefs.sessionMinutes<=30&&shape.totalSets&&shape.totalSets<=14){
     reasons.push(trProg('program.recommend_reason.short_session','Fits your shorter session target.'));
@@ -85,13 +125,11 @@ function buildRecommendationReasons(prefs,option,shape,sessionMuscles,recentMusc
     const groups=freshGroups.map(group=>trProg('dashboard.muscle_group.'+group,group)).join(', ');
     reasons.push(trProg('program.recommend_reason.fresh_muscles','Targets fresher muscle groups: {groups}.',{groups}));
   }
-  if(!shape.hasLegs&&sportContext?.legsStress&&sportContext.legsStress!=='none'){
-    reasons.push(trProg('program.recommend_reason.sport_context_upper','Keeps the focus away from already busy legs.'));
-  }else if(shape.hasLegs&&sportContext?.legsStress==='yesterday'&&shape.totalSets<=16){
+  if(shape.hasLegs&&sportContext?.hasManualLegsStress&&sportContext.manualLegsStress==='yesterday'&&shape.totalSets<=16){
     reasons.push(trProg('program.recommend_reason.sport_context_yesterday','Keeps lower-body work more manageable after yesterday\'s leg-heavy sport.'));
-  }else if(shape.hasLegs&&sportContext?.legsStress==='tomorrow'&&shape.totalSets<=16){
+  }else if(shape.hasLegs&&sportContext?.hasManualLegsStress&&sportContext.manualLegsStress==='tomorrow'&&shape.totalSets<=16){
     reasons.push(trProg('program.recommend_reason.sport_context_tomorrow','Keeps lower-body work more manageable before tomorrow\'s sport.'));
-  }else if(shape.hasLegs&&sportContext?.legsStress==='both'&&shape.totalSets<=15){
+  }else if(shape.hasLegs&&sportContext?.hasManualLegsStress&&sportContext.manualLegsStress==='both'&&shape.totalSets<=15){
     reasons.push(trProg('program.recommend_reason.sport_context_both','Keeps lower-body work more manageable with sport load on both sides.'));
   }
   return [...new Set(reasons)].slice(0,2);
@@ -125,6 +163,9 @@ function getProgramPreferenceRecommendation(prog,options,state,sportContext){
       score+=shape.hasLegs?-6:5;
       score+=shape.totalSets<=16?2:-2;
       score-=shape.accessoryCount*2;
+    }
+    if(sportContext?.preferUpper){
+      score+=shape.hasLegs?-18:6;
     }
     if(sportContext?.legsStress==='yesterday'){
       score+=shape.hasLegs?-8:4;
@@ -302,7 +343,8 @@ function updateProgramDisplay(){
   // Preserve any selection the user has already made before rebuilding the list
   const prevVal=ds.value;
   const rawOptions=prog.getSessionOptions?prog.getSessionOptions(state,workouts,schedule):[];
-  const sportContext=(typeof getPendingSportReadinessContext==='function')?getPendingSportReadinessContext():null;
+  const manualSportContext=(typeof getPendingSportReadinessContext==='function')?getPendingSportReadinessContext():null;
+  const sportContext=mergeSportPreferenceContext(getAutomaticSportPreferenceContext(schedule,workouts),manualSportContext);
   const options=applyPreferenceRecommendation(prog,rawOptions,state,sportContext);
   const recommended=options.find(o=>o.isRecommended)||options[0];
   // Use user's current pick if it still exists in the option list; otherwise recommend
