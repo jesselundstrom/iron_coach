@@ -243,18 +243,149 @@ function recomputeProgramStateFromWorkouts(programId){
 function renderProgramSwitcher(){
   const container=document.getElementById('program-switcher-container');if(!container)return;
   const active=profile.activeProgram||'forge';
-  container.innerHTML=Object.values(PROGRAMS).map(p=>{
+  const requested=typeof getPreferredTrainingDaysPerWeek==='function'
+    ? getPreferredTrainingDaysPerWeek(profile)
+    : 3;
+  const requestedLabel=typeof getTrainingDaysPerWeekLabel==='function'
+    ? getTrainingDaysPerWeekLabel(requested)
+    : requested+' sessions / week';
+  const exactPrograms=getSuggestedProgramsForTrainingDays(requested,profile);
+  const visible=exactPrograms.slice();
+  if(active&&!visible.some(program=>program.id===active)&&PROGRAMS[active]){
+    visible.push(PROGRAMS[active]);
+  }
+  const cards=(visible.length?visible:Object.values(PROGRAMS)).map(p=>{
+    const compatibility=getProgramFrequencyCompatibility(p.id,profile);
     const pName=trProg('program.'+p.id+'.name',p.name);
     const pDesc=trProg('program.'+p.id+'.description',p.description);
+    const effectiveLabel=typeof getTrainingDaysPerWeekLabel==='function'
+      ? getTrainingDaysPerWeekLabel(compatibility.effective)
+      : compatibility.effective+' sessions / week';
+    const fitBadge=compatibility.supportsExact
+      ? `<span class="program-card-fit program-card-fit-ok">${escapeHtml(trProg('program.frequency_card.fit','Fits {value}',{value:requestedLabel}))}</span>`
+      : `<span class="program-card-fit program-card-fit-fallback">${escapeHtml(trProg('program.frequency_card.fallback','Uses {value}',{value:effectiveLabel}))}</span>`;
     return`
     <div class="program-card${p.id===active?' active':''}" onclick="switchProgram('${escapeHtml(p.id)}')">
       <div class="program-card-icon">${escapeHtml(p.icon||'🏋️')}</div>
       <div style="flex:1;min-width:0">
         <div class="program-card-name">${escapeHtml(pName)}</div>
         <div class="program-card-desc">${escapeHtml(pDesc)}</div>
+        <div class="program-card-meta">${fitBadge}</div>
       </div>
       ${p.id===active?'<div class="program-card-badge">'+escapeHtml(trProg('program.active','Active'))+'</div>':''}
     </div>`;}).join('');
+  const helper=`<div class="program-switcher-note">${escapeHtml(trProg('program.frequency_filter.showing','Showing programs that fit {value}. Your current program stays visible if it needs a fallback.',{value:requestedLabel}))}</div>`;
+  container.innerHTML=helper+cards;
+}
+
+function getProgramFrequencyCompatibility(programId,profileLike){
+  const requested=typeof getPreferredTrainingDaysPerWeek==='function'
+    ? getPreferredTrainingDaysPerWeek(profileLike)
+    : 3;
+  const effective=typeof getProgramTrainingDaysPerWeek==='function'
+    ? getProgramTrainingDaysPerWeek(programId,profileLike)
+    : requested;
+  const range=typeof getProgramTrainingDaysRange==='function'
+    ? getProgramTrainingDaysRange(programId)
+    : {min:2,max:6};
+  return{
+    requested,
+    effective,
+    range,
+    supportsExact:requested>=range.min&&requested<=range.max
+  };
+}
+
+function getProgramsSupportingTrainingDays(days){
+  return Object.values(PROGRAMS).filter(prog=>{
+    if(typeof getProgramTrainingDaysRange!=='function')return false;
+    const {min,max}=getProgramTrainingDaysRange(prog.id);
+    return days>=min&&days<=max;
+  });
+}
+
+function scoreProgramForTrainingDays(prog,days,prefs){
+  let score=0;
+  switch(prog.id){
+    case 'hypertrophysplit':
+      score+=prefs.goal==='hypertrophy'?7:2;
+      score+=days>=4?3:1;
+      break;
+    case 'forge':
+      score+=prefs.goal==='strength'?6:2;
+      score+=days>=4?2:1;
+      break;
+    case 'w531':
+      score+=prefs.goal==='strength'?7:1;
+      score+=days<=4?2:-4;
+      break;
+    case 'casualfullbody':
+      score+=prefs.goal==='general_fitness'?7:0;
+      score+=prefs.goal==='sport_support'?4:0;
+      score+=days<=3?3:-6;
+      break;
+    default:
+      break;
+  }
+  return score;
+}
+
+function getSuggestedProgramsForTrainingDays(days,profileLike){
+  const prefs=normalizeTrainingPreferences(profileLike||profile||{});
+  return getProgramsSupportingTrainingDays(days)
+    .map(prog=>({prog,score:scoreProgramForTrainingDays(prog,days,prefs)}))
+    .sort((a,b)=>b.score-a.score||a.prog.name.localeCompare(b.prog.name))
+    .map(entry=>entry.prog);
+}
+
+function getActiveProgramFrequencyMismatch(profileLike){
+  const activeId=(profileLike?.activeProgram)||profile.activeProgram||'forge';
+  const prog=PROGRAMS[activeId];
+  if(!prog)return null;
+  const compatibility=getProgramFrequencyCompatibility(activeId,profileLike);
+  if(compatibility.supportsExact)return null;
+  const requestedLabel=typeof getTrainingDaysPerWeekLabel==='function'
+    ? getTrainingDaysPerWeekLabel(compatibility.requested)
+    : compatibility.requested+' sessions / week';
+  const effectiveLabel=typeof getTrainingDaysPerWeekLabel==='function'
+    ? getTrainingDaysPerWeekLabel(compatibility.effective)
+    : compatibility.effective+' sessions / week';
+  const suggestions=getSuggestedProgramsForTrainingDays(compatibility.requested,profileLike)
+    .filter(candidate=>candidate.id!==activeId);
+  return{
+    prog,
+    ...compatibility,
+    requestedLabel,
+    effectiveLabel,
+    suggestions
+  };
+}
+
+function getProgramFrequencyNoticeHTML(programId,profileLike){
+  const mismatch=getActiveProgramFrequencyMismatch(profileLike);
+  if(!mismatch||mismatch.prog.id!==programId)return '';
+  const currentName=trProg('program.'+mismatch.prog.id+'.name',mismatch.prog.name);
+  const body=trProg(
+    'program.frequency_notice.body',
+    '{name} does not support {requested}. It is currently using {effective}.',
+    {name:currentName,requested:mismatch.requestedLabel,effective:mismatch.effectiveLabel}
+  );
+  const suggestionLine=mismatch.suggestions.length
+    ? `<div class="program-frequency-note">${escapeHtml(trProg('program.frequency_notice.suggestion','For {requested}, switch to a program that supports it directly.',{requested:mismatch.requestedLabel}))}</div>`
+    : '';
+  const actions=mismatch.suggestions.slice(0,3).map(candidate=>{
+    const name=trProg('program.'+candidate.id+'.name',candidate.name);
+    return `<button type="button" class="btn btn-secondary program-frequency-action" onclick="switchProgram('${escapeHtml(candidate.id)}')">${escapeHtml(name)}</button>`;
+  }).join('');
+  return `
+    <div class="program-frequency-notice">
+      <div class="program-frequency-kicker">${escapeHtml(trProg('program.frequency_notice.kicker','Program fit'))}</div>
+      <div class="program-frequency-title">${escapeHtml(trProg('program.frequency_notice.title','Selected weekly frequency no longer fits this program'))}</div>
+      <div class="program-frequency-body">${escapeHtml(body)}</div>
+      ${suggestionLine}
+      ${actions?`<div class="program-frequency-actions">${actions}</div>`:''}
+    </div>
+  `;
 }
 
 function switchProgram(id){

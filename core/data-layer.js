@@ -183,8 +183,7 @@ function getPreferredTrainingDaysPerWeek(profileLike){
   return normalizeTrainingPreferences(profileLike||profile||{}).trainingDaysPerWeek;
 }
 
-function getProgramTrainingDaysPerWeek(programId,profileLike){
-  const preferred=getPreferredTrainingDaysPerWeek(profileLike);
+function getProgramTrainingDaysRange(programId){
   const limits={
     forge:[2,6],
     hypertrophysplit:[2,6],
@@ -192,6 +191,12 @@ function getProgramTrainingDaysPerWeek(programId,profileLike){
     casualfullbody:[2,3]
   };
   const [min,max]=limits[programId]||[2,6];
+  return {min,max};
+}
+
+function getProgramTrainingDaysPerWeek(programId,profileLike){
+  const preferred=getPreferredTrainingDaysPerWeek(profileLike);
+  const {min,max}=getProgramTrainingDaysRange(programId);
   return Math.max(min,Math.min(max,preferred));
 }
 

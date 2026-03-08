@@ -477,6 +477,10 @@ function renderProgramBasics(){
   if(prog&&prog.renderSimpleSettings){
     card.style.display='';
     prog.renderSimpleSettings(state,container);
+    if(typeof getProgramFrequencyNoticeHTML==='function'){
+      const noticeHtml=getProgramFrequencyNoticeHTML(prog.id,profile);
+      if(noticeHtml)container.insertAdjacentHTML('afterbegin',noticeHtml);
+    }
     if(summaryEl)summaryEl.textContent=prog.getSimpleSettingsSummary?prog.getSimpleSettingsSummary(state):'';
     if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(card);
     return;
@@ -571,6 +575,24 @@ function saveTrainingPreferences(){
   renderProgramBasics();
   updateDashboard();
   updateProgramDisplay();
+  if(typeof getActiveProgramFrequencyMismatch==='function'){
+    const mismatch=getActiveProgramFrequencyMismatch(profile);
+    if(mismatch){
+      showToast(
+        tr(
+          'program.frequency_notice.toast',
+          '{name} now uses {effective}. Open Program to switch for {requested}.',
+          {
+            name:(window.I18N&&I18N.t)?I18N.t('program.'+mismatch.prog.id+'.name',null,mismatch.prog.name):mismatch.prog.name,
+            effective:mismatch.effectiveLabel,
+            requested:mismatch.requestedLabel
+          }
+        ),
+        'var(--orange)'
+      );
+      return;
+    }
+  }
   showToast(tr('toast.preferences_saved','Training preferences saved'),'var(--purple)');
 }
 function saveSimpleProgramSettings(){

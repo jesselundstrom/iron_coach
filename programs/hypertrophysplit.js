@@ -653,18 +653,12 @@ const HS_PROGRAM={
     }).join('');
 
     container.innerHTML=`
-      <div class="program-settings-grid">
-        <div class="settings-section-card">
-          <div class="settings-section-title">${tr('program.hs.simple.schedule','Weekly Rhythm')}</div>
-          <div class="settings-section-sub">${tr('program.hs.simple.overview','Choose how many times per week you want to train. The split adapts automatically.')}</div>
-          <div style="font-size:13px;color:var(--muted)">${escapeHtml(getHSFrequencyHint(freq))}</div>
-          <div style="margin-top:10px;font-size:13px;color:var(--text);font-weight:600">${escapeHtml(_splitDescription(freq))}</div>
-        </div>
-        <div class="settings-section-card" id="hs-basic-lifts-card">
-          <div class="settings-section-title">${tr('program.hs.settings.tms','Training Maxes (kg)')}</div>
-          <div class="settings-section-sub">${tr('program.hs.settings.tm_help','Weights are auto-calculated as a percentage of these values each week.')}</div>
-          <div id="hs-basic-lifts-container">${liftRows}</div>
-        </div>
+      <div class="program-basics-note">${tr('program.hs.simple.overview','Choose how many times per week you want to train. The split adapts automatically.')}</div>
+      <div class="settings-section-card" id="hs-basic-lifts-card">
+        <div class="settings-section-title">${tr('program.hs.settings.tms','Training Maxes (kg)')}</div>
+        <div class="settings-section-sub">${escapeHtml(getHSFrequencyHint(freq))}</div>
+        <div class="settings-section-sub" style="margin-top:-2px;color:var(--text)">${escapeHtml(_splitDescription(freq))}</div>
+        <div id="hs-basic-lifts-container">${liftRows}</div>
       </div>
       <button class="btn btn-primary" style="margin-top:14px" onclick="saveSimpleProgramSettings()">${tr('program.hs.simple.save','Save Basics')}</button>
     `;
