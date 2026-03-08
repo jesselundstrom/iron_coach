@@ -111,6 +111,7 @@ function getDefaultTrainingPreferences(){
     sessionMinutes:60,
     equipmentAccess:'full_gym',
     sportReadinessCheckEnabled:false,
+    warmupSetsEnabled:false,
     notes:''
   };
 }
@@ -127,6 +128,7 @@ function normalizeTrainingPreferences(profileLike){
   const minutes=parseInt(next.sessionMinutes,10);
   next.sessionMinutes=allowedMinutes.has(minutes)?minutes:defaults.sessionMinutes;
   next.sportReadinessCheckEnabled=next.sportReadinessCheckEnabled===true;
+  next.warmupSetsEnabled=next.warmupSetsEnabled===true;
   next.notes=String(next.notes||'').trim().slice(0,500);
   profileLike.preferences=next;
   return next;

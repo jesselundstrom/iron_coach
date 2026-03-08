@@ -1,4 +1,4 @@
-const CACHE = 'ironforge-v25';
+const CACHE = 'ironforge-v27';
 
 // Only cache local assets — Google Fonts URLs can fail offline and would
 // break the entire SW install. Fonts are cached on first successful fetch.

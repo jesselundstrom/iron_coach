@@ -188,6 +188,30 @@ function applySportReadinessAdjustments(adjusted,sportContext){
   return{exercises:adjusted,changes};
 }
 
+// Generate warm-up ramp sets for a given working weight.
+// 40-59 kg → 1 set (50%×5), 60-79 kg → 2 sets (+70%×3), 80+ kg → 3 sets (+85%×2).
+function generateWarmupSets(workingWeight,rounding){
+  if(!workingWeight||workingWeight<=0)return[];
+  const r=rounding||2.5;
+  const snap=v=>Math.max(0,Math.round(v/r)*r);
+  const sets=[];
+  if(workingWeight>=40)sets.push({weight:snap(workingWeight*0.5),reps:5,done:false,rpe:null,isWarmup:true});
+  if(workingWeight>=60)sets.push({weight:snap(workingWeight*0.7),reps:3,done:false,rpe:null,isWarmup:true});
+  if(workingWeight>=80)sets.push({weight:snap(workingWeight*0.85),reps:2,done:false,rpe:null,isWarmup:true});
+  return sets;
+}
+
+// Prepend warm-up sets to main (non-aux, non-accessory) exercises that have a working weight.
+function injectWarmupSets(exercises){
+  exercises.forEach(ex=>{
+    if(ex.isAux||ex.isAccessory||!Array.isArray(ex.sets)||!ex.sets.length)return;
+    const firstWeight=parseFloat(ex.sets[0].weight)||ex.tm||0;
+    if(firstWeight<=0)return;
+    const warmups=generateWarmupSets(firstWeight);
+    if(warmups.length)ex.sets.unshift(...warmups);
+  });
+}
+
 function applyTrainingPreferencesToExercises(exercises,sportContext){
   const prefs=normalizeTrainingPreferences(profile);
   const next=cloneWorkoutExercises(exercises);
@@ -319,6 +343,8 @@ function beginWorkoutStart(sportContext){
   const builtExercises=(prog.buildSession(selectedOption,state)||[]).map(withResolvedExerciseId);
   const sessionPrefs=applyTrainingPreferencesToExercises(builtExercises,sportContext);
   const exercises=sessionPrefs.exercises;
+  const prefs=normalizeTrainingPreferences(profile);
+  if(prefs.warmupSetsEnabled)injectWarmupSets(exercises);
   const label=prog.getSessionLabel(selectedOption,state);
   const bi=prog.getBlockInfo?prog.getBlockInfo(state):{isDeload:false};
   const sessionDescription=prog.getSessionDescription
@@ -862,12 +888,13 @@ function renderExercises(){
     c.appendChild(block);
     const sc=document.getElementById('sets-'+ei);
     ex.sets.forEach((set,si)=>{
-      const row=document.createElement('div');row.className='set-row';
+      const row=document.createElement('div');row.className='set-row'+(set.isWarmup?' set-warmup':'');
       const isAmrap=set.isAmrap;
       const mode=activeWorkout?.programMode||'sets';
       const isLastSet=si===ex.sets.length-1;
       const showRir=mode==='rir'&&isLastSet&&!ex.isAccessory;
-      const setLabel=isAmrap?i18nText('workout.max_short','MAX'):String(si+1);
+      const warmupsBefore=ex.sets.filter((s,i)=>i<si&&s.isWarmup).length;
+      const setLabel=set.isWarmup?'W':isAmrap?i18nText('workout.max_short','MAX'):String(si+1-warmupsBefore);
       const repVal=isAmrap&&set.reps==='AMRAP'?'':set.reps;
       if(isAmrap)row.style.cssText='background:rgba(167,139,250,0.12);border-radius:8px;padding:2px 0';
       row.innerHTML=`
@@ -1097,7 +1124,11 @@ async function finishWorkout(){
   let programHookFailed=false;
   try{
     // Adjust program state (TMs, weights, failures, etc.)
-    let newState=prog.adjustAfterSession?prog.adjustAfterSession(activeWorkout.exercises,state,activeWorkout.programOption):state;
+    // Strip warm-up sets so program progression logic only sees working sets
+    const exercisesForProgression=activeWorkout.exercises.map(ex=>({
+      ...ex,sets:(ex.sets||[]).filter(s=>!s.isWarmup)
+    }));
+    let newState=prog.adjustAfterSession?prog.adjustAfterSession(exercisesForProgression,state,activeWorkout.programOption):state;
 
     // Count sessions this week for advanceState
     const now=new Date(),sow=getWeekStart(now);
@@ -1130,7 +1161,7 @@ async function finishWorkout(){
   let tonnage=0,completedSets=0;
   activeWorkout.exercises.forEach(ex=>{
     ex.sets.forEach(s=>{
-      if(s.done){completedSets++;tonnage+=(parseFloat(s.weight)||0)*(parseInt(s.reps)||0);}
+      if(s.done&&!s.isWarmup){completedSets++;tonnage+=(parseFloat(s.weight)||0)*(parseInt(s.reps)||0);}
     });
   });
   const summaryData={

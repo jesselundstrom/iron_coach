@@ -524,6 +524,8 @@ function initSettings(){
     if(equipmentSel)equipmentSel.value=prefs.equipmentAccess;
     const sportCheckEl=document.getElementById('training-sport-check');
     if(sportCheckEl)sportCheckEl.checked=prefs.sportReadinessCheckEnabled===true;
+    const warmupEl=document.getElementById('training-warmup-sets');
+    if(warmupEl)warmupEl.checked=prefs.warmupSetsEnabled===true;
     const notesEl=document.getElementById('training-preferences-notes');
     if(notesEl)notesEl.value=prefs.notes||'';
   }
@@ -558,8 +560,9 @@ function saveTrainingPreferences(){
   const sessionMinutes=parseInt(document.getElementById('training-session-minutes')?.value,10)||prefs.sessionMinutes;
   const equipmentAccess=document.getElementById('training-equipment')?.value||prefs.equipmentAccess;
   const sportReadinessCheckEnabled=document.getElementById('training-sport-check')?.checked===true;
+  const warmupSetsEnabled=document.getElementById('training-warmup-sets')?.checked===true;
   const notes=document.getElementById('training-preferences-notes')?.value||'';
-  profile.preferences=normalizeTrainingPreferences({...profile,preferences:{...prefs,goal,sessionMinutes,equipmentAccess,sportReadinessCheckEnabled,notes}});
+  profile.preferences=normalizeTrainingPreferences({...profile,preferences:{...prefs,goal,sessionMinutes,equipmentAccess,sportReadinessCheckEnabled,warmupSetsEnabled,notes}});
   saveProfileData({docKeys:['profile_core']});
   renderTrainingPreferencesSummary();
   updateDashboard();

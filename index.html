@@ -299,6 +299,16 @@
             <span class="toggle-track"><span class="toggle-thumb"></span></span>
           </div>
         </label>
+        <label class="toggle-row" for="training-warmup-sets" style="margin-top:14px">
+          <div>
+            <div class="toggle-row-title" data-i18n="settings.preferences.warmup_sets">Automatic warm-up sets</div>
+            <div class="toggle-row-sub" data-i18n="settings.preferences.warmup_sets_help">Prepend warm-up ramp sets (50%-85%) to main compound lifts at the start of each workout.</div>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="training-warmup-sets">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+        </label>
         <label style="margin-top:12px" data-i18n="settings.preferences.notes">Notes, limitations, preferences</label>
         <textarea id="training-preferences-notes" rows="4" data-i18n-placeholder="settings.preferences.notes_placeholder" placeholder="e.g. Avoid high-impact jumps, prefer barbell compounds, 60 min cap"></textarea>
         <button class="btn btn-primary" style="margin-top:14px" onclick="saveTrainingPreferences()" data-i18n="settings.preferences.save">Save Preferences</button>
