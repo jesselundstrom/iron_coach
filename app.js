@@ -826,6 +826,8 @@ function renderOnboarding(){
 function goToOnboardingStep(step){
   onboardingState.step=Math.max(0,Math.min(getOnboardingStepCount()-1,step));
   renderOnboarding();
+  const container=document.getElementById('onboarding-content');
+  if(container)container.scrollTop=0;
 }
 
 function advanceOnboarding(){
@@ -834,6 +836,8 @@ function advanceOnboarding(){
 
 function closeOnboardingModal(){
   document.getElementById('onboarding-modal')?.classList.remove('active');
+  const container=document.getElementById('onboarding-content');
+  if(container)container.scrollTop=0;
 }
 
 async function completeOnboarding(){
