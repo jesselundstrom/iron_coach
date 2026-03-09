@@ -32,7 +32,7 @@ const SLOTS = [
   {
     id: 'pull',
     name: 'Pull (Back / Biceps)',
-    pool: ['Lat Pull-down (Wide Grip)', 'Lat Pull-down (Close Grip)', 'Dumbbell Rows', 'Barbell Rows']
+    pool: ['Lat Pull-down', 'Dumbbell Rows', 'Machine Rows']
   },
   {
     id: 'hinge',
