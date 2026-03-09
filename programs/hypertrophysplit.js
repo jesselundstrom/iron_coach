@@ -692,7 +692,6 @@ const HS_PROGRAM={
   saveSimpleSettings(state){
     const next=JSON.parse(JSON.stringify(state||this.getInitialState()));
     const freq=getHSDaysPerWeek();
-    next.daysPerWeek=freq;
     // Read TMs from visible inputs
     const keys=activeLiftKeys(freq);
     keys.forEach(key=>{

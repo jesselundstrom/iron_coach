@@ -395,7 +395,7 @@ const FORGE_PROGRAM={
   getDashboardTMs(state){return(state.lifts?.main||[]).map(l=>({name:l.name,value:l.tm+'kg'}));},
 
   getBannerHTML(options,state,schedule,workouts,fatigue){
-    const freq=state.daysPerWeek||3;
+    const freq=getForgeDaysPerWeek();
     const doneCount=options.filter(o=>o.done).length;
     const allDone=options.every(o=>o.done);
     const todayDow=new Date().getDay();
@@ -417,128 +417,6 @@ const FORGE_PROGRAM={
     return{style:'rgba(167,139,250,0.08)',border:'rgba(167,139,250,0.15)',color:'var(--purple)',html:trForge('program.forge.banner_recommended','⭐ Recommended: <strong>Day {day}</strong> · {left} sessions left this week · Recovery {recovery}%',{day:(bestOpt?.value||1),left,recovery})};
   },
 
-  renderSettings(state,container){
-    const week=state.week||1,mode=state.mode||'sets',rounding=state.rounding||2.5,freq=state.daysPerWeek||3,skipPeak=!!state.skipPeakBlock;
-    const backEx=state.backExercise||'Barbell Rows',backWt=state.backWeight||0;
-    const lifts=state.lifts;
-    const modeSelectLabel=Object.entries(FORGE_INTERNAL.modes).map(([k])=>`<option value="${k}"${k===mode?' selected':''}>${getForgeModeName(k)} — ${getForgeModeDesc(k)}</option>`).join('');
-    const freqOpts=[2,3,4,5,6].map(n=>`<option value="${n}"${n===freq?' selected':''}>${n}×/week</option>`).join('');
-    const roundOpts=[1,2.5,5].map(n=>`<option value="${n}"${n===rounding?' selected':''}>${n} kg</option>`).join('');
-    const backOpts=FORGE_INTERNAL.auxOptions.back.map(o=>`<option value="${escapeHtml(o)}"${o===backEx?' selected':''}>${escapeHtml(forgeExerciseName(o))}</option>`).join('');
-    container.innerHTML=`
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">${trForge('program.forge.settings.overview','21-week strength cycle: Hypertrophy → Strength → Peaking.')}</div>
-      <label>${trForge('program.forge.settings.mode','Program Mode')}</label>
-      <select id="prog-mode" onchange="updateForgeModeSetting()">${modeSelectLabel}</select>
-      <div id="prog-mode-desc" style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:8px"></div>
-      <label>${trForge('program.forge.settings.week','Current Week (1-21)')}</label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="number" id="prog-week" min="1" max="21" value="${week}" style="flex:1">
-        <button class="btn btn-sm btn-secondary" onclick="document.getElementById('prog-week').value=1" style="width:auto">Reset</button>
-      </div>
-
-      <label style="margin-top:14px">${trForge('program.forge.settings.peak_title','Peak Block (Weeks 15–20)')} <span style="font-weight:400;color:var(--muted)">(${trForge('program.forge.settings.peak_optional','optional')})</span></label>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
-        ${trForge('program.forge.settings.peak_help','The highest-intensity phase. Skip it to loop back to Hypertrophy after the Strength deload — runs as a continuous 14-week cycle.')}
-      </div>
-      <input type="hidden" id="prog-skip-peak" value="${skipPeak?'1':'0'}">
-      <button class="btn ${skipPeak?'btn-primary':'btn-secondary'}" id="forge-skip-peak-btn"
-        onclick="window._forgeToggleSkipPeak()"
-        style="width:100%;text-align:left;padding:10px 14px">
-        ${skipPeak?trForge('program.forge.settings.skip_peak_on','🏃 Peak Block skipped — program loops to Hypertrophy after Strength'):trForge('program.forge.settings.skip_peak_off','🏔️ Skip Peak Block — loop back after Strength instead of peaking')}
-      </button>
-
-      <label style="margin-top:12px">${trForge('program.forge.settings.rounding','Weight Rounding (kg)')}</label>
-      <select id="prog-rounding">${roundOpts}</select>
-      <label style="margin-top:12px">${trForge('program.forge.settings.sessions_pw','Sessions Per Week')}</label>
-      <select id="prog-days" onchange="previewProgramSplit()">${freqOpts}</select>
-      <div id="prog-split-preview" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.8"></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;line-height:1.5">
-        ${trForge('program.forge.settings.terms','<strong>Terms:</strong> TM = Training Max. RIR = reps left before failure. AMRAP = as many reps as possible.')}
-      </div>
-      <div class="divider-label" style="margin-top:18px"><span>${trForge('program.forge.settings.main_lifts','Main Lifts (Training Max in kg)')}</span></div>
-      <div id="prog-main-lifts"></div>
-      <div class="divider-label" style="margin-top:14px"><span>${trForge('program.forge.settings.aux_lifts','Auxiliary Lifts (Training Max in kg)')}</span></div>
-      <div id="prog-aux-lifts"></div>
-      <div class="divider-label" style="margin-top:14px"><span>${trForge('program.forge.settings.back_exercise','Back Exercise (every session)')}</span></div>
-      <select id="prog-back-exercise" style="margin-bottom:8px">${backOpts}</select>
-      <label>${trForge('program.forge.settings.working_weight','Working Weight (kg)')}</label>
-      <div style="display:flex;align-items:center;gap:8px">
-        <input type="number" id="prog-back-weight" value="${backWt||''}" placeholder="e.g. 60" style="flex:1">
-        <span style="font-size:11px;color:var(--muted);flex:1">${trForge('program.forge.settings.back_prog','3×8 → 3×10, then increase')}</span>
-      </div>
-      <button class="btn btn-purple" style="margin-top:16px" onclick="saveProgramSetup()">${trForge('program.forge.save_setup','Save Program Setup')}</button>
-    `;
-    this._renderMainLifts(lifts);this._renderAuxLifts(lifts);this._updateModeDesc(mode);this._previewSplit(freq,lifts);
-  },
-
-  renderSimpleSettings(state,container){
-    const freq=getForgeDaysPerWeek();
-    const backEx=state.backExercise||'Barbell Rows';
-    const backWt=state.backWeight||0;
-    const lifts=state.lifts||this.getInitialState().lifts;
-    const freqOpts=[2,3,4,5,6].map(n=>`<option value="${n}"${n===freq?' selected':''}>${escapeHtml(trForge('program.forge.simple.days_value','{count} sessions / week',{count:n}))}</option>`).join('');
-    const backOpts=FORGE_INTERNAL.auxOptions.back.map(o=>`<option value="${escapeHtml(o)}"${o===backEx?' selected':''}>${escapeHtml(forgeExerciseName(o))}</option>`).join('');
-    const labels=[
-      trForge('program.forge.lift.sq','Squat (SQ)'),
-      trForge('program.forge.lift.bp','Bench Press (BP)'),
-      trForge('program.forge.lift.dl','Deadlift (DL)'),
-      trForge('program.forge.lift.ohp','Overhead Press (OHP)')
-    ];
-    const mainRows=(lifts.main||[]).map((lift,idx)=>{
-      const options=getForgeSimpleMainOptions(idx,lift.name).map(name=>`<option value="${escapeHtml(name)}"${name===lift.name?' selected':''}>${escapeHtml(forgeExerciseName(name))}</option>`).join('');
-      return`
-        <div class="lift-row">
-          <span class="lift-label">${escapeHtml(labels[idx]||('#'+(idx+1)))}</span>
-          <select id="forge-basic-main-name-${idx}" style="flex:1;font-size:13px">${options}</select>
-          <input type="number" id="forge-basic-main-tm-${idx}" value="${lift.tm}" min="0" step="0.1">
-        </div>`;
-    }).join('');
-    container.innerHTML=`
-      <div class="program-basics-note">${trForge('program.forge.simple.overview','Set your weekly rhythm and core lifts here. Daily adjustments still come from Training Preferences.')}</div>
-      <div class="program-basics-section">
-        <div class="program-basics-section-title">${trForge('program.forge.simple.schedule','Weekly Rhythm')}</div>
-        <div class="program-basics-section-sub">${trForge('program.forge.simple.days_help','Choose how often you want to run Forge during a normal week.')}</div>
-        <select id="forge-basic-days">${freqOpts}</select>
-      </div>
-      <div class="program-basics-section">
-        <div class="program-basics-section-title">${trForge('program.forge.simple.main_lifts','Main Lifts')}</div>
-        <div class="program-basics-section-sub">${trForge('program.forge.simple.main_help','Pick the four core lifts and set a training max for each one.')}</div>
-        <div>${mainRows}</div>
-      </div>
-      <div class="program-basics-section">
-        <div class="program-basics-section-title">${trForge('program.forge.simple.back_work','Back Work')}</div>
-        <div class="program-basics-section-sub">${trForge('program.forge.simple.back_help','This movement appears every session as your repeat back exercise.')}</div>
-        <select id="forge-basic-back-exercise" style="margin-bottom:8px">${backOpts}</select>
-        <label>${trForge('program.forge.settings.working_weight','Working Weight (kg)')}</label>
-        <input type="number" id="forge-basic-back-weight" value="${backWt||''}" min="0" step="0.1" placeholder="e.g. 60">
-      </div>
-      <button class="btn btn-primary" style="margin-top:14px" onclick="saveSimpleProgramSettings()">${trForge('program.forge.simple.save','Save Forge Basics')}</button>
-    `;
-  },
-
-  getSimpleSettingsSummary(state){
-    const freq=state.daysPerWeek||3;
-    const backEx=forgeExerciseName(state.backExercise||'Barbell Rows');
-    return trForge('program.forge.simple.summary','{count} sessions / week · {back} every session',{count:freq,back:backEx});
-  },
-
-  _renderMainLifts(lifts){
-    const mc=document.getElementById('prog-main-lifts');if(!mc||!lifts)return;mc.innerHTML='';
-    const labels=[trForge('program.forge.lift.sq','Squat (SQ)'),trForge('program.forge.lift.bp','Bench Press (BP)'),trForge('program.forge.lift.dl','Deadlift (DL)'),trForge('program.forge.lift.ohp','Overhead Press (OHP)')];
-    lifts.main.forEach((l,i)=>{mc.innerHTML+=`<div class="lift-row"><span class="lift-label">${labels[i]||'#'+(i+1)}</span><input type="text" value="${l.name}" onchange="updateProgramLift('main',${i},'name',this.value)" style="flex:1"><input type="number" value="${l.tm}" onchange="updateProgramLift('main',${i},'tm',parseFloat(this.value)||0)"></div>`;});
-  },
-  _renderAuxLifts(lifts){
-    const ac=document.getElementById('prog-aux-lifts');if(!ac||!lifts)return;ac.innerHTML='';
-    const auxLabels=[trForge('program.forge.lift.sq1','Squat Variant 1 (SQ-1)'),trForge('program.forge.lift.sq2','Squat Variant 2 (SQ-2)'),trForge('program.forge.lift.bp1','Bench Variant 1 (BP-1)'),trForge('program.forge.lift.bp2','Bench Variant 2 (BP-2)'),trForge('program.forge.lift.dlv','Deadlift Variant (DL)'),trForge('program.forge.lift.ohpv','Overhead Press Variant (OHP)')];const cats=['squat','squat','bench','bench','deadlift','ohp'];
-    lifts.aux.forEach((l,i)=>{
-      const cat=cats[i]||'squat',opts=FORGE_INTERNAL.auxOptions[cat]||[];
-      let sel=`<select onchange="updateProgramLift('aux',${i},'name',this.value)" style="flex:1;font-size:13px">`;
-      opts.forEach(o=>{sel+=`<option value="${escapeHtml(o)}"${o===l.name?' selected':''}>${escapeHtml(forgeExerciseName(o))}</option>`;});
-      if(!opts.includes(l.name))sel+=`<option value="${escapeHtml(l.name)}" selected>${escapeHtml(forgeExerciseName(l.name))}</option>`;
-      sel+='</select>';
-      ac.innerHTML+=`<div class="lift-row"><span class="lift-label">${auxLabels[i]||'A'+(i+1)}</span>${sel}<input type="number" value="${l.tm}" onchange="updateProgramLift('aux',${i},'tm',parseFloat(this.value)||0)"></div>`;
-    });
-  },
   _updateModeDesc(mode){const desc=document.getElementById('prog-mode-desc');if(desc)desc.textContent=getForgeModeDesc(mode);},
   _previewSplit(freq,lifts){
     const prev=document.getElementById('prog-split-preview');if(!prev||!lifts)return;
@@ -552,31 +430,6 @@ const FORGE_PROGRAM={
     prev.innerHTML=html;
   },
 
-  saveSettings(state){
-    const mode=document.getElementById('prog-mode')?.value||'sets';
-    const week=parseInt(document.getElementById('prog-week')?.value)||1;
-    const rounding=parseFloat(document.getElementById('prog-rounding')?.value)||2.5;
-    const daysPerWeek=parseInt(document.getElementById('prog-days')?.value)||3;
-    const skipPeakBlock=document.getElementById('prog-skip-peak')?.value==='1';
-    const backExercise=document.getElementById('prog-back-exercise')?.value||'Barbell Rows';
-    const backWeight=parseFloat(document.getElementById('prog-back-weight')?.value)||0;
-    return{...state,mode,week,rounding,daysPerWeek,skipPeakBlock,backExercise,backWeight};
-  },
-
-  saveSimpleSettings(state){
-    const next=JSON.parse(JSON.stringify(state||this.getInitialState()));
-    next.daysPerWeek=parseInt(document.getElementById('forge-basic-days')?.value,10)||next.daysPerWeek||3;
-    next.backExercise=document.getElementById('forge-basic-back-exercise')?.value||next.backExercise||'Barbell Rows';
-    next.backWeight=parseFloat(document.getElementById('forge-basic-back-weight')?.value)||0;
-    if(!next.lifts)next.lifts=this.getInitialState().lifts;
-    if(!Array.isArray(next.lifts.main))next.lifts.main=this.getInitialState().lifts.main;
-    next.lifts.main=(next.lifts.main||[]).map((lift,idx)=>({
-      ...lift,
-      name:document.getElementById(`forge-basic-main-name-${idx}`)?.value||lift.name,
-      tm:parseFloat(document.getElementById(`forge-basic-main-tm-${idx}`)?.value)||0
-    }));
-    return next;
-  }
 };
 
 FORGE_PROGRAM.renderSimpleSettings=function(state,container){

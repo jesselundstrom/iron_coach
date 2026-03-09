@@ -514,7 +514,7 @@ function hasExerciseCatalogFilters(){
 }
 
 function isExerciseCatalogSwapMode(){
-  return exerciseCatalogState?.mode==='swap';
+  return exerciseCatalogState?.mode==='swap'||exerciseCatalogState?.mode==='settings';
 }
 
 function mergeExerciseCatalogLists(primary,extra){
@@ -692,32 +692,6 @@ function resolveExerciseSelection(input){
   };
 }
 
-function openExerciseCatalogForAdd(title,cb){
-  ensureExerciseCatalogListeners();
-  nameModalCallback=cb||nameModalCallback||addExerciseByName;
-  exerciseCatalogState={
-    mode:'add',
-    search:'',
-    movementTag:'',
-    muscleGroup:'',
-    equipmentTag:'',
-    baseFilters:{},
-    candidateIds:[],
-    titleKey:'catalog.title.add',
-    titleFallback:'Add Exercise',
-    titleParams:null,
-    subtitleKey:'catalog.sub',
-    subtitleFallback:'Pick an exercise from the library or search by name.',
-    subtitleParams:null
-  };
-  const input=document.getElementById('name-modal-input');
-  if(title)exerciseCatalogState.titleFallback=title;
-  if(input)input.value='';
-  renderExerciseCatalog();
-  document.getElementById('name-modal')?.classList.add('active');
-  setTimeout(()=>input?.focus(),80);
-}
-
 function inferExerciseCatalogSwapFilters(exercise,category){
   const meta=window.EXERCISE_LIBRARY?.getExerciseMeta?EXERCISE_LIBRARY.getExerciseMeta(exercise?.exerciseId||exercise?.name||exercise):null;
   const categoryFilters={
@@ -756,39 +730,83 @@ function getResolvedCatalogOptionExercises(options){
   }).filter(Boolean);
 }
 
-function openExerciseCatalogForSwap(config){
+function openExerciseCatalogPicker(config){
   const next=config||{};
-  const exercise=next.exercise||activeWorkout?.exercises?.[next.exerciseIndex];
-  const info=Array.isArray(next.swapInfo)?{options:next.swapInfo}:next.swapInfo||{};
-  if(!exercise)return false;
   ensureExerciseCatalogListeners();
+  const intent=next.intent||'add';
+  const input=document.getElementById('name-modal-input');
+  if(intent==='add'){
+    nameModalCallback=next.onSubmit||next.callback||nameModalCallback||addExerciseByName;
+    exerciseCatalogState={
+      mode:'add',
+      search:'',
+      movementTag:'',
+      muscleGroup:'',
+      equipmentTag:'',
+      baseFilters:{},
+      candidateIds:[],
+      titleKey:'catalog.title.add',
+      titleFallback:next.title||'Add Exercise',
+      titleParams:next.titleParams||null,
+      subtitleKey:'catalog.sub',
+      subtitleFallback:next.subtitle||'Pick an exercise from the library or search by name.',
+      subtitleParams:next.subtitleParams||null,
+      onSelect:null
+    };
+    if(input)input.value='';
+    renderExerciseCatalog();
+    document.getElementById('name-modal')?.classList.add('active');
+    setTimeout(()=>input?.focus(),80);
+    return true;
+  }
+
+  const exercise=next.exercise||activeWorkout?.exercises?.[next.exerciseIndex];
+  if(!exercise)return false;
+  const info=Array.isArray(next.swapInfo)?{options:next.swapInfo}:next.swapInfo||{};
   const current=resolveExerciseSelection(exercise);
-  const fallbackOptions=getResolvedCatalogOptionExercises(info.options||[]);
-  const baseFilters={...(info.filters||inferExerciseCatalogSwapFilters(exercise,info.category||''))};
-  baseFilters.excludeIds=uniqueList([...(arrayify(info.excludeIds)),...(current.exerciseId?[current.exerciseId]:[])]);
+  const fallbackOptions=getResolvedCatalogOptionExercises(next.options||info.options||[]);
+  const configuredFilters=next.filters||info.filters||null;
+  const baseFilters={...(configuredFilters||inferExerciseCatalogSwapFilters(exercise,info.category||next.category||''))};
+  const excludeIds=arrayify(info.excludeIds);
+  if(intent==='swap'&&current.exerciseId)excludeIds.push(current.exerciseId);
+  baseFilters.excludeIds=uniqueList(excludeIds);
   const candidateIds=uniqueList([...(arrayify(info.includeIds)),...fallbackOptions.map(ex=>ex.id)]);
+  const defaultSubtitle=intent==='settings'
+    ? 'Choose the exercise variant this program should use.'
+    : 'Showing options limited by the current exercise and program rules.';
   exerciseCatalogState={
-    mode:'swap',
+    mode:intent,
     search:'',
     movementTag:'',
     muscleGroup:'',
     equipmentTag:'',
     baseFilters,
     candidateIds,
-    titleKey:'catalog.title.swap',
-    titleFallback:next.title||'Swap Exercise',
+    titleKey:intent==='settings'?'catalog.title.settings':'catalog.title.swap',
+    titleFallback:next.title||(intent==='settings'?'Choose Exercise':'Swap Exercise'),
     titleParams:next.titleParams||null,
-    subtitleKey:'catalog.sub.swap',
-    subtitleFallback:'Showing options limited by the current exercise and program rules.',
-    subtitleParams:{name:displayExerciseName(current.name)},
+    subtitleKey:intent==='settings'?'catalog.sub.settings':'catalog.sub.swap',
+    subtitleFallback:next.subtitle||defaultSubtitle,
+    subtitleParams:next.subtitleParams||(intent==='swap'?{name:displayExerciseName(current.name)}:null),
     onSelect:next.onSelect||null
   };
-  const input=document.getElementById('name-modal-input');
   if(input)input.value='';
   renderExerciseCatalog();
   document.getElementById('name-modal')?.classList.add('active');
   setTimeout(()=>input?.focus(),80);
   return true;
+}
+
+function openExerciseCatalogForAdd(title,cb){
+  return openExerciseCatalogPicker({intent:'add',title,callback:cb});
+}
+
+function openExerciseCatalogForSwap(config){
+  return openExerciseCatalogPicker({...config,intent:'swap'});
+}
+
+function openExerciseCatalogForSettings(config){
+  return openExerciseCatalogPicker({...config,intent:'settings'});
 }
 
 function setExerciseCatalogFilter(group,value){

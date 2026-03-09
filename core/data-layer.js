@@ -50,12 +50,14 @@ function uniqueDocKeys(keys){
 }
 
 function programDocKey(programId){
-  return PROGRAM_DOC_PREFIX+String(programId||'');
+  const canonicalId=typeof getCanonicalProgramId==='function'?getCanonicalProgramId(programId):String(programId||'');
+  return PROGRAM_DOC_PREFIX+String(canonicalId||'');
 }
 
 function programIdFromDocKey(docKey){
   const key=String(docKey||'');
-  return key.startsWith(PROGRAM_DOC_PREFIX)?key.slice(PROGRAM_DOC_PREFIX.length):'';
+  const programId=key.startsWith(PROGRAM_DOC_PREFIX)?key.slice(PROGRAM_DOC_PREFIX.length):'';
+  return typeof getCanonicalProgramId==='function'?getCanonicalProgramId(programId):programId;
 }
 
 function isProgramDocKey(docKey){
@@ -183,21 +185,115 @@ function getPreferredTrainingDaysPerWeek(profileLike){
   return normalizeTrainingPreferences(profileLike||profile||{}).trainingDaysPerWeek;
 }
 
-function getProgramTrainingDaysRange(programId){
-  const limits={
-    forge:[2,6],
-    hypertrophysplit:[2,6],
-    w531:[2,4],
-    casualfullbody:[2,3]
-  };
-  const [min,max]=limits[programId]||[2,6];
-  return {min,max};
+const PROGRAM_CAPABILITIES={
+  forge:{
+    id:'forge',
+    aliases:[],
+    frequencyRange:{min:2,max:6},
+    recommendationScore(days,prefs){
+      let score=prefs.goal==='strength'?6:2;
+      score+=days>=4?2:1;
+      return score;
+    }
+  },
+  hypertrophysplit:{
+    id:'hypertrophysplit',
+    aliases:[],
+    frequencyRange:{min:2,max:6},
+    recommendationScore(days,prefs){
+      let score=prefs.goal==='hypertrophy'?7:2;
+      score+=days>=4?3:1;
+      return score;
+    }
+  },
+  wendler531:{
+    id:'wendler531',
+    aliases:['w531'],
+    frequencyRange:{min:2,max:4},
+    recommendationScore(days,prefs){
+      let score=prefs.goal==='strength'?7:1;
+      score+=days<=4?2:-4;
+      return score;
+    }
+  },
+  casualfullbody:{
+    id:'casualfullbody',
+    aliases:[],
+    frequencyRange:{min:2,max:3},
+    recommendationScore(days,prefs){
+      let score=prefs.goal==='general_fitness'?7:0;
+      score+=prefs.goal==='sport_support'?4:0;
+      score+=days<=3?3:-6;
+      return score;
+    }
+  },
+  stronglifts5x5:{
+    id:'stronglifts5x5',
+    aliases:[],
+    frequencyRange:{min:3,max:3},
+    recommendationScore(days,prefs){
+      let score=prefs.goal==='strength'?5:1;
+      score+=days===3?3:-8;
+      return score;
+    }
+  }
+};
+
+function getCanonicalProgramId(programId){
+  const raw=String(programId||'').trim();
+  if(!raw)return raw;
+  const direct=PROGRAM_CAPABILITIES[raw];
+  if(direct)return direct.id;
+  const match=Object.values(PROGRAM_CAPABILITIES).find(cap=>(cap.aliases||[]).includes(raw));
+  return match?match.id:raw;
 }
 
-function getProgramTrainingDaysPerWeek(programId,profileLike){
+function getProgramCapabilities(programId){
+  const canonicalId=getCanonicalProgramId(programId);
+  return PROGRAM_CAPABILITIES[canonicalId]||{
+    id:canonicalId||String(programId||'').trim(),
+    aliases:[],
+    frequencyRange:{min:2,max:6},
+    recommendationScore(){return 0;}
+  };
+}
+
+function getProgramTrainingDaysRange(programId){
+  const range=getProgramCapabilities(programId).frequencyRange||{min:2,max:6};
+  return {min:range.min,max:range.max};
+}
+
+function getEffectiveProgramFrequency(programId,profileLike){
   const preferred=getPreferredTrainingDaysPerWeek(profileLike);
   const {min,max}=getProgramTrainingDaysRange(programId);
   return Math.max(min,Math.min(max,preferred));
+}
+
+function getProgramTrainingDaysPerWeek(programId,profileLike){
+  return getEffectiveProgramFrequency(programId,profileLike);
+}
+
+function normalizeProfileProgramStateMap(profileLike){
+  if(!profileLike||typeof profileLike!=='object')return profileLike;
+  if(!profileLike.programs||typeof profileLike.programs!=='object')return profileLike;
+  const normalized={};
+  Object.entries(profileLike.programs).forEach(([programId,state])=>{
+    const canonicalId=getCanonicalProgramId(programId);
+    const isCanonicalKey=canonicalId===programId;
+    if(normalized[canonicalId]===undefined){
+      normalized[canonicalId]=state;
+      return;
+    }
+    if(normalized[canonicalId]&&typeof normalized[canonicalId]==='object'&&state&&typeof state==='object'){
+      normalized[canonicalId]=isCanonicalKey
+        ? {...normalized[canonicalId],...state}
+        : {...state,...normalized[canonicalId]};
+      return;
+    }
+    if(isCanonicalKey)normalized[canonicalId]=state;
+  });
+  profileLike.programs=normalized;
+  return profileLike;
 }
 
 function normalizeWorkoutRecord(workout){
@@ -219,6 +315,18 @@ function normalizeWorkoutRecord(workout){
   if((workout.programDayNum===undefined||workout.programDayNum===null)&&workout.forgeDayNum!==undefined&&workout.forgeDayNum!==null){
     workout.programDayNum=workout.forgeDayNum;
     changed=true;
+  }
+  const canonicalProgramId=getCanonicalProgramId(workout.program);
+  if(canonicalProgramId&&canonicalProgramId!==workout.program){
+    workout.program=canonicalProgramId;
+    changed=true;
+  }
+  if(workout.type&&workout.type!=='hockey'&&workout.type!=='sport'){
+    const canonicalTypeId=getCanonicalProgramId(workout.type);
+    if(canonicalTypeId&&canonicalTypeId!==workout.type){
+      workout.type=canonicalTypeId;
+      changed=true;
+    }
   }
   if('forgeWeek' in workout){delete workout.forgeWeek;changed=true;}
   if('forgeDayNum' in workout){delete workout.forgeDayNum;changed=true;}
@@ -390,10 +498,12 @@ async function loadData(options){
   }
   cleanupLegacyProfileFields(profile);
   normalizeTrainingPreferences(profile);
+  normalizeProfileProgramStateMap(profile);
   const normalizedWorkouts=normalizeWorkoutRecords(workouts);
   workouts=normalizedWorkouts.items;
   // Ensure activeProgram is set
   if(!profile.activeProgram)profile.activeProgram='forge';
+  profile.activeProgram=getCanonicalProgramId(profile.activeProgram)||'forge';
   if(!profile.language)profile.language=(window.I18N&&I18N.getLanguage?I18N.getLanguage():'en');
   if(window.I18N&&I18N.setLanguage){
     I18N.setLanguage(profile.language,{persist:true,notify:false});

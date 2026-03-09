@@ -347,7 +347,9 @@ function updateDashboard(){
 
   // Weekly session progress
   const now=new Date(),sow=getWeekStart(now);
-  const freq=ps.daysPerWeek||3;
+  const freq=typeof getEffectiveProgramFrequency==='function'
+    ? getEffectiveProgramFrequency(prog.id,profile)
+    : (ps.daysPerWeek||3);
   const doneThisWeek=workouts.filter(w=>(w.program===prog.id||(!w.program&&w.type===prog.id))&&new Date(w.date)>=sow).length;
   const sportThisWeek=workouts.filter(w=>isSportWorkout(w)&&new Date(w.date)>=sow).length;
   const sn=schedule.sportName||trDash('common.sport','Sport');

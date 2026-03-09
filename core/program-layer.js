@@ -196,22 +196,33 @@ function applyPreferenceRecommendation(prog,options,state,sportContext){
 // Programs (loaded via <script> tags) call registerProgram() to self-register.
 const PROGRAMS={};
 function registerProgram(p){PROGRAMS[p.id]=p;}
-function getActiveProgram(){return PROGRAMS[profile.activeProgram||'forge']||PROGRAMS.forge||Object.values(PROGRAMS)[0]||{};}
-function getActiveProgramState(){return profile.programs?.[profile.activeProgram||'forge']||{};}
-function setProgramState(id,state){if(!profile.programs)profile.programs={};profile.programs[id]=state;}
+function getCanonicalProgramRef(programId){
+  return typeof getCanonicalProgramId==='function'?getCanonicalProgramId(programId):programId;
+}
+function getActiveProgramId(){
+  return getCanonicalProgramRef(profile.activeProgram||'forge')||'forge';
+}
+function getActiveProgram(){return PROGRAMS[getActiveProgramId()]||PROGRAMS.forge||Object.values(PROGRAMS)[0]||{};}
+function getActiveProgramState(){return profile.programs?.[getActiveProgramId()]||{};}
+function setProgramState(id,state){
+  const canonicalId=getCanonicalProgramRef(id);
+  if(!profile.programs)profile.programs={};
+  profile.programs[canonicalId]=state;
+}
 function getWorkoutProgramId(w){
   if(!w)return null;
-  if(w.program)return w.program;
+  if(w.program)return getCanonicalProgramRef(w.program);
   if(!w.type||w.type==='sport'||w.type==='hockey')return null;
-  return w.type;
+  return getCanonicalProgramRef(w.type);
 }
 function recomputeProgramStateFromWorkouts(programId){
-  const prog=PROGRAMS[programId];
+  const canonicalId=getCanonicalProgramRef(programId);
+  const prog=PROGRAMS[canonicalId];
   if(!prog)return null;
   if(!profile.programs)profile.programs={};
 
   const programWorkouts=workouts
-    .filter(w=>getWorkoutProgramId(w)===programId)
+    .filter(w=>getWorkoutProgramId(w)===canonicalId)
     .sort((a,b)=>{
       const d=new Date(a.date)-new Date(b.date);
       if(d!==0)return d;
@@ -236,13 +247,13 @@ function recomputeProgramStateFromWorkouts(programId){
     }
   });
 
-  profile.programs[programId]=state;
+  profile.programs[canonicalId]=state;
   return state;
 }
 
 function renderProgramSwitcher(){
   const container=document.getElementById('program-switcher-container');if(!container)return;
-  const active=profile.activeProgram||'forge';
+  const active=getActiveProgramId();
   const requested=typeof getPreferredTrainingDaysPerWeek==='function'
     ? getPreferredTrainingDaysPerWeek(profile)
     : 3;
@@ -282,8 +293,8 @@ function getProgramFrequencyCompatibility(programId,profileLike){
   const requested=typeof getPreferredTrainingDaysPerWeek==='function'
     ? getPreferredTrainingDaysPerWeek(profileLike)
     : 3;
-  const effective=typeof getProgramTrainingDaysPerWeek==='function'
-    ? getProgramTrainingDaysPerWeek(programId,profileLike)
+  const effective=typeof getEffectiveProgramFrequency==='function'
+    ? getEffectiveProgramFrequency(programId,profileLike)
     : requested;
   const range=typeof getProgramTrainingDaysRange==='function'
     ? getProgramTrainingDaysRange(programId)
@@ -305,29 +316,13 @@ function getProgramsSupportingTrainingDays(days){
 }
 
 function scoreProgramForTrainingDays(prog,days,prefs){
-  let score=0;
-  switch(prog.id){
-    case 'hypertrophysplit':
-      score+=prefs.goal==='hypertrophy'?7:2;
-      score+=days>=4?3:1;
-      break;
-    case 'forge':
-      score+=prefs.goal==='strength'?6:2;
-      score+=days>=4?2:1;
-      break;
-    case 'w531':
-      score+=prefs.goal==='strength'?7:1;
-      score+=days<=4?2:-4;
-      break;
-    case 'casualfullbody':
-      score+=prefs.goal==='general_fitness'?7:0;
-      score+=prefs.goal==='sport_support'?4:0;
-      score+=days<=3?3:-6;
-      break;
-    default:
-      break;
+  if(typeof getProgramCapabilities==='function'){
+    const capabilities=getProgramCapabilities(prog.id);
+    if(typeof capabilities.recommendationScore==='function'){
+      return capabilities.recommendationScore(days,prefs);
+    }
   }
-  return score;
+  return 0;
 }
 
 function getSuggestedProgramsForTrainingDays(days,profileLike){
@@ -339,7 +334,7 @@ function getSuggestedProgramsForTrainingDays(days,profileLike){
 }
 
 function getActiveProgramFrequencyMismatch(profileLike){
-  const activeId=(profileLike?.activeProgram)||profile.activeProgram||'forge';
+  const activeId=getCanonicalProgramRef((profileLike?.activeProgram)||profile.activeProgram||'forge');
   const prog=PROGRAMS[activeId];
   if(!prog)return null;
   const compatibility=getProgramFrequencyCompatibility(activeId,profileLike);
@@ -389,14 +384,15 @@ function getProgramFrequencyNoticeHTML(programId,profileLike){
 }
 
 function switchProgram(id){
-  if(id===profile.activeProgram)return;
-  const prog=PROGRAMS[id];if(!prog)return;
+  const canonicalId=getCanonicalProgramRef(id);
+  if(canonicalId===getActiveProgramId())return;
+  const prog=PROGRAMS[canonicalId];if(!prog)return;
   const progName=trProg('program.'+prog.id+'.name',prog.name);
   showConfirm(trProg('program.switch_to','Switch to {name}',{name:progName}),trProg('program.switch_msg','Your current program is paused. {name} will start where you left off.',{name:progName}),()=>{
-    profile.activeProgram=id;
+    profile.activeProgram=canonicalId;
     if(!profile.programs)profile.programs={};
-    if(!profile.programs[id])profile.programs[id]=prog.getInitialState();
-    saveProfileData({docKeys:[PROFILE_CORE_DOC_KEY,programDocKey(id)]});
+    if(!profile.programs[canonicalId])profile.programs[canonicalId]=prog.getInitialState();
+    saveProfileData({docKeys:[PROFILE_CORE_DOC_KEY,programDocKey(canonicalId)]});
     initSettings();
     updateDashboard();
     showToast(trProg('program.switched','Switched to {name}',{name:progName}),'var(--purple)');
@@ -423,17 +419,18 @@ function resolveProgramExerciseName(input){
 
 function openProgramExercisePicker(config){
   const next=config||{};
-  if(typeof window.openExerciseCatalogForSwap!=='function')return false;
+  if(typeof window.openExerciseCatalogForSettings!=='function')return false;
   const currentName=resolveProgramExerciseName(next.currentName||next.exercise?.name||'');
   const swapInfo={
     category:next.category||'',
     filters:{...(next.filters||{})},
     options:Array.isArray(next.options)?next.options.slice():[]
   };
-  return window.openExerciseCatalogForSwap({
+  return window.openExerciseCatalogForSettings({
     exercise:{name:currentName||next.fallbackName||swapInfo.options[0]||''},
     swapInfo,
-    title:next.title||trProg('catalog.title.swap','Swap Exercise'),
+    title:next.title||trProg('catalog.title.settings','Choose Exercise'),
+    subtitle:next.subtitle||trProg('catalog.sub.settings','Choose the exercise variant this program should use.'),
     titleParams:next.titleParams||null,
     onSelect:(exercise)=>{
       const resolvedName=resolveProgramExerciseName(exercise);
@@ -473,7 +470,10 @@ function setSLNextWorkout(wk){
 function previewProgramSplit(){
   const prog=getActiveProgram(),state=getActiveProgramState();
   if(prog._previewSplit){
-    const freq=parseInt(document.getElementById('prog-days')?.value)||state.daysPerWeek||3;
+    const freq=parseInt(document.getElementById('prog-days')?.value,10)
+      || (typeof getEffectiveProgramFrequency==='function'?getEffectiveProgramFrequency(prog.id,profile):0)
+      || state.daysPerWeek
+      || 3;
     prog._previewSplit(freq,state.lifts);
   }
 }

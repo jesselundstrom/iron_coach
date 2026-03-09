@@ -166,7 +166,7 @@ function getW531TriumvirateDisplayLabel(name){
 
 function getW531DaysPerWeek(){
   return typeof getProgramTrainingDaysPerWeek==='function'
-    ? getProgramTrainingDaysPerWeek('w531')
+    ? getProgramTrainingDaysPerWeek('wendler531')
     : 4;
 }
 
@@ -930,15 +930,16 @@ window._w531SeasonUI = function(season) {
 
 window._w531PickTriumvirate = function(liftIdx,slotIdx) {
   const swapInfo=getW531SettingsSwapInfo(liftIdx,slotIdx);
-  if(!swapInfo||typeof window.openExerciseCatalogForSwap!=='function')return;
+  if(!swapInfo||typeof window.openExerciseCatalogForSettings!=='function')return;
   const currentName=getW531TriumvirateSlotValue(liftIdx,slotIdx);
   const title=swapInfo.category
-    ? trW531('workout.swap_aux_category','Swap {cat} auxiliary',{cat:swapInfo.category.charAt(0).toUpperCase()+swapInfo.category.slice(1)})
-    : trW531('catalog.title.swap','Swap Exercise');
-  window.openExerciseCatalogForSwap({
+    ? trW531('catalog.title.settings_aux','Choose {cat} accessory',{cat:swapInfo.category.charAt(0).toUpperCase()+swapInfo.category.slice(1)})
+    : trW531('catalog.title.settings','Choose Exercise');
+  window.openExerciseCatalogForSettings({
     exercise:{name:currentName||swapInfo.options?.[0]||''},
     swapInfo,
     title,
+    subtitle:trW531('catalog.sub.settings','Choose the exercise variant this program should use.'),
     onSelect:(exercise)=>{
       const resolved=(typeof window.resolveExerciseSelection==='function')?window.resolveExerciseSelection(exercise):{name:exercise?.name||''};
       setW531TriumvirateSlotValue(liftIdx,slotIdx,resolved?.name||'');
