@@ -94,6 +94,43 @@ function uniqueList(items){
 
 let pendingSportReadinessCallback=null;
 let pendingSportReadinessSignal='none';
+let collapsedExerciseCardState={};
+let activeGuideExerciseIndex=null;
+
+function resetActiveWorkoutUIState(){
+  collapsedExerciseCardState={};
+  activeGuideExerciseIndex=null;
+  document.getElementById('exercise-guide-modal')?.classList.remove('active');
+}
+
+function isExerciseComplete(exercise){
+  return Array.isArray(exercise?.sets)&&exercise.sets.length>0&&exercise.sets.every(set=>set.done===true);
+}
+
+function getExerciseCompletionCounts(exercise){
+  const total=Array.isArray(exercise?.sets)?exercise.sets.length:0;
+  const completed=Array.isArray(exercise?.sets)?exercise.sets.filter(set=>set.done===true).length:0;
+  return {completed,total};
+}
+
+function isExerciseCardCollapsed(exercise){
+  if(!exercise?.id)return false;
+  if(!isExerciseComplete(exercise)){
+    delete collapsedExerciseCardState[exercise.id];
+    return false;
+  }
+  if(!(exercise.id in collapsedExerciseCardState))collapsedExerciseCardState[exercise.id]=true;
+  return collapsedExerciseCardState[exercise.id]!==false;
+}
+
+function setExerciseCardCollapsed(exercise,collapsed){
+  if(!exercise?.id)return;
+  if(!isExerciseComplete(exercise)){
+    delete collapsedExerciseCardState[exercise.id];
+    return;
+  }
+  collapsedExerciseCardState[exercise.id]=collapsed;
+}
 
 function isLowerBodyExercise(ex){
   if(!window.EXERCISE_LIBRARY||!EXERCISE_LIBRARY.getExerciseMeta)return false;
@@ -737,14 +774,22 @@ function displaySportName(input){
   return raw;
 }
 
-function renderExerciseGuidance(ex){
-  if(!window.EXERCISE_LIBRARY||!EXERCISE_LIBRARY.getExerciseGuidance){
-    return'';
+function getExerciseGuide(ex){
+  if(!ex||!window.EXERCISE_LIBRARY||!EXERCISE_LIBRARY.getExerciseGuidance){
+    return null;
   }
   const guide=EXERCISE_LIBRARY.getExerciseGuidance(ex.exerciseId||ex.name,window.I18N&&I18N.getLanguage?I18N.getLanguage():'en');
   if(!guide){
-    return`<div class="last-session" style="margin-top:2px">${escapeHtml(i18nText('guidance.none','No guidance is available for this exercise yet.'))}</div>`;
+    return null;
   }
+  return guide;
+}
+
+function openExerciseGuide(exerciseIndex){
+  const exercise=activeWorkout?.exercises?.[exerciseIndex];
+  const guide=getExerciseGuide(exercise);
+  if(!exercise||!guide)return;
+  activeGuideExerciseIndex=exerciseIndex;
   const execRows=(guide.execution||[]).map(step=>`<li>${escapeHtml(step)}</li>`).join('');
   const cueRows=(guide.cues||[]).map(cue=>`<li>${escapeHtml(cue)}</li>`).join('');
   const mediaLinks=[];
@@ -755,17 +800,90 @@ function renderExerciseGuidance(ex){
     mediaLinks.push(`<a class="exercise-guide-link" href="${escapeHtml(guide.media.imageUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(i18nText('guidance.media.image','Open image'))}</a>`);
   }
   const mediaHtml=mediaLinks.length?`<div class="exercise-guide-links">${mediaLinks.join('')}</div>`:'';
-  return`
-    <details class="exercise-guide">
-      <summary>${escapeHtml(i18nText('guidance.title','Movement Guide'))}</summary>
+  const titleEl=document.getElementById('exercise-guide-modal-title');
+  const subEl=document.getElementById('exercise-guide-modal-sub');
+  const bodyEl=document.getElementById('exercise-guide-modal-body');
+  if(titleEl)titleEl.textContent=displayExerciseName(exercise.name);
+  if(subEl)subEl.textContent=i18nText('guidance.title','Movement Guide');
+  if(bodyEl){
+    bodyEl.innerHTML=`
       <div class="exercise-guide-grid">
         <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.setup','Setup'))}</div><div class="exercise-guide-text">${escapeHtml(guide.setup||'')}</div></div>
         <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.execution','Execution'))}</div><ol class="exercise-guide-list">${execRows}</ol></div>
         <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.cues','Key cues'))}</div><ul class="exercise-guide-list">${cueRows}</ul></div>
         <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.safety','Safety'))}</div><div class="exercise-guide-text">${escapeHtml(guide.safety||'')}</div></div>
         ${mediaHtml}
+      </div>`;
+  }
+  document.getElementById('exercise-guide-modal')?.classList.add('active');
+}
+
+function closeExerciseGuide(event){
+  if(event&&event.target!==event.currentTarget)return;
+  activeGuideExerciseIndex=null;
+  document.getElementById('exercise-guide-modal')?.classList.remove('active');
+}
+
+function renderExerciseGuideButton(exerciseIndex,exercise){
+  if(!getExerciseGuide(exercise))return'';
+  return `<button class="btn btn-blue btn-sm exercise-guide-open-btn" type="button" onclick="openExerciseGuide(${exerciseIndex})">${escapeHtml(i18nText('guidance.title','Movement Guide'))}</button>`;
+}
+
+function renderExerciseCollapsedSummary(exerciseIndex,exercise){
+  const counts=getExerciseCompletionCounts(exercise);
+  return `
+    <button class="exercise-collapse-summary" type="button" onclick="expandCompletedExercise(${exerciseIndex})">
+      <div class="exercise-collapse-main">
+        <div class="exercise-collapse-name">${escapeHtml(displayExerciseName(exercise.name))}</div>
+        <div class="exercise-collapse-meta">${escapeHtml(i18nText('workout.completed_sets','{completed}/{total} sets done',{completed:counts.completed,total:counts.total}))}</div>
       </div>
-    </details>`;
+      <div class="exercise-collapse-status">
+        <span class="exercise-collapse-badge">${escapeHtml(i18nText('common.done','Done'))}</span>
+      </div>
+    </button>`;
+}
+
+function expandCompletedExercise(exerciseIndex){
+  const exercise=activeWorkout?.exercises?.[exerciseIndex];
+  if(!exercise)return;
+  setExerciseCardCollapsed(exercise,false);
+  renderExercises();
+}
+
+function getSetInputId(exerciseIndex,setIndex,field){
+  return `set-input-${exerciseIndex}-${setIndex}-${field}`;
+}
+
+function getSetRowSelector(exerciseIndex,setIndex){
+  return `#sets-${exerciseIndex} .set-row[data-set-index="${setIndex}"]`;
+}
+
+function buildSetGridHeader(){
+  return `
+    <div class="set-grid-header">
+      <span class="set-grid-spacer" aria-hidden="true"></span>
+      <div class="set-col-label">${escapeHtml(i18nText('workout.weight_placeholder','kg'))}</div>
+      <div class="set-col-label">${escapeHtml(i18nText('workout.reps_placeholder','reps'))}</div>
+      <span class="set-grid-spacer" aria-hidden="true"></span>
+    </div>`;
+}
+
+function buildSetRow(exerciseIndex,exercise,setIndex,set){
+  const isAmrap=set.isAmrap;
+  const warmupsBefore=exercise.sets.filter((s,i)=>i<setIndex&&s.isWarmup).length;
+  const setLabel=set.isWarmup?'W':isAmrap?i18nText('workout.max_short','MAX'):String(setIndex+1-warmupsBefore);
+  const repVal=isAmrap&&set.reps==='AMRAP'?'':set.reps;
+  const rowClass=['set-row'];
+  if(set.isWarmup)rowClass.push('set-warmup');
+  if(set.done)rowClass.push('is-done');
+  if(isAmrap)rowClass.push('set-amrap');
+  return `
+    <div class="${rowClass.join(' ')}" data-set-index="${setIndex}">
+      <span class="set-num"${isAmrap?' style="color:var(--purple);font-weight:800"':''}>${setLabel}</span>
+      <input id="${getSetInputId(exerciseIndex,setIndex,'weight')}" class="set-input" type="number" inputmode="decimal" min="0" max="999" step="any" placeholder="${escapeHtml(i18nText('workout.weight_placeholder','kg'))}" value="${set.weight}" onchange="updateSet(${exerciseIndex},${setIndex},'weight',this.value)" onkeydown="handleSetInputKey(event,${exerciseIndex},${setIndex},'weight')">
+      <input id="${getSetInputId(exerciseIndex,setIndex,'reps')}" class="set-input" type="number" inputmode="numeric" min="0" max="999" placeholder="${escapeHtml(isAmrap?i18nText('workout.reps_hit','reps hit'):i18nText('workout.reps_placeholder','reps'))}" value="${repVal}" onchange="updateSet(${exerciseIndex},${setIndex},'reps',this.value)" onkeydown="handleSetInputKey(event,${exerciseIndex},${setIndex},'reps')"${isAmrap?' style="border-color:var(--purple)"':''}>
+      <button class="set-check ${set.done?'done':''}" type="button" onclick="toggleSet(${exerciseIndex},${setIndex})">✓</button>
+    </div>`;
 }
 
 // WORKOUT STARTER
@@ -822,6 +940,7 @@ function beginWorkoutStart(sportContext){
     exercises,
     startTime:Date.now()
   };
+  resetActiveWorkoutUIState();
 
   updateProgramDisplay();
   document.getElementById('workout-not-started').style.display='none';
@@ -1331,30 +1450,36 @@ function addExerciseByName(name){
 }
 
 function renderExercises(){
+  if(!activeWorkout)return;
   const c=document.getElementById('exercises-container');c.innerHTML='';
   renderActiveWorkoutPlanPanel();
   activeWorkout.exercises.forEach((ex,ei)=>{
     const prev=getPreviousSets(ex);
     const prevText=prev?i18nText('workout.last_prefix','Last:')+' '+prev.map(s=>s.weight+'kg\u00d7'+s.reps).join(', '):i18nText('workout.no_previous_data','No previous data');
     const suggested=getSuggested(ex);
-    const block=document.createElement('div');block.className='exercise-block';
+    const block=document.createElement('div');
+    const isComplete=isExerciseComplete(ex);
+    const isCollapsed=isExerciseCardCollapsed(ex);
+    block.className='exercise-block'+(isComplete?' exercise-block-complete':'')+(isCollapsed?' is-collapsed':'');
     let badges='';
     if(suggested)badges+=`<div class="suggest-badge">📈 ${i18nText('workout.last_best','Last best: {weight}kg',{weight:suggested})}</div>`;
-    if(ex.note)badges+=`<div class="ai-badge">📋 ${escapeHtml(ex.note)}</div>`;
-    const guidanceHtml=renderExerciseGuidance(ex);
+    const guideButtonHtml=renderExerciseGuideButton(ei,ex);
     let swapBtn='';
     if(ex.isAux&&ex.auxSlotIdx>=0){
-      swapBtn=`<button class="btn btn-icon btn-secondary exercise-action-btn" onclick="swapAuxExercise(${ei})" title="${escapeHtml(i18nText('workout.swap','Swap'))}" aria-label="${escapeHtml(i18nText('workout.swap','Swap'))}">${escapeHtml(i18nText('workout.swap','Swap'))}</button>`;
+      swapBtn=`<button class="btn btn-secondary exercise-action-btn exercise-swap-btn" onclick="swapAuxExercise(${ei})" title="${escapeHtml(i18nText('workout.swap','Swap'))}" aria-label="${escapeHtml(i18nText('workout.swap','Swap'))}">${escapeHtml(i18nText('workout.swap','Swap'))}</button>`;
     }
     if(ex.isAccessory){
-      swapBtn=`<button class="btn btn-icon btn-secondary exercise-action-btn" onclick="swapBackExercise(${ei})" title="${escapeHtml(i18nText('workout.swap_back','Swap back exercise'))}" aria-label="${escapeHtml(i18nText('workout.swap_back','Swap back exercise'))}">${escapeHtml(i18nText('workout.swap','Swap'))}</button>`;
+      swapBtn=`<button class="btn btn-secondary exercise-action-btn exercise-swap-btn" onclick="swapBackExercise(${ei})" title="${escapeHtml(i18nText('workout.swap_back','Swap back exercise'))}" aria-label="${escapeHtml(i18nText('workout.swap_back','Swap back exercise'))}">${escapeHtml(i18nText('workout.swap','Swap'))}</button>`;
     }
     const typeLabel=ex.isAux?`<span class="exercise-chip">${escapeHtml(i18nText('workout.aux','AUX'))}</span>`:ex.isAccessory?`<span class="exercise-chip exercise-chip-blue">${escapeHtml(i18nText('workout.back','BACK'))}</span>`:'';
     const badgesHtml=badges?`<div class="exercise-badges">${badges}</div>`:'';
-    const quickActions=[
-      suggested?`<button class="exercise-quick-btn" type="button" onclick="applySuggestedWeightToExercise(${ei})">${escapeHtml(i18nText('workout.quick_fill_suggested','Use {weight}kg',{weight:suggested}))}</button>`:''
-    ].filter(Boolean).join('');
-    const quickActionsHtml=quickActions?`<div class="exercise-quick-actions">${quickActions}</div>`:'';
+    const guideRowHtml=guideButtonHtml?`<div class="exercise-secondary-row">${guideButtonHtml}</div>`:'';
+
+    if(isCollapsed){
+      block.innerHTML=renderExerciseCollapsedSummary(ei,ex);
+      c.appendChild(block);
+      return;
+    }
 
     block.innerHTML=`
       <div class="exercise-top">
@@ -1370,26 +1495,12 @@ function renderExercises(){
         </div>
         ${badgesHtml}
       </div>
-      ${quickActionsHtml}
-      ${guidanceHtml}
-      <div id="sets-${ei}"></div>
+      ${guideRowHtml}
+      <div id="sets-${ei}" class="exercise-sets"></div>
       <button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="addSet(${ei})">${i18nText('workout.add_set','+ Set')}</button>`;
     c.appendChild(block);
     const sc=document.getElementById('sets-'+ei);
-    ex.sets.forEach((set,si)=>{
-      const row=document.createElement('div');row.className='set-row'+(set.isWarmup?' set-warmup':'');
-      const isAmrap=set.isAmrap;
-      const warmupsBefore=ex.sets.filter((s,i)=>i<si&&s.isWarmup).length;
-      const setLabel=set.isWarmup?'W':isAmrap?i18nText('workout.max_short','MAX'):String(si+1-warmupsBefore);
-      const repVal=isAmrap&&set.reps==='AMRAP'?'':set.reps;
-      if(isAmrap)row.style.cssText='background:rgba(167,139,250,0.12);border-radius:8px;padding:2px 0';
-      row.innerHTML=`
-        <span class="set-num"${isAmrap?' style="color:var(--purple);font-weight:800"':''}>${setLabel}</span>
-        <input class="set-input" type="number" inputmode="decimal" min="0" max="999" step="any" placeholder="${escapeHtml(i18nText('workout.weight_placeholder','kg'))}" value="${set.weight}" onchange="updateSet(${ei},${si},'weight',this.value)" onkeydown="handleSetInputKey(event,${ei},${si},'weight')">
-        <input class="set-input" type="number" inputmode="numeric" min="0" max="999" placeholder="${escapeHtml(isAmrap?i18nText('workout.reps_hit','reps hit'):i18nText('workout.reps_placeholder','reps'))}" value="${repVal}" onchange="updateSet(${ei},${si},'reps',this.value)" onkeydown="handleSetInputKey(event,${ei},${si},'reps')"${isAmrap?' style="border-color:var(--purple)"':''}>
-        <div class="set-check ${set.done?'done':''}" onclick="toggleSet(${ei},${si})">✓</div>`;
-      sc.appendChild(row);
-    });
+    sc.innerHTML=buildSetGridHeader()+ex.sets.map((set,si)=>buildSetRow(ei,ex,si,set)).join('');
   });
 }
 
@@ -1407,50 +1518,31 @@ function updateSet(ei,si,f,v){
   const sanitizedValue=sanitizeSetValue(f,v);
   set[f]=sanitizedValue;
   if(f!=='weight')return;
+  if(set.isWarmup)return;
   for(let nextIndex=si+1;nextIndex<exercise.sets.length;nextIndex++){
     const nextSet=exercise.sets[nextIndex];
     if(nextSet.done||nextSet.isWarmup)continue;
     nextSet.weight=sanitizedValue;
-  }
-  const rows=document.querySelectorAll(`#sets-${ei} .set-row`);
-  for(let nextIndex=si+1;nextIndex<rows.length;nextIndex++){
-    if(exercise.sets[nextIndex]?.done||exercise.sets[nextIndex]?.isWarmup)continue;
-    const weightInput=rows[nextIndex]?.querySelector('input');
+    const weightInput=document.getElementById(getSetInputId(ei,nextIndex,'weight'));
     if(weightInput)weightInput.value=sanitizedValue;
   }
 }
 
-function applySuggestedWeightToExercise(ei){
-  const exercise=activeWorkout?.exercises?.[ei];
-  if(!exercise)return;
-  const suggested=getSuggested(exercise);
-  if(suggested===undefined||suggested===null||suggested==='')return;
-  let changed=false;
-  exercise.sets.forEach(set=>{
-    if(set.done||set.isWarmup)return;
-    set.weight=suggested;
-    changed=true;
-  });
-  if(!changed)return;
-  renderExercises();
-  showToast(i18nText('workout.quick_fill_suggested_toast','Applied the suggested load to the remaining sets'),'var(--blue)');
-}
-
 function findNextEditableSetInput(exerciseIndex,setIndex,field){
   if(field==='weight'){
-    return document.querySelector(`#sets-${exerciseIndex} .set-row:nth-child(${setIndex+1}) input:nth-of-type(2)`);
+    return document.getElementById(getSetInputId(exerciseIndex,setIndex,'reps'));
   }
   for(let nextSetIndex=setIndex+1;nextSetIndex<(activeWorkout?.exercises?.[exerciseIndex]?.sets||[]).length;nextSetIndex++){
     const nextSet=activeWorkout.exercises[exerciseIndex].sets[nextSetIndex];
     if(nextSet?.isWarmup)continue;
-    const input=document.querySelector(`#sets-${exerciseIndex} .set-row:nth-child(${nextSetIndex+1}) input`);
+    const input=document.getElementById(getSetInputId(exerciseIndex,nextSetIndex,'weight'));
     if(input)return input;
   }
   for(let nextExerciseIndex=exerciseIndex+1;nextExerciseIndex<(activeWorkout?.exercises?.length||0);nextExerciseIndex++){
     const nextExercise=activeWorkout.exercises[nextExerciseIndex];
     const firstWorkIndex=nextExercise?.sets?.findIndex(set=>!set.isWarmup)??-1;
     if(firstWorkIndex<0)continue;
-    const input=document.querySelector(`#sets-${nextExerciseIndex} .set-row:nth-child(${firstWorkIndex+1}) input`);
+    const input=document.getElementById(getSetInputId(nextExerciseIndex,firstWorkIndex,'weight'));
     if(input)return input;
   }
   return null;
@@ -1477,27 +1569,32 @@ function toggleSet(ei,si){
     // Animate the live element directly - no re-render needed for mark-done
     const exCards=document.querySelectorAll('#exercises-container .exercise-block');
     if(exCards[ei]){
-      const rows=exCards[ei].querySelectorAll('.set-row');
-      const check=rows[si]?.querySelector('.set-check');
+      const row=exCards[ei].querySelector(getSetRowSelector(ei,si));
+      const check=row?.querySelector('.set-check');
       if(check){
         check.classList.add('done','set-done-anim');
-        rows[si].classList.add('set-done-anim');
+        row.classList.add('set-done-anim');
         check.addEventListener('animationend',()=>check.classList.remove('set-done-anim'),{once:true});
-        rows[si].addEventListener('animationend',()=>rows[si].classList.remove('set-done-anim'),{once:true});
+        row.addEventListener('animationend',()=>row.classList.remove('set-done-anim'),{once:true});
       }
+    }
+    if(isExerciseComplete(exercise)){
+      setExerciseCardCollapsed(exercise,true);
+      setTimeout(()=>{if(activeWorkout)renderExercises();},260);
     }
     startRestTimer();
     if(shouldPromptForSetRIR(exercise,si))showSetRIRPrompt(ei,si);
   }else{
-    set.done=false;set.rir=undefined;renderExercises();
+    set.done=false;set.rir=undefined;delete collapsedExerciseCardState[exercise.id];renderExercises();
     return;
   }
   renderActiveWorkoutPlanPanel();
 }
 
-function addSet(ei){const ex=activeWorkout.exercises[ei];const l=ex.sets[ex.sets.length-1];ex.sets.push({weight:l?.weight||'',reps:l?.reps||5,done:false,rpe:null});renderExercises();}
+function addSet(ei){const ex=activeWorkout.exercises[ei];const l=ex.sets[ex.sets.length-1];delete collapsedExerciseCardState[ex.id];ex.sets.push({weight:l?.weight||'',reps:l?.reps||5,done:false,rpe:null});renderExercises();}
 function removeEx(ei){
   const removed=activeWorkout.exercises.splice(ei,1)[0];
+  if(removed?.id)delete collapsedExerciseCardState[removed.id];
   renderExercises();
   if(removed){
     showToast(escapeHtml(i18nText('workout.exercise_removed','{name} removed',{name:displayExerciseName(removed.name)})),'var(--muted)',()=>{
@@ -1792,6 +1889,7 @@ async function finishWorkout(){
     programLabel:activeWorkout.programLabel||''
   };
 
+  resetActiveWorkoutUIState();
   activeWorkout=null;
   document.getElementById('workout-not-started').style.display='block';
   document.getElementById('workout-active').style.display='none';
@@ -1804,6 +1902,7 @@ async function finishWorkout(){
 
 function cancelWorkout(){
   clearWorkoutTimer();skipRest();
+  resetActiveWorkoutUIState();
   activeWorkout=null;
   document.getElementById('workout-not-started').style.display='block';
   document.getElementById('workout-active').style.display='none';
