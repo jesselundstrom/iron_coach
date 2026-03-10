@@ -445,15 +445,405 @@ function getTodayTrainingDecision(context){
   };
 }
 
+function createTrainingCommentaryEvent(code,params){
+  if(!code)return null;
+  const cleanParams=(params&&typeof params==='object')?JSON.parse(JSON.stringify(params)):{};
+  return{code:String(code),params:cleanParams};
+}
+
+function normalizeTrainingCommentaryEvent(event){
+  if(!event)return null;
+  if(typeof event==='string'){
+    const text=String(event||'').trim();
+    return text?{code:'legacy_text',text,params:{}}:null;
+  }
+  if(typeof event!=='object')return null;
+  const code=String(event.code||'').trim();
+  if(!code)return null;
+  if(code==='legacy_text'){
+    const text=String(event.text||'').trim();
+    return text?{code,text,params:{}}:null;
+  }
+  const params=(event.params&&typeof event.params==='object')?JSON.parse(JSON.stringify(event.params)):{};
+  return{code,params};
+}
+
+function dedupeTrainingCommentaryEvents(events){
+  const seen=new Set();
+  const next=[];
+  toPlanList(events).forEach(event=>{
+    const normalized=normalizeTrainingCommentaryEvent(event);
+    if(!normalized)return;
+    const key=normalized.code==='legacy_text'
+      ? `legacy:${normalized.text}`
+      : `${normalized.code}:${JSON.stringify(normalized.params||{})}`;
+    if(seen.has(key))return;
+    seen.add(key);
+    next.push(normalized);
+  });
+  return next;
+}
+
+function getTrainingDecisionCode(decision){
+  const next=decision||{};
+  if(next.action==='rest')return'rest';
+  if(next.action==='deload')return'deload';
+  if(next.action==='train_light')return'train_light';
+  if(next.action==='shorten')return'shorten';
+  if((next.restrictionFlags||[]).includes('avoid_heavy_legs'))return'sport_aware';
+  return'train';
+}
+
+function getTrainingCommentaryTone(decisionCode){
+  const map={
+    rest:'positive',
+    deload:'warning',
+    train_light:'info',
+    shorten:'neutral',
+    sport_aware:'info',
+    train:'neutral'
+  };
+  return map[decisionCode]||'neutral';
+}
+
+function getTrainingProgramLabel(params){
+  const programId=params?.programId;
+  const fallback=params?.programName||trPlan('common.program','Program');
+  if(programId&&window.I18N&&I18N.t)return I18N.t('program.'+programId+'.name',null,fallback);
+  return fallback;
+}
+
+function getTrainingCommentaryFallback(decisionCode,surface){
+  const fallbacks={
+    rest:{
+      title:'Week complete!',
+      dashboard_summary:'All planned sessions are already done this week. Rest and recover.',
+      dashboard_focus_support:'All planned sessions are already done this week. Rest and recover.',
+      dashboard_coach:'All planned sessions are already done this week. Rest and recover.',
+      workout_summary:'This week is already covered. Keep today for recovery.',
+      workout_start_toast:'Week complete!',
+      program_warning:'The planned work for this week is already complete. Recovery is the better call today.'
+    },
+    deload:{
+      title:'Deload recommendation',
+      dashboard_summary:'Recovery is lagging, so keep today light and treat it like a deload. {count} sessions remain this week.',
+      dashboard_focus_support:'Recovery is lagging, so keep today light and treat it like a deload. {count} sessions remain this week.',
+      dashboard_coach:'Recovery is lagging, so keep today light and treat it like a deload. {count} sessions remain this week.',
+      workout_summary:'Recovery is low, so keep today lighter than normal and reduce grinding.',
+      workout_start_toast:'Deload recommendation',
+      program_warning:'Recovery is low enough that a lighter option is the safer call today.'
+    },
+    train_light:{
+      title:'Conservative training day',
+      dashboard_summary:'You can still train, but keep the effort conservative and avoid unnecessary grinding. {count} sessions remain this week.',
+      dashboard_focus_support:'You can still train, but keep the effort conservative and avoid unnecessary grinding. {count} sessions remain this week.',
+      dashboard_coach:'You can still train, but keep the effort conservative and avoid unnecessary grinding. {count} sessions remain this week.',
+      workout_summary:'Train today, but keep the effort conservative and let the session breathe.',
+      workout_start_toast:'Conservative training day',
+      program_warning:'You can still train, but keep the physiological cost conservative today.'
+    },
+    shorten:{
+      title:'Short session plan',
+      dashboard_summary:'Use your main work first and trim accessories to stay inside your time cap. {count} sessions remain this week.',
+      dashboard_focus_support:'Use your main work first and trim accessories to stay inside your time cap. {count} sessions remain this week.',
+      dashboard_coach:'Use your main work first and trim accessories to stay inside your time cap. {count} sessions remain this week.',
+      workout_summary:'Main work first. Accessories will be trimmed to fit your time cap.',
+      workout_start_toast:'Short session plan',
+      program_warning:'Stay on the high-value work first and let accessories flex if time gets tight.'
+    },
+    sport_aware:{
+      title:'Sport-aware session',
+      dashboard_summary:'Sport load is high around today, so bias the session away from heavy leg work when possible. {count} sessions remain this week.',
+      dashboard_focus_support:'Sport load is high around today, so bias the session away from heavy leg work when possible. {count} sessions remain this week.',
+      dashboard_coach:'Sport load is high around today, so bias the session away from heavy leg work when possible. {count} sessions remain this week.',
+      workout_summary:'{sport} load is high around today, so heavier leg work may be trimmed.',
+      workout_start_toast:'Sport-aware session',
+      program_warning:'Sport load is high enough that heavy lower-body work should stay under control today.'
+    },
+    train:{
+      title:'Training day',
+      dashboard_summary:'Recovery looks good enough to train normally today. {count} sessions remain this week.',
+      dashboard_focus_support:'Recovery looks good enough to train normally today. {count} sessions remain this week.',
+      dashboard_coach:'Recovery looks good enough to train normally today. {count} sessions remain this week.',
+      workout_summary:'Your plan can run normally today.',
+      workout_start_toast:'Training day',
+      program_warning:'Training can run normally today.'
+    }
+  };
+  return fallbacks[decisionCode]?.[surface]||fallbacks.train[surface]||'';
+}
+
+function getTrainingCommentaryReasonLabel(code){
+  const keyMap={
+    low_recovery:['training.reason.low_recovery.label','Low recovery'],
+    conservative_recovery:['training.reason.conservative_recovery.label','Recovery caution'],
+    tight_time_budget:['training.reason.tight_time_budget.label','35 min cap'],
+    sport_load:['training.reason.sport_load.label','Sport load'],
+    equipment_constraint:['training.reason.equipment_constraint.label','Equipment'],
+    progression_stall:['training.reason.progression_stall.label','Progress stall'],
+    guided_beginner:['training.reason.guided_beginner.label','Guided path'],
+    week_complete:['training.reason.week_complete.label','Week complete']
+  };
+  const pair=keyMap[code];
+  return pair?trPlan(pair[0],pair[1]):'';
+}
+
+function getTrainingAdjustmentBody(event){
+  const next=normalizeTrainingCommentaryEvent(event);
+  if(!next)return'';
+  if(next.code==='legacy_text')return next.text||'';
+  const params=next.params||{};
+  if(next.code==='short_session_accessories_trimmed'){
+    return trPlan('training.adjustment.short_session_accessories_trimmed.body','Accessory work trimmed for a shorter session.');
+  }
+  if(next.code==='aux_volume_reduced'){
+    return trPlan('training.adjustment.aux_volume_reduced.body','Auxiliary volume reduced to fit your time cap.');
+  }
+  if(next.code==='sport_support_trimmed'){
+    return trPlan('training.adjustment.sport_support_trimmed.body','Accessory work removed to keep the session sharper for sport support.');
+  }
+  if(next.code==='sport_tomorrow'){
+    return trPlan('training.adjustment.sport_tomorrow.body','Tomorrow looks leg-heavy, so lower-body work was kept slightly lighter.');
+  }
+  if(next.code==='sport_yesterday'){
+    return trPlan('training.adjustment.sport_yesterday.body','Yesterday was leg-heavy, so lower-body work was kept lighter today.');
+  }
+  if(next.code==='sport_both'){
+    return trPlan('training.adjustment.sport_both.body','Leg-heavy sport sits on both sides of this session, so lower-body work was trimmed.');
+  }
+  if(next.code==='exercise_replaced_equipment'){
+    return trPlan('training.adjustment.exercise_replaced_equipment.body','Swapped {from} to {to} to match your available equipment.',params);
+  }
+  if(next.code==='exercise_replaced_limit'){
+    return trPlan('training.adjustment.exercise_replaced_limit.body','Swapped {from} to {to} to respect your current limits.',params);
+  }
+  if(next.code==='exercise_removed_limit'){
+    return trPlan('training.adjustment.exercise_removed_limit.body','Removed {exercise} because it conflicts with your current limits.',params);
+  }
+  if(next.code==='program_sport_trimmed'){
+    return trPlan('training.adjustment.program_sport_trimmed.body','{program} trimmed lower-body auxiliary work first because sport load is close.',{program:getTrainingProgramLabel(params)});
+  }
+  if(next.code==='program_shoulder_trimmed'){
+    return trPlan('training.adjustment.program_shoulder_trimmed.body','Shoulder-sensitive vertical assistance was deprioritized for this session.');
+  }
+  if(next.code==='runner_shorten'){
+    return trPlan('training.adjustment.runner_shorten.body','Lower-priority work was cut so you can finish the essential work faster.');
+  }
+  if(next.code==='runner_lighten'){
+    return trPlan('training.adjustment.runner_lighten.body','Keep the session moving, but leave more in the tank with slightly lighter remaining work.');
+  }
+  return'';
+}
+
+function getTrainingEquipmentHintBody(event){
+  const next=normalizeTrainingCommentaryEvent(event);
+  if(!next||next.code==='legacy_text')return'';
+  const params=next.params||{};
+  if(next.code==='swap_hint'){
+    return trPlan('training.equipment.swap_hint.body','Use exercise swap freely if your setup does not match the planned lift exactly.');
+  }
+  if(next.code==='same_pattern_swaps'){
+    return trPlan('training.equipment.same_pattern_swaps.body','{program} will prioritize same-pattern substitutions before dropping work.',{program:getTrainingProgramLabel(params)});
+  }
+  return'';
+}
+
+function getTrainingRunnerFallback(mode,field){
+  const fallbacks={
+    normal:{title:'Normal session flow',copy:'Stay on the main work and move through the remaining sets in order.'},
+    shorten:{title:'Shortened session',copy:'Lower-priority work was cut so you can finish the essential work faster.',toast:'Session shortened to the essential work'},
+    lighten:{title:'Lighter session',copy:'Keep the session moving, but leave more in the tank with slightly lighter remaining work.',toast:'Remaining work lightened'},
+    sport_aware:{title:'Sport-aware session',copy:'Leg-heavy work is being kept under control because of surrounding sport load.'},
+    undo:{toast:'Last adjustment undone'},
+    no_change:{toast:'No remaining work needed adjustment'}
+  };
+  return fallbacks[mode]?.[field]||'';
+}
+
+function getTrainingCommentaryLegacyEvents(workout){
+  return dedupeTrainingCommentaryEvents(toPlanList(workout?.adaptationReasons));
+}
+
+function buildTrainingCommentaryState(input){
+  const next=input||{};
+  const workout=next.workout||{};
+  const decision=next.decision||workout.planningDecision||{};
+  const context=next.context||workout.planningContext||{};
+  const commentary=(workout.commentary&&typeof workout.commentary==='object')?workout.commentary:(next.commentary||null);
+  const decisionCode=commentary?.decisionCode||getTrainingDecisionCode(decision);
+  const reasonCodes=[...new Set([
+    ...toPlanList(commentary?.reasonCodes),
+    ...toPlanList(decision?.reasonCodes)
+  ].filter(Boolean))];
+  const restrictionFlags=[...new Set([
+    ...toPlanList(commentary?.restrictionFlags),
+    ...toPlanList(decision?.restrictionFlags)
+  ].filter(Boolean))];
+  const sportSignal=context?.sportLoad?.signal||workout?.sportContext?.legsStress||'none';
+  const adaptationEvents=commentary?.adaptationEvents
+    ? dedupeTrainingCommentaryEvents(commentary.adaptationEvents)
+    : getTrainingCommentaryLegacyEvents(workout);
+  const equipmentHint=normalizeTrainingCommentaryEvent(commentary?.equipmentHint);
+  const runnerEvents=commentary?.runnerEvents
+    ? dedupeTrainingCommentaryEvents(commentary.runnerEvents)
+    : [];
+  const runnerMode=workout?.runnerState?.mode||decision?.action||'train';
+  const sportName=context?.sportLoad?.sportName||workout?.sportContext?.sportName||trPlan('common.sport','Sport');
+  const derived={
+    sessionsRemaining:context?.sessionsRemaining||0,
+    sportName,
+    sportSignal,
+    showWarning:decisionCode!=='train'||restrictionFlags.includes('avoid_heavy_legs'),
+    showStart:decisionCode!=='rest',
+    runnerMode
+  };
+  return{
+    version:1,
+    decisionCode,
+    tone:getTrainingCommentaryTone(decisionCode),
+    reasonCodes,
+    restrictionFlags,
+    adaptationEvents,
+    equipmentHint,
+    runnerEvents,
+    decision,
+    context,
+    workout,
+    derived
+  };
+}
+
+function buildTrainingCommentaryRecord(input){
+  const state=buildTrainingCommentaryState(input);
+  return{
+    version:1,
+    decisionCode:state.decisionCode,
+    reasonCodes:[...state.reasonCodes],
+    restrictionFlags:[...state.restrictionFlags],
+    adaptationEvents:dedupeTrainingCommentaryEvents(state.adaptationEvents),
+    equipmentHint:normalizeTrainingCommentaryEvent(state.equipmentHint),
+    runnerEvents:dedupeTrainingCommentaryEvents(state.runnerEvents)
+  };
+}
+
+function presentTrainingCommentary(state,surface){
+  const next=state&&state.decisionCode?state:buildTrainingCommentaryState(state);
+  const code=next.decisionCode||'train';
+  const params={count:next.derived.sessionsRemaining||0,sport:next.derived.sportName||trPlan('common.sport','Sport')};
+  const title=trPlan(`training.commentary.${code}.title`,getTrainingCommentaryFallback(code,'title'),params);
+  if(surface==='dashboard_summary'){
+    return{
+      title,
+      body:trPlan(`training.commentary.${code}.dashboard_summary`,getTrainingCommentaryFallback(code,'dashboard_summary'),params),
+      tone:next.tone,
+      reasons:[...next.reasonCodes],
+      reasonLabels:next.reasonCodes.map(getTrainingCommentaryReasonLabel).filter(Boolean)
+    };
+  }
+  if(surface==='dashboard_focus_support'){
+    return{
+      text:trPlan(`training.commentary.${code}.dashboard_focus_support`,getTrainingCommentaryFallback(code,'dashboard_focus_support'),params)
+    };
+  }
+  if(surface==='dashboard_coach'){
+    return{
+      title,
+      body:trPlan(`training.commentary.${code}.dashboard_coach`,getTrainingCommentaryFallback(code,'dashboard_coach'),params),
+      tone:next.tone
+    };
+  }
+  if(surface==='workout_summary'){
+    return{
+      kicker:trPlan('training.commentary.workout.kicker','Today\'s decision'),
+      title,
+      copy:trPlan(`training.commentary.${code}.workout_summary`,getTrainingCommentaryFallback(code,'workout_summary'),params),
+      tone:next.tone,
+      reasons:[...next.reasonCodes],
+      reasonLabels:next.reasonCodes.map(getTrainingCommentaryReasonLabel).filter(Boolean)
+    };
+  }
+  if(surface==='workout_start_toast'){
+    return{
+      text:trPlan(`training.commentary.${code}.workout_start_toast`,getTrainingCommentaryFallback(code,'workout_start_toast'),params),
+      tone:next.tone
+    };
+  }
+  if(surface==='workout_adaptation_list'){
+    return next.adaptationEvents.map(getTrainingAdjustmentBody).filter(Boolean);
+  }
+  if(surface==='workout_equipment_hint'){
+    return{
+      text:getTrainingEquipmentHintBody(next.equipmentHint)
+    };
+  }
+  if(surface==='program_warning'){
+    return{
+      title,
+      copy:trPlan(`training.commentary.${code}.program_warning`,getTrainingCommentaryFallback(code,'program_warning'),params),
+      tone:next.tone
+    };
+  }
+  if(surface==='runner_summary'){
+    const mode=next.derived.runnerMode==='shorten'
+      ? 'shorten'
+      : (next.derived.runnerMode==='lighten'||code==='deload'||code==='train_light')
+        ? 'lighten'
+        : code==='sport_aware'
+          ? 'sport_aware'
+          : 'normal';
+    return{
+      kicker:trPlan('training.runner.kicker','Session plan'),
+      title:trPlan(`training.runner.${mode}.title`,getTrainingRunnerFallback(mode,'title')),
+      copy:trPlan(`training.runner.${mode}.copy`,getTrainingRunnerFallback(mode,'copy'))
+    };
+  }
+  if(surface==='runner_toast'){
+    const lastEvent=next.runnerEvents[next.runnerEvents.length-1]||null;
+    const codeKey=lastEvent?.code||'runner_no_change';
+    const map={
+      runner_shorten:['training.runner.shorten.toast',getTrainingRunnerFallback('shorten','toast')],
+      runner_lighten:['training.runner.lighten.toast',getTrainingRunnerFallback('lighten','toast')],
+      runner_undo:['training.runner.undo.toast',getTrainingRunnerFallback('undo','toast')],
+      runner_no_change:['training.runner.no_change.toast',getTrainingRunnerFallback('no_change','toast')]
+    };
+    const pair=map[codeKey]||map.runner_no_change;
+    return{text:trPlan(pair[0],pair[1])};
+  }
+  return null;
+}
+
+function getSharedTrainingDecisionSummary(decision,context,options){
+  const opts=options||{};
+  const surface=opts.mode==='workout'?'workout_summary':'dashboard_summary';
+  const state=buildTrainingCommentaryState({decision,context});
+  const summary=presentTrainingCommentary(state,surface);
+  if(!summary)return null;
+  return{
+    title:summary.title,
+    body:summary.body||summary.copy||'',
+    copy:summary.copy||summary.body||'',
+    tone:summary.tone||state.tone,
+    reasons:[...state.reasonCodes],
+    reasonLabels:[...(summary.reasonLabels||[])]
+  };
+}
+
 function shouldRemoveExerciseForContext(exercise,context,decision){
   return getExerciseConflictInfo(exercise,context,decision).blocked;
 }
 
-function trimShortSessionExercises(exercises,reasons,timeBudgetMinutes){
+function getSportLoadAdjustmentCode(context){
+  const signal=context?.sportLoad?.signal||context?.sportContext?.legsStress||'none';
+  if(signal==='both')return'sport_both';
+  if(signal==='tomorrow')return'sport_tomorrow';
+  return'sport_yesterday';
+}
+
+function trimShortSessionExercises(exercises,events,timeBudgetMinutes){
   let next=exercises.slice();
   const beforeAccessory=next.length;
   next=next.filter(exercise=>!exercise.isAccessory);
-  if(next.length!==beforeAccessory)reasons.push(trPlan('workout.pref_adjustment.accessories','Accessory work trimmed for a shorter session.'));
+  if(next.length!==beforeAccessory)events.push(createTrainingCommentaryEvent('short_session_accessories_trimmed'));
   let trimmedAux=false;
   next.forEach(exercise=>{
     if(!exercise.isAux||exercise.isAccessory||!Array.isArray(exercise.sets))return;
@@ -463,11 +853,11 @@ function trimShortSessionExercises(exercises,reasons,timeBudgetMinutes){
       trimmedAux=true;
     }
   });
-  if(trimmedAux)reasons.push(trPlan('workout.pref_adjustment.aux_volume','Auxiliary volume reduced to fit your time cap.'));
+  if(trimmedAux)events.push(createTrainingCommentaryEvent('aux_volume_reduced'));
   return next;
 }
 
-function lightenLowerBodyForSport(exercises,reasons){
+function lightenLowerBodyForSport(exercises,events,context){
   let changed=false;
   exercises.forEach(exercise=>{
     if(!isPlanLowerBodyExercise(exercise)||!Array.isArray(exercise.sets)||exercise.isAccessory)return;
@@ -485,19 +875,19 @@ function lightenLowerBodyForSport(exercises,reasons){
       changed=true;
     }
   });
-  if(changed)reasons.push(trPlan('workout.pref_adjustment.sport_yesterday','Leg-heavy sport sits close to this session, so lower-body work was kept lighter today.'));
+  if(changed)events.push(createTrainingCommentaryEvent(getSportLoadAdjustmentCode(context)));
 }
 
-function getConstraintReasonText(exercise,replacement,conflict){
+function getConstraintReasonEvent(exercise,replacement,conflict){
   const fromLabel=exercise?.name||trPlan('common.exercise','Exercise');
   const toLabel=replacement?.name||'';
   if(toLabel){
     if(conflict?.reasonCode==='equipment'){
-      return trPlan('plan.adjustment.replaced_equipment','Swapped {from} to {to} to match your available equipment.',{from:fromLabel,to:toLabel});
+      return createTrainingCommentaryEvent('exercise_replaced_equipment',{from:fromLabel,to:toLabel});
     }
-    return trPlan('plan.adjustment.replaced_limit','Swapped {from} to {to} to respect your current limits.',{from:fromLabel,to:toLabel});
+    return createTrainingCommentaryEvent('exercise_replaced_limit',{from:fromLabel,to:toLabel});
   }
-  return trPlan('plan.adjustment.removed_exercise','Removed {exercise} because it conflicts with your current limits.',{exercise:fromLabel});
+  return createTrainingCommentaryEvent('exercise_removed_limit',{exercise:fromLabel});
 }
 
 function getExerciseReplacementCandidates(exercise,context,decision,replacementInfo){
@@ -584,14 +974,14 @@ function buildExerciseReplacementPlan(input){
   if(!conflict.blocked)return{conflict,replacement:null,clearWeight:false,reason:''};
   const replacementInfo=next.replacementInfo||getPlanProgramReplacementInfo(exercise,context);
   const canUseReplacement=exercise?.isAccessory||exercise?.isAux||exercise?.auxSlotIdx>=0||!!replacementInfo;
-  if(!canUseReplacement)return{conflict,replacement:null,clearWeight:false,reason:getConstraintReasonText(exercise,null,conflict)};
+  if(!canUseReplacement)return{conflict,replacement:null,clearWeight:false,reason:getConstraintReasonEvent(exercise,null,conflict)};
   const candidates=getExerciseReplacementCandidates(exercise,context,decision,replacementInfo);
   const ranked=candidates
     .map(candidate=>({candidate,score:scoreExerciseReplacementCandidate(exercise,candidate,context,decision,replacementInfo)}))
     .filter(item=>Number.isFinite(item.score))
     .sort((a,b)=>b.score-a.score||a.candidate.name.localeCompare(b.candidate.name));
   const replacement=ranked[0]?.candidate||null;
-  if(!replacement)return{conflict,replacement:null,clearWeight:false,reason:getConstraintReasonText(exercise,null,conflict)};
+  if(!replacement)return{conflict,replacement:null,clearWeight:false,reason:getConstraintReasonEvent(exercise,null,conflict)};
   const currentMeta=getPlanExerciseMeta(exercise)||{equipmentTags:[]};
   const replacementMeta=getPlanExerciseMeta(replacement)||replacement;
   const sharedEquipment=(replacementMeta?.equipmentTags||[]).filter(tag=>(currentMeta?.equipmentTags||[]).includes(tag)).length;
@@ -599,7 +989,7 @@ function buildExerciseReplacementPlan(input){
     conflict,
     replacement,
     clearWeight:sharedEquipment===0||replacementInfo?.clearWeightOnSwap===true,
-    reason:getConstraintReasonText(exercise,replacement,conflict)
+    reason:getConstraintReasonEvent(exercise,replacement,conflict)
   };
 }
 
@@ -625,7 +1015,7 @@ function resolveSessionConstraints(input){
   const context=next.context||{};
   const decision=next.decision||{};
   const exercises=clonePlanSession(next.exercises||[]);
-  const adaptationReasons=[];
+  const adaptationEvents=[];
   const resolvedExercises=[];
   exercises.forEach(exercise=>{
     const conflict=getExerciseConflictInfo(exercise,context,decision);
@@ -636,14 +1026,14 @@ function resolveSessionConstraints(input){
     const replacementPlan=buildExerciseReplacementPlan({exercise,context,decision,conflict});
     if(replacementPlan.replacement){
       resolvedExercises.push(applyExerciseReplacement(exercise,replacementPlan));
-      adaptationReasons.push(replacementPlan.reason);
+      adaptationEvents.push(replacementPlan.reason);
       return;
     }
-    adaptationReasons.push(replacementPlan.reason||getConstraintReasonText(exercise,null,conflict));
+    adaptationEvents.push(replacementPlan.reason||getConstraintReasonEvent(exercise,null,conflict));
   });
   return{
     exercises:resolvedExercises,
-    adaptationReasons:[...new Set(adaptationReasons)]
+    adaptationEvents:dedupeTrainingCommentaryEvents(adaptationEvents)
   };
 }
 
@@ -654,39 +1044,52 @@ function buildAdaptiveSessionPlan(input){
   const prog=(window.PROGRAMS&&window.PROGRAMS[next.programId])||(typeof getActiveProgram==='function'?getActiveProgram():null);
   const baseSession=clonePlanSession(next.baseSession||[]);
   let exercises=baseSession;
-  const adaptationReasons=[];
-  let equipmentHint='';
+  const adaptationEvents=[];
+  let equipmentHint=null;
   if(typeof prog?.adaptSession==='function'){
     const adapted=prog.adaptSession(baseSession,context,decision);
     if(adapted&&Array.isArray(adapted.exercises||adapted)){
       exercises=Array.isArray(adapted)?adapted:(adapted.exercises||[]);
-      adaptationReasons.push(...toPlanList(adapted.adaptationReasons||adapted.changes));
-      equipmentHint=adapted.equipmentHint||equipmentHint;
+      adaptationEvents.push(...toPlanList(adapted.adaptationEvents||adapted.changes));
+      equipmentHint=normalizeTrainingCommentaryEvent(adapted.equipmentHint)||equipmentHint;
     }
   }
   const resolvedConstraints=resolveSessionConstraints({exercises,context,decision});
   exercises=resolvedConstraints.exercises;
-  adaptationReasons.push(...resolvedConstraints.adaptationReasons);
+  adaptationEvents.push(...resolvedConstraints.adaptationEvents);
   if(decision.action==='shorten'||decision.timeBudgetMinutes<=35){
-    exercises=trimShortSessionExercises(exercises,adaptationReasons,decision.timeBudgetMinutes||context.timeBudgetMinutes);
+    exercises=trimShortSessionExercises(exercises,adaptationEvents,decision.timeBudgetMinutes||context.timeBudgetMinutes);
   }else if(decision.action==='train_light'){
-    exercises=trimShortSessionExercises(exercises,adaptationReasons,45);
+    exercises=trimShortSessionExercises(exercises,adaptationEvents,45);
   }
   if(decision.restrictionFlags?.includes('avoid_heavy_legs')){
-    lightenLowerBodyForSport(exercises,adaptationReasons);
+    lightenLowerBodyForSport(exercises,adaptationEvents,context);
   }
   if(context.goal==='sport_support'&&exercises.some(exercise=>exercise.isAccessory)){
     exercises=exercises.filter(exercise=>!exercise.isAccessory);
-    adaptationReasons.push(trPlan('workout.pref_adjustment.sport_support','Accessory work removed to keep the session sharper for sport support.'));
+    adaptationEvents.push(createTrainingCommentaryEvent('sport_support_trimmed'));
   }
   equipmentHint=equipmentHint||((context.equipmentAccess==='basic_gym'||context.equipmentAccess==='home_gym'||context.equipmentAccess==='minimal')
-    ? trPlan('workout.pref_adjustment.swap_hint','Use exercise swap freely if your setup does not match the planned lift exactly.')
-    : '');
+    ? createTrainingCommentaryEvent('swap_hint')
+    : null);
   return{
     exercises,
-    adaptationReasons:[...new Set(adaptationReasons)],
+    adaptationEvents:dedupeTrainingCommentaryEvents(adaptationEvents),
     equipmentHint,
-    decision
+    decision,
+    commentary:buildTrainingCommentaryRecord({
+      decision,
+      context,
+      commentary:{
+        version:1,
+        decisionCode:getTrainingDecisionCode(decision),
+        reasonCodes:[...toPlanList(decision?.reasonCodes)],
+        restrictionFlags:[...toPlanList(decision?.restrictionFlags)],
+        adaptationEvents,
+        equipmentHint,
+        runnerEvents:[]
+      }
+    })
   };
 }
 

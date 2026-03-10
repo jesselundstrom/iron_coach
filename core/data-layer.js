@@ -232,6 +232,63 @@ function getDocumentPayload(docKey,profileLike,scheduleLike){
   return undefined;
 }
 
+function normalizeWorkoutCommentaryValue(workout){
+  if(!workout||typeof workout!=='object')return{commentary:null,changed:false};
+  const planningDecision=(workout.planningDecision&&typeof workout.planningDecision==='object')?workout.planningDecision:{};
+  const source=(workout.commentary&&typeof workout.commentary==='object')?workout.commentary:null;
+  const normalizeEvent=event=>{
+    if(!event)return null;
+    if(typeof event==='string'){
+      const text=String(event||'').trim();
+      return text?{code:'legacy_text',text,params:{}}:null;
+    }
+    if(typeof event!=='object')return null;
+    const code=String(event.code||'').trim();
+    if(!code)return null;
+    if(code==='legacy_text'){
+      const text=String(event.text||'').trim();
+      return text?{code,text,params:{}}:null;
+    }
+    const params=(event.params&&typeof event.params==='object')?cloneJson(event.params)||{}:{};
+    return{code,params};
+  };
+  const normalizeEvents=list=>{
+    const seen=new Set();
+    const next=[];
+    const items=Array.isArray(list)?list:(list?[list]:[]);
+    items.forEach(item=>{
+      const normalized=normalizeEvent(item);
+      if(!normalized)return;
+      const key=normalized.code==='legacy_text'
+        ? `legacy:${normalized.text}`
+        : `${normalized.code}:${JSON.stringify(normalized.params||{})}`;
+      if(seen.has(key))return;
+      seen.add(key);
+      next.push(normalized);
+    });
+    return next;
+  };
+  const legacyReasons=Array.isArray(workout.adaptationReasons)?workout.adaptationReasons:[];
+  const decisionCode=String(source?.decisionCode||(
+    planningDecision.action==='rest'?'rest'
+      : planningDecision.action==='deload'?'deload'
+      : planningDecision.action==='train_light'?'train_light'
+      : planningDecision.action==='shorten'?'shorten'
+      : ((planningDecision.restrictionFlags||[]).includes('avoid_heavy_legs')?'sport_aware':'train')
+  ));
+  const commentary={
+    version:1,
+    decisionCode,
+    reasonCodes:[...new Set([...(Array.isArray(source?.reasonCodes)?source.reasonCodes:[]),...((planningDecision.reasonCodes)||[])].filter(Boolean))],
+    restrictionFlags:[...new Set([...(Array.isArray(source?.restrictionFlags)?source.restrictionFlags:[]),...((planningDecision.restrictionFlags)||[])].filter(Boolean))],
+    adaptationEvents:normalizeEvents(source?.adaptationEvents||(legacyReasons.length?legacyReasons:[])),
+    equipmentHint:normalizeEvent(source?.equipmentHint),
+    runnerEvents:normalizeEvents(source?.runnerEvents||[])
+  };
+  const changed=JSON.stringify(commentary)!==JSON.stringify(source||null)||('adaptationReasons' in workout);
+  return{commentary,changed};
+}
+
 function getAllProfileDocumentKeys(profileLike){
   return uniqueDocKeys([PROFILE_CORE_DOC_KEY,SCHEDULE_DOC_KEY,...listProgramIds(profileLike).map(programDocKey)]);
 }
@@ -529,8 +586,14 @@ function normalizeWorkoutRecord(workout){
       changed=true;
     }
   }
+  const commentaryResult=normalizeWorkoutCommentaryValue(workout);
+  if(commentaryResult.commentary){
+    workout.commentary=commentaryResult.commentary;
+    if(commentaryResult.changed)changed=true;
+  }
   if('forgeWeek' in workout){delete workout.forgeWeek;changed=true;}
   if('forgeDayNum' in workout){delete workout.forgeDayNum;changed=true;}
+  if('adaptationReasons' in workout){delete workout.adaptationReasons;changed=true;}
   return changed?workout:workout;
 }
 

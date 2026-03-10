@@ -616,7 +616,7 @@ const WENDLER_531 = {
   },
   adaptSession(baseSession,planningContext,decision) {
     const exercises=JSON.parse(JSON.stringify(baseSession||[]));
-    const adaptationReasons=[];
+    const adaptationEvents=[];
     let changed=false;
     if(decision?.restrictionFlags?.includes('avoid_heavy_legs')){
       exercises.forEach(exercise=>{
@@ -634,7 +634,9 @@ const WENDLER_531 = {
           changed=true;
         }
       });
-      if(changed)adaptationReasons.push(trW531('program.w531.plan.sport_trim','Wendler trimmed lower-body assistance first because sport load is high.'));
+      if(changed&&typeof createTrainingCommentaryEvent==='function'){
+        adaptationEvents.push(createTrainingCommentaryEvent('program_sport_trimmed',{programId:'wendler531',programName:'Wendler 5/3/1'}));
+      }
     }
     if((planningContext?.limitations?.jointFlags||[]).includes('shoulder')){
       const removedBefore=exercises.length;
@@ -645,22 +647,28 @@ const WENDLER_531 = {
       });
       if(kept.length!==removedBefore){
         changed=true;
-        adaptationReasons.push(trW531('program.w531.plan.shoulder_trim','Shoulder-sensitive vertical assistance was deprioritized for this session.'));
+        if(typeof createTrainingCommentaryEvent==='function'){
+          adaptationEvents.push(createTrainingCommentaryEvent('program_shoulder_trimmed',{programId:'wendler531',programName:'Wendler 5/3/1'}));
+        }
       }
       return{
         exercises:kept,
-        adaptationReasons,
+        adaptationEvents,
         equipmentHint:(planningContext?.equipmentAccess==='home_gym'||planningContext?.equipmentAccess==='minimal')
-          ? trW531('program.w531.plan.equipment_hint','Wendler will favor same-pattern substitutions before dropping work.')
-          : ''
+          ? (typeof createTrainingCommentaryEvent==='function'
+            ? createTrainingCommentaryEvent('same_pattern_swaps',{programId:'wendler531',programName:'Wendler 5/3/1'})
+            : null)
+          : null
       };
     }
     return{
       exercises,
-      adaptationReasons,
+      adaptationEvents,
       equipmentHint:(planningContext?.equipmentAccess==='home_gym'||planningContext?.equipmentAccess==='minimal')
-        ? trW531('program.w531.plan.equipment_hint','Wendler will favor same-pattern substitutions before dropping work.')
-        : ''
+        ? (typeof createTrainingCommentaryEvent==='function'
+          ? createTrainingCommentaryEvent('same_pattern_swaps',{programId:'wendler531',programName:'Wendler 5/3/1'})
+          : null)
+        : null
     };
   },
 

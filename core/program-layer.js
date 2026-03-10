@@ -600,8 +600,14 @@ function renderProgramTodayPanels(trainingDecision,planningContext,selectedOptio
   const guidance=(typeof getPreferenceGuidance==='function')
     ? getPreferenceGuidance(profile,{canPushVolume:recovery>=70&&trainingDecision?.action==='train'})
     : [];
-  const summary=(typeof getWorkoutDecisionSummary==='function')
-    ? getWorkoutDecisionSummary(trainingDecision,planningContext)
+  const commentaryState=(typeof buildTrainingCommentaryState==='function')
+    ? buildTrainingCommentaryState({decision:trainingDecision,context:planningContext})
+    : null;
+  const summary=(typeof presentTrainingCommentary==='function'&&commentaryState)
+    ? presentTrainingCommentary(commentaryState,'workout_summary')
+    : null;
+  const warningSummary=(typeof presentTrainingCommentary==='function'&&commentaryState)
+    ? presentTrainingCommentary(commentaryState,'program_warning')
     : null;
   const focusLine=guidance[0]||trProg('workout.today.focus','Train sharp and keep the main work crisp.');
   const supportLine=summary?.copy||'';
@@ -614,7 +620,7 @@ function renderProgramTodayPanels(trainingDecision,planningContext,selectedOptio
       ${tags.length?`<div class="workout-today-tags">${tags.map(tag=>`<span class="workout-today-tag is-${escapeHtml(tag.level)}">${escapeHtml(tag.name)} ${escapeHtml(tag.label)}</span>`).join('')}</div>`:''}
     </div>
   </div>`;
-  if(!warningPanel||!summary)return;
+  if(!warningPanel||!warningSummary)return;
   const needsWarning=(trainingDecision?.action&&trainingDecision.action!=='train')
     || (trainingDecision?.restrictionFlags||[]).includes('avoid_heavy_legs')
     || (trainingDecision?.reasonCodes||[]).includes('low_recovery')
@@ -623,9 +629,9 @@ function renderProgramTodayPanels(trainingDecision,planningContext,selectedOptio
   const caution=trainingDecision?.action==='shorten'||(trainingDecision?.restrictionFlags||[]).includes('avoid_heavy_legs');
   warningPanel.innerHTML=`<div class="workout-today-section">
     <div class="workout-today-section-label">${escapeHtml(trProg('workout.warning.title','Training warning'))}</div>
-    <div class="workout-warning-card${caution?' is-caution':''}">
-      <div class="workout-warning-title">${escapeHtml(summary.title||trProg('workout.warning.low_recovery','Low recovery'))}</div>
-      <div class="workout-warning-copy">${escapeHtml(summary.copy||trProg('workout.warning.low_recovery_copy','Consider resting. If you train, Day {day} is the safer option.',{day:getProgramOptionDayNumber(selectedOption)||'1'}))}</div>
+      <div class="workout-warning-card${caution?' is-caution':''}">
+      <div class="workout-warning-title">${escapeHtml(warningSummary.title||trProg('workout.warning.low_recovery','Low recovery'))}</div>
+      <div class="workout-warning-copy">${escapeHtml(warningSummary.copy||trProg('workout.warning.low_recovery_copy','Consider resting. If you train, Day {day} is the safer option.',{day:getProgramOptionDayNumber(selectedOption)||'1'}))}</div>
     </div>
   </div>`;
 }

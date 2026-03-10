@@ -338,9 +338,9 @@ function highlightDashboardText(text,patterns){
   return next;
 }
 
-function getDashboardCoachCopy(focusLine,decisionSummary,decision){
-  if(decision?.action&&decision.action!=='train'&&decisionSummary?.title&&decisionSummary?.body){
-    return `<strong>${escapeHtml(decisionSummary.title)}</strong> ${escapeHtml(decisionSummary.body)}`;
+function getDashboardCoachCopy(focusLine,decisionSummary,coachCommentary,decision){
+  if(decision?.action&&decision.action!=='train'&&coachCommentary?.title&&coachCommentary?.body){
+    return `<strong>${escapeHtml(coachCommentary.title)}</strong> ${escapeHtml(coachCommentary.body)}`;
   }
   return escapeHtml(focusLine||decisionSummary?.body||'');
 }
@@ -384,6 +384,7 @@ function renderDashboardTodayPlan(input){
   const focusLine=String(next.focusLine||'');
   const decision=next.trainingDecision||{};
   const decisionSummary=next.decisionSummary||null;
+  const coachCommentary=next.coachCommentary||null;
   const coachingInsights=next.coachingInsights||{};
   const adherenceRate=Math.max(0,Math.round(coachingInsights.adherenceRate30||0));
   const progressMetric=getDashboardProgressMetric(coachingInsights);
@@ -431,7 +432,7 @@ function renderDashboardTodayPlan(input){
       <div class="dashboard-plan-section-label">${escapeHtml(trDash('dashboard.insights.title','Valmennusnostot'))}</div>
       <article class="dashboard-plan-card dashboard-plan-coach-card">
         <div class="dashboard-plan-card-head dashboard-plan-card-head-coach"><span class="dashboard-plan-head-dot" aria-hidden="true"></span>${escapeHtml(trDash('workout.today.coach_note','Valmentajan huomio'))}</div>
-        <div class="dashboard-plan-coach-copy">${sanitizeDashboardRichText(getDashboardCoachCopy(focusLine,decisionSummary,decision))}</div>
+        <div class="dashboard-plan-coach-copy">${sanitizeDashboardRichText(getDashboardCoachCopy(focusLine,decisionSummary,coachCommentary,decision))}</div>
       </article>
     </section>
     <section class="dashboard-plan-section dashboard-plan-section-stats">
@@ -519,62 +520,27 @@ function renderPlanStatus(title,body,tone){
 }
 
 function getTrainingDecisionSummary(decision,context){
-  const sessionsLeft=context?.sessionsRemaining||0;
-  const sportName=context?.sportLoad?.sportName||trDash('common.sport','Laji');
-  if(decision.action==='rest'){
+  if(typeof buildTrainingCommentaryState==='function'&&typeof presentTrainingCommentary==='function'){
+    const state=buildTrainingCommentaryState({decision,context});
+    const summary=presentTrainingCommentary(state,'dashboard_summary');
+    if(!summary)return null;
     return{
-      title:trDash('dashboard.week_complete','Viikko valmis!'),
-      body:trDash('dashboard.sessions_done','Kaikki suunnitellut sessiot on jo tehty tälle viikolle. Lepää ja palaudu.'),
-      tone:'positive'
+      title:summary.title,
+      body:summary.body,
+      tone:summary.tone||state.tone,
+      reasons:[...state.reasonCodes],
+      reasonLabels:[...(summary.reasonLabels||[])]
     };
   }
-  if(decision.action==='deload'){
-    return{
-      title:trDash('dashboard.high_fatigue_title','Korkea kuormitus - kevennä'),
-      body:trDash('dashboard.plan.deload','Palautuminen laahaa, joten pidä päivä kevyenä ja käsittele se kevennyksenä. {count} sessiota on jäljellä tällä viikolla.',{count:sessionsLeft}),
-      tone:'warning'
-    };
-  }
-  if(decision.action==='train_light'){
-    return{
-      title:trDash('dashboard.plan.train_light','Treenaa tänään kevyemmin'),
-      body:trDash('dashboard.plan.train_light_body','Voit silti treenata, mutta pidä rasitus maltillisena ja vältä turhaa grindia. {count} sessiota on jäljellä tällä viikolla.',{count:sessionsLeft}),
-      tone:'info'
-    };
-  }
-  if(decision.action==='shorten'){
-    return{
-      title:trDash('dashboard.plan.shorten','Lyhyt sessio tänään'),
-      body:trDash('dashboard.plan.shorten_body','Tee päätyö ensin ja karsi apuliikkeitä pysyäksesi aikaraamissa. {count} sessiota on jäljellä tällä viikolla.',{count:sessionsLeft}),
-      tone:'neutral'
-    };
-  }
-  if(decision.restrictionFlags.includes('avoid_heavy_legs')){
-    return{
-      title:trDash('dashboard.post_sport','{sport}n jälkeen',{sport:sportName.toLowerCase()}),
-      body:trDash('dashboard.plan.avoid_legs','Lajikuorma on tänään korkea, joten suuntaa sessio pois raskaasta jalkatyöstä aina kun mahdollista. {count} sessiota on jäljellä tällä viikolla.',{count:sessionsLeft}),
-      tone:'info'
-    };
-  }
-  return{
-    title:trDash('dashboard.training_day','Treenipäivä'),
-    body:trDash('dashboard.plan.train','Palautuminen näyttää riittävän hyvältä normaaliin treeniin tänään. {count} sessiota on jäljellä tällä viikolla.',{count:sessionsLeft}),
-    tone:'neutral'
-  };
+  return null;
 }
 
 function getTrainingDecisionReasonLabels(decision){
-  const map={
-    low_recovery:trDash('dashboard.reason.low_recovery','Heikko palautuminen'),
-    conservative_recovery:trDash('dashboard.reason.conservative','Palautumisvaroitus'),
-    tight_time_budget:trDash('dashboard.reason.time_budget','35 min raja'),
-    sport_load:trDash('dashboard.reason.sport_load','Lajikuorma'),
-    equipment_constraint:trDash('dashboard.reason.equipment','Välineet'),
-    progression_stall:trDash('dashboard.reason.stall','Eteneminen jumissa'),
-    guided_beginner:trDash('dashboard.reason.guided','Ohjattu polku'),
-    week_complete:trDash('dashboard.reason.complete','Viikko valmis')
-  };
-  return(decision.reasonCodes||[]).map(code=>map[code]).filter(Boolean);
+  if(typeof buildTrainingCommentaryState==='function'&&typeof presentTrainingCommentary==='function'){
+    const summary=presentTrainingCommentary(buildTrainingCommentaryState({decision}),'dashboard_summary');
+    return summary?.reasonLabels||[];
+  }
+  return[];
 }
 
 // WEEK STRIP
@@ -703,9 +669,18 @@ function updateDashboard(){
     ? getCoachingInsights({context:planningContext,decision:trainingDecision})
     : null;
   const decisionSummary=getTrainingDecisionSummary(trainingDecision,planningContext||{sessionsRemaining:Math.max(0,freq-doneThisWeek),sportLoad:{}});
-  const reasonLabels=getTrainingDecisionReasonLabels(trainingDecision);
+  const commentaryState=(typeof buildTrainingCommentaryState==='function')
+    ? buildTrainingCommentaryState({decision:trainingDecision,context:planningContext||{sessionsRemaining:Math.max(0,freq-doneThisWeek),sportLoad:{}}})
+    : null;
+  const focusSupport=(typeof presentTrainingCommentary==='function'&&commentaryState)
+    ? presentTrainingCommentary(commentaryState,'dashboard_focus_support')
+    : null;
+  const coachCommentary=(typeof presentTrainingCommentary==='function'&&commentaryState)
+    ? presentTrainingCommentary(commentaryState,'dashboard_coach')
+    : null;
+  const reasonLabels=decisionSummary?.reasonLabels||getTrainingDecisionReasonLabels(trainingDecision);
   const guidance=getPreferenceGuidance(profile,{
-    detail:bi.modeDesc||'',
+    detail:focusSupport?.text||bi.modeDesc||'',
     canPushVolume:recovery>=70&&trainingDecision.action==='train'&&!bi.isDeload,
     decisionSummary,
     reasonLabels
@@ -722,10 +697,10 @@ function updateDashboard(){
     focusLine:guidance[0]||'',
     trainingDecision,
     decisionSummary,
+    coachCommentary,
     coachingInsights
   });
   document.getElementById('next-session-content').innerHTML=rec;
   requestAnimationFrame(animateDashboardPlanMuscleBars);
   document.getElementById('header-sub').textContent=[programName,bi.name||'',bi.weekLabel||''].filter(Boolean).join(' · ');
 }
-

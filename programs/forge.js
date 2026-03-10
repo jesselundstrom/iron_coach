@@ -475,7 +475,7 @@ const FORGE_PROGRAM={
   },
   adaptSession(baseSession,planningContext,decision){
     const exercises=JSON.parse(JSON.stringify(baseSession||[]));
-    const adaptationReasons=[];
+    const adaptationEvents=[];
     let changed=false;
     if(decision?.restrictionFlags?.includes('avoid_heavy_legs')){
       exercises.forEach(exercise=>{
@@ -488,12 +488,16 @@ const FORGE_PROGRAM={
           changed=true;
         }
       });
-      if(changed)adaptationReasons.push(trForge('program.forge.plan.sport_trim','Forge trimmed lower-body auxiliary work first because sport load is close.'));
+      if(changed&&typeof createTrainingCommentaryEvent==='function'){
+        adaptationEvents.push(createTrainingCommentaryEvent('program_sport_trimmed',{programId:'forge',programName:'Forge'}));
+      }
     }
     const equipmentHint=(planningContext?.equipmentAccess==='home_gym'||planningContext?.equipmentAccess==='minimal')
-      ? trForge('program.forge.plan.equipment_hint','Forge will prioritize same-pattern swaps for your current setup.')
-      : '';
-    return{exercises,adaptationReasons,equipmentHint};
+      ? (typeof createTrainingCommentaryEvent==='function'
+        ? createTrainingCommentaryEvent('same_pattern_swaps',{programId:'forge',programName:'Forge'})
+        : null)
+      : null;
+    return{exercises,adaptationEvents,equipmentHint};
   },
 
   getDashboardTMs(state){return(state.lifts?.main||[]).map(l=>({name:l.name,value:l.tm+'kg'}));},

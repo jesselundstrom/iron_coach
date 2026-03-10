@@ -524,26 +524,17 @@ function getRunnerPlanSummary(activeLike){
   const workoutLike=activeLike||activeWorkout;
   if(!workoutLike)return null;
   const decision=workoutLike.planningDecision||{};
-  const action=workoutLike.runnerState?.mode||decision.action||'train';
   const nextTarget=getActiveWorkoutNextTarget();
   const finishPoint=getActiveWorkoutFinishPoint(workoutLike);
   const completedSets=getWorkoutCompletedWorkSets();
   const remainingSets=getWorkoutRemainingWorkSets();
-  let title=i18nText('workout.runner.normal_title','Normal session flow');
-  let copy=i18nText('workout.runner.normal_copy','Stay on the main work and move through the remaining sets in order.');
-  if(action==='shorten'){
-    title=i18nText('workout.runner.shorten_title','Shortened session');
-    copy=i18nText('workout.runner.shorten_copy','Accessories and extra volume were cut so you can finish the essential work faster.');
-  }else if(action==='train_light'||action==='lighten'||action==='deload'){
-    title=i18nText('workout.runner.light_title','Lighter session');
-    copy=i18nText('workout.runner.light_copy','Keep the session moving, but leave more in the tank and stop earlier than usual.');
-  }else if(decision.restrictionFlags?.includes('avoid_heavy_legs')){
-    title=i18nText('workout.runner.sport_title','Sport-aware session');
-    copy=i18nText('workout.runner.sport_copy','Leg-heavy work is being kept under control because of surrounding sport load.');
-  }
+  const runnerCopy=(typeof presentTrainingCommentary==='function')
+    ? presentTrainingCommentary(getWorkoutCommentaryState(workoutLike),'runner_summary')
+    : null;
   return{
-    title,
-    copy,
+    kicker:runnerCopy?.kicker||i18nText('workout.runner.kicker','Session plan'),
+    title:runnerCopy?.title||i18nText('workout.runner.normal_title','Normal session flow'),
+    copy:runnerCopy?.copy||i18nText('workout.runner.normal_copy','Stay on the main work and move through the remaining sets in order.'),
     completedSets,
     remainingSets,
     nextTarget,
@@ -569,7 +560,7 @@ function renderActiveWorkoutPlanPanel(){
   container.innerHTML=`<div class="active-session-plan-card">
     <div class="active-session-plan-top">
       <div>
-        <div class="active-session-plan-kicker">${escapeHtml(i18nText('workout.runner.kicker','Session plan'))}</div>
+        <div class="active-session-plan-kicker">${escapeHtml(summary?.kicker||i18nText('workout.runner.kicker','Session plan'))}</div>
         <div class="active-session-plan-title">${escapeHtml(summary?.title||i18nText('common.session','Session'))}</div>
         <div class="active-session-plan-copy">${escapeHtml(summary?.copy||'')}</div>
       </div>
@@ -823,11 +814,12 @@ function getWorkoutDecisionSummary(decision,context){
 function renderWorkoutDecisionPreview(decision,context){
   const summary=getWorkoutDecisionSummary(decision,context);
   if(!summary)return'';
+  const summaryVm=(typeof buildTrainingCommentaryState==='function'&&typeof presentTrainingCommentary==='function')
+    ? presentTrainingCommentary(buildTrainingCommentaryState({decision,context}),'workout_summary')
+    : null;
   const reasons=summary.reasonLabels||[];
   return `<div class="workout-decision-card">
-    <div class="workout-decision-kicker">${escapeHtml((typeof presentTrainingCommentary==='function'
-      ? (presentTrainingCommentary(getWorkoutCommentaryState(null,{decision,context}),'workout_summary')?.kicker)
-      : '')||i18nText('workout.plan.kicker',"Today's decision"))}</div>
+    <div class="workout-decision-kicker">${escapeHtml(summaryVm?.kicker||i18nText('workout.plan.kicker',"Today's decision"))}</div>
     <div class="workout-decision-title">${escapeHtml(summary.title)}</div>
     <div class="workout-decision-copy">${escapeHtml(summary.copy)}</div>
     ${reasons.length?`<div class="workout-decision-reasons">${reasons.map(reason=>`<div class="workout-decision-chip">${escapeHtml(reason)}</div>`).join('')}</div>`:''}
@@ -1226,7 +1218,7 @@ function beginWorkoutStart(sportContext){
     sportContext:sportContext||undefined,
     planningDecision:trainingDecision||undefined,
     planningContext:planningContext||undefined,
-    adaptationReasons:sessionPrefs.changes||[],
+    commentary:sessionPrefs.commentary||undefined,
     runnerState:{
       mode:trainingDecision?.action||'train',
       adjustments:[],
@@ -1236,6 +1228,7 @@ function beginWorkoutStart(sportContext){
     exercises:ensureWorkoutExerciseUiKeys(exercises),
     startTime:Date.now()
   };
+  ensureWorkoutCommentaryRecord(activeWorkout);
   resetActiveWorkoutUIState();
 
   updateProgramDisplay();
@@ -1252,9 +1245,13 @@ function beginWorkoutStart(sportContext){
   startWorkoutTimer();renderExercises();
   const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):(prog.name||'Training');
   showToast(bi.isDeload?i18nText('workout.deload_light','Deload - keep it light'):progName,bi.isDeload?'var(--blue)':'var(--purple)');
+  const commentaryState=getWorkoutCommentaryState(activeWorkout);
   const decisionSummary=getWorkoutDecisionSummary(trainingDecision,planningContext);
+  const startToast=(typeof presentTrainingCommentary==='function'&&commentaryState)
+    ? presentTrainingCommentary(commentaryState,'workout_start_toast')
+    : null;
   if(decisionSummary&&trainingDecision&&(trainingDecision.action!=='train'||trainingDecision.restrictionFlags?.includes('avoid_heavy_legs'))){
-    setTimeout(()=>showToast(decisionSummary.title,'var(--blue)'),700);
+    setTimeout(()=>showToast(startToast?.text||decisionSummary.title,'var(--blue)'),700);
   }
   if(sessionPrefs.changes.length){
     setTimeout(()=>showToast(sessionPrefs.changes[0],'var(--blue)'),trainingDecision&&(trainingDecision.action!=='train'||trainingDecision.restrictionFlags?.includes('avoid_heavy_legs'))?1800:900);
@@ -2008,11 +2005,12 @@ function applyQuickWorkoutAdjustment(mode){
 
 function executeQuickWorkoutAdjustment(mode,detailLevel){
   if(!activeWorkout?.exercises?.length)return;
+  ensureWorkoutCommentaryRecord(activeWorkout);
   const previousSnapshot={
     exercises:cloneWorkoutExercises(activeWorkout.exercises),
     mode:activeWorkout.runnerState?.mode||activeWorkout.planningDecision?.action||'train',
     adjustments:(activeWorkout.runnerState?.adjustments||[]).map(item=>({...item})),
-    adaptationReasons:[...(activeWorkout.adaptationReasons||[])]
+    commentary:activeWorkout.commentary?JSON.parse(JSON.stringify(activeWorkout.commentary)):null
   };
   const exercises=cloneWorkoutExercises(activeWorkout.exercises);
   let changed=false;
@@ -2052,31 +2050,46 @@ function executeQuickWorkoutAdjustment(mode,detailLevel){
       detailLevel:detailLevel||undefined,
       label:getRunnerAdjustmentLabel({type:mode})
     });
-    activeWorkout.adaptationReasons=[...(activeWorkout.adaptationReasons||[])];
+    ensureWorkoutCommentaryRecord(activeWorkout);
     if(mode==='shorten'){
-      activeWorkout.adaptationReasons.push(i18nText('workout.runner.shorten_copy','Lower-priority work was cut so you can finish the essential work faster.'));
-      showToast(i18nText('workout.runner.shorten_toast','Session shortened to the essential work'),'var(--blue)');
+      appendWorkoutAdaptationEvent(activeWorkout,'runner_shorten');
+      appendWorkoutRunnerEvent(activeWorkout,'runner_shorten');
     }else{
-      activeWorkout.adaptationReasons.push(i18nText('workout.runner.light_copy','Keep the session moving, but leave more in the tank with slightly lighter remaining work.'));
-      showToast(i18nText('workout.runner.light_toast','Remaining work lightened'),'var(--blue)');
+      appendWorkoutAdaptationEvent(activeWorkout,'runner_lighten');
+      appendWorkoutRunnerEvent(activeWorkout,'runner_lighten');
     }
+    const runnerToast=(typeof presentTrainingCommentary==='function')
+      ? presentTrainingCommentary(getWorkoutCommentaryState(activeWorkout),'runner_toast')
+      : null;
+    showToast(runnerToast?.text||i18nText(mode==='shorten'?'workout.runner.shorten_toast':'workout.runner.light_toast',mode==='shorten'?'Session shortened to the essential work':'Remaining work lightened'),'var(--blue)');
     renderExercises();
     return;
   }
-  showToast(i18nText('workout.runner.no_change','No remaining work needed adjustment'),'var(--muted)');
+  const currentState=getWorkoutCommentaryState(activeWorkout)||{};
+  const emptyToast=(typeof presentTrainingCommentary==='function')
+    ? presentTrainingCommentary({
+      ...currentState,
+      runnerEvents:[{code:'runner_no_change',params:{}}]
+    },'runner_toast')
+    : null;
+  showToast(emptyToast?.text||i18nText('workout.runner.no_change','No remaining work needed adjustment'),'var(--muted)');
 }
 
 function undoQuickWorkoutAdjustment(){
   const snapshot=activeWorkout?.runnerState?.undoSnapshot;
   if(!snapshot||!activeWorkout)return;
   activeWorkout.exercises=cloneWorkoutExercises(snapshot.exercises);
-  activeWorkout.adaptationReasons=[...(snapshot.adaptationReasons||[])];
+  activeWorkout.commentary=snapshot.commentary?JSON.parse(JSON.stringify(snapshot.commentary)):activeWorkout.commentary;
   activeWorkout.runnerState=activeWorkout.runnerState||{};
   activeWorkout.runnerState.mode=snapshot.mode||activeWorkout.planningDecision?.action||'train';
   activeWorkout.runnerState.adjustments=(snapshot.adjustments||[]).map(item=>({...item}));
   delete activeWorkout.runnerState.undoSnapshot;
+  appendWorkoutRunnerEvent(activeWorkout,'runner_undo');
   renderExercises();
-  showToast(i18nText('workout.runner.undo_toast','Last adjustment undone'),'var(--blue)');
+  const undoToast=(typeof presentTrainingCommentary==='function')
+    ? presentTrainingCommentary(getWorkoutCommentaryState(activeWorkout),'runner_toast')
+    : null;
+  showToast(undoToast?.text||i18nText('workout.runner.undo_toast','Last adjustment undone'),'var(--blue)');
 }
 
 async function finishWorkout(){
@@ -2110,6 +2123,7 @@ async function finishWorkout(){
   catch(e){logWarn('getWorkoutMeta',e);programMeta={week:state.week,cycle:state.cycle};}
   const workoutId=Date.now();
   const workoutDate=new Date().toISOString();
+  ensureWorkoutCommentaryRecord(activeWorkout);
 
   // Push workout record with canonical program metadata fields only.
   const savedWorkout={id:workoutId,date:workoutDate,
@@ -2120,7 +2134,7 @@ async function finishWorkout(){
     sportContext:activeWorkout.sportContext||undefined,
     programMeta,
     sessionDescription:activeWorkout.sessionDescription||'',
-    adaptationReasons:(activeWorkout.adaptationReasons||[]).slice(),
+    commentary:activeWorkout.commentary?JSON.parse(JSON.stringify(activeWorkout.commentary)):undefined,
     planningDecision:activeWorkout.planningDecision||undefined,
     runnerState:activeWorkout.runnerState?{
       mode:activeWorkout.runnerState.mode,
