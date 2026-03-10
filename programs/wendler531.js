@@ -16,6 +16,17 @@ function w531ExName(name){
   return name;
 }
 
+function normalizeW531Week(rawWeek){
+  const week=parseInt(rawWeek,10);
+  if(!Number.isFinite(week)||week<1)return 1;
+  return Math.min(4,week);
+}
+
+function getW531LoggedRepCount(raw){
+  const reps=parseInt(raw,10);
+  return Number.isFinite(reps)&&reps>=0?reps:null;
+}
+
 function getW531SchemeName(week){
   const keyMap={1:'program.w531.scheme.5s',2:'program.w531.scheme.3s',3:'program.w531.scheme.531',4:'program.w531.scheme.deload'};
   const k=keyMap[week];const label=(W531.weekScheme[week]||{}).label||'';
@@ -429,7 +440,7 @@ const WENDLER_531 = {
   // ─── Adjust After Session ─────────────────────────────────────────────────
   adjustAfterSession(exercises, state) {
     const newState = JSON.parse(JSON.stringify(state));
-    const week     = state.week || 1;
+    const week     = normalizeW531Week(state.week);
     const season   = state.season || 'off';
     const scheme   = W531.weekScheme[week] || W531.weekScheme[1];
     const isTest   = week===4 && !!state.testWeekPending;
@@ -448,7 +459,7 @@ const WENDLER_531 = {
       if (isTest) {
         const testSet = ex.sets.find(s => s.isTestSet && s.done);
         if (testSet) {
-          const reps = parseInt(testSet.reps) || 0;
+          const reps = getW531LoggedRepCount(testSet.reps) || 0;
           if (reps >= 1 && reps <= 2) {
             // Poor result → recalculate TM: 90% of Epley 1RM from this set
             const est1RM = W531.epley1RM(testSet.weight, reps);
@@ -467,7 +478,7 @@ const WENDLER_531 = {
       if (!lastHeavy) return;
 
       const minReps = W531.getReps(week, season, 2);  // minimum reps for this week
-      const repsHit = parseInt(lastHeavy.reps) || 0;
+      const repsHit = getW531LoggedRepCount(lastHeavy.reps) || 0;
       const stalled = !lastHeavy.done || repsHit < minReps;
       if (stalled) {
         newState.stalledLifts = newState.stalledLifts || {};
@@ -531,6 +542,10 @@ const WENDLER_531 = {
   // Safe to call multiple times — only fills in absent keys, never overwrites.
   migrateState(state) {
     const s = state;
+    s.week = normalizeW531Week(s.week);
+    s.daysPerWeek = getW531DaysPerWeek();
+    if (s.cycle === undefined) s.cycle = 1;
+    if (s.rounding === undefined || s.rounding <= 0) s.rounding = 2.5;
     if (s.season        === undefined) s.season           = 'off';
     if (s.stalledLifts  === undefined) s.stalledLifts      = {};
     if (s.testWeekPending=== undefined) s.testWeekPending  = false;
