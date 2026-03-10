@@ -4,6 +4,7 @@
   --accent:#FF7A3A;--accent2:#FF8A3A;--gold:#ffd60a;
   --text:#E6EAF2;--muted:rgba(230,234,242,0.6);--border:rgba(255,255,255,0.08);
   --green:#34d399;--blue:#3b82f6;--orange:#f59e0b;--purple:#a78bfa;
+  --success-text:#ecfdf5;--success-text-muted:rgba(209,250,229,0.85);--success-surface:rgba(209,250,229,0.16);--success-border:rgba(167,243,208,0.28);
   --radius:16px;
   --sat:env(safe-area-inset-top,0px);--sab:0px;
   --sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);
@@ -275,19 +276,19 @@ select optgroup{font-weight:700}
 .exercise-guide-open-btn{width:auto;min-height:40px;padding:10px 12px;border-radius:12px;font-size:11px;line-height:1.1}
 .exercise-guide-grid{display:grid;gap:10px;margin-top:10px}
 .exercise-guide-title{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:700}
-.exercise-guide-text{font-size:12px;line-height:1.45;color:var(--text)}
-.exercise-guide-list{margin:0;padding-left:16px;display:grid;gap:4px}
+.exercise-guide-text{font-size:12px;line-height:1.45;color:var(--text);overflow-wrap:anywhere;word-break:break-word}
+.exercise-guide-list{margin:0;padding-left:16px;display:grid;gap:4px;overflow-wrap:anywhere;word-break:break-word}
 .exercise-guide-links{display:flex;gap:8px;flex-wrap:wrap}
-.exercise-guide-link{font-size:11px;color:var(--blue);text-decoration:none;border:1px solid rgba(59,130,246,0.3);padding:5px 9px;border-radius:8px}
-.exercise-guide-sheet{padding-bottom:calc(18px + var(--sab))}
-.exercise-guide-sheet-body{max-height:min(56vh,calc(var(--app-vh) - 220px));overflow-y:auto;padding-right:2px;margin-right:-2px}
+.exercise-guide-link{font-size:11px;color:var(--blue);text-decoration:none;border:1px solid rgba(59,130,246,0.3);padding:5px 9px;border-radius:8px;overflow-wrap:anywhere;word-break:break-word}
+.exercise-guide-sheet{display:flex;flex-direction:column;width:min(100%,520px);max-height:calc(var(--app-vh) - var(--sat) - 12px);padding-bottom:calc(18px + var(--sab))}
+.exercise-guide-sheet-body{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px;margin-right:-2px}
 .exercise-guide-sheet-close{margin-top:16px}
 .exercise-collapse-summary{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;border:none;background:transparent;color:inherit;font-family:inherit;text-align:left;cursor:pointer}
 .exercise-collapse-main{min-width:0;display:grid;gap:4px}
-.exercise-collapse-name{font-size:15px;font-weight:800;line-height:1.2;color:#ecfdf5;word-break:break-word}
-.exercise-collapse-meta{font-size:11px;line-height:1.35;color:rgba(209,250,229,0.85);font-family:'JetBrains Mono',monospace}
+.exercise-collapse-name{font-size:15px;font-weight:800;line-height:1.2;color:var(--success-text);word-break:break-word}
+.exercise-collapse-meta{font-size:11px;line-height:1.35;color:var(--success-text-muted);font-family:'JetBrains Mono',monospace}
 .exercise-collapse-status{flex-shrink:0}
-.exercise-collapse-badge{display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:999px;background:rgba(209,250,229,0.16);border:1px solid rgba(167,243,208,0.28);color:#d1fae5;font-size:10px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase}
+.exercise-collapse-badge{display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:999px;background:var(--success-surface);border:1px solid var(--success-border);color:var(--success-text-muted);font-size:10px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase}
 .set-input{width:100%;min-width:0}
 .set-rir{width:60px;padding:6px 4px;font-size:12px;border-radius:8px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);color:var(--blue);font-weight:700;text-align:center}
 
@@ -880,6 +881,7 @@ body.login-active::before{
   .program-day-option-badges{justify-content:flex-start}
   .settings-picker-row{align-items:flex-start}
   .program-frequency-action{flex-basis:100%}
+  .exercise-guide-sheet{max-height:calc(var(--app-vh) - var(--sat) - 6px)}
   .exercise-block{padding:14px}
   .set-grid-header,.set-row{grid-template-columns:22px minmax(0,1fr) minmax(0,1fr) 38px;gap:6px}
   .exercise-guide-open-btn{width:100%}
