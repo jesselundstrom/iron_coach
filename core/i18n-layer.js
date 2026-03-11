@@ -1354,6 +1354,8 @@ const STRINGS={
     'history.block_label':'{program} – {block} (Vk {start}-{end})',
     'history.remove_workout_from':'Poista treeni päivältä {date}?',
     'history.delete_workout':'Poista treeni',
+    'history.delete_sport':'Poista {sport}-sessio',
+    'history.remove_sport_from':'Poista {sport}-sessio päivältä {date}?',
     'history.session_deleted':'Sessio poistettu',
     'history.session_restored':'Sessio palautettu!',
     'settings.tabs.schedule':'Aikataulu',

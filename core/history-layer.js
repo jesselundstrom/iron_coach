@@ -148,6 +148,24 @@ function histRecoveryStyle(pct){
   return{color:'var(--accent)',bg:'rgba(230,57,70,0.12)',border:'rgba(230,57,70,0.3)'};
 }
 
+function histDeleteAction(w){
+  const actionLabel=trHist('common.delete','Delete');
+  const titleLabel=escapeHtml(histDeleteTitle(w));
+  return`<button class="hist-delete-btn" type="button" onclick="deleteWorkout(${w.id})" title="${titleLabel}" aria-label="${titleLabel}">${escapeHtml(actionLabel)}</button>`;
+}
+
+function histDeleteTitle(w){
+  if(!isSportWorkout(w))return trHist('history.delete_workout','Delete Workout');
+  const sportLabel=w.type==='hockey'?'Hockey':(schedule.sportName||trHist('common.sport','Sport'));
+  return trHist('history.delete_sport','Delete {sport} Session',{sport:sportLabel});
+}
+
+function histDeleteMessage(w,dateStr){
+  if(!isSportWorkout(w))return trHist('history.remove_workout_from','Remove workout from {date}?',{date:dateStr});
+  const sportLabel=w.type==='hockey'?'Hockey':(schedule.sportName||trHist('common.sport','Sport'));
+  return trHist('history.remove_sport_from','Remove {sport} session from {date}?',{sport:sportLabel,date:dateStr});
+}
+
 function histRenderCard(w,isPR,recovery){
   const d=new Date(w.date);
   const dateStr=d.toLocaleDateString(histLocale(),{weekday:'short',day:'numeric',month:'short'});
@@ -167,6 +185,7 @@ function histRenderCard(w,isPR,recovery){
             ${mins>0?`<div class="hist-sport-duration">${mins} min</div>`:''}
           </div>
         </div>
+        ${histDeleteAction(w)}
       </div>
     </div>`;
   }
@@ -241,6 +260,7 @@ function histRenderCard(w,isPR,recovery){
           <div class="hist-card-date">${escapeHtml(cardSub)}</div>
         </div>
       </div>
+      ${histDeleteAction(w)}
     </div>
     ${exRows?`<div class="hist-exercises">${exRows}</div>`:''}
     ${footerHtml}
@@ -421,26 +441,6 @@ function renderHeatmap(){
   </div>`;
 }
 
-// Long-press to delete
-let _histLongPressTimer=null;
-function histAttachLongPress(container){
-  container.addEventListener('pointerdown',e=>{
-    const card=e.target.closest('.hist-card[data-wid]');
-    if(!card)return;
-    const wid=parseInt(card.dataset.wid);
-    _histLongPressTimer=setTimeout(()=>{
-      _histLongPressTimer=null;
-      if(navigator.vibrate)navigator.vibrate(30);
-      deleteWorkout(wid);
-    },600);
-  });
-  container.addEventListener('pointerup',()=>{clearTimeout(_histLongPressTimer);_histLongPressTimer=null;});
-  container.addEventListener('pointercancel',()=>{clearTimeout(_histLongPressTimer);_histLongPressTimer=null;});
-  container.addEventListener('pointermove',e=>{
-    if(e.pointerType==='touch'&&_histLongPressTimer){clearTimeout(_histLongPressTimer);_histLongPressTimer=null;}
-  });
-}
-
 function renderHistory(){
   renderHeatmap();
   const list=document.getElementById('history-list');
@@ -449,7 +449,6 @@ function renderHistory(){
   const recovMap=histComputeRecovery();
   const groups=histGroupWorkouts();
   list.innerHTML=groups.map(g=>histRenderGroup(g,prSet,recovMap)).join('');
-  histAttachLongPress(list);
 }
 
 function deleteWorkout(id){
@@ -457,7 +456,7 @@ function deleteWorkout(id){
   if(!w)return;
   const d=new Date(w.date);
   const dateStr=d.toLocaleDateString(histLocale(),{weekday:'short',day:'numeric',month:'short'});
-  showConfirm(trHist('history.delete_workout','Delete Workout'),trHist('history.remove_workout_from','Remove workout from {date}?',{date:dateStr}),async()=>{
+  showConfirm(histDeleteTitle(w),histDeleteMessage(w,dateStr),async()=>{
     const programsBackup=JSON.parse(JSON.stringify(profile.programs||{}));
     const backup=workouts.find(x=>x.id===id);
     const affectedProgramId=getWorkoutProgramId(backup);
