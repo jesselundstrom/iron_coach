@@ -381,20 +381,23 @@ const HS_PROGRAM={
   },
 
   /* ── build session ───────────────────────────────────────────────── */
-  buildSession(selectedOption,state){
+  buildSession(selectedOption,state,context){
     const key=selectedOption||'push';
     const tmpl=TEMPLATES[key];
     if(!tmpl)return[];
     const week=state.week||1;
     const rounding=state.rounding||2.5;
-    const isDeload=WEEKS[week].deload;
+    const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const programDeload=WEEKS[week].deload;
+    const buildWeek=effectiveSessionMode==='normal'&&programDeload?Math.max(1,week-1):week;
+    const isDeload=effectiveSessionMode==='light'&&programDeload;
     const exercises=[];
 
     tmpl.forEach((slot,idx)=>{
       if(slot.liftKey){
         // Compound exercise
         const lift=state.lifts[slot.liftKey]||{tm:LIFT_DEFAULTS[slot.liftKey]||50,name:LIFT_NAMES[slot.liftKey]||slot.liftKey};
-        const rx=getPrescription(lift.tm,week,slot.isT2,rounding);
+        const rx=getPrescription(lift.tm,buildWeek,slot.isT2,rounding);
         const sets=Array.from({length:rx.sets},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));
         const tierLabel=slot.isT2?'T2':'T1';
         exercises.push({
@@ -435,13 +438,20 @@ const HS_PROGRAM={
   },
 
   /* ── labels & info ───────────────────────────────────────────────── */
-  getSessionLabel(selectedOption,state){
+  getSessionLabel(selectedOption,state,context){
     const key=selectedOption||'push';
     const week=state.week||1;
-    const w=WEEKS[week]||WEEKS[1];
+    const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const buildWeek=effectiveSessionMode==='normal'&&(WEEKS[week]||WEEKS[1])?.deload?Math.max(1,week-1):week;
+    const w=WEEKS[buildWeek]||WEEKS[1];
     const icon=w.deload?'🌊':(SESSION_ICONS[key]||'💪');
-    const blockLabel=tr('program.hs.block.'+getBlockKey(week),w.block);
-    return icon+' '+sessionLabel(key)+' · '+tr('program.hs.week_label','W{week}',{week})+' '+blockLabel+' ['+tr('program.hs.cycle_short','C{cycle}',{cycle:state.cycle||1})+']';
+    const blockLabel=tr('program.hs.block.'+getBlockKey(buildWeek),w.block);
+    return icon+' '+sessionLabel(key)+' · '+tr('program.hs.week_label','W{week}',{week:buildWeek})+' '+blockLabel+' ['+tr('program.hs.cycle_short','C{cycle}',{cycle:state.cycle||1})+']';
+  },
+
+  getSessionModeRecommendation(state){
+    const week=state?.week||1;
+    return (WEEKS[week]||WEEKS[1])?.deload?'light':'normal';
   },
 
   getBlockInfo(state){

@@ -847,6 +847,70 @@ function getSportLoadAdjustmentCode(context){
   return'sport_yesterday';
 }
 
+const SPORT_AWARE_SHAPING=Object.freeze({
+  mainLoadReductionPct:0.075,
+  auxLoadReductionPct:0.1,
+  accessoryLoadReductionPct:0.1,
+  mainMinSets:3,
+  auxMaxSets:2,
+  accessoryMaxSets:2
+});
+
+function getPlanNumericWeight(value){
+  const numeric=parseFloat(value);
+  return Number.isFinite(numeric)&&numeric>0?numeric:null;
+}
+
+function getPlanRoundingStep(context){
+  const step=parseFloat(context?.activeProgramState?.rounding);
+  return Number.isFinite(step)&&step>0?step:2.5;
+}
+
+function snapPlanWeight(value,step){
+  const safeStep=Number.isFinite(step)&&step>0?step:2.5;
+  return Math.max(0,Math.round(value/safeStep)*safeStep);
+}
+
+function getSportAwareReductionPct(exercise){
+  if(exercise?.isAccessory)return SPORT_AWARE_SHAPING.accessoryLoadReductionPct;
+  if(exercise?.isAux)return SPORT_AWARE_SHAPING.auxLoadReductionPct;
+  return SPORT_AWARE_SHAPING.mainLoadReductionPct;
+}
+
+function applySportAwareWeightReduction(exercise,context){
+  const rounding=getPlanRoundingStep(context);
+  const reductionPct=getSportAwareReductionPct(exercise);
+  let changed=false;
+  if(Number.isFinite(parseFloat(exercise?.prescribedWeight))){
+    exercise.prescribedWeight=snapPlanWeight(parseFloat(exercise.prescribedWeight)*(1-reductionPct),rounding);
+    changed=true;
+  }
+  if(Array.isArray(exercise?.sets)){
+    exercise.sets=exercise.sets.map(set=>{
+      const weight=getPlanNumericWeight(set?.weight);
+      if(weight===null)return set;
+      changed=true;
+      return{
+        ...set,
+        weight:snapPlanWeight(weight*(1-reductionPct),rounding)
+      };
+    });
+  }
+  return changed;
+}
+
+function applySportAwareVolumeReduction(exercise){
+  if(!Array.isArray(exercise?.sets)||!exercise.sets.length)return false;
+  const currentCount=exercise.sets.length;
+  let nextCount=currentCount;
+  if(exercise?.isAccessory)nextCount=Math.min(currentCount,SPORT_AWARE_SHAPING.accessoryMaxSets);
+  else if(exercise?.isAux)nextCount=Math.min(currentCount,SPORT_AWARE_SHAPING.auxMaxSets);
+  else if(currentCount>1)nextCount=Math.max(Math.min(currentCount-1,currentCount),Math.min(SPORT_AWARE_SHAPING.mainMinSets,currentCount));
+  if(nextCount>=currentCount)return false;
+  exercise.sets=exercise.sets.slice(0,nextCount);
+  return true;
+}
+
 function trimShortSessionExercises(exercises,events,timeBudgetMinutes){
   let next=exercises.slice();
   const beforeAccessory=next.length;
@@ -868,20 +932,10 @@ function trimShortSessionExercises(exercises,events,timeBudgetMinutes){
 function lightenLowerBodyForSport(exercises,events,context){
   let changed=false;
   exercises.forEach(exercise=>{
-    if(!isPlanLowerBodyExercise(exercise)||!Array.isArray(exercise.sets)||exercise.isAccessory)return;
-    if(exercise.isAux){
-      const nextCount=Math.min(exercise.sets.length,2);
-      if(nextCount<exercise.sets.length){
-        exercise.sets=exercise.sets.slice(0,nextCount);
-        changed=true;
-      }
-      return;
-    }
-    const nextCount=Math.max(3,exercise.sets.length-1);
-    if(nextCount<exercise.sets.length){
-      exercise.sets=exercise.sets.slice(0,nextCount);
-      changed=true;
-    }
+    if(!isPlanLowerBodyExercise(exercise)||!Array.isArray(exercise.sets))return;
+    const weightChanged=applySportAwareWeightReduction(exercise,context);
+    const volumeChanged=applySportAwareVolumeReduction(exercise);
+    if(weightChanged||volumeChanged)changed=true;
   });
   if(changed)events.push(createTrainingCommentaryEvent(getSportLoadAdjustmentCode(context)));
 }
@@ -1049,6 +1103,10 @@ function buildAdaptiveSessionPlan(input){
   const next=input||{};
   const context=next.context||buildPlanningContext({});
   const decision=next.decision||getTodayTrainingDecision(context);
+  const decisionImpliesLight=decision?.action==='train_light'||decision?.action==='deload';
+  const effectiveSessionMode=next.effectiveSessionMode==='light'
+    ? 'light'
+    : (decisionImpliesLight?'light':'normal');
   const prog=(window.PROGRAMS&&window.PROGRAMS[next.programId])||(typeof getActiveProgram==='function'?getActiveProgram():null);
   const baseSession=clonePlanSession(next.baseSession||[]);
   let exercises=baseSession;
@@ -1067,7 +1125,7 @@ function buildAdaptiveSessionPlan(input){
   adaptationEvents.push(...resolvedConstraints.adaptationEvents);
   if(decision.action==='shorten'||decision.timeBudgetMinutes<=35){
     exercises=trimShortSessionExercises(exercises,adaptationEvents,decision.timeBudgetMinutes||context.timeBudgetMinutes);
-  }else if(decision.action==='train_light'){
+  }else if(decision.action==='train_light'||effectiveSessionMode==='light'){
     exercises=trimShortSessionExercises(exercises,adaptationEvents,45);
   }
   if(decision.restrictionFlags?.includes('avoid_heavy_legs')){

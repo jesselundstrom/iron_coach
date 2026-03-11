@@ -154,7 +154,7 @@ const CASUAL_FULL_BODY = {
   },
 
   // ─── Build Session ────────────────────────────────────────────────────────
-  buildSession(selectedOption, state) {
+  buildSession(selectedOption, state, context) {
     const lastUsed  = state.lastExercisesUsed || [];
     const exercises = [];
 
@@ -194,7 +194,7 @@ const CASUAL_FULL_BODY = {
   },
 
   // ─── Labels & Info ────────────────────────────────────────────────────────
-  getSessionLabel(selectedOption, state) {
+  getSessionLabel(selectedOption, state, context) {
     const sc     = (state.sessionCount || 0) + 1;
     const streak = state.currentStreak || 0;
     const fireStr = streak > 1 ? ' · ' + trCFB('program.cfb.week_streak_short','{count}-wk streak',{count:streak}) : '';

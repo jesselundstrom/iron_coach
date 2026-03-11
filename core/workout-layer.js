@@ -21,20 +21,12 @@ function resetNotStartedView(){
   const state=getActiveProgramState();
   const previousSelectedOption=document.getElementById('program-day-select')?.value||'';
   if(prefs.sportReadinessCheckEnabled&&!pendingSportReadinessLevel)pendingSportReadinessLevel='none';
-  const planningContext=typeof buildPlanningContext==='function'
-    ? buildPlanningContext({
-      profile,
-      schedule,
-      workouts,
-      activeProgram:prog,
-      activeProgramState:state,
-      fatigue:typeof computeFatigue==='function'?computeFatigue():null,
-      sportContext:getPendingSportReadinessContext()
-    })
-    : null;
-  const trainingDecision=typeof getTodayTrainingDecision==='function'
-    ? getTodayTrainingDecision(planningContext)
-    : null;
+  const decisionBundle=getWorkoutStartDecisionBundle({
+    prog,
+    state,
+    sportContext:getPendingSportReadinessContext()
+  });
+  const trainingDecision=decisionBundle.trainingDecision;
   const sportLoadLevel=pendingSportReadinessLevel||'none';
   const sportLoadTiming=getEffectivePendingSportReadinessTiming();
   const showTimingStep=sportLoadLevel!=='none';
@@ -121,6 +113,7 @@ let pendingSportReadinessCallback=null;
 let pendingSportReadinessLevel='none';
 let pendingSportReadinessTiming='none';
 let pendingSportReadinessTimingTouched=false;
+let pendingSessionMode='auto';
 let collapsedExerciseCardState={};
 let activeGuideExerciseKey=null;
 let exerciseUiKeyCounter=0;
@@ -287,6 +280,143 @@ function setPendingSportReadiness(signal){
     pendingSportReadinessTimingTouched=true;
   }
   resetNotStartedView();
+}
+
+function cloneTrainingDecision(decision){
+  if(!decision||typeof decision!=='object')return decision||null;
+  return{
+    ...decision,
+    reasonCodes:[...arrayify(decision.reasonCodes)],
+    restrictionFlags:[...arrayify(decision.restrictionFlags)]
+  };
+}
+
+function isProgramBlockDeload(prog,state){
+  const blockInfo=typeof prog?.getBlockInfo==='function'?prog.getBlockInfo(state||{}):null;
+  return !!blockInfo?.isDeload;
+}
+
+function normalizeSessionMode(mode){
+  return mode==='normal'||mode==='light'||mode==='auto'?mode:'auto';
+}
+
+function isLightTrainingAction(action){
+  return action==='train_light'||action==='deload';
+}
+
+function getProgramRecommendedSessionMode(prog,state,planningContext){
+  if(typeof prog?.getSessionModeRecommendation==='function'){
+    const mode=prog.getSessionModeRecommendation(state||{},planningContext||null);
+    return mode==='light'?'light':'normal';
+  }
+  return 'normal';
+}
+
+function getRecommendedSessionMode(prog,state,decision,planningContext){
+  if(isLightTrainingAction(decision?.action))return'light';
+  return getProgramRecommendedSessionMode(prog,state,planningContext);
+}
+
+function syncPendingSessionMode(recommendedSessionMode){
+  pendingSessionMode=normalizeSessionMode(pendingSessionMode);
+  if(recommendedSessionMode!=='light'&&pendingSessionMode==='light')return pendingSessionMode;
+  return pendingSessionMode;
+}
+
+function resolveEffectiveSessionMode(selectedSessionMode,recommendedSessionMode){
+  const selected=normalizeSessionMode(selectedSessionMode);
+  if(selected==='light')return'light';
+  if(selected==='normal')return'normal';
+  return recommendedSessionMode==='light'?'light':'normal';
+}
+
+function applySessionModeToDecision(decision,effectiveSessionMode){
+  const base=cloneTrainingDecision(decision)||{};
+  if(effectiveSessionMode==='normal'&&isLightTrainingAction(base.action)){
+    return{
+      ...base,
+      action:'train',
+      autoregulationLevel:'normal'
+    };
+  }
+  if(effectiveSessionMode==='light'&&!isLightTrainingAction(base.action)&&base.action!=='rest'&&base.action!=='shorten'){
+    return{
+      ...base,
+      action:'train_light',
+      autoregulationLevel:'light'
+    };
+  }
+  return base;
+}
+
+function getWorkoutStartDecisionBundle(input){
+  const next=input||{};
+  const prog=next.prog||getActiveProgram();
+  const state=next.state||getActiveProgramState();
+  const sportContext=('sportContext' in next)?next.sportContext:getPendingSportReadinessContext();
+  const planningContext=typeof buildPlanningContext==='function'
+    ? buildPlanningContext({
+      profile,
+      schedule,
+      workouts,
+      activeProgram:prog,
+      activeProgramState:state,
+      fatigue:typeof computeFatigue==='function'?computeFatigue():null,
+      sportContext
+    })
+    : null;
+  const trainingDecision=typeof getTodayTrainingDecision==='function'
+    ? getTodayTrainingDecision(planningContext)
+    : null;
+  const recommendedSessionMode=getRecommendedSessionMode(prog,state,trainingDecision,planningContext);
+  const selectedSessionMode=syncPendingSessionMode(recommendedSessionMode);
+  const effectiveSessionMode=resolveEffectiveSessionMode(selectedSessionMode,recommendedSessionMode);
+  const effectiveDecision=applySessionModeToDecision(trainingDecision,effectiveSessionMode);
+  const sportAwareLowerBody=!!effectiveDecision?.restrictionFlags?.includes('avoid_heavy_legs');
+  return{
+    planningContext,
+    trainingDecision,
+    recommendedSessionMode,
+    selectedSessionMode,
+    effectiveSessionMode,
+    sportAwareLowerBody,
+    effectiveDecision,
+    sportContext
+  };
+}
+
+function getProgramSessionBuildContext(input){
+  const next=input||{};
+  const bundle=next.sessionModeBundle||{};
+  const selectedSessionMode=normalizeSessionMode(next.selectedSessionMode||bundle.selectedSessionMode||'auto');
+  const effectiveSessionMode=resolveEffectiveSessionMode(next.effectiveSessionMode||bundle.effectiveSessionMode||selectedSessionMode,bundle.recommendedSessionMode||'normal');
+  return{
+    preview:!!next.preview,
+    sessionMode:selectedSessionMode,
+    effectiveSessionMode:effectiveSessionMode==='light'?'light':'normal',
+    sportAwareLowerBody:bundle.sportAwareLowerBody===true||next.sportAwareLowerBody===true
+  };
+}
+
+function getProgramSessionStateForBuild(prog,state,buildContext){
+  if(!prog||!state||!buildContext)return state;
+  const week=parseInt(state.week,10);
+  if(buildContext.effectiveSessionMode!=='normal'||!Number.isFinite(week)||week<=1)return state;
+  const blockInfo=typeof prog.getBlockInfo==='function'?prog.getBlockInfo(state):null;
+  if(!blockInfo?.isDeload)return state;
+  return{
+    ...state,
+    week:Math.max(1,week-1)
+  };
+}
+
+function setPendingSessionMode(mode){
+  pendingSessionMode=normalizeSessionMode(mode);
+  if(typeof updateProgramDisplay==='function')updateProgramDisplay();
+}
+
+function setPendingWorkoutStartOverride(mode){
+  setPendingSessionMode(mode==='normal'?'normal':'auto');
 }
 
 function showSportReadinessCheck(callback){
@@ -721,11 +851,12 @@ function injectWarmupSets(exercises){
   });
 }
 
-function applyTrainingPreferencesToExercises(exercises,sportContext){
+function applyTrainingPreferencesToExercises(exercises,sportContext,options){
+  const opts=options||{};
   if(typeof buildPlanningContext==='function'&&typeof getTodayTrainingDecision==='function'&&typeof buildAdaptiveSessionPlan==='function'){
     const prog=typeof getActiveProgram==='function'?getActiveProgram():null;
     const state=typeof getActiveProgramState==='function'?getActiveProgramState():{};
-    const context=buildPlanningContext({
+    const context=opts.planningContext||buildPlanningContext({
       profile,
       schedule,
       workouts,
@@ -734,8 +865,14 @@ function applyTrainingPreferencesToExercises(exercises,sportContext){
       fatigue:typeof computeFatigue==='function'?computeFatigue():null,
       sportContext
     });
-    const decision=getTodayTrainingDecision(context);
-    const adapted=buildAdaptiveSessionPlan({programId:prog?.id,baseSession:exercises,context,decision});
+    const decision=opts.decision||getTodayTrainingDecision(context);
+    const adapted=buildAdaptiveSessionPlan({
+      programId:prog?.id,
+      baseSession:exercises,
+      context,
+      decision,
+      effectiveSessionMode:opts.effectiveSessionMode
+    });
     const commentary=(adapted&&adapted.commentary&&typeof adapted.commentary==='object')
       ? adapted.commentary
       : (typeof buildTrainingCommentaryRecord==='function'
@@ -843,10 +980,20 @@ function ensureWorkoutCommentaryRecord(workoutLike){
   return null;
 }
 
+function getEffectiveWorkoutDecisionForUi(workoutLike){
+  const decision=cloneTrainingDecision(workoutLike?.planningDecision)||{};
+  const selectedSessionMode=workoutLike?.runnerState?.selectedSessionMode
+    || (workoutLike?.runnerState?.startOverride==='normal'?'normal':'auto');
+  const effectiveSessionMode=workoutLike?.runnerState?.effectiveSessionMode
+    || resolveEffectiveSessionMode(selectedSessionMode,isLightTrainingAction(decision.action)?'light':'normal');
+  return applySessionModeToDecision(decision,effectiveSessionMode);
+}
+
 function getWorkoutCommentaryState(workoutLike,overrides){
   if(typeof buildTrainingCommentaryState!=='function')return null;
   return buildTrainingCommentaryState({
     workout:workoutLike||activeWorkout||{},
+    decision:getEffectiveWorkoutDecisionForUi(workoutLike||activeWorkout||{}),
     ...(overrides||{})
   });
 }
@@ -896,6 +1043,46 @@ function renderWorkoutDecisionPreview(decision,context){
     <div class="workout-decision-title">${escapeHtml(summary.title)}</div>
     <div class="workout-decision-copy">${escapeHtml(summary.copy)}</div>
     ${reasons.length?`<div class="workout-decision-reasons">${reasons.map(reason=>`<div class="workout-decision-chip">${escapeHtml(reason)}</div>`).join('')}</div>`:''}
+  </div>`;
+}
+
+function renderWorkoutStartDecisionCard(prog,state,decision,sessionModeBundle,context){
+  const recommendedMode=sessionModeBundle?.recommendedSessionMode==='light'?'light':'normal';
+  const displayDecision=recommendedMode==='light'&&!isLightTrainingAction(decision?.action)
+    ? applySessionModeToDecision(decision,'light')
+    : decision;
+  const summary=getWorkoutDecisionSummary(displayDecision,context);
+  if(!summary)return'';
+  const summaryVm=(typeof buildTrainingCommentaryState==='function'&&typeof presentTrainingCommentary==='function')
+    ? presentTrainingCommentary(buildTrainingCommentaryState({decision:displayDecision,context}),'workout_summary')
+    : null;
+  const reasons=summary.reasonLabels||[];
+  const selectedMode=normalizeSessionMode(sessionModeBundle?.selectedSessionMode||'auto');
+  const autoCopy=i18nText(
+    recommendedMode==='light'?'workout.session_mode.auto_copy_light':'workout.session_mode.auto_copy_normal',
+    recommendedMode==='light'
+      ? 'Follow today\'s light-session recommendation automatically.'
+      : 'Follow today\'s normal-session recommendation automatically.'
+  );
+  return `<div class="workout-decision-card workout-decision-card-actionable">
+    <div class="workout-decision-kicker">${escapeHtml(summaryVm?.kicker||i18nText('workout.plan.kicker',"Today's decision"))}</div>
+    <div class="workout-decision-title">${escapeHtml(summary.title)}</div>
+    <div class="workout-decision-copy">${escapeHtml(summary.copy)}</div>
+    ${reasons.length?`<div class="workout-decision-reasons">${reasons.map(reason=>`<div class="workout-decision-chip">${escapeHtml(reason)}</div>`).join('')}</div>`:''}
+    <div class="workout-decision-options">
+      <button class="workout-decision-option${selectedMode==='auto'?' is-active':''}" type="button" onclick="setPendingSessionMode('auto')">
+        <div class="workout-decision-option-title">${escapeHtml(i18nText('workout.session_mode.auto','Auto'))}</div>
+        <div class="workout-decision-option-copy">${escapeHtml(autoCopy)}</div>
+      </button>
+      <button class="workout-decision-option${selectedMode==='normal'?' is-active':''}" type="button" onclick="setPendingSessionMode('normal')">
+        <div class="workout-decision-option-title">${escapeHtml(i18nText('workout.session_mode.normal','Normal session'))}</div>
+        <div class="workout-decision-option-copy">${escapeHtml(i18nText('workout.session_mode.normal_copy','Keep the original plan and suppress the automatic lightening.'))}</div>
+      </button>
+      <button class="workout-decision-option${selectedMode==='light'?' is-active':''}" type="button" onclick="setPendingSessionMode('light')">
+        <div class="workout-decision-option-title">${escapeHtml(i18nText('workout.session_mode.light','Light session'))}</div>
+        <div class="workout-decision-option-copy">${escapeHtml(i18nText('workout.session_mode.light_copy','Start with the lighter session version even if today would otherwise be normal.'))}</div>
+      </button>
+    </div>
   </div>`;
 }
 
@@ -1261,24 +1448,27 @@ function beginWorkoutStart(sportContext){
   const prog=getActiveProgram();
   const state=getActiveProgramState();
   let selectedOption=document.getElementById('program-day-select')?.value;
-  const fatigue=typeof computeFatigue==='function'?computeFatigue():null;
-  const planningContext=typeof buildPlanningContext==='function'
-    ? buildPlanningContext({profile,schedule,workouts,activeProgram:prog,activeProgramState:state,fatigue,sportContext})
-    : null;
-  const trainingDecision=typeof getTodayTrainingDecision==='function'
-    ? getTodayTrainingDecision(planningContext)
-    : null;
+  const decisionBundle=getWorkoutStartDecisionBundle({prog,state,sportContext});
+  const planningContext=decisionBundle.planningContext;
+  const trainingDecision=decisionBundle.trainingDecision;
+  const effectiveDecision=decisionBundle.effectiveDecision||trainingDecision;
+  const buildContext=getProgramSessionBuildContext({sessionModeBundle:decisionBundle});
+  const buildState=getProgramSessionStateForBuild(prog,state,buildContext);
   if(!selectedOption&&trainingDecision?.recommendedSessionOption)selectedOption=trainingDecision.recommendedSessionOption;
 
-  const builtExercises=ensureWorkoutExerciseUiKeys((prog.buildSession(selectedOption,state)||[]).map(withResolvedExerciseId));
-  const sessionPrefs=applyTrainingPreferencesToExercises(builtExercises,sportContext);
+  const builtExercises=ensureWorkoutExerciseUiKeys((prog.buildSession(selectedOption,buildState,buildContext)||[]).map(withResolvedExerciseId));
+  const sessionPrefs=applyTrainingPreferencesToExercises(builtExercises,sportContext,{
+    planningContext,
+    decision:effectiveDecision,
+    effectiveSessionMode:decisionBundle.effectiveSessionMode
+  });
   const exercises=sessionPrefs.exercises;
   const prefs=normalizeTrainingPreferences(profile);
   if(prefs.warmupSetsEnabled)injectWarmupSets(exercises);
-  const label=prog.getSessionLabel(selectedOption,state);
-  const bi=prog.getBlockInfo?prog.getBlockInfo(state):{isDeload:false};
+  const label=prog.getSessionLabel(selectedOption,buildState,buildContext);
+  const bi=prog.getBlockInfo?prog.getBlockInfo(buildState):{isDeload:false};
   const sessionDescription=prog.getSessionDescription
-    ? (prog.getSessionDescription(selectedOption,state)||'')
+    ? (prog.getSessionDescription(selectedOption,buildState,buildContext)||'')
     : (bi.modeDesc||bi.name||'');
 
   activeWorkout={
@@ -1293,9 +1483,12 @@ function beginWorkoutStart(sportContext){
     planningContext:planningContext||undefined,
     commentary:sessionPrefs.commentary||undefined,
     runnerState:{
-      mode:trainingDecision?.action||'train',
+      mode:effectiveDecision?.action||trainingDecision?.action||'train',
       adjustments:[],
-      initialDecision:trainingDecision||undefined
+      initialDecision:trainingDecision||undefined,
+      selectedSessionMode:decisionBundle.selectedSessionMode||'auto',
+      effectiveSessionMode:decisionBundle.effectiveSessionMode||'normal',
+      sportAwareLowerBody:decisionBundle.sportAwareLowerBody===true
     },
     sessionDescription,
     exercises:ensureWorkoutExerciseUiKeys(exercises),
@@ -1319,23 +1512,23 @@ function beginWorkoutStart(sportContext){
   const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):(prog.name||'Training');
   showToast(bi.isDeload?i18nText('workout.deload_light','Deload - keep it light'):progName,bi.isDeload?'var(--blue)':'var(--purple)');
   const commentaryState=getWorkoutCommentaryState(activeWorkout);
-  const decisionSummary=getWorkoutDecisionSummary(trainingDecision,planningContext);
+  const decisionSummary=getWorkoutDecisionSummary(effectiveDecision,planningContext);
   const startToast=(typeof presentTrainingCommentary==='function'&&commentaryState)
     ? presentTrainingCommentary(commentaryState,'workout_start_toast')
     : null;
   const decisionToastColor=getTrainingToastColor(startToast||commentaryState);
-  const changeToastColor=(trainingDecision?.restrictionFlags||[]).includes('avoid_heavy_legs')
+  const changeToastColor=(effectiveDecision?.restrictionFlags||[]).includes('avoid_heavy_legs')
     ? 'var(--orange)'
     : decisionToastColor;
-  if(decisionSummary&&trainingDecision&&(trainingDecision.action!=='train'||trainingDecision.restrictionFlags?.includes('avoid_heavy_legs'))){
+  if(decisionSummary&&effectiveDecision&&(effectiveDecision.action!=='train'||effectiveDecision.restrictionFlags?.includes('avoid_heavy_legs'))){
     setTimeout(()=>showToast(startToast?.text||decisionSummary.title,decisionToastColor),700);
   }
   if(sessionPrefs.changes.length){
-    setTimeout(()=>showToast(sessionPrefs.changes[0],changeToastColor),trainingDecision&&(trainingDecision.action!=='train'||trainingDecision.restrictionFlags?.includes('avoid_heavy_legs'))?1800:900);
+    setTimeout(()=>showToast(sessionPrefs.changes[0],changeToastColor),effectiveDecision&&(effectiveDecision.action!=='train'||effectiveDecision.restrictionFlags?.includes('avoid_heavy_legs'))?1800:900);
   }
   if(sessionPrefs.equipmentHint){
     const baseDelay=sessionPrefs.changes.length?2600:900;
-    const decisionDelay=trainingDecision&&(trainingDecision.action!=='train'||trainingDecision.restrictionFlags?.includes('avoid_heavy_legs'))?900:0;
+    const decisionDelay=effectiveDecision&&(effectiveDecision.action!=='train'||effectiveDecision.restrictionFlags?.includes('avoid_heavy_legs'))?900:0;
     setTimeout(()=>showToast(sessionPrefs.equipmentHint,'var(--blue)'),baseDelay+decisionDelay);
   }
 
@@ -2215,7 +2408,11 @@ async function finishWorkout(){
     planningDecision:activeWorkout.planningDecision||undefined,
     runnerState:activeWorkout.runnerState?{
       mode:activeWorkout.runnerState.mode,
-      adjustments:(activeWorkout.runnerState.adjustments||[]).slice()
+      adjustments:(activeWorkout.runnerState.adjustments||[]).slice(),
+      initialDecision:activeWorkout.runnerState.initialDecision?cloneTrainingDecision(activeWorkout.runnerState.initialDecision):undefined,
+      selectedSessionMode:activeWorkout.runnerState.selectedSessionMode||undefined,
+      effectiveSessionMode:activeWorkout.runnerState.effectiveSessionMode||undefined,
+      sportAwareLowerBody:activeWorkout.runnerState.sportAwareLowerBody===true
     }:undefined,
     programStateBefore:stateBeforeSession,
     duration:getWorkoutElapsedSeconds(),exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets};

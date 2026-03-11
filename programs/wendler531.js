@@ -300,11 +300,17 @@ const WENDLER_531 = {
     const season   = state.season || 'off';
     const rounding = state.rounding || 2.5;
     const lifts    = state.lifts.main;
-    const scheme   = W531.weekScheme[week] || W531.weekScheme[1];
+    const requestedSessionMode=context?.sessionMode||'auto';
+    const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const suppressProgramDeload=effectiveSessionMode==='normal'&&(W531.weekScheme[week] || W531.weekScheme[1])?.isDeload&&!state.testWeekPending;
+    const schemeWeek=suppressProgramDeload?Math.max(1,week-1):week;
+    const scheme   = W531.weekScheme[schemeWeek] || W531.weekScheme[1];
     const isDeload = scheme.isDeload && !state.testWeekPending;
     const isTest   = week === 4 && !!state.testWeekPending;
     const previewMode=!!context?.preview;
-    const readiness = _readiness;
+    let readiness = _readiness;
+    if(requestedSessionMode==='normal')readiness='default';
+    else if(requestedSessionMode==='light')readiness='light';
     if(!previewMode)_readiness = 'default'; // reset after capturing — prevents stale readiness leaking into next session
     const exercises = [];
 
@@ -406,19 +412,29 @@ const WENDLER_531 = {
   },
 
   // ─── Labels & Info ────────────────────────────────────────────────────────
-  getSessionLabel(selectedOption, state) {
+  getSessionLabel(selectedOption, state, context) {
     const dayNum = parseInt(selectedOption) || 1;
     const week   = state.week || 1;
     const cycle  = state.cycle || 1;
     const freq   = getW531DaysPerWeek();
     const season = state.season || 'off';
-    const scheme = W531.weekScheme[week] || W531.weekScheme[1];
+    const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const suppressProgramDeload=effectiveSessionMode==='normal'&&(W531.weekScheme[week] || W531.weekScheme[1])?.isDeload&&!state.testWeekPending;
+    const schemeWeek=suppressProgramDeload?Math.max(1,week-1):week;
+    const scheme = W531.weekScheme[schemeWeek] || W531.weekScheme[1];
     const isTest = week===4 && !!state.testWeekPending;
     const names  = this._dayLifts(dayNum, freq)
                        .map(i => state.lifts.main[i]?.name||'').join('+');
     const icon   = isTest ? '🔬' : scheme.isDeload ? '🌊' : season==='off' ? '🏗️' : '🏒';
-    const tag    = isTest ? trW531('program.w531.tm_test','TM Test') : getW531SchemeName(week);
-    return icon+' C'+cycle+' W'+week+' · '+names+' ['+tag+']';
+    const tag    = isTest ? trW531('program.w531.tm_test','TM Test') : getW531SchemeName(schemeWeek);
+    return icon+' C'+cycle+' W'+schemeWeek+' · '+names+' ['+tag+']';
+  },
+
+  getSessionModeRecommendation(state) {
+    const week=state?.week||1;
+    const scheme=W531.weekScheme[week]||W531.weekScheme[1];
+    if((scheme.isDeload&&!state?.testWeekPending)||_readiness==='light'||_readiness==='none')return'light';
+    return'normal';
   },
 
   getBlockInfo(state) {
@@ -618,26 +634,6 @@ const WENDLER_531 = {
     const exercises=JSON.parse(JSON.stringify(baseSession||[]));
     const adaptationEvents=[];
     let changed=false;
-    if(decision?.restrictionFlags?.includes('avoid_heavy_legs')){
-      exercises.forEach(exercise=>{
-        const meta=window.EXERCISE_LIBRARY?.getExerciseMeta?(EXERCISE_LIBRARY.getExerciseMeta(exercise.exerciseId||exercise.name)):null;
-        const tags=meta?.movementTags||[];
-        const isLegPattern=tags.includes('squat')||tags.includes('hinge')||tags.includes('single_leg');
-        if(!isLegPattern||!Array.isArray(exercise?.sets))return;
-        if(exercise.name&&exercise.name.includes('(BBB)')&&exercise.sets.length>3){
-          exercise.sets=exercise.sets.slice(0,3);
-          changed=true;
-          return;
-        }
-        if(exercise.isAux&&exercise.sets.length>2){
-          exercise.sets=exercise.sets.slice(0,2);
-          changed=true;
-        }
-      });
-      if(changed&&typeof createTrainingCommentaryEvent==='function'){
-        adaptationEvents.push(createTrainingCommentaryEvent('program_sport_trimmed',{programId:'wendler531',programName:'Wendler 5/3/1'}));
-      }
-    }
     if((planningContext?.limitations?.jointFlags||[]).includes('shoulder')){
       const removedBefore=exercises.length;
       const kept=exercises.filter(exercise=>{

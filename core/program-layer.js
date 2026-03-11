@@ -512,15 +512,35 @@ function getProgramOptionDayNumber(option){
   return fromLabel?fromLabel[0]:'';
 }
 
-function getProgramPreviewSession(prog,optionValue,state,sportContext){
+function getProgramPreviewSession(prog,optionValue,state,sportContext,planningContext,sessionModeBundle){
   if(!prog||!prog.buildSession)return [];
-  let preview=cloneProgramSession(prog.buildSession(optionValue,state)||[]);
+  const effectiveDecision=sessionModeBundle?.effectiveDecision||sessionModeBundle?.trainingDecision||null;
+  const buildContext=(typeof getProgramSessionBuildContext==='function')
+    ? getProgramSessionBuildContext({preview:true,sessionModeBundle})
+    : {preview:true};
+  const buildState=(typeof getProgramSessionStateForBuild==='function')
+    ? getProgramSessionStateForBuild(prog,state,buildContext)
+    : state;
+  let preview=cloneProgramSession(prog.buildSession(optionValue,buildState,buildContext)||[]);
   if(typeof withResolvedExerciseId==='function')preview=preview.map(withResolvedExerciseId);
   if(typeof applyTrainingPreferencesToExercises==='function'){
-    const adjusted=applyTrainingPreferencesToExercises(preview,sportContext);
+    const adjusted=applyTrainingPreferencesToExercises(preview,sportContext,{
+      planningContext,
+      decision:effectiveDecision,
+      effectiveSessionMode:sessionModeBundle?.effectiveSessionMode
+    });
     preview=adjusted?.exercises||preview;
   }
   return preview;
+}
+
+function getProgramPreviewBuildState(prog,state,sessionModeBundle){
+  const buildContext=(typeof getProgramSessionBuildContext==='function')
+    ? getProgramSessionBuildContext({preview:true,sessionModeBundle})
+    : {preview:true};
+  return(typeof getProgramSessionStateForBuild==='function')
+    ? getProgramSessionStateForBuild(prog,state,buildContext)
+    : state;
 }
 
 function getProgramPreviewExerciseMeta(exercise){
@@ -547,11 +567,12 @@ function getProgramPreviewHeaderChips(prog,state,session){
   return chips.slice(0,3);
 }
 
-function renderProgramSessionPreview(prog,state,selectedOption,sportContext){
+function renderProgramSessionPreview(prog,state,selectedOption,sportContext,planningContext,sessionModeBundle){
   const container=document.getElementById('program-session-preview');
   if(!container||!selectedOption){if(container)container.innerHTML='';return;}
-  const session=getProgramPreviewSession(prog,selectedOption.value,state,sportContext);
-  const chips=getProgramPreviewHeaderChips(prog,state,session);
+  const previewState=getProgramPreviewBuildState(prog,state,sessionModeBundle);
+  const session=getProgramPreviewSession(prog,selectedOption.value,state,sportContext,planningContext,sessionModeBundle);
+  const chips=getProgramPreviewHeaderChips(prog,previewState,session);
   const title=cleanProgramOptionLabel(selectedOption.label)||trProg('workout.training_day','Training Day');
   const dayNumber=getProgramOptionDayNumber(selectedOption);
   const headerTitle=dayNumber?`${trProg('workout.day','Day')} ${dayNumber}`:title;
@@ -598,19 +619,20 @@ function getProgramTodayMuscleTags(planningContext){
     .slice(0,3);
 }
 
-function renderProgramTodayPanels(trainingDecision,planningContext,selectedOption){
+function renderProgramTodayPanels(prog,state,trainingDecision,sessionModeBundle,planningContext,selectedOption){
   const todayPanel=document.getElementById('program-today-panel');
   const warningPanel=document.getElementById('program-warning-panel');
   if(todayPanel)todayPanel.innerHTML='';
   if(warningPanel)warningPanel.innerHTML='';
   if(!todayPanel)return;
+  const effectiveDecision=sessionModeBundle?.effectiveDecision||trainingDecision;
   const fatigue=planningContext?.fatigue||computeFatigue();
   const recovery=Math.max(0,100-(fatigue?.overall||0));
   const guidance=(typeof getPreferenceGuidance==='function')
-    ? getPreferenceGuidance(profile,{canPushVolume:recovery>=70&&trainingDecision?.action==='train'})
+    ? getPreferenceGuidance(profile,{canPushVolume:recovery>=70&&effectiveDecision?.action==='train'})
     : [];
   const commentaryState=(typeof buildTrainingCommentaryState==='function')
-    ? buildTrainingCommentaryState({decision:trainingDecision,context:planningContext})
+    ? buildTrainingCommentaryState({decision:effectiveDecision||trainingDecision,context:planningContext})
     : null;
   const summary=(typeof presentTrainingCommentary==='function'&&commentaryState)
     ? presentTrainingCommentary(commentaryState,'workout_summary')
@@ -629,6 +651,16 @@ function renderProgramTodayPanels(trainingDecision,planningContext,selectedOptio
       ${tags.length?`<div class="workout-today-tags">${tags.map(tag=>`<span class="workout-today-tag is-${escapeHtml(tag.level)}">${escapeHtml(tag.name)} ${escapeHtml(tag.label)}</span>`).join('')}</div>`:''}
     </div>
   </div>`;
+  if(typeof renderWorkoutStartDecisionCard==='function'){
+    const decisionCard=renderWorkoutStartDecisionCard(prog,state,trainingDecision||effectiveDecision,sessionModeBundle,planningContext);
+    if(decisionCard&&warningPanel){
+      warningPanel.innerHTML=`<div class="workout-today-section">
+        <div class="workout-today-section-label">${escapeHtml(trProg('workout.plan.kicker',"Today's decision"))}</div>
+        ${decisionCard}
+      </div>`;
+      return;
+    }
+  }
   if(!warningPanel||!warningSummary)return;
   const needsWarning=(trainingDecision?.action&&trainingDecision.action!=='train')
     || (trainingDecision?.restrictionFlags||[]).includes('avoid_heavy_legs')
@@ -681,22 +713,29 @@ function updateProgramDisplay(){
     const progName=trProg('program.'+prog.id+'.name',prog.name);
     info.textContent=[progName,bi.name,bi.weekLabel].filter(Boolean).join(' - ');
   }
-  const planningContext=typeof buildPlanningContext==='function'
-    ? buildPlanningContext({
-      profile,
-      schedule,
-      workouts,
-      activeProgram:prog,
-      activeProgramState:state,
-      fatigue:typeof computeFatigue==='function'?computeFatigue():null,
-      sportContext
-    })
-    : null;
-  const trainingDecision=typeof getTodayTrainingDecision==='function'
+  const decisionBundle=(typeof getWorkoutStartDecisionBundle==='function')
+    ? getWorkoutStartDecisionBundle({prog,state,sportContext})
+    : {
+      planningContext:(typeof buildPlanningContext==='function'
+        ? buildPlanningContext({
+          profile,
+          schedule,
+          workouts,
+          activeProgram:prog,
+          activeProgramState:state,
+          fatigue:typeof computeFatigue==='function'?computeFatigue():null,
+          sportContext
+        })
+        : null),
+      trainingDecision:null,
+      effectiveDecision:null
+    };
+  const planningContext=decisionBundle.planningContext;
+  const trainingDecision=decisionBundle.trainingDecision||(typeof getTodayTrainingDecision==='function'
     ? getTodayTrainingDecision(planningContext)
-    : null;
-  renderProgramSessionPreview(prog,state,selectedOption,sportContext);
-  renderProgramTodayPanels(trainingDecision,planningContext,selectedOption);
+    : null);
+  renderProgramSessionPreview(prog,state,selectedOption,sportContext,planningContext,decisionBundle);
+  renderProgramTodayPanels(prog,state,trainingDecision,decisionBundle,planningContext,selectedOption);
 }
 
 function onDaySelectChange(){updateProgramDisplay();}

@@ -380,7 +380,7 @@ select optgroup{font-weight:700}
 .workout-decision-copy{font-size:12px;line-height:1.5;color:var(--muted);margin-top:4px}
 .workout-decision-reasons{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .workout-decision-chip{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase}
-.workout-decision-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.workout-decision-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
 .workout-decision-option{display:grid;gap:6px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:inherit;text-align:left;font:inherit;cursor:pointer;transition:border-color 0.15s,background-color 0.15s,transform 0.15s}
 .workout-decision-option:active{transform:scale(0.985)}
 .workout-decision-option.is-active{border-color:rgba(245,130,31,0.4);background:rgba(245,130,31,0.08)}

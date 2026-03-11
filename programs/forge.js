@@ -331,15 +331,18 @@ const FORGE_PROGRAM={
     });
   },
 
-  buildSession(selectedOption,state){
+  buildSession(selectedOption,state,context){
     const dayNum=parseInt(selectedOption)||1;
     const week=state.week||1,freq=getForgeDaysPerWeek(),rounding=state.rounding||2.5,mode=state.mode||'sets';
+    const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const programDeload=FORGE_INTERNAL.deloadWeeks.includes(week);
+    const prescriptionWeek=effectiveSessionMode==='normal'&&programDeload?Math.max(1,week-1):week;
     const lifts=state.lifts;
-    const isDeload=FORGE_INTERNAL.deloadWeeks.includes(week);
+    const isDeload=effectiveSessionMode==='light'&&programDeload;
     const dayExercises=FORGE_INTERNAL.getDayExercises(dayNum,freq,lifts);
     const exercises=[];
     dayExercises.forEach(ex=>{
-      const rx=FORGE_INTERNAL.getPrescription(ex.tm,week,ex.isAux,rounding,mode);
+      const rx=FORGE_INTERNAL.getPrescription(ex.tm,prescriptionWeek,ex.isAux,rounding,mode);
       let auxSlotIdx=-1;if(ex.isAux)auxSlotIdx=lifts.aux.findIndex(a=>a.name===ex.name);
       let sets;
       if(mode==='rtf'&&!isDeload){sets=Array.from({length:rx.normalSets},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));sets.push({weight:rx.weight,reps:'AMRAP',done:false,rpe:null,isAmrap:true,repOutTarget:rx.repOutTarget});}
@@ -352,11 +355,19 @@ const FORGE_PROGRAM={
     return exercises;
   },
 
-  getSessionLabel(selectedOption,state){
+  getSessionLabel(selectedOption,state,context){
     const dayNum=parseInt(selectedOption)||1,week=state.week||1;
-    const isDeload=FORGE_INTERNAL.deloadWeeks.includes(week),mode=state.mode||'sets';
+    const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const programDeload=FORGE_INTERNAL.deloadWeeks.includes(week);
+    const labelWeek=effectiveSessionMode==='normal'&&programDeload?Math.max(1,week-1):week;
+    const isDeload=effectiveSessionMode==='light'&&programDeload,mode=state.mode||'sets';
     const modeTag=getForgeModeName(mode);
-    return(isDeload?'🌊':'🏋️')+' '+trForge('program.forge.session_label','W{week} Day {day} · {block} [{mode}]',{week,day:dayNum,block:getForgeBlockName(FORGE_INTERNAL.blockNames[week]||''),mode:modeTag});
+    return(isDeload?'🌊':'🏋️')+' '+trForge('program.forge.session_label','W{week} Day {day} · {block} [{mode}]',{week:labelWeek,day:dayNum,block:getForgeBlockName(FORGE_INTERNAL.blockNames[labelWeek]||''),mode:modeTag});
+  },
+
+  getSessionModeRecommendation(state){
+    const week=state?.week||1;
+    return FORGE_INTERNAL.deloadWeeks.includes(week)?'light':'normal';
   },
 
   getBlockInfo(state){
@@ -476,22 +487,6 @@ const FORGE_PROGRAM={
   adaptSession(baseSession,planningContext,decision){
     const exercises=JSON.parse(JSON.stringify(baseSession||[]));
     const adaptationEvents=[];
-    let changed=false;
-    if(decision?.restrictionFlags?.includes('avoid_heavy_legs')){
-      exercises.forEach(exercise=>{
-        if(!exercise?.isAux||exercise?.isAccessory)return;
-        const meta=window.EXERCISE_LIBRARY?.getExerciseMeta?(EXERCISE_LIBRARY.getExerciseMeta(exercise.exerciseId||exercise.name)):null;
-        const tags=meta?.movementTags||[];
-        if(!(tags.includes('squat')||tags.includes('hinge')||tags.includes('single_leg')))return;
-        if(Array.isArray(exercise.sets)&&exercise.sets.length>2){
-          exercise.sets=exercise.sets.slice(0,2);
-          changed=true;
-        }
-      });
-      if(changed&&typeof createTrainingCommentaryEvent==='function'){
-        adaptationEvents.push(createTrainingCommentaryEvent('program_sport_trimmed',{programId:'forge',programName:'Forge'}));
-      }
-    }
     const equipmentHint=(planningContext?.equipmentAccess==='home_gym'||planningContext?.equipmentAccess==='minimal')
       ? (typeof createTrainingCommentaryEvent==='function'
         ? createTrainingCommentaryEvent('same_pattern_swaps',{programId:'forge',programName:'Forge'})

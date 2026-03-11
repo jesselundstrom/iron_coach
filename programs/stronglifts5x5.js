@@ -106,7 +106,7 @@ const STRONGLIFTS_5X5={
     ];
   },
 
-  buildSession(selectedOption,state){
+  buildSession(selectedOption,state,context){
     const wk=selectedOption==='B'?'B':'A';
     const keys=wk==='A'?this._workoutA:this._workoutB;
     const rounding=state.rounding||2.5;
@@ -143,7 +143,7 @@ const STRONGLIFTS_5X5={
     return exercises;
   },
 
-  getSessionLabel(selectedOption,state){
+  getSessionLabel(selectedOption,state,context){
     const wk=selectedOption==='B'?'B':'A';
     return'📈 '+trSL('program.sl.workout','Workout')+' '+wk+' · '+trSL('common.session','Session')+' '+((state.sessionCount||0)+1);
   },
