@@ -300,7 +300,7 @@ function renderCoachingInsightsCard(insights){
   const bullets=[
     insights.adherenceSummary,
     insights.progressionSummary,
-    bestDays.length?trDash('dashboard.insights.best_days_line','Treenaat tasaisimmin päivinä {days}.',{days:bestDays.join(' / ')}):'',
+    bestDays.length?trDash('dashboard.insights.best_days_line','Treenaat useimmiten {days}.',{days:bestDays.join(' / ')}):'',
     ...(insights.frictionItems||[])
   ].filter(Boolean).slice(0,4);
   const recType=insights.recommendation?.type||'continue';
@@ -400,7 +400,7 @@ function renderDashboardTodayPlan(input){
   );
   const bestDaysText=bestDays.length
     ? highlightDashboardText(
-      trDash('dashboard.insights.best_days_line','Treenaat tasaisimmin päivinä {days}.',{days:bestDays.join(' / ')}),
+      trDash('dashboard.insights.best_days_line','Treenaat useimmiten {days}.',{days:bestDays.join(' / ')}),
       [bestDays.join(' / ')]
     )
     : highlightDashboardText((coachingInsights.frictionItems||[])[0]||'',[]);
@@ -422,9 +422,9 @@ function renderDashboardTodayPlan(input){
     }
   ];
   const insights=[
-    {icon:adherenceRate>=50?'📈':'📉',text:adherenceText},
-    {icon:progressMetric.color==='green'?'📈':'📊',text:progressionText||sanitizeDashboardRichText(coachingInsights.progressionSummary||'')},
-    {icon:'📅',text:bestDaysText}
+    {tone:adherenceRate>=50?'orange':'neutral',text:adherenceText},
+    {tone:progressMetric.color==='green'?'green':(progressMetric.color==='red'?'red':'blue'),text:progressionText||sanitizeDashboardRichText(coachingInsights.progressionSummary||'')},
+    {tone:'blue',text:bestDaysText}
   ].filter(item=>item.text);
   const muscles=getDashboardPlanMuscleBars(4);
   return `<div class="dashboard-plan-stack">
@@ -440,7 +440,7 @@ function renderDashboardTodayPlan(input){
       <article class="dashboard-plan-card dashboard-plan-stats-card">
         <div class="dashboard-plan-card-head">${escapeHtml(trDash('workout.today.last_30_days','Viimeiset 30 päivää'))}</div>
         <div class="dashboard-plan-stats-grid">${stats.map((stat,index)=>`<div class="dashboard-plan-stat${index<stats.length-1?' has-divider':''}"><div class="dashboard-plan-stat-value is-${escapeHtml(stat.color)}">${escapeHtml(stat.value)}</div><div class="dashboard-plan-stat-label">${escapeHtml(stat.label)}</div></div>`).join('')}</div>
-        <div class="dashboard-plan-insight-list">${insights.map((item,index)=>`<div class="dashboard-plan-insight-row${index===insights.length-1?' is-last':''}"><span class="dashboard-plan-insight-icon" aria-hidden="true">${item.icon}</span><span class="dashboard-plan-insight-text">${sanitizeDashboardRichText(item.text)}</span></div>`).join('')}</div>
+        <div class="dashboard-plan-insight-list">${insights.map((item,index)=>`<div class="dashboard-plan-insight-row is-${escapeHtml(item.tone)}${index===insights.length-1?' is-last':''}"><span class="dashboard-plan-insight-text">${sanitizeDashboardRichText(item.text)}</span></div>`).join('')}</div>
       </article>
     </section>
     <section class="dashboard-plan-section dashboard-plan-section-muscle">
