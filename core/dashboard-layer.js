@@ -77,7 +77,7 @@ function updateFatigueBars(f){
   const overallValueEl=document.getElementById('recovery-overall-value');
   if(overallValueEl)overallValueEl.textContent=overallRec+'%';
   const overallCopyEl=document.getElementById('recovery-overall-copy');
-  if(overallCopyEl)overallCopyEl.textContent=badgeText;
+  if(overallCopyEl)overallCopyEl.textContent='';
   const badgeEl=document.getElementById('recovery-badge');
   if(badgeEl)badgeEl.innerHTML=`<span class="readiness-status ${badgeCls}"><span class="readiness-status-dot" aria-hidden="true"></span><span class="readiness-status-text">${badgeText}</span></span>`;
 }
@@ -436,7 +436,7 @@ function renderDashboardTodayPlan(input){
       </article>
     </section>
     <section class="dashboard-plan-section dashboard-plan-section-stats">
-      <div class="dashboard-plan-section-label">${escapeHtml(trDash('workout.today.block_stats','Lohkon tilastot'))}</div>
+      <div class="dashboard-plan-section-label">${escapeHtml(trDash('workout.today.block_stats','Trendit'))}</div>
       <article class="dashboard-plan-card dashboard-plan-stats-card">
         <div class="dashboard-plan-card-head">${escapeHtml(trDash('workout.today.last_30_days','Viimeiset 30 päivää'))}</div>
         <div class="dashboard-plan-stats-grid">${stats.map((stat,index)=>`<div class="dashboard-plan-stat${index<stats.length-1?' has-divider':''}"><div class="dashboard-plan-stat-value is-${escapeHtml(stat.color)}">${escapeHtml(stat.value)}</div><div class="dashboard-plan-stat-label">${escapeHtml(stat.label)}</div></div>`).join('')}</div>
