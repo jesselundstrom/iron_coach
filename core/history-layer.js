@@ -1,4 +1,4 @@
-﻿function switchHistoryTab(tab,e){
+function switchHistoryTab(tab,e){
   document.querySelectorAll('#page-history .tab').forEach(t=>t.classList.remove('active'));
   e.target.classList.add('active');
   document.getElementById('history-log').style.display=tab==='log'?'block':'none';
@@ -9,6 +9,10 @@
 function trHist(key,fallback,params){
   if(window.I18N)return I18N.t(key,params,fallback);
   return fallback;
+}
+
+function histLocale(){
+  return(window.I18N&&I18N.getLanguage()==='fi')?'fi-FI':'en-GB';
 }
 
 function histDisplayName(input){
@@ -97,7 +101,7 @@ function histGroupWorkouts(){
   for(const w of sorted){
     if(isSportWorkout(w)){
       const sportLabel=w.type==='hockey'?'Hockey':(schedule.sportName||trHist('common.sport','Sport'));
-      const mo=new Date(w.date).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+      const mo=new Date(w.date).toLocaleDateString(histLocale(),{month:'long',year:'numeric'});
       addToGroup('sport-'+mo,sportLabel+' - '+mo,trHist('history.sport','Sport'),'sport','all','',w);
       continue;
     }
@@ -114,14 +118,19 @@ function histGroupWorkouts(){
       const gIcon=meta.season==='in'?'IN':'OFF';
       const weekMap={1:trHist('program.w531.wave5','5s Wave'),2:trHist('program.w531.wave3','3s Wave'),3:trHist('program.w531.week531','5/3/1 Week'),4:meta.testWeekPending?trHist('program.w531.tm_test','TM Test'):trHist('program.w531.deload','Deload')};
       const wKey=week?'w'+week:'wx';
-      const wLabel=week?'Week '+week+' - '+(weekMap[week]||''):'Ungrouped';
+      const wLabel=week?trHist('history.week_label','WEEK {week}',{week})+' - '+(weekMap[week]||''):'Ungrouped';
       addToGroup(gKey,gLabel,gIcon,'wendler531',wKey,wLabel,w);
     } else if(prog==='forge'){
       const blockNum=week<=7?1:week<=14?2:3;
-      const blockNames={1:'Hypertrophy (Wks 1-7)',2:'Strength (Wks 8-14)',3:'Peaking (Wks 15-21)'};
+      const blockKeys={1:'program.forge.block.hypertrophy',2:'program.forge.block.strength',3:'program.forge.block.peaking'};
+      const blockFallbacks={1:'Hypertrophy',2:'Strength',3:'Peaking'};
+      const blockRanges={1:{start:1,end:7},2:{start:8,end:14},3:{start:15,end:21}};
+      const blockName=trHist(blockKeys[blockNum],blockFallbacks[blockNum]);
+      const range=blockRanges[blockNum];
       const gKey='forge-b'+blockNum;
-      const gLabel='Forge - '+(blockNames[blockNum]||'Block '+blockNum);
-      addToGroup(gKey,gLabel,'FG','forge',week?'w'+week:'wx',week?'Week '+week:'Sessions',w);
+      const gLabel=trHist('history.block_label','{program} – {block} (Wk {start}-{end})',{program:'Forge',block:blockName,start:range.start,end:range.end});
+      const wLabel=week?trHist('history.week_label','WEEK {week}',{week}):trHist('dashboard.sessions_left','Sessions');
+      addToGroup(gKey,gLabel,'FG','forge',week?'w'+week:'wx',wLabel,w);
     } else if(prog==='stronglifts5x5'){
       addToGroup('sl5x5','StrongLifts 5x5','SL','stronglifts5x5','all','',w);
     } else {
@@ -141,25 +150,22 @@ function histRecoveryStyle(pct){
 
 function histRenderCard(w,isPR,recovery){
   const d=new Date(w.date);
-  const dateStr=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'});
+  const dateStr=d.toLocaleDateString(histLocale(),{weekday:'short',day:'numeric',month:'short'});
   const mins=Math.floor((w.duration||0)/60);
   const isExtra=w.subtype==='extra';
 
   if(isSportWorkout(w)){
     const sportLabel=w.type==='hockey'?'Hockey':(schedule.sportName||trHist('common.sport','Sport'));
     const sLabel=isExtra?trHist('history.extra_sport_session','Extra {sport} Session',{sport:sportLabel}):trHist('history.sport_session','{sport} Session',{sport:sportLabel});
-    return`<div class="hist-card hist-sport-card">
+    return`<div class="hist-card hist-sport-card" data-wid="${w.id}">
       <div class="hist-card-header">
         <div class="hist-card-left">
-          <span class="hist-lift-icon">${trHist('history.sport','Sport')}</span>
+          <span class="hist-lift-icon hist-icon-sport">${trHist('history.sport','Sport')}</span>
           <div>
             <div class="hist-card-title">${escapeHtml(sLabel)}</div>
             <div class="hist-card-date">${dateStr}</div>
             ${mins>0?`<div class="hist-sport-duration">${mins} min</div>`:''}
           </div>
-        </div>
-        <div class="hist-card-badges">
-          <button class="hist-delete-btn" onclick="deleteWorkout(${w.id})" title="${trHist('common.delete','Delete')}">X</button>
         </div>
       </div>
     </div>`;
@@ -170,9 +176,25 @@ function histRenderCard(w,isPR,recovery){
   const mainEx=(w.exercises||[]).find(e=>MAIN.some(l=>e.name.includes(l)));
   const liftIcon=histLiftIcon(mainEx?.name||(w.exercises||[])[0]?.name||'');
 
-  // Short label - strip emoji from programLabel if present
-  const rawLabel=w.programLabel||'';
-  const shortLabel=rawLabel.replace(/^[\u{1F300}-\u{1FFFF}\u2600-\u27FF]\s*/u,'').trim()||dateStr;
+  // Build card title from programMeta
+  const meta=w.programMeta||{};
+  let cardTitle;
+  if(w.program==='forge'&&meta.week){
+    const blockNum=meta.week<=7?1:meta.week<=14?2:3;
+    const blockKeys={1:'program.forge.block.hypertrophy',2:'program.forge.block.strength',3:'program.forge.block.peaking'};
+    const blockFallbacks={1:'Hypertrophy',2:'Strength',3:'Peaking'};
+    const blockName=trHist(blockKeys[blockNum],blockFallbacks[blockNum]);
+    const weekDay=trHist('history.card.week_day','Week {week} · Day {day}',{week:meta.week,day:w.programDayNum||1});
+    cardTitle=weekDay+' \u2014 '+blockName;
+  } else {
+    // Fallback: strip emoji from programLabel
+    const rawLabel=w.programLabel||'';
+    cardTitle=rawLabel.replace(/^[\u{1F300}-\u{1FFFF}\u2600-\u27FF]\s*/u,'').trim()||d.toLocaleDateString(histLocale(),{weekday:'long',day:'numeric',month:'short'});
+  }
+
+  // Subtitle: date + session description
+  const descPart=w.sessionDescription?' \u00B7 '+w.sessionDescription:'';
+  const cardSub=dateStr+descPart;
 
   // Tonnage
   let tonnage=0;
@@ -182,13 +204,14 @@ function histRenderCard(w,isPR,recovery){
     });
   });
 
-  // Badges
-  const prBadge=isPR?`<span class="hist-pr-badge">Rep PR</span>`:'';
+  // Badges — recovery + duration inline
   const rs=histRecoveryStyle(recovery);
-  const recovBadge=rs?`<span class="hist-recovery-tag" style="background:${rs.bg};color:${rs.color};border-color:${rs.border}">${recovery}%</span>`:'';
+  const recovBadge=rs?` <span class="hist-recovery-tag" style="background:${rs.bg};color:${rs.color};border-color:${rs.border}">${recovery}%</span>`:'';
+  const durationBadge=mins>0?` <span class="hist-meta-tag">${mins}min</span>`:'';
 
   // Exercise rows
-  const exRows=(w.exercises||[]).filter(ex=>ex.sets.some(s=>s.done)).map(ex=>{
+  const completedExercises=(w.exercises||[]).filter(ex=>ex.sets.some(s=>s.done));
+  const exRows=completedExercises.map(ex=>{
     const done=ex.sets.filter(s=>s.done);
     const maxKg=Math.max(...done.map(s=>parseFloat(s.weight)||0));
     const lastHeavy=ex.sets.find(s=>s.isLastHeavySet&&s.done);
@@ -196,31 +219,31 @@ function histRenderCard(w,isPR,recovery){
       ?` - <span class="hist-amrap-reps">${lastHeavy.reps}+ reps</span>` :'';
     return`<div class="hist-exercise-row">
       <span>${escapeHtml(histDisplayName(ex.name))}</span>
-      <span class="hist-exercise-vol">${done.length}x${maxKg>0?maxKg+'kg':'bw'}${amrapStr}</span>
+      <span class="hist-exercise-vol">${done.length}\u00D7${maxKg>0?maxKg+'kg':'bw'}${amrapStr}</span>
     </div>`;
   }).join('');
 
-  const tonnageStr=tonnage>0
-    ?`<div class="hist-tonnage">${(tonnage/1000).toFixed(1)} t total volume</div>`:'';
+  // Footer: volume, exercises, RPE
+  const exCount=completedExercises.length;
+  const volStr=tonnage>0?(tonnage/1000).toFixed(1)+'t':'0t';
+  const footerHtml=`<div class="hist-card-footer">
+    <span class="hist-footer-stat">${trHist('history.card.volume','Volume')} <span class="hist-footer-val">${volStr}</span></span>
+    <span class="hist-footer-stat">${trHist('history.card.exercises','Exercises')} <span class="hist-footer-val">${exCount}</span></span>
+    <span class="hist-footer-stat">RPE <span class="hist-footer-val">${w.rpe||'\u2014'}</span></span>
+  </div>`;
 
-  return`<div class="hist-card">
+  return`<div class="hist-card" data-wid="${w.id}">
     <div class="hist-card-header">
       <div class="hist-card-left">
         <span class="hist-lift-icon">${liftIcon}</span>
         <div style="min-width:0">
-          <div class="hist-card-title">${escapeHtml(shortLabel)}</div>
-          <div class="hist-card-date">${dateStr}</div>
+          <div class="hist-card-title">${escapeHtml(cardTitle)}${recovBadge}${durationBadge}</div>
+          <div class="hist-card-date">${escapeHtml(cardSub)}</div>
         </div>
-      </div>
-      <div class="hist-card-badges">
-        ${prBadge}
-        ${recovBadge}
-        <span class="hist-meta-tag">${mins}min${w.rpe?' - RPE '+w.rpe:''}</span>
-        <button class="hist-delete-btn" onclick="deleteWorkout(${w.id})" title="${trHist('common.delete','Delete')}">X</button>
       </div>
     </div>
     ${exRows?`<div class="hist-exercises">${exRows}</div>`:''}
-    ${tonnageStr}
+    ${footerHtml}
   </div>`;
 }
 
@@ -281,7 +304,7 @@ function renderHeatmap(){
   const el=document.getElementById('history-heatmap');
   if(!el)return;
 
-  const WEEKS=10;
+  const WEEKS=14;
   const today=new Date();today.setHours(0,0,0,0);
 
   // Monday of the current week
@@ -300,7 +323,7 @@ function renderHeatmap(){
     else dayMap[k].lift=true;
   });
 
-  // Build 70 cells (WEEKS x 7 days)
+  // Build cells (WEEKS x 7 days)
   const cells=[];
   for(let i=0;i<WEEKS*7;i++){
     const d=new Date(gridStart);d.setDate(gridStart.getDate()+i);
@@ -328,7 +351,33 @@ function renderHeatmap(){
   const last28=workouts.filter(w=>!isSportWorkout(w)&&new Date(w.date)>=cut28).length;
   const perWeek=(last28/4).toFixed(1);
 
-  const DAY_LABELS=['M','T','W','T','F','S','S'];
+  // Total volume in heatmap period
+  let totalVol=0;
+  workouts.forEach(w=>{
+    if(isSportWorkout(w))return;
+    const wd=new Date(w.date);wd.setHours(0,0,0,0);
+    if(wd>=gridStart&&wd<=today){
+      (w.exercises||[]).forEach(ex=>{
+        ex.sets.filter(s=>s.done).forEach(s=>{
+          totalVol+=(parseFloat(s.weight)||0)*(parseInt(s.reps)||0);
+        });
+      });
+    }
+  });
+  const volStr=(totalVol/1000).toFixed(1);
+
+  // Week number labels (ISO week)
+  const weekNums=[];
+  for(let i=0;i<WEEKS;i++){
+    const mon=new Date(gridStart);mon.setDate(gridStart.getDate()+i*7);
+    const tmp=new Date(mon.getTime());tmp.setDate(tmp.getDate()+3-(tmp.getDay()+6)%7);
+    const w1=new Date(tmp.getFullYear(),0,4);
+    const wn=1+Math.round(((tmp.getTime()-w1.getTime())/86400000-3+(w1.getDay()+6)%7)/7);
+    weekNums.push(wn);
+  }
+  const weekNumCells=weekNums.map(n=>`<div class="heatmap-week-label">${n}</div>`).join('');
+
+  const DAY_LABELS=histLocale()==='fi-FI'?['M','T','K','T','P','L','S']:['M','T','W','T','F','S','S'];
   const labelCells=DAY_LABELS.map(l=>`<div class="heatmap-day-label">${l}</div>`).join('');
   const gridCells=cells.map(c=>{
     let cls='heatmap-cell';
@@ -340,27 +389,56 @@ function renderHeatmap(){
     return`<div class="${cls}"></div>`;
   }).join('');
 
+  // Stats
   const streakHtml=weekStreak>0
-    ?`<span class="heatmap-stat"><span class="heatmap-stat-val">${weekStreak}w</span> streak</span>`
+    ?`<span class="heatmap-stat"><span class="heatmap-stat-val">${weekStreak}vk</span> putki</span>`
     :`<span class="heatmap-stat" style="color:var(--muted)">${trHist('history.no_streak','No streak yet')}</span>`;
   const rateHtml=`<span class="heatmap-stat"><span class="heatmap-stat-val">${perWeek}</span> ${trHist('history.lifts_per_week','lifts/wk')}</span>`;
+  const volHtml=`<span class="heatmap-stat"><span class="heatmap-stat-val">${volStr}t</span> ${trHist('history.total_volume_label','total volume')}</span>`;
 
+  // Legend (moved to title row)
   const legendHtml=`<div class="heatmap-legend">
     <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--accent2)"></div>${trHist('history.legend.lift','Lift')}</div>
     <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--blue)"></div>${schedule.sportName||trHist('common.sport','Sport')}</div>
-    <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--purple)"></div>${trHist('history.legend.both','Both')}</div>
+  </div>`;
+
+  const titleHtml=`<div class="heatmap-title-row">
+    <span class="heatmap-title">${trHist('history.activity_title','ACTIVITY \u00B7 {weeks} WK',{weeks:WEEKS})}</span>
+    ${legendHtml}
   </div>`;
 
   el.innerHTML=`<div class="heatmap-wrap">
+    ${titleHtml}
     <div class="heatmap-board">
+      <div></div>
+      <div class="heatmap-week-labels">${weekNumCells}</div>
       <div class="heatmap-day-labels">${labelCells}</div>
       <div class="heatmap-grid heatmap-grid-cells">${gridCells}</div>
     </div>
     <div class="heatmap-foot">
-      <div class="heatmap-stats">${streakHtml}${rateHtml}</div>
-      ${legendHtml}
+      <div class="heatmap-stats">${streakHtml}${rateHtml}${volHtml}</div>
     </div>
   </div>`;
+}
+
+// Long-press to delete
+let _histLongPressTimer=null;
+function histAttachLongPress(container){
+  container.addEventListener('pointerdown',e=>{
+    const card=e.target.closest('.hist-card[data-wid]');
+    if(!card)return;
+    const wid=parseInt(card.dataset.wid);
+    _histLongPressTimer=setTimeout(()=>{
+      _histLongPressTimer=null;
+      if(navigator.vibrate)navigator.vibrate(30);
+      deleteWorkout(wid);
+    },600);
+  });
+  container.addEventListener('pointerup',()=>{clearTimeout(_histLongPressTimer);_histLongPressTimer=null;});
+  container.addEventListener('pointercancel',()=>{clearTimeout(_histLongPressTimer);_histLongPressTimer=null;});
+  container.addEventListener('pointermove',e=>{
+    if(e.pointerType==='touch'&&_histLongPressTimer){clearTimeout(_histLongPressTimer);_histLongPressTimer=null;}
+  });
 }
 
 function renderHistory(){
@@ -371,13 +449,14 @@ function renderHistory(){
   const recovMap=histComputeRecovery();
   const groups=histGroupWorkouts();
   list.innerHTML=groups.map(g=>histRenderGroup(g,prSet,recovMap)).join('');
+  histAttachLongPress(list);
 }
 
 function deleteWorkout(id){
   const w=workouts.find(w=>w.id===id);
   if(!w)return;
   const d=new Date(w.date);
-  const dateStr=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  const dateStr=d.toLocaleDateString(histLocale(),{weekday:'short',day:'numeric',month:'short'});
   showConfirm(trHist('history.delete_workout','Delete Workout'),trHist('history.remove_workout_from','Remove workout from {date}?',{date:dateStr}),async()=>{
     const programsBackup=JSON.parse(JSON.stringify(profile.programs||{}));
     const backup=workouts.find(x=>x.id===id);
