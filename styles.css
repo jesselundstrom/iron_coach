@@ -17,7 +17,7 @@
   :root{--sab:env(safe-area-inset-bottom,0px)}
 }
 html{-webkit-text-size-adjust:100%;background:var(--bg);overscroll-behavior:none;height:100%;width:100%;overflow:hidden;position:fixed}
-body{background:radial-gradient(circle at top,rgba(245,130,31,0.12),rgba(14,14,15,0) 32%),var(--bg);color:var(--text);font-family:'Barlow',system-ui,-apple-system,sans-serif;height:100%;width:100%;overflow:hidden;position:fixed;inset:0;line-height:1.45;overscroll-behavior:none;touch-action:none}
+body{background:radial-gradient(circle at top,rgba(245,130,31,0.12),rgba(14,14,15,0) 32%),var(--bg);color:var(--text);font-family:'Barlow',system-ui,-apple-system,sans-serif;height:100%;width:100%;overflow:hidden;position:fixed;inset:0;line-height:1.45;overscroll-behavior:none}
 button,[type=button],[type=submit],.btn,[onclick]{touch-action:manipulation}
 .app{height:var(--app-vh);overflow:hidden;display:flex;flex-direction:column}
 .content{height:var(--app-vh);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;touch-action:pan-y;scrollbar-gutter:stable both-edges;padding-top:calc(var(--sat) + 10px);padding-left:calc(var(--sal) + var(--page-pad));padding-right:calc(var(--sar) + var(--page-pad));padding-bottom:calc(var(--nav-h) + var(--sab) + 18px)}
@@ -244,6 +244,11 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px;margin-t
 .file-input-hidden{display:none}
 .account-email{font-size:13px;color:var(--muted);margin-bottom:14px}
 .account-email:empty{display:none}
+.sync-status{margin-bottom:14px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;line-height:1.4;color:var(--text)}
+.sync-status.synced{border-color:rgba(76,175,121,0.28);background:rgba(76,175,121,0.08);color:#dff8e8}
+.sync-status.syncing{border-color:rgba(74,143,232,0.28);background:rgba(74,143,232,0.08);color:#edf5ff}
+.sync-status.offline{border-color:rgba(245,130,31,0.28);background:rgba(245,130,31,0.08);color:#fff0df}
+.sync-status.error{border-color:rgba(224,82,82,0.28);background:rgba(224,82,82,0.08);color:#fff0f0}
 .account-field{margin-bottom:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)}
 .account-field label{margin-bottom:4px}
 .settings-note-top{margin-top:0;margin-bottom:10px}

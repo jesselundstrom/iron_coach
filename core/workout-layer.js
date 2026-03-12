@@ -15,7 +15,87 @@
   return {sportName:displayName,icon,subtitle};
 }
 
+function persistCurrentWorkoutDraft(){
+  if(typeof persistActiveWorkoutDraft==='function')persistActiveWorkoutDraft();
+}
+
+function clearCurrentWorkoutDraft(){
+  if(typeof clearActiveWorkoutDraft==='function')clearActiveWorkoutDraft();
+}
+
+function restoreActiveWorkoutDraft(draft,options){
+  const payload=draft&&typeof draft==='object'?draft:null;
+  const restoredWorkout=payload?.activeWorkout;
+  if(!restoredWorkout||typeof restoredWorkout!=='object'||!Array.isArray(restoredWorkout.exercises)||!restoredWorkout.startTime){
+    activeWorkout=null;
+    return false;
+  }
+  activeWorkout={
+    ...restoredWorkout,
+    exercises:ensureWorkoutExerciseUiKeys((restoredWorkout.exercises||[]).map(ex=>withResolvedExerciseId({
+      ...ex,
+      sets:Array.isArray(ex?.sets)?ex.sets.map(set=>({...set})):[]
+    })))
+  };
+  restDuration=parseInt(payload.restDuration,10)||profile.defaultRest||120;
+  restTotal=parseInt(payload.restTotal,10)||0;
+  restEndsAt=parseInt(payload.restEndsAt,10)||0;
+  if(restEndsAt&&restEndsAt<=Date.now()){
+    restEndsAt=0;
+    restTotal=0;
+    restSecondsLeft=0;
+  }
+  startWorkoutTimer();
+  if(restEndsAt)syncRestTimer();
+  if(document.getElementById('page-log')?.classList.contains('active')){
+    resumeActiveWorkoutUI({toast:false});
+  }else{
+    renderWorkoutTimer();
+  }
+  if(options?.toast!==false){
+    showToast(i18nText('workout.resumed','Resumed your in-progress workout.'),'var(--blue)');
+  }
+  return true;
+}
+
+function resumeActiveWorkoutUI(options){
+  if(!activeWorkout)return false;
+  ensureActiveWorkoutExerciseUiKeys();
+  updateProgramDisplay();
+  const notStarted=document.getElementById('workout-not-started');
+  const active=document.getElementById('workout-active');
+  if(notStarted)notStarted.style.display='none';
+  if(active)active.style.display='block';
+  const titleEl=document.getElementById('active-session-title');
+  if(titleEl)titleEl.textContent=activeWorkout.programLabel||i18nText('common.session','Session');
+  const descEl=document.getElementById('active-session-description');
+  if(descEl){
+    const prefix=i18nText('session.description','Session focus');
+    const sessionDescription=activeWorkout.sessionDescription||'';
+    descEl.textContent=sessionDescription?(prefix+': '+sessionDescription):'';
+    descEl.style.display=sessionDescription?'':'none';
+  }
+  const restSelect=document.getElementById('rest-duration');
+  if(restSelect)restSelect.value=String(restDuration||profile.defaultRest||120);
+  renderWorkoutTimer();
+  renderExercises();
+  if(restEndsAt){
+    document.getElementById('rest-timer-bar')?.classList.add('active');
+    syncRestTimer();
+  }else{
+    document.getElementById('rest-timer-bar')?.classList.remove('active');
+  }
+  if(options?.toast){
+    showToast(i18nText('workout.resumed','Resumed your in-progress workout.'),'var(--blue)');
+  }
+  return true;
+}
+
 function resetNotStartedView(){
+  if(activeWorkout){
+    resumeActiveWorkoutUI({toast:false});
+    return;
+  }
   const prog=getActiveProgram();
   const prefs=normalizeTrainingPreferences(profile);
   const state=getActiveProgramState();
@@ -1500,6 +1580,7 @@ function beginWorkoutStart(sportContext){
   };
   ensureWorkoutCommentaryRecord(activeWorkout);
   resetActiveWorkoutUIState();
+  persistCurrentWorkoutDraft();
 
   updateProgramDisplay();
   document.getElementById('workout-not-started').style.display='none';
@@ -2016,6 +2097,7 @@ function addExerciseByName(name){
     ]
   }])[0];
   activeWorkout.exercises.push(exercise);
+  persistCurrentWorkoutDraft();
   appendExerciseCard(exercise);
   renderActiveWorkoutPlanPanel();
 }
@@ -2044,6 +2126,7 @@ function updateSet(ei,si,f,v){
   if(!set)return;
   const sanitizedValue=sanitizeSetValue(f,v);
   set[f]=sanitizedValue;
+  persistCurrentWorkoutDraft();
   if(f!=='weight')return;
   if(set.isWarmup)return;
   const exerciseUiKey=ensureExerciseUiKey(exercise);
@@ -2123,10 +2206,12 @@ function toggleSet(ei,si){
     set.done=false;
     set.rir=undefined;
     delete collapsedExerciseCardState[exerciseUiKey];
+    persistCurrentWorkoutDraft();
     updateExerciseCard(exerciseUiKey);
     renderActiveWorkoutPlanPanel();
     return;
   }
+  persistCurrentWorkoutDraft();
   renderActiveWorkoutPlanPanel();
 }
 
@@ -2137,6 +2222,7 @@ function addSet(ei){
   const exerciseUiKey=ensureExerciseUiKey(exercise);
   delete collapsedExerciseCardState[exerciseUiKey];
   exercise.sets.push({weight:lastSet?.weight||'',reps:lastSet?.reps||5,done:false,rpe:null});
+  persistCurrentWorkoutDraft();
   updateExerciseCard(exerciseUiKey);
   renderActiveWorkoutPlanPanel();
   const newSetIndex=exercise.sets.length-1;
@@ -2149,11 +2235,13 @@ function removeEx(ei){
   const removedUiKey=removed?.uiKey||null;
   if(removedUiKey)delete collapsedExerciseCardState[removedUiKey];
   if(removedUiKey)removeExerciseCard(removedUiKey);
+  persistCurrentWorkoutDraft();
   renderActiveWorkoutPlanPanel();
   if(removed){
     showToast(escapeHtml(i18nText('workout.exercise_removed','{name} removed',{name:displayExerciseName(removed.name)})),'var(--muted)',()=>{
       ensureExerciseUiKey(removed);
       activeWorkout.exercises.splice(ei,0,removed);
+      persistCurrentWorkoutDraft();
       insertExerciseCard(ei,removed);
       renderActiveWorkoutPlanPanel();
     });
@@ -2184,6 +2272,7 @@ function doAuxSwap(exerciseUiKey,newName,slotIdx){
   const resolved=resolveExerciseSelection(newName);
   activeWorkout.exercises[exerciseIndex].name=resolved.name;
   activeWorkout.exercises[exerciseIndex].exerciseId=resolved.exerciseId;
+  persistCurrentWorkoutDraft();
   const prog=getActiveProgram(),state=getActiveProgramState();
   const newState=prog.onAuxSwap?prog.onAuxSwap(slotIdx,resolved.name,state):state;
   setProgramState(prog.id,newState);
@@ -2215,6 +2304,7 @@ function doBackSwap(exerciseUiKey,newName){
   const resolved=resolveExerciseSelection(newName);
   activeWorkout.exercises[exerciseIndex].name=resolved.name;
   activeWorkout.exercises[exerciseIndex].exerciseId=resolved.exerciseId;
+  persistCurrentWorkoutDraft();
   const prog=getActiveProgram(),state=getActiveProgramState();
   const newState=prog.onBackSwap?prog.onBackSwap(resolved.name,state):state;
   setProgramState(prog.id,newState);
@@ -2336,6 +2426,7 @@ function executeQuickWorkoutAdjustment(mode,detailLevel){
       ? presentTrainingCommentary(getWorkoutCommentaryState(activeWorkout),'runner_toast')
       : null;
     showToast(runnerToast?.text||i18nText(mode==='shorten'?'workout.runner.shorten_toast':'workout.runner.light_toast',mode==='shorten'?'Session shortened to the essential work':'Remaining work lightened'),'var(--blue)');
+    persistCurrentWorkoutDraft();
     renderExercises();
     return;
   }
@@ -2359,6 +2450,7 @@ function undoQuickWorkoutAdjustment(){
   activeWorkout.runnerState.adjustments=(snapshot.adjustments||[]).map(item=>({...item}));
   delete activeWorkout.runnerState.undoSnapshot;
   appendWorkoutRunnerEvent(activeWorkout,'runner_undo');
+  persistCurrentWorkoutDraft();
   renderExercises();
   const undoToast=(typeof presentTrainingCommentary==='function')
     ? presentTrainingCommentary(getWorkoutCommentaryState(activeWorkout),'runner_toast')
@@ -2481,6 +2573,7 @@ async function finishWorkout(){
 
   resetActiveWorkoutUIState();
   activeWorkout=null;
+  clearCurrentWorkoutDraft();
   document.getElementById('workout-not-started').style.display='block';
   document.getElementById('workout-active').style.display='none';
   resetNotStartedView();
@@ -2494,6 +2587,7 @@ function cancelWorkout(){
   clearWorkoutTimer();skipRest();
   resetActiveWorkoutUIState();
   activeWorkout=null;
+  clearCurrentWorkoutDraft();
   document.getElementById('workout-not-started').style.display='block';
   document.getElementById('workout-active').style.display='none';
   resetNotStartedView();

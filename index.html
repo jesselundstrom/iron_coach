@@ -16,7 +16,7 @@
   if (!isStandalone) return;
   const viewport = document.getElementById('app-viewport');
   if (viewport) {
-    viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
   }
 })();
 </script>
@@ -442,6 +442,7 @@
     <div class="card">
       <div class="card-title" data-i18n="settings.account_section">Account</div>
       <div class="account-email" id="account-email"></div>
+      <div class="sync-status" id="sync-status">Synced to cloud</div>
       <div class="account-field">
         <label data-i18n="settings.language.label">App language</label>
         <select id="app-language" onchange="saveLanguageSetting()">

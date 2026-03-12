@@ -308,7 +308,10 @@ function getSportRecentHours(){return SPORT_RECENT_HOURS[schedule.sportIntensity
 // Data/auth lifecycle functions moved to core/data-layer.js.
 
 // REST TIMER
-function updateRestDuration(){restDuration=parseInt(document.getElementById('rest-duration').value,10)||0;}
+function updateRestDuration(){
+  restDuration=parseInt(document.getElementById('rest-duration').value,10)||0;
+  if(activeWorkout&&typeof persistActiveWorkoutDraft==='function')persistActiveWorkoutDraft();
+}
 function clearRestInterval(){if(restInterval){clearInterval(restInterval);restInterval=null;}}
 function clearRestHideTimer(){if(restHideTimeout){clearTimeout(restHideTimeout);restHideTimeout=null;}}
 function syncRestTimer(){
@@ -324,6 +327,7 @@ function startRestTimer(){
   restTotal=restDuration;restEndsAt=Date.now()+restDuration*1000;
   document.getElementById('rest-timer-bar').classList.add('active');
   syncRestTimer();
+  if(activeWorkout&&typeof persistActiveWorkoutDraft==='function')persistActiveWorkoutDraft();
   restInterval=setInterval(syncRestTimer,250);
 }
 function updateRestDisplay(){
@@ -342,6 +346,7 @@ function restDone(){
   const el=document.getElementById('rest-timer-count');
   el.className='rest-timer-count done';el.textContent=tr('dashboard.badge.go','GO');
   playBeep();
+  if(activeWorkout&&typeof persistActiveWorkoutDraft==='function')persistActiveWorkoutDraft();
   restHideTimeout=setTimeout(()=>document.getElementById('rest-timer-bar').classList.remove('active'),3000);
 }
 function skipRest(){
@@ -349,6 +354,7 @@ function skipRest(){
   clearRestHideTimer();
   restEndsAt=0;restSecondsLeft=0;
   document.getElementById('rest-timer-bar').classList.remove('active');
+  if(activeWorkout&&typeof persistActiveWorkoutDraft==='function')persistActiveWorkoutDraft();
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncRestTimer();});
 window.addEventListener('pageshow',syncRestTimer);

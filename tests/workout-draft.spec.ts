@@ -1,0 +1,72 @@
+import type { Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { bootstrapAppShell, openAppShell } from './helpers';
+
+async function openTrainPage(page: Page) {
+  await page
+    .locator('.bottom-nav')
+    .getByRole('button', { name: /^train$/i })
+    .click();
+
+  await expect(page.locator('#page-log')).toHaveClass(/active/);
+}
+
+async function startWorkout(page: Page) {
+  await openTrainPage(page);
+  await page.getByRole('button', { name: /start workout/i }).click();
+  await expect(page.locator('#workout-active')).toBeVisible();
+}
+
+test('active workout draft restores after reload', async ({ page }) => {
+  await openAppShell(page);
+  await startWorkout(page);
+
+  const firstWeightInput = page.locator('#exercises-container input[data-field="weight"]').first();
+  await firstWeightInput.fill('60');
+  await firstWeightInput.blur();
+
+  await expect.poll(async () => {
+    return page.evaluate(() => !!localStorage.getItem('ic_active_workout::e2e-user'));
+  }).toBe(true);
+
+  await page.reload();
+  await bootstrapAppShell(page);
+  await openTrainPage(page);
+
+  await expect(page.locator('#workout-active')).toBeVisible();
+  await expect(page.locator('#exercises-container input[data-field="weight"]').first()).toHaveValue('60');
+});
+
+test('finishing a workout clears the persisted draft', async ({ page }) => {
+  await openAppShell(page);
+  await startWorkout(page);
+
+  await expect.poll(async () => {
+    return page.evaluate(() => !!localStorage.getItem('ic_active_workout::e2e-user'));
+  }).toBe(true);
+
+  await page.locator('.session-primary-action').click();
+  await page.locator('.rpe-btn').nth(1).click();
+
+  await expect(page.locator('#summary-modal')).toHaveClass(/active/);
+  await expect.poll(async () => {
+    return page.evaluate(() => localStorage.getItem('ic_active_workout::e2e-user'));
+  }).toBeNull();
+});
+
+test('discarding a workout clears the persisted draft', async ({ page }) => {
+  await openAppShell(page);
+  await startWorkout(page);
+
+  await expect.poll(async () => {
+    return page.evaluate(() => !!localStorage.getItem('ic_active_workout::e2e-user'));
+  }).toBe(true);
+
+  await page.getByRole('button', { name: /discard workout/i }).click();
+  await page.getByRole('button', { name: /confirm/i }).click();
+
+  await expect(page.locator('#workout-not-started')).toBeVisible();
+  await expect.poll(async () => {
+    return page.evaluate(() => localStorage.getItem('ic_active_workout::e2e-user'));
+  }).toBeNull();
+});

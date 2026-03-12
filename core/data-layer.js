@@ -7,16 +7,47 @@ const PROGRAM_DOC_PREFIX='program:';
 const LOCAL_CACHE_KEYS={
   workouts:'ic_workouts',
   schedule:'ic_schedule',
-  profile:'ic_profile'
+  profile:'ic_profile',
+  activeWorkout:'ic_active_workout',
+  syncState:'ic_sync_state'
 };
 let profileDocumentsSupported=null;
 let syncRealtimeChannel=null;
 let realtimeSyncTimer=null;
 let isApplyingRemoteSync=false;
 let lastCloudSyncErrorToastAt=0;
+let syncStateCache=createDefaultSyncStateCache();
+let activeWorkoutDraftCache=null;
+let syncStatusState={state:'idle',updatedAt:null};
+
+function createDefaultSyncStateCache(){
+  return{
+    dirtyDocKeys:[],
+    serverUpdatedAtByDocKey:{},
+    legacyProfileUpdatedAt:null
+  };
+}
+
+function normalizeSyncStateCache(value){
+  const next={
+    ...createDefaultSyncStateCache(),
+    ...(value&&typeof value==='object'?value:{})
+  };
+  next.dirtyDocKeys=uniqueDocKeys(next.dirtyDocKeys);
+  next.serverUpdatedAtByDocKey=next.serverUpdatedAtByDocKey&&typeof next.serverUpdatedAtByDocKey==='object'
+    ? {...next.serverUpdatedAtByDocKey}
+    : {};
+  next.legacyProfileUpdatedAt=next.legacyProfileUpdatedAt||null;
+  return next;
+}
+
+function getSyncStateCache(){
+  syncStateCache=normalizeSyncStateCache(syncStateCache);
+  return syncStateCache;
+}
 
 function getLocalCacheUserId(explicitUserId){
-  const raw=explicitUserId||currentUser?.id||'';
+  const raw=explicitUserId||currentUser?.id||window.__IRONFORGE_TEST_USER_ID__||'';
   return String(raw||'').trim();
 }
 
@@ -70,7 +101,57 @@ function resetRuntimeState(){
     preferences:getDefaultTrainingPreferences(),
     coaching:getDefaultCoachingProfile()
   };
+  syncStateCache=createDefaultSyncStateCache();
+  activeWorkoutDraftCache=null;
+  syncStatusState={state:navigator.onLine?'idle':'offline',updatedAt:null};
+  if(typeof clearWorkoutTimer==='function')clearWorkoutTimer();
+  if(typeof clearRestInterval==='function')clearRestInterval();
+  if(typeof clearRestHideTimer==='function')clearRestHideTimer();
+  activeWorkout=null;
+  workoutSeconds=0;
+  restSecondsLeft=0;
+  restTotal=0;
+  restEndsAt=0;
 }
+
+function setSyncStatus(state){
+  syncStatusState={state,updatedAt:new Date().toISOString()};
+  renderSyncStatus();
+}
+
+function getSyncStatusLabel(){
+  const state=!navigator.onLine?'offline':(syncStatusState.state||'idle');
+  if(state==='syncing')return{
+    label:i18nText('settings.sync.syncing','Syncing changes...'),
+    className:'sync-status syncing'
+  };
+  if(state==='synced'||state==='idle')return{
+    label:i18nText('settings.sync.synced','Synced to cloud'),
+    className:'sync-status synced'
+  };
+  if(state==='error')return{
+    label:i18nText('settings.sync.error','Cloud sync issue. Local changes are kept on this device.'),
+    className:'sync-status error'
+  };
+  return{
+    label:i18nText('settings.sync.offline','Offline. Changes will sync when you reconnect.'),
+    className:'sync-status offline'
+  };
+}
+
+function renderSyncStatus(){
+  const el=document.getElementById('sync-status');
+  if(!el)return;
+  const next=getSyncStatusLabel();
+  el.className=next.className;
+  el.textContent=next.label;
+}
+
+window.addEventListener('online',()=>{
+  setSyncStatus('synced');
+  if(currentUser)scheduleRealtimeSync('online');
+});
+window.addEventListener('offline',()=>setSyncStatus('offline'));
 
 function notifyCloudSyncError(options){
   const opts=options||{};
@@ -78,6 +159,7 @@ function notifyCloudSyncError(options){
   const now=Date.now();
   if(now-lastCloudSyncErrorToastAt<4000)return;
   lastCloudSyncErrorToastAt=now;
+  setSyncStatus('error');
   showToast(i18nText('toast.sync_issue','Cloud sync failed. Changes stay on this device for now.'),'var(--orange)');
 }
 
@@ -107,6 +189,8 @@ function loadLocalData(options){
   const opts=options||{};
   const userId=getLocalCacheUserId(opts.userId);
   if(!userId)return false;
+  loadSyncStateCache({userId});
+  loadActiveWorkoutDraftCache({userId});
 
   const scopedWorkouts=readLocalCacheJson(getLocalCacheKey(LOCAL_CACHE_KEYS.workouts,userId),'workouts');
   const scopedSchedule=readLocalCacheJson(getLocalCacheKey(LOCAL_CACHE_KEYS.schedule,userId),'schedule');
@@ -230,6 +314,126 @@ function getDocumentPayload(docKey,profileLike,scheduleLike){
     return state===undefined?undefined:(cloneJson(state)||{});
   }
   return undefined;
+}
+
+function loadSyncStateCache(options){
+  const userId=getLocalCacheUserId(options?.userId);
+  if(!userId){
+    syncStateCache=createDefaultSyncStateCache();
+    return syncStateCache;
+  }
+  syncStateCache=normalizeSyncStateCache(
+    readLocalCacheJson(getLocalCacheKey(LOCAL_CACHE_KEYS.syncState,userId),'sync state')
+  );
+  return syncStateCache;
+}
+
+function persistSyncStateCache(){
+  const userId=getLocalCacheUserId();
+  if(!userId)return;
+  syncStateCache=normalizeSyncStateCache(syncStateCache);
+  writeLocalCacheJson(getLocalCacheKey(LOCAL_CACHE_KEYS.syncState,userId),syncStateCache,'sync state');
+}
+
+function loadActiveWorkoutDraftCache(options){
+  const userId=getLocalCacheUserId(options?.userId);
+  if(!userId){
+    activeWorkoutDraftCache=null;
+    return null;
+  }
+  const draft=readLocalCacheJson(getLocalCacheKey(LOCAL_CACHE_KEYS.activeWorkout,userId),'active workout draft');
+  activeWorkoutDraftCache=draft&&typeof draft==='object'?draft:null;
+  return activeWorkoutDraftCache;
+}
+
+function getActiveWorkoutDraftCache(){
+  return activeWorkoutDraftCache&&typeof activeWorkoutDraftCache==='object'
+    ? cloneJson(activeWorkoutDraftCache)
+    : null;
+}
+
+function persistActiveWorkoutDraft(){
+  const userId=getLocalCacheUserId();
+  if(!userId)return;
+  if(!activeWorkout||typeof activeWorkout!=='object'){
+    clearActiveWorkoutDraft();
+    return;
+  }
+  activeWorkoutDraftCache={
+    activeWorkout:cloneJson(activeWorkout),
+    startTime:activeWorkout.startTime||Date.now(),
+    restDuration:restDuration||0,
+    restTotal:restTotal||0,
+    restEndsAt:restEndsAt||0
+  };
+  writeLocalCacheJson(
+    getLocalCacheKey(LOCAL_CACHE_KEYS.activeWorkout,userId),
+    activeWorkoutDraftCache,
+    'active workout draft'
+  );
+}
+
+function clearActiveWorkoutDraft(options){
+  activeWorkoutDraftCache=null;
+  const userId=getLocalCacheUserId(options?.userId);
+  if(!userId)return;
+  removeLocalCacheKeys([getLocalCacheKey(LOCAL_CACHE_KEYS.activeWorkout,userId)]);
+}
+
+function markDocKeysDirty(docKeys){
+  const state=getSyncStateCache();
+  const dirty=new Set(state.dirtyDocKeys||[]);
+  uniqueDocKeys(docKeys).forEach(docKey=>dirty.add(docKey));
+  state.dirtyDocKeys=[...dirty];
+  syncStateCache=state;
+  persistSyncStateCache();
+}
+
+function clearDocKeysDirty(docKeys){
+  const state=getSyncStateCache();
+  const cleared=new Set(uniqueDocKeys(docKeys));
+  state.dirtyDocKeys=(state.dirtyDocKeys||[]).filter(docKey=>!cleared.has(docKey));
+  syncStateCache=state;
+  persistSyncStateCache();
+}
+
+function isDocKeyDirty(docKey){
+  return getSyncStateCache().dirtyDocKeys.includes(String(docKey||''));
+}
+
+function isProfileSectionDirty(){
+  return getSyncStateCache().dirtyDocKeys.some(docKey=>docKey===PROFILE_CORE_DOC_KEY||isProgramDocKey(docKey));
+}
+
+function isScheduleSectionDirty(){
+  return isDocKeyDirty(SCHEDULE_DOC_KEY);
+}
+
+function updateServerDocStamp(docKey,updatedAt){
+  if(!docKey)return;
+  const nextStamp=laterIso(getSyncStateCache().serverUpdatedAtByDocKey?.[docKey],updatedAt);
+  if(!nextStamp)return;
+  const state=getSyncStateCache();
+  state.serverUpdatedAtByDocKey[docKey]=nextStamp;
+  syncStateCache=state;
+  persistSyncStateCache();
+}
+
+function updateLegacyProfileStamp(updatedAt){
+  const nextStamp=laterIso(getSyncStateCache().legacyProfileUpdatedAt,updatedAt);
+  if(!nextStamp)return;
+  const state=getSyncStateCache();
+  state.legacyProfileUpdatedAt=nextStamp;
+  syncStateCache=state;
+  persistSyncStateCache();
+}
+
+function recordPulledDocumentServerStamps(rows){
+  (rows||[]).forEach(row=>{
+    const docKey=String(row?.doc_key||'');
+    if(!docKey||isDocKeyDirty(docKey))return;
+    updateServerDocStamp(docKey,row?.updated_at||undefined);
+  });
 }
 
 function normalizeWorkoutCommentaryValue(workout){
@@ -659,14 +863,6 @@ function parseSyncStamp(value){
   return Number.isFinite(ts)?ts:0;
 }
 
-function getSectionSyncStamp(profileLike,key){
-  return parseSyncStamp(profileLike?.syncMeta?.[key]);
-}
-
-function getProgramSyncStamp(profileLike,programId){
-  return parseSyncStamp(profileLike?.syncMeta?.programUpdatedAt?.[programId]);
-}
-
 function laterIso(a,b){
   const at=parseSyncStamp(a),bt=parseSyncStamp(b);
   if(at===0&&bt===0)return undefined;
@@ -675,7 +871,7 @@ function laterIso(a,b){
 
 function getDocumentUpdatedAt(row){
   if(!row||typeof row!=='object')return undefined;
-  return row.client_updated_at||row.updated_at||undefined;
+  return row.updated_at||row.client_updated_at||undefined;
 }
 
 function mergeSyncMeta(localMeta,remoteMeta){
@@ -704,12 +900,13 @@ function mergeSyncMeta(localMeta,remoteMeta){
 
 function chooseNewerSection(localValue,remoteValue,localProfileLike,remoteProfileLike,syncKey,options){
   const opts=options||{};
+  void localProfileLike;
+  void remoteProfileLike;
   if(remoteValue===undefined)return localValue;
-  const localStamp=getSectionSyncStamp(localProfileLike,syncKey);
-  const remoteStamp=getSectionSyncStamp(remoteProfileLike,syncKey);
-  if(localStamp===0&&remoteStamp===0&&opts.preferRemoteWhenUnset)return remoteValue;
-  if(remoteStamp>localStamp)return remoteValue;
-  return localValue;
+  if(syncKey==='profileUpdatedAt'&&isProfileSectionDirty())return localValue;
+  if(syncKey==='scheduleUpdatedAt'&&isScheduleSectionDirty())return localValue;
+  if(opts.preferRemoteWhenUnset)return remoteValue;
+  return remoteValue;
 }
 
 function touchSectionSync(syncKey){
@@ -793,6 +990,10 @@ async function loadData(options){
   // Apply date-based catch-up for the active program
   const activeProg=getActiveProgram();
   if(activeProg.dateCatchUp&&profile.programs[activeProg.id]){const caught=activeProg.dateCatchUp(profile.programs[activeProg.id]);if(caught!==profile.programs[activeProg.id])profile.programs[activeProg.id]=caught;}
+  if(!activeWorkout&&typeof restoreActiveWorkoutDraft==='function'){
+    const restored=restoreActiveWorkoutDraft(getActiveWorkoutDraftCache(),{toast:false});
+    if(!restored)clearActiveWorkoutDraft();
+  }
   const profileChangedDuringLoad=JSON.stringify(profile||{})!==profileBeforeNormalization;
   const scheduleChangedDuringLoad=JSON.stringify(schedule||{})!==scheduleBeforeNormalization;
   if(normalizedWorkouts.changed){
@@ -804,6 +1005,7 @@ async function loadData(options){
   restDuration=profile.defaultRest||120;
   buildExerciseIndex();
   if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(document);
+  renderSyncStatus();
   updateDashboard();
   if(typeof maybeOpenOnboarding==='function')maybeOpenOnboarding();
 }
@@ -812,20 +1014,23 @@ async function saveWorkouts(){ persistLocalWorkoutsCache(); }
 async function saveScheduleData(options){
   const opts=options||{};
   if(opts.touchSync!==false)touchSectionSync('scheduleUpdatedAt');
+  markDocKeysDirty([SCHEDULE_DOC_KEY]);
   persistLocalScheduleCache();
   persistLocalProfileCache();
   if(opts.push!==false)await pushToCloud({docKeys:[SCHEDULE_DOC_KEY]});
 }
 async function saveProfileData(options){
   const opts=options||{};
+  const docKeys=resolveProfileSaveDocKeys(opts);
   if(opts.touchSync!==false){
     if(Array.isArray(opts.programIds)&&opts.programIds.length){
       opts.programIds.forEach(touchProgramSync);
       touchSectionSync('profileUpdatedAt');
     }else touchSectionSync('profileUpdatedAt');
   }
+  markDocKeysDirty(docKeys);
   persistLocalProfileCache();
-  if(opts.push!==false)await pushToCloud({docKeys:resolveProfileSaveDocKeys(opts)});
+  if(opts.push!==false)await pushToCloud({docKeys});
 }
 
 function toProfileDocumentRows(docKeys,profileLike,scheduleLike){
@@ -855,10 +1060,16 @@ async function upsertProfileDocuments(docKeys,profileLike,scheduleLike,options){
   if(!rows.length)return true;
   const opts=options||{};
   const result=await runSupabaseWrite(
-    _SB.from('profile_documents').upsert(rows,{onConflict:'user_id,doc_key'}),
+    _SB.from('profile_documents')
+      .upsert(rows,{onConflict:'user_id,doc_key'})
+      .select('doc_key,updated_at,client_updated_at'),
     'Failed to upsert profile documents',
     opts
   );
+  if(result.ok&&Array.isArray(result.data)){
+    result.data.forEach(row=>updateServerDocStamp(row.doc_key,row.updated_at||undefined));
+    clearDocKeysDirty(rows.map(row=>row.doc_key));
+  }
   profileDocumentsSupported=result.ok;
   return result.ok;
 }
@@ -874,13 +1085,13 @@ function buildStateFromProfileDocuments(rows,fallbackProfile,fallbackSchedule){
     const existingPrograms=nextProfile.programs||{};
     const existingSyncMeta={...(nextProfile.syncMeta||{})};
     const incomingSyncMeta={...(corePayload.syncMeta||{})};
-    const remoteUpdatedAt=getDocumentUpdatedAt(coreRow);
-    const localUpdatedAt=baseProfile?.syncMeta?.profileUpdatedAt;
-    const shouldApplyRemoteCore=parseSyncStamp(remoteUpdatedAt)>=parseSyncStamp(localUpdatedAt);
+    const shouldApplyRemoteCore=!isDocKeyDirty(PROFILE_CORE_DOC_KEY);
     if(shouldApplyRemoteCore){
       Object.assign(nextProfile,corePayload);
       nextProfile.programs=existingPrograms;
     }
+    const remoteUpdatedAt=getDocumentUpdatedAt(coreRow);
+    const localUpdatedAt=baseProfile?.syncMeta?.profileUpdatedAt;
     nextProfile.syncMeta={...existingSyncMeta,...incomingSyncMeta};
     const mergedProfileUpdatedAt=laterIso(localUpdatedAt,remoteUpdatedAt);
     if(mergedProfileUpdatedAt)nextProfile.syncMeta.profileUpdatedAt=mergedProfileUpdatedAt;
@@ -891,7 +1102,7 @@ function buildStateFromProfileDocuments(rows,fallbackProfile,fallbackSchedule){
   if(schedulePayload&&typeof schedulePayload==='object'){
     const remoteUpdatedAt=getDocumentUpdatedAt(scheduleRow);
     const localUpdatedAt=baseProfile?.syncMeta?.scheduleUpdatedAt;
-    const shouldApplyRemoteSchedule=parseSyncStamp(remoteUpdatedAt)>=parseSyncStamp(localUpdatedAt);
+    const shouldApplyRemoteSchedule=!isDocKeyDirty(SCHEDULE_DOC_KEY);
     if(shouldApplyRemoteSchedule)resolvedSchedule=schedulePayload;
     const mergedScheduleUpdatedAt=laterIso(localUpdatedAt,remoteUpdatedAt);
     if(mergedScheduleUpdatedAt){
@@ -909,7 +1120,7 @@ function buildStateFromProfileDocuments(rows,fallbackProfile,fallbackSchedule){
     if(payload&&typeof payload==='object'){
       const remoteUpdatedAt=getDocumentUpdatedAt(row);
       const localUpdatedAt=baseProfile?.syncMeta?.programUpdatedAt?.[programId];
-      const shouldApplyRemoteProgram=parseSyncStamp(remoteUpdatedAt)>=parseSyncStamp(localUpdatedAt);
+      const shouldApplyRemoteProgram=!isDocKeyDirty(programDocKey(programId));
       if(shouldApplyRemoteProgram)nextProfile.programs[programId]=payload;
       const mergedProgramUpdatedAt=laterIso(localUpdatedAt,remoteUpdatedAt);
       if(mergedProgramUpdatedAt){
@@ -944,6 +1155,7 @@ async function pullProfileDocuments(options){
     const next=buildStateFromProfileDocuments(rows,fallbackProfile,fallbackSchedule);
     profile=next.profile;
     schedule=next.schedule;
+    recordPulledDocumentServerStamps(rows);
 
     const desiredDocKeys=getAllProfileDocumentKeys(profile);
     const missingDocKeys=desiredDocKeys.filter(docKey=>!next.rowsByKey.has(docKey));
@@ -1067,12 +1279,13 @@ async function pullWorkoutsFromTable(fallbackWorkouts){
 async function fetchLegacyProfileBlob(){
   if(!currentUser)return{usedCloud:false};
   try{
-    const{data,error}=await _SB.from('profiles').select('data').eq('id',currentUser.id).single();
+    const{data,error}=await _SB.from('profiles').select('data,updated_at').eq('id',currentUser.id).single();
     if(error||!data?.data)return{usedCloud:false};
     return{
       usedCloud:true,
       profile:data.data.profile||{},
-      schedule:data.data.schedule
+      schedule:data.data.schedule,
+      updatedAt:data.updated_at||null
     };
   }catch(e){
     return{usedCloud:false};
@@ -1090,6 +1303,7 @@ function applyLegacyProfileBlob(remoteProfile,remoteSchedule,options){
 
 async function pushLegacyProfileBlob(){
   try{
+    setSyncStatus('syncing');
     const{data,error}=await _SB.from('profiles').select('data').eq('id',currentUser.id).single();
     if(error&&error.code!=='PGRST116'){
       logWarn('Failed to read cloud profile before legacy push',error);
@@ -1106,10 +1320,18 @@ async function pushLegacyProfileBlob(){
     persistLocalProfileCache();
     persistLocalScheduleCache();
     const result=await runSupabaseWrite(
-      _SB.from('profiles').upsert({id:currentUser.id,data:{profile,schedule},updated_at:new Date().toISOString()}),
+      _SB.from('profiles')
+        .upsert({id:currentUser.id,data:{profile,schedule},updated_at:new Date().toISOString()})
+        .select('updated_at'),
       'Failed to push legacy profile blob',
       {notifyUser:true}
     );
+    if(result.ok){
+      const updatedAt=Array.isArray(result.data)?result.data[0]?.updated_at:result.data?.updated_at;
+      updateLegacyProfileStamp(updatedAt||new Date().toISOString());
+      clearDocKeysDirty(getAllProfileDocumentKeys(profile));
+      setSyncStatus('synced');
+    }
     return result.ok;
   }catch(e){
     logWarn('Failed to push legacy profile blob',e);
@@ -1122,26 +1344,37 @@ async function pushToCloud(options){
   if(!currentUser||isApplyingRemoteSync)return;
   const opts=options||{};
   const docKeys=opts.docKeys||getAllProfileDocumentKeys(profile);
+  setSyncStatus('syncing');
   const docsSaved=await upsertProfileDocuments(docKeys,profile,schedule,{notifyUser:false});
-  if(docsSaved)return true;
+  if(docsSaved){
+    setSyncStatus('synced');
+    return true;
+  }
   return pushLegacyProfileBlob();
 }
 
 async function pullFromCloud(){
   if(!currentUser)return{usedCloud:false};
+  setSyncStatus('syncing');
   const legacySnapshot=await fetchLegacyProfileBlob();
   const docsResult=await pullProfileDocuments({
     legacyProfile:legacySnapshot.profile,
     legacySchedule:legacySnapshot.schedule
   });
-  if(docsResult.usedDocs)return{usedCloud:true,usedDocs:true};
+  if(docsResult.usedDocs){
+    setSyncStatus('synced');
+    return{usedCloud:true,usedDocs:true};
+  }
   if(legacySnapshot.usedCloud){
     applyLegacyProfileBlob(legacySnapshot.profile,legacySnapshot.schedule,{preferRemoteWhenUnset:true});
+    updateLegacyProfileStamp(legacySnapshot.updatedAt||null);
     if(profileDocumentsSupported!==false){
       await upsertProfileDocuments(getAllProfileDocumentKeys(profile),profile,schedule,{notifyUser:false});
     }
+    setSyncStatus('synced');
     return{usedCloud:true,usedDocs:false};
   }
+  setSyncStatus(navigator.onLine?'synced':'offline');
   return{usedCloud:false,usedDocs:false};
 }
 
@@ -1149,7 +1382,10 @@ function refreshSyncedUI(options){
   const opts=options||{};
   restDuration=profile.defaultRest||120;
   buildExerciseIndex();
-  if(typeof initSettings==='function'&&document.getElementById('settings-modal')?.classList.contains('active'))initSettings();
+  if(typeof initSettings==='function'&&(
+    document.getElementById('page-settings')?.classList.contains('active')||
+    document.getElementById('program-setup-sheet')?.classList.contains('active')
+  ))initSettings();
   if(typeof updateProgramDisplay==='function')updateProgramDisplay();
   if(typeof updateDashboard==='function')updateDashboard();
   if(typeof renderHistory==='function'&&document.getElementById('page-history')?.classList.contains('active')){
@@ -1159,7 +1395,11 @@ function refreshSyncedUI(options){
   if(!activeWorkout&&document.getElementById('page-log')?.classList.contains('active')&&typeof resetNotStartedView==='function'){
     resetNotStartedView();
   }
+  if(activeWorkout&&document.getElementById('page-log')?.classList.contains('active')&&typeof resumeActiveWorkoutUI==='function'){
+    resumeActiveWorkoutUI({toast:false});
+  }
   if(typeof maybeOpenOnboarding==='function')maybeOpenOnboarding();
+  renderSyncStatus();
   if(opts.toast&&typeof showToast==='function'){
     showToast(i18nText('toast.synced_other_device','Synced latest changes from another device'),'var(--blue)');
   }
@@ -1250,6 +1490,7 @@ async function initAuth(){
 function showLoginScreen(){
   document.body.classList.add('login-active');
   document.getElementById('login-screen').style.display='flex';
+  renderSyncStatus();
   if(typeof window.startLoginSparks==='function')window.startLoginSparks();
 }
 
@@ -1259,6 +1500,7 @@ function hideLoginScreen(){
   if(typeof window.stopLoginSparks==='function')window.stopLoginSparks();
   const el=document.getElementById('account-email');
   if(el)el.textContent=currentUser?.email??'';
+  renderSyncStatus();
 }
 
 async function loginWithEmail(){
@@ -1286,5 +1528,6 @@ async function logout(){
   await _SB.auth.signOut();
   currentUser=null;
   resetRuntimeState();
+  renderSyncStatus();
   updateDashboard();
 }

@@ -22,7 +22,10 @@ function showPage(name, btn) {
   if (name === 'dashboard') updateDashboard();
   if (name === 'history') renderHistory();
   if (name === 'settings') initSettings();
-  if (name === 'log' && !activeWorkout) resetNotStartedView();
+  if (name === 'log') {
+    if (activeWorkout && typeof resumeActiveWorkoutUI === 'function') resumeActiveWorkoutUI({ toast: false });
+    else resetNotStartedView();
+  }
 }
 
 function goToLog() {

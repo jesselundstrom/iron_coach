@@ -1,12 +1,15 @@
 import type { Page } from '@playwright/test';
 
 export async function openApp(page: Page) {
+  await page.addInitScript(() => {
+    window.__IRONFORGE_TEST_USER_ID__ = 'e2e-user';
+  });
   await page.goto('/');
 }
 
-export async function openAppShell(page: Page) {
-  await openApp(page);
+export async function bootstrapAppShell(page: Page) {
   await page.waitForFunction(() => typeof window.showPage === 'function');
+  await page.waitForFunction(() => window.eval('Object.keys(PROGRAMS || {}).length > 0'));
 
   await page.evaluate(() => {
     const suppressLoginUi = () => {
@@ -18,8 +21,18 @@ export async function openAppShell(page: Page) {
     window.showLoginScreen = suppressLoginUi;
     window.hideLoginScreen = suppressLoginUi;
     window.maybeOpenOnboarding = () => {};
+    window.eval("currentUser = { id: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user', email: 'e2e@example.com' };");
 
     suppressLoginUi();
     document.getElementById('onboarding-modal')?.classList.remove('active');
   });
+
+  await page.evaluate(async () => {
+    await window.eval("loadData({ allowCloudSync: false, userId: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user' })");
+  });
+}
+
+export async function openAppShell(page: Page) {
+  await openApp(page);
+  await bootstrapAppShell(page);
 }
