@@ -1,6 +1,13 @@
 function switchHistoryTab(tab,e){
-  document.querySelectorAll('#page-history .tab').forEach(t=>t.classList.remove('active'));
-  e.target.classList.add('active');
+  document.querySelectorAll('#page-history .tab').forEach(t=>{
+    t.classList.remove('active');
+    t.setAttribute('aria-selected','false');
+  });
+  const trigger=e?.currentTarget||e?.target;
+  if(trigger){
+    trigger.classList.add('active');
+    trigger.setAttribute('aria-selected','true');
+  }
   document.getElementById('history-log').style.display=tab==='log'?'block':'none';
   document.getElementById('history-stats').style.display=tab==='stats'?'block':'none';
   if(tab==='stats')updateStats();
@@ -255,7 +262,7 @@ function histRenderCard(w,isPR,recovery){
     <div class="hist-card-header">
       <div class="hist-card-left">
         <span class="hist-lift-icon">${liftIcon}</span>
-        <div style="min-width:0">
+        <div class="hist-card-copy">
           <div class="hist-card-title">${escapeHtml(cardTitle)}${recovBadge}${durationBadge}</div>
           <div class="hist-card-date">${escapeHtml(cardSub)}</div>
         </div>
@@ -312,10 +319,11 @@ function histEmptyState(){
       ${bi.modeDesc?`<div class="hist-phase-card-desc">${bi.modeDesc}</div>`:''}
     </div>`:'';
   return`<div class="hist-empty">
-    <div class="hist-empty-icon">Log</div>
+    <div class="hist-empty-kicker">${trHist('history.activity_title','Activity')}</div>
+    <div class="hist-empty-orb"><div class="hist-empty-icon">LOG</div></div>
     <div class="hist-empty-title">${trHist('history.empty_title','No sessions yet')}</div>
     <div class="hist-empty-sub">${trHist('history.empty_sub','Complete your first workout to start building your training history.')}</div>
-    <button class="btn btn-primary hist-empty-cta" onclick="showPage('log',document.querySelectorAll('.nav-btn')[1])">${trHist('history.start_today','Start Today\'s Workout')}</button>
+    <button class="btn btn-primary hist-empty-cta" type="button" onclick="showPage('log',document.querySelectorAll('.nav-btn')[1])">${trHist('history.start_today','Start Today\'s Workout')}</button>
     ${phaseCard}
   </div>`;
 }
@@ -412,14 +420,14 @@ function renderHeatmap(){
   // Stats
   const streakHtml=weekStreak>0
     ?`<span class="heatmap-stat"><span class="heatmap-stat-val">${weekStreak}vk</span> putki</span>`
-    :`<span class="heatmap-stat" style="color:var(--muted)">${trHist('history.no_streak','No streak yet')}</span>`;
+    :`<span class="heatmap-stat heatmap-stat-muted">${trHist('history.no_streak','No streak yet')}</span>`;
   const rateHtml=`<span class="heatmap-stat"><span class="heatmap-stat-val">${perWeek}</span> ${trHist('history.lifts_per_week','lifts/wk')}</span>`;
   const volHtml=`<span class="heatmap-stat"><span class="heatmap-stat-val">${volStr}t</span> ${trHist('history.total_volume_label','total volume')}</span>`;
 
   // Legend (moved to title row)
   const legendHtml=`<div class="heatmap-legend">
-    <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--accent2)"></div>${trHist('history.legend.lift','Lift')}</div>
-    <div class="heatmap-legend-item"><div class="heatmap-legend-dot" style="background:var(--blue)"></div>${schedule.sportName||trHist('common.sport','Sport')}</div>
+    <div class="heatmap-legend-item"><div class="heatmap-legend-dot heatmap-legend-dot-lift"></div>${trHist('history.legend.lift','Lift')}</div>
+    <div class="heatmap-legend-item"><div class="heatmap-legend-dot heatmap-legend-dot-sport"></div>${schedule.sportName||trHist('common.sport','Sport')}</div>
   </div>`;
 
   const titleHtml=`<div class="heatmap-title-row">

@@ -68,9 +68,9 @@
 
 <!-- SESSION SUMMARY MODAL -->
 <div class="modal-overlay" id="summary-modal">
-  <div class="modal-sheet" style="text-align:center">
+  <div class="modal-sheet summary-sheet">
     <div class="modal-handle"></div>
-    <div id="summary-modal-content"></div>
+    <div id="summary-modal-content" class="summary-modal-content"></div>
   </div>
 </div>
 
@@ -109,7 +109,7 @@
       <button class="btn btn-secondary sport-check-btn" onclick="selectSportReadiness('tomorrow')" data-i18n="workout.sport_check.tomorrow">Yes, tomorrow</button>
       <button class="btn btn-secondary sport-check-btn" onclick="selectSportReadiness('both')" data-i18n="workout.sport_check.both">Yes, both</button>
     </div>
-    <button class="btn btn-ghost" style="margin-top:12px" onclick="cancelSportReadinessCheck()" data-i18n="common.cancel">Cancel</button>
+    <button class="btn btn-ghost session-secondary-action" type="button" onclick="cancelSportReadinessCheck()" data-i18n="common.cancel">Cancel</button>
   </div>
 </div>
 
@@ -141,26 +141,33 @@
 
 <!-- ===== DASHBOARD ===== -->
 <div class="page active" id="page-dashboard">
-  <div class="card dashboard-card dashboard-calendar-card dashboard-animate dashboard-delay-1">
-    <div class="week-strip" id="week-strip"></div>
-    <div class="dashboard-week-legend" id="dashboard-week-legend"></div>
-    <div class="week-progress-row">
-      <div id="today-status"></div>
+  <div class="dashboard-hero dashboard-animate dashboard-delay-1">
+    <div class="card dashboard-card dashboard-hero-card">
+      <div class="dashboard-card-body dashboard-hero-body">
+        <div class="dashboard-hero-copy">
+          <div class="dashboard-hero-kicker" data-i18n="dashboard.today_plan">Today's Plan</div>
+          <div class="dashboard-hero-status" id="today-status"></div>
+        </div>
+        <div class="dashboard-hero-cta" id="dashboard-start-session-slot"></div>
+      </div>
     </div>
-    <div id="day-detail-panel" style="display:none"></div>
   </div>
-  <div id="dashboard-start-session-slot" class="dashboard-animate dashboard-delay-2"></div>
-  <div class="dashboard-section dashboard-animate dashboard-delay-3">
+  <div class="dashboard-section dashboard-week-section dashboard-animate dashboard-delay-2">
     <div class="dashboard-section-label" data-i18n="dashboard.weekly_sessions">Viikon sessiot</div>
+    <div class="card dashboard-card dashboard-calendar-card">
+      <div class="week-strip" id="week-strip"></div>
+      <div class="dashboard-week-legend" id="dashboard-week-legend"></div>
+      <div id="day-detail-panel" style="display:none"></div>
+    </div>
     <div id="session-progress" class="dashboard-session-progress" aria-live="polite"></div>
   </div>
-  <div class="dashboard-section dashboard-animate dashboard-delay-4">
+  <div class="dashboard-section dashboard-animate dashboard-delay-3">
     <div class="dashboard-section-label" data-i18n="dashboard.today_plan">Tämän päivän suunnitelma</div>
     <div class="card dashboard-card" id="todays-plan-card">
       <div class="dashboard-card-body" id="next-session-content" data-i18n="common.loading">Ladataan...</div>
     </div>
   </div>
-  <div class="dashboard-section dashboard-animate dashboard-delay-5">
+  <div class="dashboard-section dashboard-section-recovery dashboard-animate dashboard-delay-4">
     <div class="dashboard-section-label" data-i18n="dashboard.recovery">Palautuminen</div>
     <div class="card dashboard-card dashboard-recovery-card">
       <div class="dashboard-card-body">
@@ -177,7 +184,7 @@
     </div>
     </div>
   </div>
-    <div class="dashboard-section dashboard-animate dashboard-delay-6">
+    <div class="dashboard-section dashboard-section-maxes dashboard-animate dashboard-delay-5">
       <div class="dashboard-section-label" id="tm-section-title" data-i18n="dashboard.maxes">Maksimit</div>
       <div class="card dashboard-card dashboard-maxes-card">
         <div class="dashboard-card-body">
@@ -191,34 +198,34 @@
 <div class="page" id="page-log">
   <div id="workout-not-started">
     <div class="quick-log-row">
-      <div class="quick-log-card ql-sport" onclick="quickLogSport()">
+      <button class="quick-log-card ql-sport" type="button" onclick="quickLogSport()">
         <div class="ql-icon">S</div>
         <div><div class="ql-title" data-i18n="workout.log_extra_sport">Log Extra Sport</div><div class="ql-sub" data-i18n="workout.unscheduled_sport_session">Unscheduled sport session</div></div>
-      </div>
+      </button>
     </div>
     <div class="divider-label"><span data-i18n="workout.training_session">Training Session</span></div>
-    <div class="card" style="padding:20px">
-      <label style="margin-top:8px" data-i18n="workout.training_day">Training Day</label>
+    <div class="card card-roomy workout-start-card">
+      <label class="label-compact" data-i18n="workout.training_day">Training Day</label>
       <input type="hidden" id="program-day-select" value="">
       <div id="program-day-options" class="program-day-options"></div>
       <div id="program-week-display" hidden></div>
-      <div style="margin-top:18px"><button class="btn btn-primary" onclick="startWorkout()" data-i18n="workout.start_workout">🏋️ Start Workout</button></div>
+      <div class="button-stack-top"><button class="btn btn-primary" type="button" onclick="startWorkout()" data-i18n="workout.start_workout">Start Workout</button></div>
     </div>
   </div>
 
     <div id="workout-active" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;margin-top:8px">
-        <div>
-          <div style="font-weight:800;font-size:18px" id="active-session-title" data-i18n="common.session">Session</div>
-          <div id="active-session-description" style="font-size:12px;color:var(--muted);margin-top:3px;max-width:280px"></div>
-          <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace" id="active-session-timer">00:00</div>
+      <div class="active-session-header">
+        <div class="active-session-heading">
+          <div class="active-session-title" id="active-session-title" data-i18n="common.session">Session</div>
+          <div class="active-session-description" id="active-session-description"></div>
+          <div class="active-session-timer" id="active-session-timer">00:00</div>
         </div>
-        <button class="btn btn-sm btn-secondary" onclick="openExerciseCatalogForAdd()" data-i18n="workout.add_exercise">+ Exercise</button>
+        <button class="btn btn-sm btn-secondary active-session-add-btn" type="button" onclick="openExerciseCatalogForAdd()" data-i18n="workout.add_exercise">Add Exercise</button>
       </div>
       <div id="active-session-plan"></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px">
-        <span style="font-size:12px;color:var(--muted);flex:1;font-weight:600" data-i18n="workout.rest_timer">⏱ Rest timer</span>
-        <select id="rest-duration" style="width:auto;padding:4px 10px;font-size:13px;border-radius:8px;background:var(--surface2)" onchange="updateRestDuration()">
+      <div class="rest-timer-inline">
+        <span class="rest-timer-inline-label" data-i18n="workout.rest_timer">Rest timer</span>
+        <select id="rest-duration" class="rest-timer-inline-select" onchange="updateRestDuration()">
           <option value="60">1 min</option>
           <option value="90">90s</option>
           <option value="120" selected>2 min</option>
@@ -229,17 +236,17 @@
         </select>
       </div>
       <div id="exercises-container"></div>
-      <button class="btn btn-primary" style="margin-top:8px" onclick="finishWorkout()" data-i18n="workout.finish_session">✅ Finish Session</button>
-      <button class="btn btn-ghost" style="margin-top:8px" onclick="showConfirm(I18N.t('workout.cancel_session',null,'Discard Workout'),I18N.t('workout.discard_session',null,'Discard this in-progress workout? Sets won\'t be saved.'),cancelWorkout)" data-i18n="workout.cancel_session">Discard Workout</button>
+      <button class="btn btn-primary session-primary-action" type="button" onclick="finishWorkout()" data-i18n="workout.finish_session">Finish Session</button>
+      <button class="btn btn-ghost session-secondary-action" type="button" onclick="showConfirm(I18N.t('workout.cancel_session',null,'Discard Workout'),I18N.t('workout.discard_session',null,'Discard this in-progress workout? Sets won\'t be saved.'),cancelWorkout)" data-i18n="workout.cancel_session">Discard Workout</button>
     </div>
 </div>
 
 <!-- ===== HISTORY ===== -->
 <div class="page" id="page-history">
   <div id="history-heatmap"></div>
-  <div class="tabs">
-    <div class="tab active" onclick="switchHistoryTab('log',event)" data-i18n="history.tab.log">Workout Log</div>
-    <div class="tab" onclick="switchHistoryTab('stats',event)" data-i18n="history.tab.stats">Stats</div>
+  <div class="tabs" role="tablist" aria-label="History sections">
+    <button class="tab active" type="button" role="tab" aria-selected="true" onclick="switchHistoryTab('log',event)" data-i18n="history.tab.log">Workout Log</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" onclick="switchHistoryTab('stats',event)" data-i18n="history.tab.stats">Stats</button>
   </div>
   <div id="history-log"><div id="history-list"></div></div>
   <div id="history-stats" style="display:none">
@@ -251,11 +258,11 @@
 
 <!-- ===== SETTINGS ===== -->
 <div class="page" id="page-settings">
-  <div class="tabs" id="settings-tabs">
-    <div class="tab active" onclick="showSettingsTab('schedule',this)" data-i18n="settings.tabs.sport">Sport</div>
-    <div class="tab" onclick="showSettingsTab('preferences',this)" data-i18n="settings.tabs.training">Training</div>
-    <div class="tab" onclick="showSettingsTab('program',this)" data-i18n="settings.tabs.program">Program</div>
-    <div class="tab" onclick="showSettingsTab('account',this)" data-i18n="settings.tabs.app_data">App & Data</div>
+  <div class="tabs" id="settings-tabs" role="tablist" aria-label="Settings sections">
+    <button class="tab active" type="button" role="tab" aria-selected="true" data-settings-tab="schedule" onclick="showSettingsTab('schedule',this)" data-i18n="settings.tabs.sport">Sport</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-settings-tab="preferences" onclick="showSettingsTab('preferences',this)" data-i18n="settings.tabs.training">Training</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-settings-tab="program" onclick="showSettingsTab('program',this)" data-i18n="settings.tabs.program">Program</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-settings-tab="account" onclick="showSettingsTab('account',this)" data-i18n="settings.tabs.app_data">App & Data</button>
   </div>
 
   <!-- ── Schedule tab ── -->
@@ -275,10 +282,10 @@
         <div class="settings-subsection-title" data-i18n="settings.sport_load.section.profile">Load profile</div>
         <div class="settings-subsection-sub" data-i18n="settings.sport_load.section.profile_sub">Shape how strongly sport load should push training away from hard lower-body work.</div>
         <label data-i18n="settings.intensity">Intensity</label>
-        <div class="segment-control" id="sport-intensity-btns">
-          <button class="btn btn-secondary sport-intensity-btn" data-intensity="easy" onclick="setSportIntensity('easy',this)" style="flex:1" data-i18n="settings.intensity.easy">Easy</button>
-          <button class="btn btn-secondary sport-intensity-btn" data-intensity="moderate" onclick="setSportIntensity('moderate',this)" style="flex:1" data-i18n="settings.intensity.moderate">Moderate</button>
-          <button class="btn btn-secondary sport-intensity-btn" data-intensity="hard" onclick="setSportIntensity('hard',this)" style="flex:1" data-i18n="settings.intensity.hard">Hard</button>
+        <div class="segment-control segment-control-equal" id="sport-intensity-btns">
+          <button class="btn btn-secondary sport-intensity-btn" type="button" data-intensity="easy" onclick="setSportIntensity('easy',this)" data-i18n="settings.intensity.easy">Easy</button>
+          <button class="btn btn-secondary sport-intensity-btn" type="button" data-intensity="moderate" onclick="setSportIntensity('moderate',this)" data-i18n="settings.intensity.moderate">Moderate</button>
+          <button class="btn btn-secondary sport-intensity-btn" type="button" data-intensity="hard" onclick="setSportIntensity('hard',this)" data-i18n="settings.intensity.hard">Hard</button>
         </div>
         <label class="toggle-row" for="sport-legs-heavy">
           <div>
@@ -308,7 +315,7 @@
           </div>
         </label>
       </div>
-      <button class="btn btn-primary" style="margin-top:18px" onclick="saveSchedule()" data-i18n="common.save">Save</button>
+      <button class="btn btn-primary settings-action-top" type="button" onclick="saveSchedule()" data-i18n="common.save">Save</button>
     </div>
   </div>
 
@@ -323,7 +330,7 @@
         <div class="settings-panel-chevron">⌄</div>
       </summary>
       <div class="settings-panel-body">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:12px" data-i18n="settings.preferences.help">These preferences shape future smart recommendations and AI-generated training.</div>
+        <div class="settings-help-text" data-i18n="settings.preferences.help">These preferences shape future smart recommendations and AI-generated training.</div>
         <label data-i18n="settings.preferences.goal">Primary Goal</label>
         <select id="training-goal">
           <option value="strength" data-i18n="settings.preferences.goal.strength">Strength</option>
@@ -331,7 +338,7 @@
           <option value="general_fitness" data-i18n="settings.preferences.goal.general_fitness">General Fitness</option>
           <option value="sport_support" data-i18n="settings.preferences.goal.sport_support">Sport Support</option>
         </select>
-        <label style="margin-top:12px" data-i18n="settings.preferences.training_days">Target Training Frequency</label>
+        <label class="label-spaced" data-i18n="settings.preferences.training_days">Target Training Frequency</label>
         <select id="training-days-per-week">
           <option value="2" data-i18n="settings.preferences.training_days_value" data-i18n-params='{"count":2}'>2 sessions / week</option>
           <option value="3" data-i18n="settings.preferences.training_days_value" data-i18n-params='{"count":3}'>3 sessions / week</option>
@@ -339,7 +346,7 @@
           <option value="5" data-i18n="settings.preferences.training_days_value" data-i18n-params='{"count":5}'>5 sessions / week</option>
           <option value="6" data-i18n="settings.preferences.training_days_value" data-i18n-params='{"count":6}'>6 sessions / week</option>
         </select>
-        <label style="margin-top:12px" data-i18n="settings.preferences.session_duration">Target Session Length</label>
+        <label class="label-spaced" data-i18n="settings.preferences.session_duration">Target Session Length</label>
         <select id="training-session-minutes">
           <option value="30" data-i18n="settings.preferences.duration_value.30">30 min</option>
           <option value="45" data-i18n="settings.preferences.duration_value.45">45 min</option>
@@ -347,14 +354,14 @@
           <option value="75" data-i18n="settings.preferences.duration_value.75">75 min</option>
           <option value="90" data-i18n="settings.preferences.duration_value.90">90 min</option>
         </select>
-        <label style="margin-top:12px" data-i18n="settings.preferences.equipment">Equipment Access</label>
+        <label class="label-spaced" data-i18n="settings.preferences.equipment">Equipment Access</label>
         <select id="training-equipment">
           <option value="full_gym" data-i18n="settings.preferences.equipment.full_gym">Full Gym</option>
           <option value="basic_gym" data-i18n="settings.preferences.equipment.basic_gym">Basic Gym</option>
           <option value="home_gym" data-i18n="settings.preferences.equipment.home_gym">Home Gym</option>
           <option value="minimal" data-i18n="settings.preferences.equipment.minimal">Minimal Equipment</option>
         </select>
-        <label class="toggle-row" for="training-warmup-sets" style="margin-top:14px">
+        <label class="toggle-row toggle-row-spaced" for="training-warmup-sets">
           <div>
             <div class="toggle-row-title" data-i18n="settings.preferences.warmup_sets">Automatic warm-up sets</div>
             <div class="toggle-row-sub" data-i18n="settings.preferences.warmup_sets_help">Prepend warm-up ramp sets (50%-85%) to main compound lifts at the start of each workout.</div>
@@ -365,8 +372,8 @@
           </div>
         </label>
         <div class="settings-panel-inline-row">
-          <label style="margin:0;font-size:13px;font-weight:600" for="default-rest" data-i18n="settings.default_rest">Default Rest Timer</label>
-          <select id="default-rest" onchange="saveRestTimer()" style="width:auto;margin:0">
+          <label class="settings-inline-control-label" for="default-rest" data-i18n="settings.default_rest">Default Rest Timer</label>
+          <select id="default-rest" class="settings-inline-control-select" onchange="saveRestTimer()">
             <option value="60">1 min</option>
             <option value="90">90 sec</option>
             <option value="120" selected>2 min</option>
@@ -375,10 +382,10 @@
             <option value="0" data-i18n="common.off">Off</option>
           </select>
         </div>
-        <label style="margin-top:12px" data-i18n="settings.preferences.notes">Notes, limitations, preferences</label>
+        <label class="label-spaced" data-i18n="settings.preferences.notes">Notes, limitations, preferences</label>
         <textarea id="training-preferences-notes" rows="4" data-i18n-placeholder="settings.preferences.notes_placeholder" placeholder="e.g. Avoid high-impact jumps, prefer barbell compounds, 60 min cap"></textarea>
-        <button class="btn btn-primary" style="margin-top:14px" onclick="saveTrainingPreferences()" data-i18n="settings.preferences.save">Save Preferences</button>
-        <button class="btn btn-secondary" style="margin-top:10px" onclick="restartOnboarding()" data-i18n="settings.preferences.restart_onboarding">Run Guided Setup Again</button>
+        <button class="btn btn-primary settings-action-primary" type="button" onclick="saveTrainingPreferences()" data-i18n="settings.preferences.save">Save Preferences</button>
+        <button class="btn btn-secondary settings-action-secondary" type="button" onclick="restartOnboarding()" data-i18n="settings.preferences.restart_onboarding">Run Guided Setup Again</button>
       </div>
     </details>
   </div>
@@ -431,37 +438,37 @@
         <option value="en" data-i18n="settings.language.option.en">English</option>
         <option value="fi" data-i18n="settings.language.option.fi">Finnish</option>
       </select>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px" data-i18n="settings.language.help">UI and exercise guidance use this language when available.</div>
+      <div class="settings-note" data-i18n="settings.language.help">UI and exercise guidance use this language when available.</div>
     </div>
     <div class="card">
       <div class="card-title" data-i18n="settings.data_backup">Data Backup</div>
-      <div style="display:flex;gap:10px;margin-bottom:10px">
-        <button class="btn btn-secondary" style="flex:1" onclick="exportData()" data-i18n="settings.export">📤 Export</button>
-        <label class="btn btn-secondary" style="flex:1;text-align:center;cursor:pointer;margin:0" data-i18n="settings.import">📥 Import
-          <input type="file" accept=".json" onchange="importData(event)" style="display:none">
+      <div class="settings-button-row">
+        <button class="btn btn-secondary settings-row-button" type="button" onclick="exportData()" data-i18n="settings.export">Export</button>
+        <label class="btn btn-secondary settings-row-button settings-import-button" data-i18n="settings.import">Import
+          <input type="file" accept=".json" onchange="importData(event)" class="file-input-hidden">
         </label>
       </div>
-      <div style="font-size:11px;color:var(--muted)" data-i18n="settings.backup_help">Export saves all data as a JSON file. Import from another device to sync your training history.</div>
+      <div class="settings-note settings-note-tight" data-i18n="settings.backup_help">Export saves all data as a JSON file. Import from another device to sync your training history.</div>
     </div>
     <div class="card">
       <div class="card-title" data-i18n="settings.account_section">Account</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="account-email"></div>
-      <button class="btn btn-ghost" onclick="logout()" data-i18n="settings.sign_out">Sign Out</button>
+      <div class="account-email" id="account-email"></div>
+      <button class="btn btn-ghost" type="button" onclick="logout()" data-i18n="settings.sign_out">Sign Out</button>
     </div>
     <div class="card">
       <div class="card-title" data-i18n="settings.danger">Danger Zone</div>
-      <button class="btn btn-ghost" onclick="showConfirm(I18N.t('confirm.clear_all_title',null,'Clear All Data'),I18N.t('confirm.clear_all_msg',null,'Delete ALL training data? This cannot be undone.'),clearAllData)" style="color:var(--red,#ef4444);border-color:rgba(239,68,68,0.3)" data-i18n="settings.clear_all">Clear All Data</button>
+      <button class="btn btn-ghost danger-btn" type="button" onclick="showConfirm(I18N.t('confirm.clear_all_title',null,'Clear All Data'),I18N.t('confirm.clear_all_msg',null,'Delete ALL training data? This cannot be undone.'),clearAllData)" data-i18n="settings.clear_all">Clear All Data</button>
     </div>
   </div>
 </div>
 
 <!-- ===== PROGRAM SETUP SHEET ===== -->
 <div class="modal-overlay" id="program-setup-sheet" onclick="closeProgramSetupSheet(event)">
-  <div class="modal-sheet" style="max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:48px">
+  <div class="modal-sheet sheet-scroll-body">
     <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="sheet-header">
       <div class="modal-title" id="program-setup-sheet-title" data-i18n="settings.program_setup">Program Setup</div>
-      <button onclick="closeProgramSetupSheet()" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit" data-i18n="common.done">Done</button>
+      <button class="sheet-close-btn" type="button" onclick="closeProgramSetupSheet()" data-i18n="common.done">Done</button>
     </div>
     <div id="program-settings-container"></div>
   </div>

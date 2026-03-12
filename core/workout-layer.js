@@ -3,14 +3,14 @@
   const displayName=displaySportName(sportName);
   const normalized=sportName.toLowerCase();
   let icon='S';
-  if(normalized.includes('hock'))icon='🏒';
-  else if(normalized.includes('run'))icon='🏃';
-  else if(normalized.includes('cycl')||normalized.includes('bike'))icon='🚴';
-  else if(normalized.includes('swim'))icon='🏊';
-  else if(normalized.includes('row'))icon='🚣';
-  else if(normalized.includes('soccer')||normalized.includes('football'))icon='⚽';
-  else if(normalized.includes('basket'))icon='🏀';
-  else if(normalized.includes('tennis'))icon='🎾';
+  if(normalized.includes('hock'))icon='HK';
+  else if(normalized.includes('run'))icon='RN';
+  else if(normalized.includes('cycl')||normalized.includes('bike'))icon='BK';
+  else if(normalized.includes('swim'))icon='SW';
+  else if(normalized.includes('row'))icon='RW';
+  else if(normalized.includes('soccer')||normalized.includes('football'))icon='FB';
+  else if(normalized.includes('basket'))icon='BB';
+  else if(normalized.includes('tennis'))icon='TN';
   const subtitle=i18nText('workout.unscheduled_session','Unscheduled {sport} session',{sport:(normalized==='cardio'||normalized==='kestävyys')?displayName.toLowerCase():displayName});
   return {sportName:displayName,icon,subtitle};
 }
@@ -704,14 +704,14 @@ function showShortenAdjustmentOptions(){
   const preview=getQuickAdjustmentPreview('shorten');
   showCustomModal(
     escapeHtml(preview.title),
-    `<div style="font-size:13px;line-height:1.5;color:var(--muted);margin-bottom:14px">${escapeHtml(preview.body)}</div>
-    <div style="display:grid;gap:10px">
+    `<div class="custom-modal-copy">${escapeHtml(preview.body)}</div>
+    <div class="custom-modal-option-stack">
       <button class="btn btn-secondary" type="button" onclick="selectShortenAdjustment('light')">${escapeHtml(i18nText('workout.runner.shorten_option_light','Save ~5 min'))}</button>
-      <div style="font-size:12px;color:var(--muted);margin-top:-4px">${escapeHtml(i18nText('workout.runner.shorten_option_light_body','Remove accessory work only and keep the rest of the structure intact.'))}</div>
+      <div class="custom-modal-option-note">${escapeHtml(i18nText('workout.runner.shorten_option_light_body','Remove accessory work only and keep the rest of the structure intact.'))}</div>
       <button class="btn btn-secondary" type="button" onclick="selectShortenAdjustment('medium')">${escapeHtml(i18nText('workout.runner.shorten_option_medium','Save ~10 min'))}</button>
-      <div style="font-size:12px;color:var(--muted);margin-top:-4px">${escapeHtml(i18nText('workout.runner.shorten_option_medium_body','Keep at least two work sets per remaining exercise and cut lower-priority volume.'))}</div>
+      <div class="custom-modal-option-note">${escapeHtml(i18nText('workout.runner.shorten_option_medium_body','Keep at least two work sets per remaining exercise and cut lower-priority volume.'))}</div>
       <button class="btn btn-secondary" type="button" onclick="selectShortenAdjustment('hard')">${escapeHtml(i18nText('workout.runner.shorten_option_hard','Save ~15 min'))}</button>
-      <div style="font-size:12px;color:var(--muted);margin-top:-4px">${escapeHtml(i18nText('workout.runner.shorten_option_hard_body','Trim harder: keep two work sets per exercise and drop the last unstarted lift if needed.'))}</div>
+      <div class="custom-modal-option-note">${escapeHtml(i18nText('workout.runner.shorten_option_hard_body','Trim harder: keep two work sets per exercise and drop the last unstarted lift if needed.'))}</div>
     </div>`
   );
 }
@@ -754,6 +754,8 @@ function renderActiveWorkoutPlanPanel(){
   const summary=getRunnerPlanSummary(activeWorkout);
   const elapsed=getWorkoutElapsedSeconds();
   const minutes=Math.floor(elapsed/60);
+  const totalTrackedSets=(summary?.completedSets||0)+(summary?.remainingSets||0);
+  const progressPercent=totalTrackedSets?Math.round(((summary?.completedSets||0)/totalTrackedSets)*100):100;
   const nextTargetText=summary?.nextTarget
     ? `${summary.nextTarget.exerciseName} · ${i18nText('rpe.set','Set')} ${summary.nextTarget.setLabel}${summary.nextTarget.weight!==''&&summary.nextTarget.weight!==undefined?` · ${summary.nextTarget.weight}kg`:''}${summary.nextTarget.reps!==''&&summary.nextTarget.reps!==undefined?` × ${summary.nextTarget.reps}`:''}`
     : i18nText('workout.runner.done','Main work is done. You can finish here or wrap up optional work.');
@@ -765,7 +767,9 @@ function renderActiveWorkoutPlanPanel(){
         <div class="active-session-plan-title">${escapeHtml(summary?.title||i18nText('common.session','Session'))}</div>
         <div class="active-session-plan-copy">${escapeHtml(summary?.copy||'')}</div>
       </div>
+      <div class="active-session-plan-progress-pill">${escapeHtml(`${progressPercent}%`)}</div>
     </div>
+    <div class="active-session-plan-track" aria-hidden="true"><div class="active-session-plan-track-fill" style="width:${progressPercent}%"></div></div>
     <div class="active-session-plan-meta">
       <div class="active-session-plan-pill">${escapeHtml(i18nText('workout.runner.completed','{count} sets done',{count:summary?.completedSets||0}))}</div>
       <div class="active-session-plan-pill">${escapeHtml(i18nText('workout.runner.remaining','{count} sets left',{count:summary?.remainingSets||0}))}</div>
@@ -2224,11 +2228,11 @@ function showCustomModal(title,bodyHtml){
   let m=document.getElementById('custom-swap-modal');
   if(m)m.remove();
   m=document.createElement('div');m.id='custom-swap-modal';
-  m.style.cssText='position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);padding:20px';
-  m.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:340px;width:100%">
-    <div style="font-weight:800;font-size:16px;margin-bottom:14px">${title}</div>
+  m.className='custom-modal-overlay';
+  m.innerHTML=`<div class="custom-modal-sheet">
+    <div class="custom-modal-title">${title}</div>
     ${bodyHtml}
-    <button class="btn btn-secondary" style="margin-top:14px;width:100%" onclick="closeCustomModal()">${i18nText('common.cancel','Cancel')}</button>
+    <button class="btn btn-secondary custom-modal-cancel" type="button" onclick="closeCustomModal()">${i18nText('common.cancel','Cancel')}</button>
   </div>`;
   m.onclick=e=>{if(e.target===m)closeCustomModal();};
   document.body.appendChild(m);
@@ -2245,16 +2249,16 @@ function showSessionSummary(summaryData){
     const tonnageStr=tonnage>=1000?((tonnage/1000).toFixed(1)+' t'):(Math.round(tonnage)+' kg');
     const content=document.getElementById('summary-modal-content');
     content.innerHTML=`
-      <div style="font-size:32px;margin-bottom:4px">&#9889;</div>
-      <div style="font-size:20px;font-weight:900;margin-bottom:4px">${escapeHtml(i18nText('workout.session_complete','Session Complete'))}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${escapeHtml(programLabel)}</div>
+      <div class="summary-icon" aria-hidden="true">&#9889;</div>
+      <div class="summary-title">${escapeHtml(i18nText('workout.session_complete','Session Complete'))}</div>
+      <div class="summary-program">${escapeHtml(programLabel)}</div>
       <div class="summary-stats">
         <div class="summary-stat"><div class="summary-stat-value">${escapeHtml(timeStr)}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_duration','Duration'))}</div></div>
         <div class="summary-stat"><div class="summary-stat-value green">${completedSets}/${totalSets}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_sets','Sets Done'))}</div></div>
         <div class="summary-stat"><div class="summary-stat-value gold">${escapeHtml(tonnageStr)}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_volume','Volume'))}</div></div>
         <div class="summary-stat"><div class="summary-stat-value purple">${rpe||'--'}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_rpe','RPE'))}</div></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:8px" onclick="closeSummaryModal()">${escapeHtml(i18nText('common.done','Done'))}</button>`;
+      <button class="btn btn-primary summary-action" type="button" onclick="closeSummaryModal()">${escapeHtml(i18nText('common.done','Done'))}</button>`;
     document.getElementById('summary-modal').classList.add('active');
     window._summaryResolve=resolve;
   });

@@ -412,8 +412,10 @@ function showSettingsTab(name,el){
     const d=document.getElementById('settings-tab-'+t);
     if(d)d.style.display=t===name?'':'none';
   });
-  document.querySelectorAll('#settings-tabs .tab').forEach((t,i)=>{
-    t.classList.toggle('active',['schedule','preferences','program','account'][i]===name);
+  document.querySelectorAll('#settings-tabs .tab').forEach(tab=>{
+    const isActive=tab.dataset.settingsTab===name;
+    tab.classList.toggle('active',isActive);
+    tab.setAttribute('aria-selected',isActive?'true':'false');
   });
 }
 function openProgramSetupSheet(){

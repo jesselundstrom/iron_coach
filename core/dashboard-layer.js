@@ -739,10 +739,11 @@ function renderWeekStrip(){
   const todayLogged=workouts.filter(w=>new Date(w.date).toDateString()===today.toDateString());
   const tHasLift=todayLogged.some(w=>!isSportWorkout(w)),tHasSport=todayLogged.some(w=>isSportWorkout(w));
   let s='';
-  if(tHasLift&&tHasSport)s=`<span style="color:var(--green);font-weight:700">${trDash('dashboard.status.workout_plus_sport_logged','Treeni + {sport} kirjattu',{sport:sn})}</span>`;
-  else if(tHasLift)s=`<span style="color:var(--green);font-weight:700">${trDash('dashboard.status.workout_logged','Treeni kirjattu')}</span>`;
-  else if(tHasSport)s=`<span style="color:var(--blue);font-weight:700">${trDash('dashboard.status.sport_logged','{sport} kirjattu',{sport:sn})}</span>`;
-  else if(todayIsSportDay)s=`<span style="color:var(--blue);font-weight:700">${trDash('dashboard.status.sport_day','{sport}-päivä',{sport:sn})}</span>`;
+  if(tHasLift&&tHasSport)s=`<span class="dashboard-status-line is-success">${trDash('dashboard.status.workout_plus_sport_logged','Treeni + {sport} kirjattu',{sport:sn})}</span>`;
+  else if(tHasLift)s=`<span class="dashboard-status-line is-success">${trDash('dashboard.status.workout_logged','Treeni kirjattu')}</span>`;
+  else if(tHasSport)s=`<span class="dashboard-status-line is-info">${trDash('dashboard.status.sport_logged','{sport} kirjattu',{sport:sn})}</span>`;
+  else if(todayIsSportDay)s=`<span class="dashboard-status-line is-info">${trDash('dashboard.status.sport_day','{sport}-päivä',{sport:sn})}</span>`;
+  else s=`<span class="dashboard-status-line is-neutral">${trDash('dashboard.no_session_logged','Ei kirjattua treeniä')}</span>`;
   document.getElementById('today-status').innerHTML=s;
 }
 
@@ -765,18 +766,18 @@ function toggleDayDetail(dayIdx){
     const items=[];
     logged.forEach(w=>{
       if(isSportWorkout(w)){
-        items.push(`<div class="day-detail-item"><span style="color:var(--blue)">${w.name||(schedule.sportName||trDash('common.sport','Laji'))}</span></div>`);
+        items.push(`<div class="day-detail-item day-detail-item-sport">${w.name||(schedule.sportName||trDash('common.sport','Laji'))}</div>`);
       } else {
         const names=(w.exercises||[]).map(e=>e.name);
         if(names.length)names.forEach(n=>items.push(`<div class="day-detail-item">${n}</div>`));
-        else items.push(`<div class="day-detail-item" style="color:var(--muted)">${trDash('common.workout','Treeni')}</div>`);
+        else items.push(`<div class="day-detail-item day-detail-item-muted">${trDash('common.workout','Treeni')}</div>`);
       }
     });
     panel.innerHTML=items.join('');
   } else {
     const dow=d.getDay(),isSportDay=schedule.sportDays.includes(dow);
     const label=isSportDay?trDash('dashboard.status.sport_day','{sport}-päivä',{sport:(schedule.sportName||trDash('common.sport','Laji'))}):trDash('dashboard.no_session_logged','Ei kirjattua treeniä');
-    panel.innerHTML=`<div class="day-detail-item" style="color:var(--muted)">${label}</div>`;
+    panel.innerHTML=`<div class="day-detail-item day-detail-item-muted">${label}</div>`;
   }
   panel.style.display='block';
 }
