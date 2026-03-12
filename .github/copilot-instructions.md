@@ -5,6 +5,7 @@
 - Main entry points are `index.html`, `app.js`, `styles.css`, `manifest.json`, and `sw.js`.
 - Core business logic is split into layer files under `core/`.
 - Training program definitions live under `programs/`.
+- Contributor tooling now uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
 - Prefer extending the current global-function and shared-state style instead of introducing new architectural patterns.
 
 ## Primary Product Context
@@ -61,6 +62,9 @@
 - Fix root causes instead of layering on narrow patches when feasible.
 - Avoid unrelated refactors.
 - If adding a feature, update all affected layers, translations, and UI states.
+- Prefer finishing requested development work end-to-end instead of only listing suggested next steps. If the repo needs tooling, tests, config, or small supporting changes to make the solution real, add them directly unless the user explicitly wants planning only.
+- For meaningful behavior or UI changes, add or update automated tests when feasible. Prefer Playwright for user flows and deterministic validation paths over flaky network-dependent tests.
+- Before closing meaningful work, run the relevant verification commands from the current toolchain such as `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run build`, and targeted `npm.cmd run test:e2e` coverage when applicable.
 - When a change alters architecture, persistence, sync behavior, migrations, or contributor workflow, also update the relevant AI instructions under `.github/` before committing.
 - When changing recommendation logic, readiness logic, or future AI-training groundwork, check whether `profile.preferences` shape or related guidance in `.github/` needs to be updated too.
 - Before committing and pushing meaningful project changes, explicitly check whether `.github/copilot-instructions.md` or a matching file under `.github/instructions/` should be updated to reflect the new reality.
