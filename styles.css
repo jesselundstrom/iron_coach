@@ -34,7 +34,7 @@
   --sar: env(safe-area-inset-right, 0px);
   --page-pad: 18px;
   --section-gap: 16px;
-  --nav-h: 68px;
+  --nav-h: 56px;
 }
 :root {
   --app-vh: 100vh;
@@ -176,7 +176,7 @@ button,
   align-items: stretch;
   background: rgba(11, 12, 15, 0.96);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 6px 8px calc(4px + var(--sab));
+  padding: 4px 8px calc(2px + var(--sab));
   max-width: 640px;
   margin: 0 auto;
   backdrop-filter: blur(18px);
@@ -202,9 +202,9 @@ button,
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 58px;
-  padding: 8px 0;
+  gap: 3px;
+  min-height: 50px;
+  padding: 6px 0;
   background: none;
   border: none;
   border-radius: 16px;
@@ -5271,16 +5271,17 @@ body.login-active::before {
 }
 @media (max-width: 600px) {
   :root {
-    --nav-h: 54px;
+    --nav-h: 48px;
   }
   .nav-btn {
-    gap: 3px;
-    padding: 8px 0 6px;
+    gap: 2px;
+    padding: 5px 0 4px;
     min-height: auto;
+    font-size: 10px;
   }
   .nav-btn svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
   .rest-timer-bar {
     backdrop-filter: blur(10px);
