@@ -905,15 +905,25 @@ function mergeSyncMeta(localMeta,remoteMeta){
   return merged;
 }
 
+function shouldUseRemoteSection(localUpdatedAt,remoteUpdatedAt,options){
+  const opts=options||{};
+  const localStamp=parseSyncStamp(localUpdatedAt);
+  const remoteStamp=parseSyncStamp(remoteUpdatedAt);
+  if(remoteStamp===0&&localStamp===0)return opts.preferRemoteWhenUnset===true;
+  if(remoteStamp===0)return false;
+  if(localStamp===0)return true;
+  return remoteStamp>=localStamp;
+}
+
 function chooseNewerSection(localValue,remoteValue,localProfileLike,remoteProfileLike,syncKey,options){
   const opts=options||{};
-  void localProfileLike;
-  void remoteProfileLike;
   if(remoteValue===undefined)return localValue;
   if(syncKey==='profileUpdatedAt'&&isProfileSectionDirty())return localValue;
   if(syncKey==='scheduleUpdatedAt'&&isScheduleSectionDirty())return localValue;
-  if(opts.preferRemoteWhenUnset)return remoteValue;
-  return remoteValue;
+  if(opts.preferRemoteWhenUnset&&localValue===undefined)return remoteValue;
+  const localUpdatedAt=localProfileLike?.syncMeta?.[syncKey];
+  const remoteUpdatedAt=remoteProfileLike?.syncMeta?.[syncKey];
+  return shouldUseRemoteSection(localUpdatedAt,remoteUpdatedAt,opts)?remoteValue:localValue;
 }
 
 function touchSectionSync(syncKey){
@@ -1097,13 +1107,14 @@ function buildStateFromProfileDocuments(rows,fallbackProfile,fallbackSchedule){
     const existingPrograms=nextProfile.programs||{};
     const existingSyncMeta={...(nextProfile.syncMeta||{})};
     const incomingSyncMeta={...(corePayload.syncMeta||{})};
-    const shouldApplyRemoteCore=!isDocKeyDirty(PROFILE_CORE_DOC_KEY);
+    const remoteUpdatedAt=getDocumentUpdatedAt(coreRow);
+    const localUpdatedAt=baseProfile?.syncMeta?.profileUpdatedAt;
+    const shouldApplyRemoteCore=!isDocKeyDirty(PROFILE_CORE_DOC_KEY)
+      && shouldUseRemoteSection(localUpdatedAt,remoteUpdatedAt,{preferRemoteWhenUnset:true});
     if(shouldApplyRemoteCore){
       Object.assign(nextProfile,corePayload);
       nextProfile.programs=existingPrograms;
     }
-    const remoteUpdatedAt=getDocumentUpdatedAt(coreRow);
-    const localUpdatedAt=baseProfile?.syncMeta?.profileUpdatedAt;
     nextProfile.syncMeta={...existingSyncMeta,...incomingSyncMeta};
     const mergedProfileUpdatedAt=laterIso(localUpdatedAt,remoteUpdatedAt);
     if(mergedProfileUpdatedAt)nextProfile.syncMeta.profileUpdatedAt=mergedProfileUpdatedAt;
@@ -1114,7 +1125,8 @@ function buildStateFromProfileDocuments(rows,fallbackProfile,fallbackSchedule){
   if(schedulePayload&&typeof schedulePayload==='object'){
     const remoteUpdatedAt=getDocumentUpdatedAt(scheduleRow);
     const localUpdatedAt=baseProfile?.syncMeta?.scheduleUpdatedAt;
-    const shouldApplyRemoteSchedule=!isDocKeyDirty(SCHEDULE_DOC_KEY);
+    const shouldApplyRemoteSchedule=!isDocKeyDirty(SCHEDULE_DOC_KEY)
+      && shouldUseRemoteSection(localUpdatedAt,remoteUpdatedAt,{preferRemoteWhenUnset:true});
     if(shouldApplyRemoteSchedule)resolvedSchedule=schedulePayload;
     const mergedScheduleUpdatedAt=laterIso(localUpdatedAt,remoteUpdatedAt);
     if(mergedScheduleUpdatedAt){
@@ -1132,7 +1144,8 @@ function buildStateFromProfileDocuments(rows,fallbackProfile,fallbackSchedule){
     if(payload&&typeof payload==='object'){
       const remoteUpdatedAt=getDocumentUpdatedAt(row);
       const localUpdatedAt=baseProfile?.syncMeta?.programUpdatedAt?.[programId];
-      const shouldApplyRemoteProgram=!isDocKeyDirty(programDocKey(programId));
+      const shouldApplyRemoteProgram=!isDocKeyDirty(programDocKey(programId))
+        && shouldUseRemoteSection(localUpdatedAt,remoteUpdatedAt,{preferRemoteWhenUnset:true});
       if(shouldApplyRemoteProgram)nextProfile.programs[programId]=payload;
       const mergedProgramUpdatedAt=laterIso(localUpdatedAt,remoteUpdatedAt);
       if(mergedProgramUpdatedAt){

@@ -1398,10 +1398,13 @@ label {
 .toggle-row-spaced {
   margin-top: 14px;
 }
-.sheet-scroll-body {
+.modal-sheet.sheet-scroll-body {
   max-height: 88vh;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   touch-action: pan-y;
   padding-bottom: 48px;
 }

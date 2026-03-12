@@ -31,3 +31,33 @@ test('settings page stays usable after synced UI refresh', async ({ page }) => {
   await expect(page.locator('#page-settings')).toHaveClass(/active/);
   await expect(page.locator('#settings-tab-account')).toBeVisible();
 });
+
+test('program advanced setup sheet stays scrollable', async ({ page }) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(() => {
+    return window.eval(`
+      (() => {
+        showPage('settings');
+        showSettingsTab('program');
+        profile.activeProgram = 'forge';
+        initSettings();
+        openProgramSetupSheet();
+        const sheet = document.querySelector('#program-setup-sheet .modal-sheet');
+        if(!sheet)return null;
+        const style = window.getComputedStyle(sheet);
+        return {
+          overflowY: style.overflowY,
+          touchAction: style.touchAction,
+          scrollHeight: sheet.scrollHeight,
+          clientHeight: sheet.clientHeight
+        };
+      })()
+    `);
+  });
+
+  expect(result).not.toBeNull();
+  expect(result?.overflowY).toBe('auto');
+  expect(result?.touchAction).toContain('pan-y');
+  expect((result?.scrollHeight || 0) > (result?.clientHeight || 0)).toBeTruthy();
+});
