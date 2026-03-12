@@ -90,3 +90,34 @@ test('forge advanced setup keeps only advanced controls', async ({ page }) => {
   expect(result?.hasModeSelect).toBe(true);
   expect(result?.sheetText).toContain('Program Basics');
 });
+
+test('mobile forge program setup keeps the save action above the bottom nav', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openAppShell(page);
+
+  const result = await page.evaluate(() => {
+    return window.eval(`
+      (() => {
+        showPage('settings');
+        showSettingsTab('program');
+        profile.activeProgram = 'forge';
+        initSettings();
+        openProgramSetupSheet();
+        const sheet = document.querySelector('#program-setup-sheet .modal-sheet');
+        const button = document.querySelector('#program-setup-sheet .program-setup-save-btn');
+        const nav = document.querySelector('.bottom-nav');
+        if(!sheet || !button || !nav)return null;
+        sheet.scrollTop = sheet.scrollHeight;
+        const buttonRect = button.getBoundingClientRect();
+        const navRect = nav.getBoundingClientRect();
+        return {
+          buttonBottom: buttonRect.bottom,
+          navTop: navRect.top
+        };
+      })()
+    `);
+  });
+
+  expect(result).not.toBeNull();
+  expect((result?.buttonBottom || 0) < (result?.navTop || 0)).toBeTruthy();
+});

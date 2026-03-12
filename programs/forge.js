@@ -661,7 +661,9 @@ FORGE_PROGRAM.renderSettings=function(state,container){
         <div class="settings-row-note" style="margin-top:10px">${trForge('program.forge.settings.terms','<strong>Terms:</strong> TM = Training Max. RIR = reps left before failure. AMRAP = as many reps as possible.')}</div>
       </div>
     </div>
-    <button class="btn btn-purple" style="margin-top:16px" onclick="saveProgramSetup()">${trForge('program.forge.save_setup','Save Program Setup')}</button>
+    <div class="program-setup-actions">
+      <button class="btn btn-purple program-setup-save-btn" type="button" onclick="saveProgramSetup()">${trForge('program.forge.save_setup','Save Program Setup')}</button>
+    </div>
   `;
   this._updateModeDesc(mode);
   window._forgeRefreshAdvancedPreview();

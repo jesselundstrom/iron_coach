@@ -1408,6 +1408,17 @@ label {
   touch-action: pan-y;
   padding-bottom: 48px;
 }
+#program-setup-sheet {
+  padding-bottom: calc(var(--nav-h) + var(--sab) + 10px);
+}
+#program-setup-sheet .modal-sheet.sheet-scroll-body {
+  max-height: min(
+    88vh,
+    calc(var(--app-vh) - var(--sat) - var(--nav-h) - var(--sab) - 10px)
+  );
+  padding-bottom: calc(var(--nav-h) + var(--sab) + 26px);
+  scroll-padding-bottom: calc(var(--nav-h) + var(--sab) + 26px);
+}
 .sheet-header {
   display: flex;
   align-items: center;
@@ -1428,6 +1439,21 @@ label {
 }
 .sheet-close-btn:active {
   transform: scale(0.98);
+}
+.program-setup-actions {
+  position: sticky;
+  bottom: 0;
+  margin-top: 18px;
+  padding-top: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 22, 24, 0),
+    rgba(22, 22, 24, 0.9) 28%,
+    rgba(22, 22, 24, 1) 100%
+  );
+}
+.program-setup-save-btn {
+  width: 100%;
 }
 .segment-control-equal .btn {
   flex: 1;
