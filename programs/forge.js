@@ -293,9 +293,9 @@ const FORGE_PROGRAM={
   legLifts:LEG_LIFTS,
 
   getInitialState(){
-    return{week:1,daysPerWeek:3,mode:'sets',rounding:2.5,skipPeakBlock:false,weekStartDate:new Date().toISOString(),backExercise:'Barbell Rows',backWeight:0,
-      lifts:{main:[{name:'Squat',tm:100},{name:'Bench Press',tm:80},{name:'Deadlift',tm:120},{name:'OHP',tm:50}],
-        aux:[{name:'Front Squat',tm:80},{name:'Pause Squat',tm:90},{name:'Close-Grip Bench',tm:70},{name:'Spoto Press',tm:75},{name:'Stiff Leg Deadlift',tm:100},{name:'Push Press',tm:50}]}};
+      return{week:1,daysPerWeek:3,mode:'sets',rounding:2.5,skipPeakBlock:false,weekStartDate:new Date().toISOString(),backExercise:'Barbell Rows',backWeight:0,
+        lifts:{main:[{name:'Squat',tm:100},{name:'Bench Press',tm:80},{name:'Deadlift',tm:120},{name:'OHP',tm:50}],
+        aux:[{name:'Front Squat',tm:80},{name:'Paused Squat',tm:90},{name:'Close-Grip Bench',tm:70},{name:'Spoto Press',tm:75},{name:'Stiff Leg Deadlift',tm:100},{name:'Push Press',tm:50}]}};
   },
 
   getSessionOptions(state,workouts,schedule){

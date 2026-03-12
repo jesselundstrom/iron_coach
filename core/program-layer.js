@@ -11,6 +11,13 @@ function cloneProgramSession(exercises){
   }));
 }
 
+function stripWarmupSetsFromExercises(exercises){
+  return(exercises||[]).map(ex=>({
+    ...ex,
+    sets:Array.isArray(ex?.sets)?ex.sets.filter(set=>!set?.isWarmup).map(set=>({...set})):[]
+  }));
+}
+
 function analyzeProgramSessionShape(prog,session){
   const exercises=Array.isArray(session)?session:[];
   const totalSets=exercises.reduce((sum,ex)=>sum+(Array.isArray(ex.sets)?ex.sets.length:0),0);
@@ -238,13 +245,15 @@ function recomputeProgramStateFromWorkouts(programId){
       return (a.id||0)-(b.id||0);
     });
 
-  let state=programWorkouts[0]?.programStateBefore
-    ? JSON.parse(JSON.stringify(programWorkouts[0].programStateBefore))
+  let state=programWorkouts[0]?.programStateUsedForBuild
+    ? JSON.parse(JSON.stringify(programWorkouts[0].programStateUsedForBuild))
+    : programWorkouts[0]?.programStateBefore
+      ? JSON.parse(JSON.stringify(programWorkouts[0].programStateBefore))
     : (prog.getInitialState?prog.getInitialState():{});
   if(prog.migrateState)state=prog.migrateState(state);
 
   programWorkouts.forEach((w,idx)=>{
-    const exercises=Array.isArray(w.exercises)?w.exercises:[];
+    const exercises=stripWarmupSetsFromExercises(Array.isArray(w.exercises)?w.exercises:[]);
     if(prog.adjustAfterSession)state=prog.adjustAfterSession(exercises,state,w.programOption);
     if(prog.advanceState){
       const wd=new Date(w.date);
@@ -258,6 +267,17 @@ function recomputeProgramStateFromWorkouts(programId){
 
   profile.programs[canonicalId]=state;
   return state;
+}
+
+function applyProgramDateCatchUp(programId){
+  const canonicalId=getCanonicalProgramRef(programId);
+  const prog=PROGRAMS[canonicalId];
+  if(!prog||!prog.dateCatchUp||!profile.programs?.[canonicalId])return false;
+  const currentState=profile.programs[canonicalId];
+  const caughtState=prog.dateCatchUp(currentState);
+  if(!caughtState||JSON.stringify(caughtState)===JSON.stringify(currentState))return false;
+  profile.programs[canonicalId]=caughtState;
+  return true;
 }
 
 function renderProgramSwitcher(){
@@ -401,6 +421,7 @@ function switchProgram(id){
     profile.activeProgram=canonicalId;
     if(!profile.programs)profile.programs={};
     if(!profile.programs[canonicalId])profile.programs[canonicalId]=prog.getInitialState();
+    applyProgramDateCatchUp(canonicalId);
     saveProfileData({docKeys:[PROFILE_CORE_DOC_KEY,programDocKey(canonicalId)]});
     initSettings();
     updateDashboard();
@@ -567,11 +588,11 @@ function getProgramPreviewHeaderChips(prog,state,session){
   return chips.slice(0,3);
 }
 
-function renderProgramSessionPreview(prog,state,selectedOption,sportContext,planningContext,sessionModeBundle){
+function renderProgramSessionPreview(prog,selectedOption,snapshot){
   const container=document.getElementById('program-session-preview');
   if(!container||!selectedOption){if(container)container.innerHTML='';return;}
-  const previewState=getProgramPreviewBuildState(prog,state,sessionModeBundle);
-  const session=getProgramPreviewSession(prog,selectedOption.value,state,sportContext,planningContext,sessionModeBundle);
+  const previewState=snapshot?.buildState||{};
+  const session=Array.isArray(snapshot?.exercises)?snapshot.exercises:[];
   const chips=getProgramPreviewHeaderChips(prog,previewState,session);
   const title=cleanProgramOptionLabel(selectedOption.label)||trProg('workout.training_day','Training Day');
   const dayNumber=getProgramOptionDayNumber(selectedOption);
@@ -708,11 +729,6 @@ function updateProgramDisplay(){
     }).join('');
   }
   const info=document.getElementById('program-week-display');
-  if(info&&prog.getBlockInfo){
-    const bi=prog.getBlockInfo(state);
-    const progName=trProg('program.'+prog.id+'.name',prog.name);
-    info.textContent=[progName,bi.name,bi.weekLabel].filter(Boolean).join(' - ');
-  }
   const decisionBundle=(typeof getWorkoutStartDecisionBundle==='function')
     ? getWorkoutStartDecisionBundle({prog,state,sportContext})
     : {
@@ -734,7 +750,24 @@ function updateProgramDisplay(){
   const trainingDecision=decisionBundle.trainingDecision||(typeof getTodayTrainingDecision==='function'
     ? getTodayTrainingDecision(planningContext)
     : null);
-  renderProgramSessionPreview(prog,state,selectedOption,sportContext,planningContext,decisionBundle);
+  const startSnapshot=(typeof getWorkoutStartSnapshot==='function'&&selectedOption?.value!==undefined)
+    ? getWorkoutStartSnapshot({
+      prog,
+      state,
+      selectedOption:selectedOption.value,
+      sportContext,
+      decisionBundle,
+      planningContext,
+      trainingDecision
+    })
+    : null;
+  const previewState=startSnapshot?.buildState||state;
+  if(info&&prog.getBlockInfo){
+    const bi=prog.getBlockInfo(previewState);
+    const progName=trProg('program.'+prog.id+'.name',prog.name);
+    info.textContent=[progName,bi.name,bi.weekLabel].filter(Boolean).join(' - ');
+  }
+  renderProgramSessionPreview(prog,selectedOption,startSnapshot);
   renderProgramTodayPanels(prog,state,trainingDecision,decisionBundle,planningContext,selectedOption);
 }
 

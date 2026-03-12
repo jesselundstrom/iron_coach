@@ -32,11 +32,13 @@ function restoreActiveWorkoutDraft(draft,options){
   }
   activeWorkout={
     ...restoredWorkout,
+    sessionSnapshot:normalizeWorkoutStartSnapshot(restoredWorkout.sessionSnapshot),
     exercises:ensureWorkoutExerciseUiKeys((restoredWorkout.exercises||[]).map(ex=>withResolvedExerciseId({
       ...ex,
       sets:Array.isArray(ex?.sets)?ex.sets.map(set=>({...set})):[]
     })))
   };
+  workoutStartSnapshotCache=normalizeWorkoutStartSnapshot(activeWorkout.sessionSnapshot);
   restDuration=parseInt(payload.restDuration,10)||profile.defaultRest||120;
   restTotal=parseInt(payload.restTotal,10)||0;
   restEndsAt=parseInt(payload.restEndsAt,10)||0;
@@ -194,6 +196,7 @@ let pendingSportReadinessLevel='none';
 let pendingSportReadinessTiming='none';
 let pendingSportReadinessTimingTouched=false;
 let pendingSessionMode='auto';
+let workoutStartSnapshotCache=null;
 let collapsedExerciseCardState={};
 let activeGuideExerciseKey=null;
 let exerciseUiKeyCounter=0;
@@ -527,6 +530,124 @@ function cloneWorkoutExercises(exercises){
     ...ex,
     sets:Array.isArray(ex?.sets)?ex.sets.map(set=>({...set})):ex?.sets
   })));
+}
+
+function cloneWorkoutStartSnapshot(snapshot){
+  return snapshot&&typeof snapshot==='object'?cloneJson(snapshot):null;
+}
+
+function normalizeWorkoutStartSnapshot(snapshot){
+  const next=cloneWorkoutStartSnapshot(snapshot);
+  if(!next)return null;
+  next.programId=String(next.programId||'').trim();
+  next.selectedOption=String(next.selectedOption||'');
+  next.signature=String(next.signature||'');
+  next.buildContext=next.buildContext&&typeof next.buildContext==='object'?next.buildContext:{};
+  next.buildState=next.buildState&&typeof next.buildState==='object'?next.buildState:{};
+  next.trainingDecision=cloneTrainingDecision(next.trainingDecision);
+  next.effectiveDecision=cloneTrainingDecision(next.effectiveDecision);
+  next.exercises=cloneWorkoutExercises((next.exercises||[]).map(withResolvedExerciseId));
+  next.programLabel=String(next.programLabel||'');
+  next.sessionDescription=String(next.sessionDescription||'');
+  next.changes=Array.isArray(next.changes)?next.changes.filter(Boolean):[];
+  next.equipmentHint=String(next.equipmentHint||'');
+  next.commentary=next.commentary?cloneJson(next.commentary):undefined;
+  return next;
+}
+
+function getCachedWorkoutStartSnapshot(){
+  return normalizeWorkoutStartSnapshot(workoutStartSnapshotCache);
+}
+
+function clearWorkoutStartSnapshot(){
+  workoutStartSnapshotCache=null;
+}
+
+function getWorkoutStartSnapshotSignature(input){
+  const next=input||{};
+  const prefs=normalizeTrainingPreferences(profile);
+  const sportContext=next.sportContext&&typeof next.sportContext==='object'
+    ? {
+      sportLoadLevel:next.sportContext.sportLoadLevel||'none',
+      legsStress:next.sportContext.legsStress||'none',
+      sportName:next.sportContext.sportName||''
+    }
+    : null;
+  return JSON.stringify({
+    programId:String(next.prog?.id||getActiveProgram()?.id||''),
+    selectedOption:String(next.selectedOption||''),
+    state:cloneJson(next.state||getActiveProgramState()||{}),
+    sportContext,
+    selectedSessionMode:next.decisionBundle?.selectedSessionMode||pendingSessionMode||'auto',
+    effectiveSessionMode:next.decisionBundle?.effectiveSessionMode||'normal',
+    preferences:{
+      warmupSetsEnabled:!!prefs.warmupSetsEnabled,
+      goal:prefs.goal||'',
+      sessionMinutes:prefs.sessionMinutes||0,
+      sportReadinessCheckEnabled:!!prefs.sportReadinessCheckEnabled
+    }
+  });
+}
+
+function buildWorkoutStartSnapshot(input){
+  const next=input||{};
+  const prog=next.prog||getActiveProgram();
+  const state=next.state||getActiveProgramState();
+  const decisionBundle=next.decisionBundle||getWorkoutStartDecisionBundle({prog,state,sportContext:next.sportContext});
+  const planningContext=next.planningContext||decisionBundle.planningContext||null;
+  const trainingDecision=next.trainingDecision||decisionBundle.trainingDecision||null;
+  const effectiveDecision=decisionBundle.effectiveDecision||trainingDecision;
+  let selectedOption=next.selectedOption;
+  if(!selectedOption&&trainingDecision?.recommendedSessionOption)selectedOption=trainingDecision.recommendedSessionOption;
+  selectedOption=String(selectedOption||'');
+  const buildContext=getProgramSessionBuildContext({sessionModeBundle:decisionBundle});
+  const buildState=getProgramSessionStateForBuild(prog,state,buildContext);
+  const builtExercises=cloneWorkoutExercises((prog.buildSession(selectedOption,buildState,buildContext)||[]).map(withResolvedExerciseId));
+  const sessionPrefs=applyTrainingPreferencesToExercises(builtExercises,next.sportContext,{
+    planningContext,
+    decision:effectiveDecision,
+    effectiveSessionMode:decisionBundle.effectiveSessionMode
+  });
+  const exercises=cloneWorkoutExercises(sessionPrefs.exercises||builtExercises);
+  const prefs=normalizeTrainingPreferences(profile);
+  if(prefs.warmupSetsEnabled)injectWarmupSets(exercises);
+  const blockInfo=prog.getBlockInfo?prog.getBlockInfo(buildState):{isDeload:false};
+  const sessionDescription=prog.getSessionDescription
+    ? (prog.getSessionDescription(selectedOption,buildState,buildContext)||'')
+    : (blockInfo.modeDesc||blockInfo.name||'');
+  return normalizeWorkoutStartSnapshot({
+    signature:getWorkoutStartSnapshotSignature({
+      prog,
+      state,
+      selectedOption,
+      sportContext:next.sportContext,
+      decisionBundle,
+      planningContext,
+      trainingDecision
+    }),
+    programId:prog.id,
+    selectedOption,
+    buildContext,
+    buildState:cloneJson(buildState),
+    exercises,
+    sessionDescription,
+    programLabel:prog.getSessionLabel(selectedOption,buildState,buildContext),
+    effectiveDecision,
+    trainingDecision,
+    changes:Array.isArray(sessionPrefs.changes)?sessionPrefs.changes.slice():[],
+    equipmentHint:sessionPrefs.equipmentHint||'',
+    commentary:sessionPrefs.commentary||undefined
+  });
+}
+
+function getWorkoutStartSnapshot(input){
+  const signature=getWorkoutStartSnapshotSignature(input);
+  if(workoutStartSnapshotCache?.signature===signature){
+    return getCachedWorkoutStartSnapshot();
+  }
+  const snapshot=buildWorkoutStartSnapshot(input);
+  workoutStartSnapshotCache=snapshot;
+  return getCachedWorkoutStartSnapshot();
 }
 
 function getCompletedSetCount(exercise){
@@ -1535,25 +1656,31 @@ function beginWorkoutStart(sportContext){
   const decisionBundle=getWorkoutStartDecisionBundle({prog,state,sportContext});
   const planningContext=decisionBundle.planningContext;
   const trainingDecision=decisionBundle.trainingDecision;
-  const effectiveDecision=decisionBundle.effectiveDecision||trainingDecision;
-  const buildContext=getProgramSessionBuildContext({sessionModeBundle:decisionBundle});
-  const buildState=getProgramSessionStateForBuild(prog,state,buildContext);
-  if(!selectedOption&&trainingDecision?.recommendedSessionOption)selectedOption=trainingDecision.recommendedSessionOption;
-
-  const builtExercises=ensureWorkoutExerciseUiKeys((prog.buildSession(selectedOption,buildState,buildContext)||[]).map(withResolvedExerciseId));
-  const sessionPrefs=applyTrainingPreferencesToExercises(builtExercises,sportContext,{
-    planningContext,
-    decision:effectiveDecision,
-    effectiveSessionMode:decisionBundle.effectiveSessionMode
-  });
-  const exercises=sessionPrefs.exercises;
-  const prefs=normalizeTrainingPreferences(profile);
-  if(prefs.warmupSetsEnabled)injectWarmupSets(exercises);
-  const label=prog.getSessionLabel(selectedOption,buildState,buildContext);
+  const cachedSnapshot=getCachedWorkoutStartSnapshot();
+  const canReuseSnapshot=cachedSnapshot
+    && cachedSnapshot.programId===prog.id
+    && (!selectedOption||cachedSnapshot.selectedOption===String(selectedOption));
+  const startSnapshot=canReuseSnapshot
+    ? cachedSnapshot
+    : getWorkoutStartSnapshot({
+      prog,
+      state,
+      selectedOption,
+      sportContext,
+      decisionBundle,
+      planningContext,
+      trainingDecision
+    });
+  selectedOption=startSnapshot?.selectedOption||selectedOption;
+  const effectiveDecision=startSnapshot?.effectiveDecision||decisionBundle.effectiveDecision||trainingDecision;
+  const buildContext=startSnapshot?.buildContext||getProgramSessionBuildContext({sessionModeBundle:decisionBundle});
+  const buildState=startSnapshot?.buildState||getProgramSessionStateForBuild(prog,state,buildContext);
+  const exercises=startSnapshot?.exercises?cloneWorkoutExercises(startSnapshot.exercises):[];
+  const label=startSnapshot?.programLabel||prog.getSessionLabel(selectedOption,buildState,buildContext);
   const bi=prog.getBlockInfo?prog.getBlockInfo(buildState):{isDeload:false};
-  const sessionDescription=prog.getSessionDescription
+  const sessionDescription=startSnapshot?.sessionDescription||(prog.getSessionDescription
     ? (prog.getSessionDescription(selectedOption,buildState,buildContext)||'')
-    : (bi.modeDesc||bi.name||'');
+    : (bi.modeDesc||bi.name||''));
 
   activeWorkout={
     program:prog.id,
@@ -1565,7 +1692,7 @@ function beginWorkoutStart(sportContext){
     sportContext:sportContext||undefined,
     planningDecision:trainingDecision||undefined,
     planningContext:planningContext||undefined,
-    commentary:sessionPrefs.commentary||undefined,
+    commentary:startSnapshot?.commentary||undefined,
     runnerState:{
       mode:effectiveDecision?.action||trainingDecision?.action||'train',
       adjustments:[],
@@ -1575,6 +1702,7 @@ function beginWorkoutStart(sportContext){
       sportAwareLowerBody:decisionBundle.sportAwareLowerBody===true
     },
     sessionDescription,
+    sessionSnapshot:startSnapshot||undefined,
     exercises:ensureWorkoutExerciseUiKeys(exercises),
     startTime:Date.now()
   };
@@ -1605,16 +1733,18 @@ function beginWorkoutStart(sportContext){
   const changeToastColor=(effectiveDecision?.restrictionFlags||[]).includes('avoid_heavy_legs')
     ? 'var(--orange)'
     : decisionToastColor;
+  const sessionChanges=Array.isArray(startSnapshot?.changes)?startSnapshot.changes:[];
+  const equipmentHint=startSnapshot?.equipmentHint||'';
   if(decisionSummary&&effectiveDecision&&(effectiveDecision.action!=='train'||effectiveDecision.restrictionFlags?.includes('avoid_heavy_legs'))){
     setTimeout(()=>showToast(startToast?.text||decisionSummary.title,decisionToastColor),700);
   }
-  if(sessionPrefs.changes.length){
-    setTimeout(()=>showToast(sessionPrefs.changes[0],changeToastColor),effectiveDecision&&(effectiveDecision.action!=='train'||effectiveDecision.restrictionFlags?.includes('avoid_heavy_legs'))?1800:900);
+  if(sessionChanges.length){
+    setTimeout(()=>showToast(sessionChanges[0],changeToastColor),effectiveDecision&&(effectiveDecision.action!=='train'||effectiveDecision.restrictionFlags?.includes('avoid_heavy_legs'))?1800:900);
   }
-  if(sessionPrefs.equipmentHint){
-    const baseDelay=sessionPrefs.changes.length?2600:900;
+  if(equipmentHint){
+    const baseDelay=sessionChanges.length?2600:900;
     const decisionDelay=effectiveDecision&&(effectiveDecision.action!=='train'||effectiveDecision.restrictionFlags?.includes('avoid_heavy_legs'))?900:0;
-    setTimeout(()=>showToast(sessionPrefs.equipmentHint,'var(--blue)'),baseDelay+decisionDelay);
+    setTimeout(()=>showToast(equipmentHint,'var(--blue)'),baseDelay+decisionDelay);
   }
 
   // Sport warning for leg-heavy days
@@ -2482,11 +2612,15 @@ async function finishWorkout(){
   const programName=window.I18N&&I18N.t?I18N.t('program.'+prog.id+'.name',null,prog.name||'Training'):prog.name||'Training';
   const state=getActiveProgramState();
   const stateBeforeSession=JSON.parse(JSON.stringify(state));
+  const sessionSnapshot=normalizeWorkoutStartSnapshot(activeWorkout.sessionSnapshot);
+  const progressionSourceState=sessionSnapshot?.buildState
+    ? cloneJson(sessionSnapshot.buildState)
+    : stateBeforeSession;
 
   // Structured state snapshot at session time (program-agnostic; used by history + analytics)
   let programMeta;
-  try{programMeta=prog.getWorkoutMeta?prog.getWorkoutMeta(state):{week:state.week,cycle:state.cycle};}
-  catch(e){logWarn('getWorkoutMeta',e);programMeta={week:state.week,cycle:state.cycle};}
+  try{programMeta=prog.getWorkoutMeta?prog.getWorkoutMeta(progressionSourceState):{week:progressionSourceState.week,cycle:progressionSourceState.cycle};}
+  catch(e){logWarn('getWorkoutMeta',e);programMeta={week:progressionSourceState.week,cycle:progressionSourceState.cycle};}
   const workoutId=Date.now();
   const workoutDate=new Date().toISOString();
   ensureWorkoutCommentaryRecord(activeWorkout);
@@ -2511,6 +2645,7 @@ async function finishWorkout(){
       sportAwareLowerBody:activeWorkout.runnerState.sportAwareLowerBody===true
     }:undefined,
     programStateBefore:stateBeforeSession,
+    programStateUsedForBuild:cloneJson(progressionSourceState),
     duration:getWorkoutElapsedSeconds(),exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets};
   workouts.push(savedWorkout);
 
@@ -2521,10 +2656,14 @@ async function finishWorkout(){
   try{
     // Adjust program state (TMs, weights, failures, etc.)
     // Strip warm-up sets so program progression logic only sees working sets
-    const exercisesForProgression=activeWorkout.exercises.map(ex=>({
-      ...ex,sets:(ex.sets||[]).filter(s=>!s.isWarmup)
-    }));
-    let newState=prog.adjustAfterSession?prog.adjustAfterSession(exercisesForProgression,state,activeWorkout.programOption):state;
+    const exercisesForProgression=typeof stripWarmupSetsFromExercises==='function'
+      ? stripWarmupSetsFromExercises(activeWorkout.exercises)
+      : activeWorkout.exercises.map(ex=>({
+        ...ex,sets:(ex.sets||[]).filter(s=>!s.isWarmup)
+      }));
+    let newState=prog.adjustAfterSession
+      ? prog.adjustAfterSession(exercisesForProgression,progressionSourceState,activeWorkout.programOption)
+      : progressionSourceState;
 
     // Count sessions this week for advanceState
     const now=new Date(),sow=getWeekStart(now);
@@ -2573,6 +2712,7 @@ async function finishWorkout(){
 
   resetActiveWorkoutUIState();
   activeWorkout=null;
+  clearWorkoutStartSnapshot();
   clearCurrentWorkoutDraft();
   document.getElementById('workout-not-started').style.display='block';
   document.getElementById('workout-active').style.display='none';
@@ -2587,6 +2727,7 @@ function cancelWorkout(){
   clearWorkoutTimer();skipRest();
   resetActiveWorkoutUIState();
   activeWorkout=null;
+  clearWorkoutStartSnapshot();
   clearCurrentWorkoutDraft();
   document.getElementById('workout-not-started').style.display='block';
   document.getElementById('workout-active').style.display='none';

@@ -244,8 +244,18 @@ const WENDLER_531 = {
   // Sessions required in a scheme week before it advances
   _weekSessions(freq) {
     if (freq === 2) return 2;
-    if (freq === 3) return 3;
     return 4;
+  },
+
+  _normalizeWeekSessionIndex(rawIndex) {
+    const parsed = parseInt(rawIndex, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed % 4;
+  },
+
+  _getRollingLiftOrder(state) {
+    const startIdx = this._normalizeWeekSessionIndex(state?.weekSessionIndex);
+    return Array.from({ length: 4 }, (_, offset) => (startIdx + offset) % 4);
   },
 
   // ─── Session Options ──────────────────────────────────────────────────────
@@ -275,6 +285,22 @@ const WENDLER_531 = {
           value: String(d),
           label: (done?'✅ ':(isNext?'⭐ ':'')+names+' · '+pct+'%×'+topRep),
           isRecommended: isNext && !done, done
+        };
+      });
+    }
+
+    if (freq === 3) {
+      const rollingOrder = this._getRollingLiftOrder(state);
+      return rollingOrder.map((liftIdx, orderIdx) => {
+        const lift = lifts[liftIdx];
+        const isRecommended = orderIdx === 0;
+        return {
+          value: String(liftIdx + 1),
+          label: (isRecommended ? '⭐ ' : '') + w531ExName(lift?.name || '') + ' · ' + pct + '%×' + topRep,
+          isRecommended,
+          done: false,
+          liftIdx,
+          category: lift?.category
         };
       });
     }
@@ -336,7 +362,7 @@ const WENDLER_531 = {
       } else {
         sets = scheme.pcts.map((pct, si) => {
           const weight = W531.rnd(lift.tm * pct, rounding);
-          const reps   = W531.getReps(week, season, si);
+          const reps   = W531.getReps(schemeWeek, season, si);
           const isLast = si === scheme.pcts.length - 1;
           return { weight, reps, done:false, rpe:null, isLastHeavySet: isLast && !isDeload };
         });
@@ -524,6 +550,35 @@ const WENDLER_531 = {
     const cycle  = state.cycle || 1;
     const needed = this._weekSessions(freq);
 
+    if (freq === 3) {
+      const nextIndex = this._normalizeWeekSessionIndex(state.weekSessionIndex) + 1;
+      if (nextIndex >= needed) {
+        if (week >= 4) {
+          const newState = JSON.parse(JSON.stringify(state));
+          if (!newState.tmTestedThisCycle) {
+            newState.lifts.main.forEach((l, i) => {
+              if (newState.stalledLifts?.[i]) {
+                l.tm = Math.round(l.tm * 0.9 * 10) / 10;
+                console.log('[W531] '+l.name+' stalled -> TM reset to '+l.tm+'kg');
+              } else {
+                const incr = l.category === 'legs' ? 5 : 2.5;
+                l.tm = Math.round((l.tm + incr) * 10) / 10;
+              }
+            });
+          }
+          newState.stalledLifts = {};
+          newState.testWeekPending = false;
+          newState.tmTestedThisCycle = false;
+          newState.week = 1;
+          newState.cycle = cycle + 1;
+          newState.weekSessionIndex = 0;
+          return newState;
+        }
+        return { ...state, week: week + 1, weekSessionIndex: 0 };
+      }
+      return { ...state, weekSessionIndex: nextIndex };
+    }
+
     if (sessionsThisWeek >= needed) {
       if (week >= 4) {
         // ── Cycle complete ──────────────────────────────────────────────────
@@ -545,11 +600,12 @@ const WENDLER_531 = {
         newState.tmTestedThisCycle = false;
         newState.week  = 1;
         newState.cycle = cycle + 1;
+        newState.weekSessionIndex = 0;
         return newState;
       }
-      return { ...state, week: week+1 };
+      return { ...state, week: week+1, weekSessionIndex: 0 };
     }
-    return state;
+    return { ...state, weekSessionIndex: 0 };
   },
 
   dateCatchUp: null,   // 5/3/1 advances by sessions, not calendar weeks
@@ -566,6 +622,7 @@ const WENDLER_531 = {
     if (s.stalledLifts  === undefined) s.stalledLifts      = {};
     if (s.testWeekPending=== undefined) s.testWeekPending  = false;
     if (s.tmTestedThisCycle===undefined) s.tmTestedThisCycle = false;
+    s.weekSessionIndex = this._normalizeWeekSessionIndex(s.weekSessionIndex);
     if (s.triumvirate   === undefined) s.triumvirate       = JSON.parse(JSON.stringify(W531.defaultTriumvirate));
     // Ensure each main lift has a category (old state stored name+tm only)
     if (s.lifts?.main) {
@@ -586,6 +643,7 @@ const WENDLER_531 = {
       cycle:           state.cycle   || 1,
       season:          state.season  || 'off',
       testWeekPending: !!state.testWeekPending,
+      weekSessionIndex:this._normalizeWeekSessionIndex(state.weekSessionIndex),
       daysPerWeek:     getW531DaysPerWeek()
     };
   },

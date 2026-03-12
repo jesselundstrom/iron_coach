@@ -107,6 +107,7 @@ function resetRuntimeState(){
   if(typeof clearWorkoutTimer==='function')clearWorkoutTimer();
   if(typeof clearRestInterval==='function')clearRestInterval();
   if(typeof clearRestHideTimer==='function')clearRestHideTimer();
+  if(typeof clearWorkoutStartSnapshot==='function')clearWorkoutStartSnapshot();
   activeWorkout=null;
   workoutSeconds=0;
   restSecondsLeft=0;
@@ -989,7 +990,11 @@ async function loadData(options){
   Object.values(PROGRAMS).forEach(prog=>{if(prog.migrateState&&profile.programs[prog.id])profile.programs[prog.id]=prog.migrateState(profile.programs[prog.id]);});
   // Apply date-based catch-up for the active program
   const activeProg=getActiveProgram();
-  if(activeProg.dateCatchUp&&profile.programs[activeProg.id]){const caught=activeProg.dateCatchUp(profile.programs[activeProg.id]);if(caught!==profile.programs[activeProg.id])profile.programs[activeProg.id]=caught;}
+  if(typeof applyProgramDateCatchUp==='function')applyProgramDateCatchUp(activeProg.id);
+  else if(activeProg.dateCatchUp&&profile.programs[activeProg.id]){
+    const caught=activeProg.dateCatchUp(profile.programs[activeProg.id]);
+    if(caught!==profile.programs[activeProg.id])profile.programs[activeProg.id]=caught;
+  }
   if(!activeWorkout&&typeof restoreActiveWorkoutDraft==='function'){
     const restored=restoreActiveWorkoutDraft(getActiveWorkoutDraftCache(),{toast:false});
     if(!restored)clearActiveWorkoutDraft();
