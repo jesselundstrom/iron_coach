@@ -28,6 +28,11 @@ let restInterval=null, restSecondsLeft=0, restTotal=0, restDuration=120, restEnd
 let pendingRPECallback=null;
 let exerciseIndex={};
 let _appViewportSyncTimeout=null;
+const IS_E2E_TEST_ENV=window.__IRONFORGE_TEST_USER_ID__==='e2e-user'||window.navigator.webdriver===true;
+
+if(IS_E2E_TEST_ENV){
+  document.documentElement.classList.add('test-env');
+}
 
 function getDefaultSportName(){
   const locale=window.I18N&&I18N.getLanguage?I18N.getLanguage():'en';

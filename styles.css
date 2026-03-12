@@ -81,6 +81,14 @@ body {
   line-height: 1.45;
   overscroll-behavior: none;
 }
+html.test-env *,
+html.test-env *::before,
+html.test-env *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
 button,
 [type='button'],
 [type='submit'],
