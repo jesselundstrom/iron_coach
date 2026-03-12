@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { openApp } from './helpers';
 
 test('signup shows a validation error for a short password', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openApp(page);
 
   await expect(page.locator('#login-screen')).toBeVisible();
 

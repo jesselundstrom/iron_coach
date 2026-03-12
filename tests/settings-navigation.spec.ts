@@ -1,15 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { openAppShell } from './helpers';
 
 test('user can open settings from the bottom navigation', async ({ page }) => {
-  await page.goto('/');
+  await openAppShell(page);
 
-  await page.evaluate(() => {
-    document.body.classList.remove('login-active');
-    const loginScreen = document.getElementById('login-screen');
-    if (loginScreen) loginScreen.style.display = 'none';
-  });
-
-  await page.getByRole('button', { name: /settings/i }).click();
+  await page
+    .locator('.bottom-nav')
+    .getByRole('button', { name: /^settings$/i })
+    .click();
 
   await expect(page.locator('#page-settings')).toHaveClass(/active/);
   await expect(page.locator('#sport-name')).toBeVisible();
