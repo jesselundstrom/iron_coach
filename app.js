@@ -25,9 +25,6 @@ let profile={defaultRest:120,language:(window.I18N&&I18N.getLanguage?I18N.getLan
 let activeWorkout=null, workoutTimer=null, workoutSeconds=0;
 let restInterval=null, restSecondsLeft=0, restTotal=0, restDuration=120, restEndsAt=0, restHideTimeout=null;
 let pendingRPECallback=null;
-let confirmCallback=null;
-let nameModalCallback=null;
-let _toastTimeout=null;
 let exerciseIndex={};
 let _appViewportSyncTimeout=null;
 
@@ -308,95 +305,6 @@ function getSportRecentHours(){return SPORT_RECENT_HOURS[schedule.sportIntensity
 
 
 // Data/auth lifecycle functions moved to core/data-layer.js.
-
-// NAV
-function showPage(name,btn){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
-  btn.classList.add('active');
-  const contentScroller=document.querySelector('.content');
-  if(contentScroller)contentScroller.scrollTo({top:0,behavior:'auto'});
-  if(name==='dashboard') updateDashboard();
-  if(name==='history') renderHistory();
-  if(name==='settings') initSettings();
-  if(name==='log'){
-    if(!activeWorkout)resetNotStartedView();
-  }
-}
-function goToLog(){showPage('log',document.querySelectorAll('.nav-btn')[1]);}
-
-
-function getToastVariant(color){
-  const raw=String(color||'').toLowerCase();
-  if(!raw)return'success';
-  if(raw.includes('--green'))return'success';
-  if(raw.includes('--blue'))return'info';
-  if(raw.includes('--purple'))return'accent';
-  if(raw.includes('--muted'))return'neutral';
-  if(raw.includes('--orange')||raw.includes('--yellow')||raw.includes('--accent'))return'warning';
-  if(raw.includes('--red'))return'danger';
-  return'';
-}
-
-function showToast(msg,color,undoFn){
-  const t=document.getElementById('toast');
-  clearTimeout(_toastTimeout);
-  t.className='toast';
-  const variant=getToastVariant(color);
-  if(variant)t.classList.add('toast-'+variant);
-  t.style.removeProperty('background');
-  if(undoFn){
-    t.style.pointerEvents='auto';
-    t.innerHTML=msg+' <span id="t-undo" style="background:rgba(255,255,255,0.2);border-radius:6px;padding:2px 10px;margin-left:6px;cursor:pointer;font-weight:700;font-size:13px">'+tr('common.undo','Undo')+'</span>';
-    document.getElementById('t-undo').onclick=()=>{clearTimeout(_toastTimeout);t.classList.remove('show');t.style.pointerEvents='none';undoFn();};
-  }else{
-    t.style.pointerEvents='none';
-    t.textContent=msg;
-  }
-  if(!variant&&color)t.style.background=color;
-  t.classList.add('show');
-  _toastTimeout=setTimeout(()=>{t.classList.remove('show');t.style.pointerEvents='none';},undoFn?5000:2800);
-}
-
-// CONFIRM MODAL
-function showConfirm(title,msg,cb){
-  document.getElementById('confirm-title').textContent=title;
-  document.getElementById('confirm-msg').textContent=msg;
-  confirmCallback=cb;
-  document.getElementById('confirm-modal').classList.add('active');
-}
-function confirmOk(){document.getElementById('confirm-modal').classList.remove('active');if(confirmCallback)confirmCallback();confirmCallback=null;}
-function confirmCancel(){document.getElementById('confirm-modal').classList.remove('active');confirmCallback=null;}
-
-// NAME INPUT MODAL
-function showNameModal(title,cb){
-  nameModalCallback=cb;
-  if(typeof openExerciseCatalogForAdd==='function'){
-    openExerciseCatalogForAdd(title,cb);
-    return;
-  }
-  document.getElementById('name-modal-title').textContent=title||tr('catalog.title.add','Add Exercise');
-  document.getElementById('name-modal-input').value='';
-  document.getElementById('name-modal').classList.add('active');
-  setTimeout(()=>document.getElementById('name-modal-input').focus(),100);
-}
-function closeNameModal(){
-  document.getElementById('name-modal').classList.remove('active');
-  if(typeof resetExerciseCatalogState==='function')resetExerciseCatalogState();
-  nameModalCallback=null;
-}
-function submitNameModal(){
-  if(typeof submitExerciseCatalogSelection==='function'){
-    submitExerciseCatalogSelection();
-    return;
-  }
-  const v=document.getElementById('name-modal-input').value.trim();
-  if(!v)return;
-  document.getElementById('name-modal').classList.remove('active');
-  if(nameModalCallback)nameModalCallback(v);
-  nameModalCallback=null;
-}
 
 // REST TIMER
 function updateRestDuration(){restDuration=parseInt(document.getElementById('rest-duration').value,10)||0;}
