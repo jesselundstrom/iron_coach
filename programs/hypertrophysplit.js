@@ -687,7 +687,6 @@ const HS_PROGRAM={
         <div class="settings-section-sub" style="margin-top:-2px;color:var(--text)">${escapeHtml(_splitDescription(freq))}</div>
         <div id="hs-basic-lifts-container">${liftRows}</div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px" onclick="saveSimpleProgramSettings()">${tr('program.hs.simple.save','Save Basics')}</button>
     `;
   },
 

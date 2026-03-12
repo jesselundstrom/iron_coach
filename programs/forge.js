@@ -581,7 +581,6 @@ FORGE_PROGRAM.renderSimpleSettings=function(state,container){
         <input type="number" id="forge-basic-back-weight" value="${backWt||''}" min="0" step="0.1" placeholder="e.g. 60">
       </div>
     </div>
-    <button class="btn btn-primary" style="margin-top:14px" onclick="saveSimpleProgramSettings()">${trForge('program.forge.simple.save','Save Forge Basics')}</button>
   `;
 };
 

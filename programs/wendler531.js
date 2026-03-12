@@ -938,7 +938,6 @@ const WENDLER_531 = {
           <div>${tmRows}</div>
         </div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px" onclick="saveSimpleProgramSettings()">${trW531('program.w531.simple.save','Save Wendler Basics')}</button>
     `;
   },
 

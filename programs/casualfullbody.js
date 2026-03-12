@@ -343,7 +343,6 @@ const CASUAL_FULL_BODY = {
         </div>
       </div>
 
-      <button class="btn btn-primary" style="margin-top:14px" onclick="saveSimpleProgramSettings()">${trCFB('program.cfb.simple.save','Save Gym Basics')}</button>
     `;
   },
 

@@ -1,4 +1,5 @@
-﻿let DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+﻿const APP_VERSION='1.0.0';
+let DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function refreshDayNames(){
   DAY_NAMES=[
     tr('day.sun.short','Sun'),
@@ -404,6 +405,7 @@ function setSportIntensity(val,el){
   schedule.sportIntensity=val;
   document.querySelectorAll('#sport-intensity-btns button').forEach(b=>b.classList.remove('active'));
   if(el)el.classList.add('active');
+  saveSchedule();
 }
 let _settingsTab='schedule';
 function showSettingsTab(name,el){
@@ -429,6 +431,7 @@ function openProgramSetupSheet(){
   }
   document.getElementById('program-setup-sheet').classList.add('active');
 }
+let _programBasicsAutoSaveBound=false;
 function renderProgramBasics(){
   const card=document.getElementById('program-basics-panel');
   const container=document.getElementById('program-basics-container');
@@ -444,6 +447,15 @@ function renderProgramBasics(){
     }
     if(summaryEl)summaryEl.textContent=prog.getSimpleSettingsSummary?prog.getSimpleSettingsSummary(state):'';
     if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(card);
+    // Auto-save: delegate change events from program basics fields
+    if(!_programBasicsAutoSaveBound){
+      _programBasicsAutoSaveBound=true;
+      container.addEventListener('change',function(e){
+        if(e.target.matches('select,input[type="number"],input[type="text"],input[type="checkbox"],input[type="hidden"]')){
+          saveSimpleProgramSettings();
+        }
+      });
+    }
     return;
   }
   card.style.display='none';
@@ -460,8 +472,34 @@ function renderTrainingProgramSummary(){
 }
 function renderTrainingPreferencesSummary(){
   const summaryEl=document.getElementById('training-preferences-summary');
-  if(!summaryEl)return;
-  summaryEl.textContent=getTrainingPreferencesSummary(profile);
+  if(summaryEl)summaryEl.textContent=getTrainingPreferencesSummary(profile);
+  renderTrainingStatusBar();
+}
+function renderSportStatusBar(){
+  const bar=document.getElementById('sport-status-bar');
+  if(!bar)return;
+  const sep='<span class="status-sep">\u00b7</span>';
+  const name=schedule.sportName||getDefaultSportName();
+  const intensity=schedule.sportIntensity||'hard';
+  const intensityLabel=tr('settings.intensity.'+intensity,intensity.charAt(0).toUpperCase()+intensity.slice(1));
+  const days=schedule.sportDays||[];
+  const dayStr=days.length?days.sort((a,b)=>a-b).map(d=>DAY_NAMES[d]).join(', '):tr('settings.status.no_days','No days set');
+  bar.innerHTML=name+sep+intensityLabel+sep+dayStr;
+}
+function renderTrainingStatusBar(){
+  const bar=document.getElementById('training-status-bar');
+  if(!bar)return;
+  bar.textContent=getTrainingPreferencesSummary(profile);
+}
+function renderProgramStatusBar(){
+  const bar=document.getElementById('program-status-bar');
+  if(!bar)return;
+  const prog=getActiveProgram(),state=getActiveProgramState();
+  if(!prog){bar.textContent='';return;}
+  const sep='<span class="status-sep">\u00b7</span>';
+  const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name):prog.name;
+  const summary=prog.getSimpleSettingsSummary?prog.getSimpleSettingsSummary(state):'';
+  bar.innerHTML=summary?progName+sep+summary:progName;
 }
 
 const ONBOARDING_JOINT_FLAGS=[
@@ -932,6 +970,16 @@ function initSettings(){
   renderTrainingProgramSummary();
   renderProgramBasics();
   renderTrainingPreferencesSummary();
+  renderSportStatusBar();
+  renderProgramStatusBar();
+  renderBackupContext();
+  // Version display
+  {const vEl=document.getElementById('app-version');if(vEl)vEl.textContent='Ironforge v'+APP_VERSION;}
+  // Reset danger zone confirm state
+  {const dzt=document.getElementById('danger-zone-trigger');if(dzt)dzt.style.display='';
+   const dzc=document.getElementById('danger-zone-confirm');if(dzc)dzc.style.display='none';
+   const dzi=document.getElementById('danger-zone-input');if(dzi)dzi.value='';
+   const dzb=document.getElementById('danger-zone-delete-btn');if(dzb)dzb.disabled=true;}
   showSettingsTab(_settingsTab);
   if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(document);
 }
@@ -943,13 +991,14 @@ function toggleDay(kind,dow,el){
   const cls=kind+'-day';
   if(el.classList.contains(cls)){el.classList.remove(cls);schedule[key]=schedule[key].filter(d=>d!==dow);}
   else{el.classList.add(cls);if(!schedule[key])schedule[key]=[];if(!schedule[key].includes(dow))schedule[key].push(dow);}
+  if(kind==='sport')saveSchedule();
 }
 
 function saveRestTimer(){
   profile.defaultRest=parseInt(document.getElementById('default-rest').value)||120;
   restDuration=profile.defaultRest;
   saveProfileData({docKeys:['profile_core']});
-  showToast(tr('toast.rest_updated','Rest timer updated'),'var(--blue)');
+  _showAutoSaveToast(tr('toast.rest_updated','Saved'),'var(--blue)');
 }
 function saveTrainingPreferences(){
   const prefs=normalizeTrainingPreferences(profile);
@@ -984,7 +1033,7 @@ function saveTrainingPreferences(){
       return;
     }
   }
-  showToast(tr('toast.preferences_saved','Training preferences saved'),'var(--purple)');
+  _showAutoSaveToast(tr('toast.preferences_saved','Saved'),'var(--purple)');
 }
 function saveSimpleProgramSettings(){
   const prog=getActiveProgram(),state=getActiveProgramState();
@@ -995,7 +1044,8 @@ function saveSimpleProgramSettings(){
   renderProgramBasics();
   updateProgramDisplay();
   updateDashboard();
-  showToast(tr('program.setup_saved','Program setup saved!'),'var(--purple)');
+  renderProgramStatusBar();
+  _showAutoSaveToast(tr('program.setup_saved','Saved'),'var(--purple)');
 }
 function saveLanguageSetting(){
   const lang=document.getElementById('app-language')?.value||'en';
@@ -1005,25 +1055,33 @@ function saveLanguageSetting(){
   const msg=window.I18N&&I18N.t?I18N.t('settings.language.saved'):'Language updated';
   showToast(msg,'var(--blue)');
 }
+let _autoSaveToastTimer=null;
+function _showAutoSaveToast(msg,color){
+  clearTimeout(_autoSaveToastTimer);
+  _autoSaveToastTimer=setTimeout(()=>showToast(msg,color),600);
+}
 function saveSchedule(){
   const nameInp=document.getElementById('sport-name');
   if(nameInp)schedule.sportName=nameInp.value.trim()||getDefaultSportName();
   const cb=document.getElementById('sport-legs-heavy');
   if(cb)schedule.sportLegsHeavy=cb.checked;
-  const prefs=normalizeTrainingPreferences(profile);
-  const sportCheckEl=document.getElementById('training-sport-check');
-  if(sportCheckEl){
-    profile.preferences=normalizeTrainingPreferences({
-      ...profile,
-      preferences:{...prefs,sportReadinessCheckEnabled:sportCheckEl.checked===true}
-    });
-  }
   if(!activeWorkout)resetNotStartedView();
   saveScheduleData();
   saveProfileData({docKeys:['profile_core']});
-  updateProgramDisplay();updateDashboard();showToast(tr('toast.schedule_saved','Schedule saved!'),'var(--blue)');
+  updateProgramDisplay();updateDashboard();renderSportStatusBar();
+  _showAutoSaveToast(tr('toast.schedule_saved','Saved'),'var(--blue)');
 }
 
+function renderBackupContext(){
+  const el=document.getElementById('backup-context');
+  if(!el)return;
+  const count=workouts?workouts.length:0;
+  if(!count){el.textContent=tr('settings.backup_empty','No workouts recorded yet.');return;}
+  const dates=workouts.map(w=>w.date).filter(Boolean).sort();
+  const first=dates[0]||'';
+  const firstFormatted=first?new Date(first).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'';
+  el.textContent=tr('settings.backup_context','{count} workouts since {date}',{count,date:firstFormatted});
+}
 function exportData(){
   const data={version:1,exported:new Date().toISOString(),workouts,schedule,profile};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
@@ -1064,6 +1122,19 @@ function importData(event){
   event.target.value="";
 }
 
+function showDangerConfirm(){
+  document.getElementById('danger-zone-trigger').style.display='none';
+  const panel=document.getElementById('danger-zone-confirm');
+  panel.style.display='';
+  const inp=document.getElementById('danger-zone-input');
+  inp.value='';
+  document.getElementById('danger-zone-delete-btn').disabled=true;
+  inp.focus();
+}
+function checkDangerConfirm(){
+  const inp=document.getElementById('danger-zone-input');
+  document.getElementById('danger-zone-delete-btn').disabled=inp.value.trim().toUpperCase()!=='DELETE';
+}
 async function clearAllData(){
   if(typeof clearLocalDataCache==='function')clearLocalDataCache({includeScoped:true,includeLegacy:true});
   else{

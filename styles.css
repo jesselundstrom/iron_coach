@@ -218,7 +218,7 @@ h1,h2{margin-top:0}
 .btn-sm{min-height:44px;padding:10px 14px;font-size:14px;border-radius:14px;width:auto}
 .btn-icon{width:36px;height:36px;padding:0;border-radius:10px;flex-shrink:0}
 .btn[disabled]{opacity:0.5;pointer-events:none}
-label.btn{text-transform:none;letter-spacing:0}
+label.btn{letter-spacing:0.04em}
 
 /* ── INPUTS ── */
 input:not([type=checkbox]),select,textarea{background:var(--surface2);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:var(--text);font-size:16px;padding:12px;width:100%;outline:none;-webkit-appearance:none;appearance:none;font-family:inherit;transition:border-color 0.2s,box-shadow 0.2s}
@@ -243,7 +243,26 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px;margin-t
 .settings-import-button{text-align:center;cursor:pointer;margin:0}
 .file-input-hidden{display:none}
 .account-email{font-size:13px;color:var(--muted);margin-bottom:14px}
+.account-email:empty{display:none}
+.account-field{margin-bottom:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)}
+.account-field label{margin-bottom:4px}
+.settings-note-top{margin-top:0;margin-bottom:10px}
+.app-version{text-align:center;font-size:11px;color:var(--muted);opacity:0.5;padding:20px 0 8px;letter-spacing:0.04em}
 .danger-btn{color:var(--red,#ef4444);border-color:rgba(239,68,68,0.3)}
+.settings-status-bar{padding:10px 14px;margin-bottom:12px;border-radius:12px;background:var(--surface);border:1px solid var(--border);font-size:13px;line-height:1.4;color:var(--text);font-weight:500}
+.settings-status-bar:empty{display:none}
+.settings-status-bar .status-sep{color:var(--muted);margin:0 4px;opacity:0.5}
+.danger-zone-card{margin-top:24px;border-color:rgba(239,68,68,0.2);background:linear-gradient(180deg,rgba(239,68,68,0.06),rgba(239,68,68,0.02))}
+.danger-zone-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.danger-zone-icon{font-size:16px;color:var(--red,#ef4444);opacity:0.8}
+.danger-zone-card .card-title{color:var(--red,#ef4444);opacity:0.9}
+.danger-zone-desc{font-size:12px;line-height:1.5;color:var(--muted);margin-bottom:12px}
+.danger-zone-confirm{margin-top:12px}
+.danger-zone-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--red,#ef4444);font-weight:700;margin-bottom:6px;display:block}
+.danger-zone-input{margin-bottom:10px;border-color:rgba(239,68,68,0.3);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.06em}
+.danger-zone-input:focus{border-color:rgba(239,68,68,0.5);box-shadow:0 0 0 3px rgba(239,68,68,0.1)}
+.danger-btn-final{width:100%;margin-top:4px}
+.danger-btn-final:disabled{opacity:0.35;pointer-events:none}
 .toggle-row-spaced{margin-top:14px}
 .sheet-scroll-body{max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:48px}
 .sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
@@ -1073,6 +1092,9 @@ body.login-active::before{
 .settings-panel-sub{margin-top:6px;font-size:13px;line-height:1.45;color:var(--text);opacity:0.88;text-wrap:balance}
 .settings-panel-chevron{flex-shrink:0;color:var(--muted);font-size:16px;transition:transform 0.18s ease}
 .settings-panel[open] .settings-panel-chevron{transform:rotate(180deg)}
+.program-advanced-card{transition:border-color 0.15s,background 0.15s}
+.program-advanced-card:active{transform:scale(0.99)}
+.program-advanced-chevron{flex-shrink:0;color:var(--muted);font-size:20px;font-weight:300;opacity:0.6}
 .settings-panel-body{padding:0 16px 16px;border-top:1px solid rgba(255,255,255,0.06)}
 .settings-panel-inline-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)}
 .program-advanced-btn{width:100%}

@@ -386,7 +386,6 @@ STRONGLIFTS_5X5.renderSimpleSettings=function(state,container){
         <div class="settings-picker-stack">${accRows}</div>
       </div>
     </div>
-    <button class="btn btn-primary" style="margin-top:14px" onclick="saveSimpleProgramSettings()">${trSL('program.sl.simple.save','Save StrongLifts Basics')}</button>
   `;
 };
 
