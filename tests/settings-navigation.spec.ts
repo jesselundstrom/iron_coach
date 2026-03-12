@@ -61,3 +61,32 @@ test('program advanced setup sheet stays scrollable', async ({ page }) => {
   expect(result?.touchAction).toContain('pan-y');
   expect((result?.scrollHeight || 0) > (result?.clientHeight || 0)).toBeTruthy();
 });
+
+test('forge advanced setup keeps only advanced controls', async ({ page }) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(() => {
+    return window.eval(`
+      (() => {
+        showPage('settings');
+        showSettingsTab('program');
+        profile.activeProgram = 'forge';
+        initSettings();
+        openProgramSetupSheet();
+        return {
+          hasMainLiftInput: !!document.getElementById('forge-advanced-main-tm-0'),
+          hasBackWeightInput: !!document.getElementById('forge-advanced-back-weight'),
+          hasAuxInput: !!document.getElementById('forge-advanced-aux-tm-0'),
+          hasModeSelect: !!document.getElementById('prog-mode'),
+          sheetText: document.getElementById('program-settings-container')?.textContent || ''
+        };
+      })()
+    `);
+  });
+
+  expect(result?.hasMainLiftInput).toBe(false);
+  expect(result?.hasBackWeightInput).toBe(false);
+  expect(result?.hasAuxInput).toBe(true);
+  expect(result?.hasModeSelect).toBe(true);
+  expect(result?.sheetText).toContain('Program Basics');
+});

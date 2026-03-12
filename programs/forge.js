@@ -596,26 +596,10 @@ FORGE_PROGRAM.renderSettings=function(state,container){
   const rounding=state.rounding||2.5;
   const freq=getForgeDaysPerWeek();
   const skipPeak=!!state.skipPeakBlock;
-  const backWt=state.backWeight||0;
   _forgeSettingsDrafts.advanced=createForgeSettingsDraft(state);
   const draft=_forgeSettingsDrafts.advanced;
   const modeOpts=Object.entries(FORGE_INTERNAL.modes).map(([key])=>`<option value="${key}"${key===mode?' selected':''}>${getForgeModeName(key)} — ${getForgeModeDesc(key)}</option>`).join('');
   const roundOpts=[1,2.5,5].map(n=>`<option value="${n}"${n===rounding?' selected':''}>${n} kg</option>`).join('');
-  const mainRows=draft.main.map((lift,idx)=>`
-    <div style="margin-bottom:12px">
-      ${renderForgePickerRow(
-        trForge(FORGE_MAIN_SLOT_CONFIG[idx]?.labelKey,FORGE_MAIN_SLOT_CONFIG[idx]?.fallback||`Lift ${idx+1}`),
-        lift.name,
-        `window._forgePickMain('advanced',${idx})`,
-        trForge('program.forge.settings.library_hint','Library-backed selection with same-pattern suggestions first.'),
-        `forge-advanced-main-value-${idx}`
-      )}
-      <div class="lift-row" style="margin-top:6px">
-        <span class="lift-label">${trForge('program.w531.settings.training_max','Training Max (kg)')}</span>
-        <input type="number" id="forge-advanced-main-tm-${idx}" value="${lift.tm}" min="0" step="0.1">
-      </div>
-    </div>
-  `).join('');
   const auxRows=draft.aux.map((lift,idx)=>`
     <div style="margin-bottom:12px">
       ${renderForgePickerRow(
@@ -631,6 +615,11 @@ FORGE_PROGRAM.renderSettings=function(state,container){
       </div>
     </div>
   `).join('');
+  const basicsSummary=draft.main.map((lift,idx)=>{
+    const label=trForge(FORGE_MAIN_SLOT_CONFIG[idx]?.labelKey,FORGE_MAIN_SLOT_CONFIG[idx]?.fallback||`Lift ${idx+1}`);
+    return `<div class="settings-row-note" style="margin-top:8px"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(forgeExerciseName(lift.name))} · ${escapeHtml(String(lift.tm||0))} kg</div>`;
+  }).join('');
+  const backSummary=`<div class="settings-row-note" style="margin-top:8px"><strong>${escapeHtml(trForge('program.forge.settings.back_exercise','Back Exercise (every session)'))}:</strong> ${escapeHtml(forgeExerciseName(state.backExercise||'Barbell Rows'))} · ${escapeHtml(String(state.backWeight||0))} kg</div>`;
   container.innerHTML=`
     <div class="program-settings-grid">
       <div class="settings-section-card">
@@ -655,9 +644,10 @@ FORGE_PROGRAM.renderSettings=function(state,container){
         </button>
       </div>
       <div class="settings-section-card">
-        <div class="settings-section-title">${trForge('program.forge.settings.main_lifts','Main Lifts (Training Max in kg)')}</div>
-        <div class="settings-section-sub">${trForge('program.forge.simple.main_help','Pick the four core lifts and set a training max for each one.')}</div>
-        <div class="settings-picker-stack">${mainRows}</div>
+        <div class="settings-section-title">${trForge('program.forge.settings.basics_location_title','Program Basics')}</div>
+        <div class="settings-section-sub">${trForge('program.forge.settings.basics_location_help','Main lifts, training maxes, and back work live in Program Basics so the day-to-day setup stays in one place.')}</div>
+        ${basicsSummary}
+        ${backSummary}
       </div>
       <div class="settings-section-card">
         <div class="settings-section-title">${trForge('program.forge.settings.aux_lifts','Auxiliary Lifts (Training Max in kg)')}</div>
@@ -665,21 +655,8 @@ FORGE_PROGRAM.renderSettings=function(state,container){
         <div class="settings-picker-stack">${auxRows}</div>
       </div>
       <div class="settings-section-card">
-        <div class="settings-section-title">${trForge('program.forge.settings.back_exercise','Back Exercise (every session)')}</div>
-        <div class="settings-section-sub">${trForge('program.forge.simple.back_help','This movement appears every session as your repeat back exercise.')}</div>
-        ${renderForgePickerRow(
-          trForge('program.forge.settings.back_exercise','Back Exercise (every session)'),
-          draft.backExercise,
-          `window._forgePickBack('advanced')`,
-          trForge('program.forge.settings.back_picker_hint','Recommended rows and pull variations are shown first.'),
-          'forge-advanced-back-value'
-        )}
-        <label style="margin-top:12px">${trForge('program.forge.settings.working_weight','Working Weight (kg)')}</label>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="number" id="forge-advanced-back-weight" value="${backWt||''}" placeholder="e.g. 60" style="flex:1">
-          <span style="font-size:11px;color:var(--muted);flex:1">${trForge('program.forge.settings.back_prog','3×8 → 3×10, then increase')}</span>
-        </div>
-        <div class="divider-label" style="margin-top:14px"><span>${trForge('program.forge.settings.preview_title','Weekly Split Preview')}</span></div>
+        <div class="settings-section-title">${trForge('program.forge.settings.preview_title','Weekly Split Preview')}</div>
+        <div class="settings-section-sub">${trForge('program.forge.settings.preview_help','Preview how Forge distributes your main and auxiliary work across the week.')}</div>
         <div id="prog-split-preview" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.8"></div>
         <div class="settings-row-note" style="margin-top:10px">${trForge('program.forge.settings.terms','<strong>Terms:</strong> TM = Training Max. RIR = reps left before failure. AMRAP = as many reps as possible.')}</div>
       </div>
@@ -698,18 +675,11 @@ FORGE_PROGRAM.saveSettings=function(state){
   next.rounding=parseFloat(document.getElementById('prog-rounding')?.value)||next.rounding||2.5;
   next.skipPeakBlock=document.getElementById('prog-skip-peak')?.value==='1';
   if(!next.lifts)next.lifts=this.getInitialState().lifts;
-  next.lifts.main=(next.lifts.main||this.getInitialState().lifts.main).map((lift,idx)=>({
-    ...lift,
-    name:resolveProgramExerciseName(draft.main?.[idx]?.name||lift.name||FORGE_MAIN_SLOT_CONFIG[idx]?.base||''),
-    tm:parseFloat(document.getElementById(`forge-advanced-main-tm-${idx}`)?.value)||0
-  }));
   next.lifts.aux=(next.lifts.aux||this.getInitialState().lifts.aux).map((lift,idx)=>({
     ...lift,
     name:resolveProgramExerciseName(draft.aux?.[idx]?.name||lift.name||''),
     tm:parseFloat(document.getElementById(`forge-advanced-aux-tm-${idx}`)?.value)||0
   }));
-  next.backExercise=resolveProgramExerciseName(draft.backExercise||next.backExercise||'Barbell Rows');
-  next.backWeight=parseFloat(document.getElementById('forge-advanced-back-weight')?.value)||0;
   return next;
 };
 
