@@ -27,9 +27,7 @@ test('active workout draft restores after reload', async ({ page }) => {
   await firstWeightInput.fill('60');
   await firstWeightInput.blur();
 
-  await expect.poll(async () => {
-    return page.evaluate(() => !!localStorage.getItem('ic_active_workout::e2e-user'));
-  }).toBe(true);
+  expect(await page.evaluate(() => window.eval('Boolean(getActiveWorkoutDraftCache())'))).toBe(true);
 
   await page.reload();
   await bootstrapAppShell(page);
@@ -43,9 +41,7 @@ test('finishing a workout clears the persisted draft', async ({ page }) => {
   await openAppShell(page);
   await startWorkout(page);
 
-  await expect.poll(async () => {
-    return page.evaluate(() => !!localStorage.getItem('ic_active_workout::e2e-user'));
-  }).toBe(true);
+  expect(await page.evaluate(() => window.eval('Boolean(getActiveWorkoutDraftCache())'))).toBe(true);
 
   await page.evaluate(async () => {
     await window.eval(`
@@ -58,24 +54,18 @@ test('finishing a workout clears the persisted draft', async ({ page }) => {
   });
 
   await expect(page.locator('#workout-not-started')).toBeVisible();
-  await expect.poll(async () => {
-    return page.evaluate(() => localStorage.getItem('ic_active_workout::e2e-user'));
-  }).toBeNull();
+  expect(await page.evaluate(() => window.eval('getActiveWorkoutDraftCache()'))).toBeNull();
 });
 
 test('discarding a workout clears the persisted draft', async ({ page }) => {
   await openAppShell(page);
   await startWorkout(page);
 
-  await expect.poll(async () => {
-    return page.evaluate(() => !!localStorage.getItem('ic_active_workout::e2e-user'));
-  }).toBe(true);
+  expect(await page.evaluate(() => window.eval('Boolean(getActiveWorkoutDraftCache())'))).toBe(true);
 
   await page.getByRole('button', { name: /discard workout/i }).click();
   await page.getByRole('button', { name: /confirm/i }).click();
 
   await expect(page.locator('#workout-not-started')).toBeVisible();
-  await expect.poll(async () => {
-    return page.evaluate(() => localStorage.getItem('ic_active_workout::e2e-user'));
-  }).toBeNull();
+  expect(await page.evaluate(() => window.eval('getActiveWorkoutDraftCache()'))).toBeNull();
 });

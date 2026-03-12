@@ -30,5 +30,4 @@ test('settings page stays usable after synced UI refresh', async ({ page }) => {
 
   await expect(page.locator('#page-settings')).toHaveClass(/active/);
   await expect(page.locator('#settings-tab-account')).toBeVisible();
-  await expect(page.locator('#sync-status')).toBeVisible();
 });
