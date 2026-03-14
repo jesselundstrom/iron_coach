@@ -1973,94 +1973,76 @@ select optgroup {
       0 0 12px rgba(255, 122, 58, 0.12);
   }
 }
-@keyframes hammerSwing {
-  0% {
-    transform: translate(14px, -8px) rotate(55deg);
-    opacity: 1;
-  }
-  58% {
-    transform: translate(2px, 49px) rotate(-6deg);
-    opacity: 1;
-  }
-  75% {
-    transform: translate(1px, 42px) rotate(-2deg);
-    opacity: 1;
-  }
-  88% {
-    transform: translate(1px, 44px) rotate(-4deg);
-    opacity: 0.7;
-  }
-  100% {
-    transform: translate(1px, 44px) rotate(-4deg);
-    opacity: 0;
-  }
+/* ── Forge Strike: set completion animation ── */
+
+/* Phase 1: Impact — button squishes down then springs back */
+@keyframes forgeStrike {
+  0%   { transform: scale(1);    }
+  12%  { transform: scale(0.72); }
+  32%  { transform: scale(1.22); }
+  52%  { transform: scale(0.94); }
+  72%  { transform: scale(1.06); }
+  100% { transform: scale(1);    }
 }
-@keyframes setStamp {
-  0% {
-    transform: scale(0.6);
-  }
-  55% {
-    transform: scale(1.18);
-  }
-  78% {
-    transform: scale(0.95);
-  }
-  100% {
-    transform: scale(1);
-  }
+
+/* Phase 2: Hot flash — white-orange → green cooldown on the button */
+@keyframes forgeCooldown {
+  0%   { background: #fff8f0; border-color: #ffa040; box-shadow: 0 0 18px 4px rgba(255,160,64,0.7), 0 0 40px 8px rgba(255,120,40,0.3); }
+  30%  { background: #ffb347; border-color: #ff8c1a; box-shadow: 0 0 14px 3px rgba(255,140,50,0.5), 0 0 28px 6px rgba(255,100,30,0.2); }
+  65%  { background: #6dd49a; border-color: #4caf79; box-shadow: 0 0 12px 2px rgba(76,175,121,0.45), 0 0 24px 4px rgba(76,175,121,0.15); }
+  100% { background: var(--green); border-color: var(--green); box-shadow: 0 2px 10px rgba(52,211,153,0.3); }
 }
-@keyframes setRipple {
-  0% {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
+
+/* Phase 3: Shockwave ring expanding outward */
+@keyframes forgeShockwave {
+  0%   { transform: scale(0.5);  opacity: 0.9; border-width: 3px; }
+  60%  { opacity: 0.5; }
+  100% { transform: scale(3);    opacity: 0;   border-width: 0.5px; }
 }
-@keyframes setRowJolt {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  40% {
-    transform: translateX(4px);
-  }
-  70% {
-    transform: translateX(-1px);
-  }
+
+/* Ember particle flying outward */
+@keyframes emberFly {
+  0%   { transform: translate(0,0) scale(1); opacity: 1; }
+  30%  { opacity: 1; }
+  100% { transform: translate(var(--ember-x), var(--ember-y)) scale(0); opacity: 0; }
 }
+/* Ember glow trail */
+@keyframes emberGlow {
+  0%   { box-shadow: 0 0 4px 2px var(--ember-color); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
 .set-check.set-done-anim {
-  animation: setStamp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) 0.21s both;
+  animation: forgeStrike 0.42s cubic-bezier(0.22, 1, 0.36, 1) both,
+             forgeCooldown 0.5s ease-out both;
   transition: none;
 }
-.set-check.set-done-anim::before {
-  content: '';
-  display: block;
-  position: absolute;
-  width: 32px;
-  height: 44px;
-  top: -44px;
-  left: 2px;
-  transform-origin: 50% 70%;
-  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 62'><rect x='18' y='0' width='12' height='6' rx='2' fill='%23667788'/><rect x='3' y='5' width='42' height='20' rx='3' fill='%237a8fa8'/><rect x='3' y='5' width='42' height='7' rx='3' fill='%239db5cc'/><rect x='3' y='18' width='42' height='7' fill='%23566070'/><rect x='0' y='9' width='6' height='12' rx='2' fill='%23658090'/><rect x='42' y='9' width='6' height='12' rx='2' fill='%23658090'/><rect x='19' y='9' width='10' height='12' rx='2' fill='%23223040'/><rect x='22' y='10' width='4' height='10' rx='1' fill='%2334d399'/><rect x='19' y='13' width='10' height='3' rx='1' fill='%2334d399'/><rect x='20' y='24' width='8' height='30' rx='3' fill='%23a07030'/><rect x='19' y='31' width='10' height='3' rx='1' fill='%23445055'/><rect x='19' y='40' width='10' height='3' rx='1' fill='%23445055'/><ellipse cx='24' cy='57' rx='9' ry='5' fill='%23556070'/><ellipse cx='24' cy='56' rx='7' ry='3' fill='%23708090'/></svg>")
-    center/contain no-repeat;
-  animation: hammerSwing 0.34s cubic-bezier(0.4, 0, 0.8, 1) forwards;
-  pointer-events: none;
-  z-index: 10;
-}
+/* Shockwave ring */
 .set-check.set-done-anim::after {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -2px;
   border-radius: inherit;
-  background: var(--green);
+  border: 3px solid rgba(255,160,64,0.7);
+  background: transparent;
   pointer-events: none;
-  animation: setRipple 0.36s ease-out 0.21s forwards;
+  animation: forgeShockwave 0.45s ease-out forwards;
 }
+/* Row: no visual effect — animation stays on the checkbox only */
 .set-row.set-done-anim {
-  animation: setRowJolt 0.16s ease-out 0.21s both;
+  animation: none;
+}
+/* Ember particles (spawned via JS) */
+.forge-ember {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ember-color, #ffa040);
+  pointer-events: none;
+  z-index: 20;
+  animation: emberFly 0.52s cubic-bezier(0.15, 0, 0.4, 1) forwards,
+             emberGlow 0.52s ease-out forwards;
 }
 .exercise-block {
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface2) 100%);

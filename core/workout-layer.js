@@ -2305,6 +2305,27 @@ function tryHaptic(pattern){
   try{if(navigator.vibrate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)navigator.vibrate(pattern);}catch(e){}
 }
 
+function spawnForgeEmbers(checkEl){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const rect=checkEl.getBoundingClientRect();
+  const cx=rect.left+rect.width/2;
+  const cy=rect.top+rect.height/2;
+  const colors=['#ffa040','#ff8c1a','#ffcc66','#ff6a1a','#ffd699','#fff0d0'];
+  const count=8;
+  for(let i=0;i<count;i++){
+    const angle=(Math.PI*2/count)*i+(Math.random()-0.5)*0.6;
+    const dist=28+Math.random()*22;
+    const dx=Math.cos(angle)*dist;
+    const dy=Math.sin(angle)*dist;
+    const ember=document.createElement('span');
+    ember.className='forge-ember';
+    const size=3+Math.random()*3;
+    ember.style.cssText=`left:${cx-size/2}px;top:${cy-size/2}px;width:${size}px;height:${size}px;--ember-x:${dx}px;--ember-y:${dy}px;--ember-color:${colors[i%colors.length]};position:fixed;`;
+    document.body.appendChild(ember);
+    ember.addEventListener('animationend',()=>ember.remove(),{once:true});
+  }
+}
+
 function toggleSet(ei,si){
   const exercise=activeWorkout.exercises[ei];
   const set=exercise?.sets?.[si];
@@ -2319,6 +2340,7 @@ function toggleSet(ei,si){
     if(check){
       check.classList.add('done','set-done-anim');
       check.addEventListener('animationend',()=>check.classList.remove('set-done-anim'),{once:true});
+      spawnForgeEmbers(check);
     }
     if(row){
       row.addEventListener('animationend',()=>row.classList.remove('set-done-anim'),{once:true});
