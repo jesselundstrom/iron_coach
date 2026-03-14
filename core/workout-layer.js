@@ -1415,11 +1415,16 @@ function collapseCompletedExercise(exerciseRef){
   setExerciseCardCollapsed(exercise,true);
   const card=getExerciseCardElement(uiKey);
   if(card){
-    card.style.maxHeight=card.offsetHeight+'px';
-    void card.offsetHeight;
     card.classList.add('collapsing');
+    card.addEventListener('animationend',()=>{
+      updateExerciseCard(uiKey);
+      const newCard=getExerciseCardElement(uiKey);
+      if(newCard){
+        newCard.classList.add('seal-enter');
+        newCard.addEventListener('animationend',()=>newCard.classList.remove('seal-enter'),{once:true});
+      }
+    },{once:true});
   }
-  window.setTimeout(()=>updateExerciseCard(uiKey),260);
 }
 
 function getExerciseSetsId(exercise){
@@ -2364,17 +2369,24 @@ function toggleSet(ei,si){
     }
     if(isExerciseComplete(exercise)){
       setExerciseCardCollapsed(exercise,true);
-      // Animate collapse: capture current height then shrink
       const card=getExerciseCardElement(exerciseUiKey);
       if(card){
-        card.style.maxHeight=card.offsetHeight+'px';
-        void card.offsetHeight; // force reflow before adding class
-        card.classList.add('collapsing');
+        // Delay the collapse animation so the last set's forge strike plays first
+        window.setTimeout(()=>{
+          card.classList.add('collapsing');
+          card.addEventListener('animationend',()=>{
+            const currentExercise=getExerciseByUiKey(exerciseUiKey);
+            if(currentExercise&&isExerciseComplete(currentExercise)){
+              updateExerciseCard(exerciseUiKey);
+              const newCard=getExerciseCardElement(exerciseUiKey);
+              if(newCard){
+                newCard.classList.add('seal-enter');
+                newCard.addEventListener('animationend',()=>newCard.classList.remove('seal-enter'),{once:true});
+              }
+            }
+          },{once:true});
+        },500);
       }
-      window.setTimeout(()=>{
-        const currentExercise=getExerciseByUiKey(exerciseUiKey);
-        if(currentExercise&&isExerciseComplete(currentExercise))updateExerciseCard(exerciseUiKey);
-      },260);
     }
     startRestTimer();
     if(shouldPromptForSetRIR(exercise,si))showSetRIRPrompt(ei,si);

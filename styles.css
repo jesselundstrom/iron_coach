@@ -2089,13 +2089,24 @@ select optgroup {
 .exercise-block.is-collapsed {
   padding: 0;
 }
-/* Collapse transition — applied before DOM replacement */
+/* ── Forge Seal: exercise collapse animation ── */
+@keyframes forgeSeal {
+  0%   { opacity: 1; transform: scale(1); }
+  40%  { opacity: 0.85; transform: scale(0.97); }
+  100% { opacity: 0; transform: scale(0.94); }
+}
+@keyframes forgeSealReveal {
+  0%   { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  60%  { opacity: 1; transform: scale(1.015) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
 .exercise-block.collapsing {
-  max-height: 56px;
-  padding: 0;
   overflow: hidden;
-  transition: max-height 0.25s cubic-bezier(0.22, 0.68, 0.35, 1),
-              padding 0.25s ease;
+  animation: forgeSeal 0.3s cubic-bezier(0.4, 0, 0.7, 1) both;
+  pointer-events: none;
+}
+.exercise-block.is-collapsed.seal-enter {
+  animation: forgeSealReveal 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .exercise-top {
   display: grid;
