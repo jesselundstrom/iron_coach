@@ -38,6 +38,8 @@ function restoreActiveWorkoutDraft(draft,options){
       sets:Array.isArray(ex?.sets)?ex.sets.map(set=>({...set})):[]
     })))
   };
+  activeWorkout.rewardState=buildWorkoutRewardState(restoredWorkout.rewardState);
+  rebuildActiveWorkoutRewardState();
   workoutStartSnapshotCache=normalizeWorkoutStartSnapshot(activeWorkout.sessionSnapshot);
   restDuration=parseInt(payload.restDuration,10)||profile.defaultRest||120;
   restTotal=parseInt(payload.restTotal,10)||0;
@@ -201,6 +203,216 @@ let collapsedExerciseCardState={};
 let activeGuideExerciseKey=null;
 let exerciseUiKeyCounter=0;
 let exerciseListInteractionsBound=false;
+
+function prefersReducedMotionUI(){
+  return document.documentElement.classList.contains('test-env')
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function getWorkoutExerciseRewardKeys(exercise){
+  if(typeof exerciseLookupKeys==='function')return exerciseLookupKeys(exercise);
+  const source=typeof exercise==='string'?{name:exercise}:exercise;
+  const keys=[];
+  if(source?.exerciseId)keys.push('id:'+source.exerciseId);
+  if(source?.name)keys.push('name:'+String(source.name).trim().toLowerCase());
+  return keys;
+}
+
+function getWorkoutExerciseRewardKey(exercise){
+  return getWorkoutExerciseRewardKeys(exercise)[0]||'';
+}
+
+function getSetRewardKey(exercise,setIndex){
+  return `${ensureExerciseUiKey(exercise)}:${setIndex}`;
+}
+
+function getCompletedSetPerformance(set){
+  if(!set?.done||set.isWarmup)return 0;
+  const weight=parseFloat(set.weight);
+  const reps=parseLoggedRepCount(set.reps);
+  if(!Number.isFinite(weight)||weight<=0||!Number.isFinite(reps)||reps<=0)return 0;
+  return weight*reps;
+}
+
+function buildWorkoutPrBaseline(){
+  const baseline={};
+  workouts.forEach(workout=>{
+    if(isSportWorkout(workout))return;
+    (workout.exercises||[]).forEach(exercise=>{
+      const score=Math.max(0,...(exercise.sets||[]).map(getCompletedSetPerformance));
+      if(!score)return;
+      getWorkoutExerciseRewardKeys(exercise).forEach(key=>{
+        baseline[key]=Math.max(baseline[key]||0,score);
+      });
+    });
+  });
+  return baseline;
+}
+
+function normalizeDetectedPrs(entries){
+  return Array.isArray(entries)
+    ? entries
+      .filter(entry=>entry&&typeof entry==='object')
+      .map(entry=>({
+        setKey:String(entry.setKey||''),
+        exerciseKey:String(entry.exerciseKey||''),
+        exerciseName:String(entry.exerciseName||''),
+        weight:parseFloat(entry.weight)||0,
+        reps:parseLoggedRepCount(entry.reps)||0,
+        score:parseFloat(entry.score)||0
+      }))
+      .filter(entry=>entry.setKey&&entry.exerciseKey&&entry.score>0)
+    : [];
+}
+
+function buildWorkoutRewardState(baseState){
+  const normalized={
+    prBaseline:{...(baseState?.prBaseline||buildWorkoutPrBaseline())},
+    prCurrentBest:{...(baseState?.prCurrentBest||{})},
+    detectedPrs:normalizeDetectedPrs(baseState?.detectedPrs)
+  };
+  Object.keys(normalized.prBaseline).forEach(key=>{
+    normalized.prCurrentBest[key]=Math.max(normalized.prCurrentBest[key]||0,normalized.prBaseline[key]||0);
+  });
+  return normalized;
+}
+
+function getActiveWorkoutRewardState(){
+  if(!activeWorkout)return null;
+  if(!activeWorkout.rewardState)activeWorkout.rewardState=buildWorkoutRewardState();
+  return activeWorkout.rewardState;
+}
+
+function rebuildActiveWorkoutRewardState(){
+  if(!activeWorkout)return null;
+  const rewardState=buildWorkoutRewardState({prBaseline:activeWorkout.rewardState?.prBaseline});
+  (activeWorkout.exercises||[]).forEach(exercise=>{
+    const exerciseKey=getWorkoutExerciseRewardKey(exercise);
+    const keys=getWorkoutExerciseRewardKeys(exercise);
+    (exercise.sets||[]).forEach((set,setIndex)=>{
+      if(!set?.done||set.isWarmup)return;
+      const score=getCompletedSetPerformance(set);
+      if(!score)return;
+      const setKey=getSetRewardKey(exercise,setIndex);
+      keys.forEach(key=>{
+        rewardState.prCurrentBest[key]=Math.max(rewardState.prCurrentBest[key]||0,score);
+      });
+      if(set.isPr){
+        rewardState.detectedPrs.push({
+          setKey,
+          exerciseKey,
+          exerciseName:displayExerciseName(exercise.name),
+          weight:parseFloat(set.weight)||0,
+          reps:parseLoggedRepCount(set.reps)||0,
+          score
+        });
+      }
+    });
+  });
+  activeWorkout.rewardState=rewardState;
+  return rewardState;
+}
+
+function getWorkoutPrCount(workout){
+  return (workout?.rewardState?.detectedPrs||[]).length;
+}
+
+function formatWorkoutWeight(value){
+  const rounded=Math.round((parseFloat(value)||0)*10)/10;
+  return Number.isInteger(rounded)?String(rounded.toFixed(0)):String(rounded.toFixed(1));
+}
+
+function formatWorkoutDuration(seconds){
+  const total=Math.max(0,Math.round(seconds)||0);
+  const mins=Math.floor(total/60);
+  const secs=total%60;
+  if(mins>0)return `${mins}m${secs>0?` ${secs}s`:''}`;
+  return `${secs}s`;
+}
+
+function formatWorkoutTonnage(tonnage){
+  const safe=Math.max(0,parseFloat(tonnage)||0);
+  return safe>=1000?`${(safe/1000).toFixed(1)} t`:`${Math.round(safe)} kg`;
+}
+
+function detectSetPr(exercise,set,setIndex){
+  const rewardState=getActiveWorkoutRewardState();
+  if(!rewardState)return null;
+  const keys=getWorkoutExerciseRewardKeys(exercise);
+  const exerciseKey=keys[0]||'';
+  const score=getCompletedSetPerformance(set);
+  if(!exerciseKey||!score)return null;
+  const bestSoFar=keys.reduce((max,key)=>Math.max(max,rewardState.prCurrentBest[key]||rewardState.prBaseline[key]||0),0);
+  if(score<=bestSoFar)return null;
+  const setKey=getSetRewardKey(exercise,setIndex);
+  const event={
+    setKey,
+    exerciseKey,
+    exerciseName:displayExerciseName(exercise.name),
+    weight:parseFloat(set.weight)||0,
+    reps:parseLoggedRepCount(set.reps)||0,
+    score
+  };
+  set.isPr=true;
+  keys.forEach(key=>{
+    rewardState.prCurrentBest[key]=score;
+  });
+  rewardState.detectedPrs=rewardState.detectedPrs.filter(entry=>entry.setKey!==setKey);
+  rewardState.detectedPrs.push(event);
+  return event;
+}
+
+function clearSetPr(exercise,set,setIndex){
+  if(set)set.isPr=false;
+  const rewardState=getActiveWorkoutRewardState();
+  if(!rewardState)return;
+  const setKey=getSetRewardKey(exercise,setIndex);
+  rewardState.detectedPrs=rewardState.detectedPrs.filter(entry=>entry.setKey!==setKey);
+  rebuildActiveWorkoutRewardState();
+}
+
+function ensureSetPrBadge(row){
+  const actionCell=row?.querySelector('.set-action-cell');
+  if(!actionCell)return null;
+  let badge=actionCell.querySelector('.set-pr-badge');
+  if(!badge){
+    badge=document.createElement('span');
+    badge.className='set-pr-badge';
+    badge.textContent=i18nText('workout.pr_badge','NEW PR');
+    actionCell.appendChild(badge);
+  }
+  actionCell.classList.add('has-pr');
+  return badge;
+}
+
+function playSetPrCelebration(row,check,prEvent){
+  if(!row||!check||!prEvent)return;
+  const badge=ensureSetPrBadge(row);
+  row.classList.add('set-pr-celebration');
+  check.classList.add('set-pr-highlight');
+  requestAnimationFrame(()=>badge?.classList.add('is-visible'));
+  spawnForgeEmbers(check,{
+    colors:['#ffd700','#ffec8b','#f5c842','#fff8dc'],
+    count:5,
+    distanceMin:24,
+    distanceMax:34,
+    sizeMin:3,
+    sizeMax:5
+  });
+  tryHaptic([20,40,20,40,80]);
+  showToast(
+    i18nText('workout.pr_toast','New PR! {name} {weight}kg x {reps}',{
+      name:prEvent.exerciseName,
+      weight:formatWorkoutWeight(prEvent.weight),
+      reps:prEvent.reps
+    }),
+    'var(--yellow)'
+  );
+  window.setTimeout(()=>{
+    row.classList.remove('set-pr-celebration');
+    check.classList.remove('set-pr-highlight');
+  },900);
+}
 
 function createExerciseUiKey(){
   exerciseUiKeyCounter+=1;
@@ -1406,6 +1618,31 @@ function expandCompletedExercise(exerciseRef){
   updateExerciseCard(ensureExerciseUiKey(exercise));
 }
 
+// Shared helper: run forgeSeal animation on a card, then replace with collapsed summary.
+// Uses a setTimeout fallback in case animationend never fires (tab switch, low-power mode).
+function runForgeSealCollapse(card,uiKey){
+  let settled=false;
+  function finish(){
+    if(settled)return;
+    settled=true;
+    const currentExercise=getExerciseByUiKey(uiKey);
+    if(currentExercise&&isExerciseComplete(currentExercise)){
+      updateExerciseCard(uiKey);
+      const newCard=getExerciseCardElement(uiKey);
+      if(newCard){
+        newCard.classList.add('seal-enter');
+        newCard.addEventListener('animationend',()=>newCard.classList.remove('seal-enter'),{once:true});
+      }
+    }else{
+      updateExerciseCard(uiKey);
+    }
+  }
+  card.classList.add('collapsing');
+  card.addEventListener('animationend',finish,{once:true});
+  // Fallback: forgeSeal CSS animation is 300ms — 400ms gives safe margin
+  window.setTimeout(finish,400);
+}
+
 function collapseCompletedExercise(exerciseRef){
   const exercise=typeof exerciseRef==='string'
     ? getExerciseByUiKey(exerciseRef)
@@ -1414,17 +1651,7 @@ function collapseCompletedExercise(exerciseRef){
   const uiKey=ensureExerciseUiKey(exercise);
   setExerciseCardCollapsed(exercise,true);
   const card=getExerciseCardElement(uiKey);
-  if(card){
-    card.classList.add('collapsing');
-    card.addEventListener('animationend',()=>{
-      updateExerciseCard(uiKey);
-      const newCard=getExerciseCardElement(uiKey);
-      if(newCard){
-        newCard.classList.add('seal-enter');
-        newCard.addEventListener('animationend',()=>newCard.classList.remove('seal-enter'),{once:true});
-      }
-    },{once:true});
-  }
+  if(card)runForgeSealCollapse(card,uiKey);
 }
 
 function getExerciseSetsId(exercise){
@@ -1457,15 +1684,23 @@ function buildSetRow(exercise,exerciseIndex,setIndex,set){
   const setLabel=set.isWarmup?'W':isAmrap?i18nText('workout.max_short','MAX'):String(setIndex+1-warmupsBefore);
   const repVal=isAmrap&&set.reps==='AMRAP'?'':set.reps;
   const rowClass=['set-row'];
+  const actionClass=['set-action-cell'];
   if(set.isWarmup)rowClass.push('set-warmup');
   if(set.done)rowClass.push('is-done');
   if(isAmrap)rowClass.push('set-amrap');
+  if(set.isPr){
+    rowClass.push('has-pr');
+    actionClass.push('has-pr');
+  }
   return `
     <div class="${rowClass.join(' ')}" data-set-index="${setIndex}">
       <span class="set-num"${isAmrap?' style="color:var(--purple);font-weight:800"':''}>${setLabel}</span>
       <input id="${getSetInputId(uiKey,setIndex,'weight')}" class="set-input" type="number" inputmode="decimal" min="0" max="999" step="any" data-field="weight" data-set-index="${setIndex}" data-exercise-index="${exerciseIndex}" placeholder="${escapeHtml(i18nText('workout.weight_placeholder','kg'))}" value="${escapeHtml(String(set.weight??''))}">
       <input id="${getSetInputId(uiKey,setIndex,'reps')}" class="set-input" type="number" inputmode="numeric" min="0" max="999" data-field="reps" data-set-index="${setIndex}" data-exercise-index="${exerciseIndex}" placeholder="${escapeHtml(isAmrap?i18nText('workout.reps_hit','reps hit'):i18nText('workout.reps_placeholder','reps'))}" value="${escapeHtml(String(repVal??''))}"${isAmrap?' style="border-color:var(--purple)"':''}>
-      <button class="set-check ${set.done?'done':''}" type="button" data-action="toggle-set" data-set-index="${setIndex}" data-exercise-index="${exerciseIndex}">✓</button>
+      <div class="${actionClass.join(' ')}">
+        <button class="set-check ${set.done?'done':''}${set.isPr?' set-check-pr':''}" type="button" data-action="toggle-set" data-set-index="${setIndex}" data-exercise-index="${exerciseIndex}">✓</button>
+        ${set.isPr?`<span class="set-pr-badge is-visible">${escapeHtml(i18nText('workout.pr_badge','NEW PR'))}</span>`:''}
+      </div>
     </div>`;
 }
 
@@ -1725,6 +1960,7 @@ function beginWorkoutStart(sportContext){
     },
     sessionDescription,
     sessionSnapshot:startSnapshot||undefined,
+    rewardState:buildWorkoutRewardState(),
     exercises:ensureWorkoutExerciseUiKeys(exercises),
     startTime:Date.now()
   };
@@ -2277,17 +2513,33 @@ function updateSet(ei,si,f,v){
   const set=exercise?.sets?.[si];
   if(!set)return;
   const sanitizedValue=sanitizeSetValue(f,v);
+  const shouldRefreshDoneSet=set.done&&!set.isWarmup&&(f==='weight'||f==='reps');
   set[f]=sanitizedValue;
+  if(shouldRefreshDoneSet){
+    set.isPr=false;
+    rebuildActiveWorkoutRewardState();
+    detectSetPr(exercise,set,si);
+  }
   persistCurrentWorkoutDraft();
-  if(f!=='weight')return;
-  if(set.isWarmup)return;
   const exerciseUiKey=ensureExerciseUiKey(exercise);
+  if(f!=='weight'){
+    if(shouldRefreshDoneSet){
+      updateExerciseCard(exerciseUiKey);
+      renderActiveWorkoutPlanPanel();
+    }
+    return;
+  }
+  if(set.isWarmup)return;
   for(let nextIndex=si+1;nextIndex<exercise.sets.length;nextIndex++){
     const nextSet=exercise.sets[nextIndex];
     if(nextSet.done||nextSet.isWarmup)continue;
     nextSet.weight=sanitizedValue;
     const weightInput=document.getElementById(getSetInputId(exerciseUiKey,nextIndex,'weight'));
     if(weightInput)weightInput.value=sanitizedValue;
+  }
+  if(shouldRefreshDoneSet){
+    updateExerciseCard(exerciseUiKey);
+    renderActiveWorkoutPlanPanel();
   }
 }
 
@@ -2324,24 +2576,31 @@ function handleSetInputKey(event,exerciseUiKey,setIndex,field){
 }
 
 function tryHaptic(pattern){
-  try{if(navigator.vibrate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)navigator.vibrate(pattern);}catch(e){}
+  try{if(navigator.vibrate&&!prefersReducedMotionUI())navigator.vibrate(pattern);}catch(e){}
 }
 
-function spawnForgeEmbers(checkEl){
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+function spawnForgeEmbers(checkEl,options){
+  if(prefersReducedMotionUI())return;
+  const config=options||{};
   const rect=checkEl.getBoundingClientRect();
   const cx=rect.left+rect.width/2;
   const cy=rect.top+rect.height/2;
-  const colors=['#ffa040','#ff8c1a','#ffcc66','#ff6a1a','#ffd699','#fff0d0'];
-  const count=8;
+  const colors=Array.isArray(config.colors)&&config.colors.length
+    ? config.colors
+    : ['#ffa040','#ff8c1a','#ffcc66','#ff6a1a','#ffd699','#fff0d0'];
+  const count=Math.max(1,parseInt(config.count,10)||8);
+  const distanceMin=parseFloat(config.distanceMin)||28;
+  const distanceMax=parseFloat(config.distanceMax)||50;
+  const sizeMin=parseFloat(config.sizeMin)||3;
+  const sizeMax=parseFloat(config.sizeMax)||6;
   for(let i=0;i<count;i++){
     const angle=(Math.PI*2/count)*i+(Math.random()-0.5)*0.6;
-    const dist=28+Math.random()*22;
+    const dist=distanceMin+Math.random()*Math.max(1,distanceMax-distanceMin);
     const dx=Math.cos(angle)*dist;
     const dy=Math.sin(angle)*dist;
     const ember=document.createElement('span');
     ember.className='forge-ember';
-    const size=3+Math.random()*3;
+    const size=sizeMin+Math.random()*Math.max(0.5,sizeMax-sizeMin);
     ember.style.cssText=`left:${cx-size/2}px;top:${cy-size/2}px;width:${size}px;height:${size}px;--ember-x:${dx}px;--ember-y:${dy}px;--ember-color:${colors[i%colors.length]};position:fixed;`;
     document.body.appendChild(ember);
     ember.addEventListener('animationend',()=>ember.remove(),{once:true});
@@ -2355,6 +2614,7 @@ function toggleSet(ei,si){
   const exerciseUiKey=ensureExerciseUiKey(exercise);
   if(!set.done){
     set.done=true;
+    const prEvent=detectSetPr(exercise,set,si);
     tryHaptic(40);
     const row=getExerciseCardElement(exerciseUiKey)?.querySelector(getSetRowSelector(si));
     const check=row?.querySelector('.set-check');
@@ -2367,36 +2627,29 @@ function toggleSet(ei,si){
     if(row){
       row.addEventListener('animationend',()=>row.classList.remove('set-done-anim'),{once:true});
     }
+    if(prEvent&&row&&check){
+      window.setTimeout(()=>playSetPrCelebration(row,check,prEvent),500);
+    }
     if(isExerciseComplete(exercise)){
       setExerciseCardCollapsed(exercise,true);
       const card=getExerciseCardElement(exerciseUiKey);
       if(card){
         // Delay the collapse animation so the last set's forge strike plays first
-        window.setTimeout(()=>{
-          card.classList.add('collapsing');
-          card.addEventListener('animationend',()=>{
-            const currentExercise=getExerciseByUiKey(exerciseUiKey);
-            if(currentExercise&&isExerciseComplete(currentExercise)){
-              updateExerciseCard(exerciseUiKey);
-              const newCard=getExerciseCardElement(exerciseUiKey);
-              if(newCard){
-                newCard.classList.add('seal-enter');
-                newCard.addEventListener('animationend',()=>newCard.classList.remove('seal-enter'),{once:true});
-              }
-            }
-          },{once:true});
-        },500);
+        window.setTimeout(()=>runForgeSealCollapse(card,exerciseUiKey),prEvent?950:500);
       }
     }
     startRestTimer();
     if(shouldPromptForSetRIR(exercise,si)){
-      // Delay RIR prompt so forge strike + collapse animations finish first
-      const rirDelay=isExerciseComplete(exercise)?900:550;
+      // Delay RIR prompt so forge strike + collapse animations finish first.
+      // Timing budget (CSS): forgeStrike 420ms + forgeSeal 300ms + seal-enter 320ms.
+      // With PR celebration (+500ms). Without collapse the strike alone needs ~550ms.
+      const rirDelay=isExerciseComplete(exercise)?(prEvent?1250:900):(prEvent?900:550);
       window.setTimeout(()=>showSetRIRPrompt(ei,si),rirDelay);
     }
   }else{
     set.done=false;
     set.rir=undefined;
+    clearSetPr(exercise,set,si);
     delete collapsedExerciseCardState[exerciseUiKey];
     persistCurrentWorkoutDraft();
     updateExerciseCard(exerciseUiKey);
@@ -2522,31 +2775,137 @@ function showCustomModal(title,bodyHtml){
 
 function closeCustomModal(){const m=document.getElementById('custom-swap-modal');if(m)m.remove();}
 
+function buildSessionSummaryStats(summaryData){
+  return [
+    {
+      key:'duration',
+      accent:'',
+      label:i18nText('workout.summary_duration','Duration'),
+      value:Math.max(0,Math.round(summaryData.duration)||0),
+      formatter:value=>formatWorkoutDuration(value)
+    },
+    {
+      key:'sets',
+      accent:'green',
+      label:i18nText('workout.summary_sets','Sets Done'),
+      value:Math.max(0,parseInt(summaryData.completedSets,10)||0),
+      formatter:value=>`${Math.round(value)}/${Math.max(0,parseInt(summaryData.totalSets,10)||0)}`
+    },
+    {
+      key:'volume',
+      accent:'gold',
+      label:i18nText('workout.summary_volume','Volume'),
+      value:Math.max(0,parseFloat(summaryData.tonnage)||0),
+      formatter:value=>formatWorkoutTonnage(value)
+    },
+    {
+      key:'rpe',
+      accent:'purple',
+      label:i18nText('workout.summary_rpe','RPE'),
+      value:Math.max(0,parseFloat(summaryData.rpe)||0),
+      formatter:value=>value>0?String(Math.round(value*10)/10):'--'
+    },
+    {
+      key:'prs',
+      accent:'gold',
+      label:i18nText('workout.summary_prs','PRs'),
+      value:Math.max(0,parseInt(summaryData.prCount,10)||0),
+      formatter:value=>String(Math.round(value))
+    }
+  ];
+}
+
+function renderSessionSummaryStatMarkup(stats){
+  return stats.map((stat,index)=>`
+    <div class="summary-stat summary-stat-${stat.key}" style="--summary-stat-delay:${index*100}ms">
+      <div class="summary-stat-value ${stat.accent||''}" data-stat-key="${stat.key}" data-stat-value="0">${escapeHtml(stat.formatter(0))}</div>
+      <div class="summary-stat-label">${escapeHtml(stat.label)}</div>
+    </div>
+  `).join('');
+}
+
+function animateSessionSummaryStats(modal,stats){
+  const runInstant=prefersReducedMotionUI();
+  const easeOutCubic=t=>1-Math.pow(1-t,3);
+  stats.forEach((stat,index)=>{
+    const card=modal.querySelector(`.summary-stat-${stat.key}`);
+    const valueEl=modal.querySelector(`[data-stat-key="${stat.key}"]`);
+    if(!card||!valueEl)return;
+    const applyValue=value=>{
+      valueEl.dataset.statValue=String(value);
+      valueEl.textContent=stat.formatter(value);
+    };
+    if(runInstant){
+      card.classList.add('is-visible');
+      applyValue(stat.value);
+      return;
+    }
+    window.setTimeout(()=>{
+      card.classList.add('is-visible');
+      const start=performance.now();
+      const duration=800;
+      function frame(now){
+        const progress=Math.min(1,(now-start)/duration);
+        const eased=easeOutCubic(progress);
+        applyValue(stat.value*eased);
+        if(progress<1){
+          requestAnimationFrame(frame);
+          return;
+        }
+        applyValue(stat.value);
+      }
+      requestAnimationFrame(frame);
+    },index*100);
+  });
+}
+
+function startSessionSummaryCelebration(modal,summaryData){
+  const cleanup=window._summaryCleanup;
+  if(typeof cleanup==='function')cleanup();
+  window._summaryCleanup=null;
+  if(!modal)return;
+  const canvas=modal.querySelector('.summary-burst-canvas');
+  if(canvas&&typeof window.playForgeBurst==='function'&&!prefersReducedMotionUI()){
+    window._summaryCleanup=window.playForgeBurst(canvas,{densityMultiplier:2,duration:1100,originY:0.8,glowFrom:0.18,glowTo:0.4});
+    tryHaptic([40,80,40]);
+  }
+  animateSessionSummaryStats(modal,buildSessionSummaryStats(summaryData));
+}
+
 function showSessionSummary(summaryData){
   return new Promise(resolve=>{
-    const {duration,exerciseCount,completedSets,totalSets,tonnage,rpe,programLabel}=summaryData;
-    const mins=Math.floor(duration/60);
-    const secs=duration%60;
-    const timeStr=mins>0?(mins+'m '+(secs>0?secs+'s':'')):(secs+'s');
-    const tonnageStr=tonnage>=1000?((tonnage/1000).toFixed(1)+' t'):(Math.round(tonnage)+' kg');
+    const stats=buildSessionSummaryStats(summaryData);
     const content=document.getElementById('summary-modal-content');
+    const modal=document.getElementById('summary-modal');
+    if(!content||!modal){
+      resolve();
+      return;
+    }
     content.innerHTML=`
-      <div class="summary-icon" aria-hidden="true">&#9889;</div>
-      <div class="summary-title">${escapeHtml(i18nText('workout.session_complete','Session Complete'))}</div>
-      <div class="summary-program">${escapeHtml(programLabel)}</div>
-      <div class="summary-stats">
-        <div class="summary-stat"><div class="summary-stat-value">${escapeHtml(timeStr)}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_duration','Duration'))}</div></div>
-        <div class="summary-stat"><div class="summary-stat-value green">${completedSets}/${totalSets}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_sets','Sets Done'))}</div></div>
-        <div class="summary-stat"><div class="summary-stat-value gold">${escapeHtml(tonnageStr)}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_volume','Volume'))}</div></div>
-        <div class="summary-stat"><div class="summary-stat-value purple">${rpe||'--'}</div><div class="summary-stat-label">${escapeHtml(i18nText('workout.summary_rpe','RPE'))}</div></div>
-      </div>
-      <button class="btn btn-primary summary-action" type="button" onclick="closeSummaryModal()">${escapeHtml(i18nText('common.done','Done'))}</button>`;
-    document.getElementById('summary-modal').classList.add('active');
+      <div class="summary-celebration">
+        <canvas class="summary-burst-canvas" aria-hidden="true"></canvas>
+        <div class="summary-forge-glow" aria-hidden="true"></div>
+        <div class="summary-shell">
+          <div class="summary-kicker">${escapeHtml(i18nText('workout.session_complete','Session Complete'))}</div>
+          <div class="summary-title">SESSION FORGED</div>
+          <div class="summary-program">${escapeHtml(summaryData.programLabel||'')}</div>
+          <div class="summary-stats">
+            ${renderSessionSummaryStatMarkup(stats)}
+          </div>
+          <button class="btn btn-primary summary-action" type="button" onclick="closeSummaryModal()">${escapeHtml(i18nText('common.done','Done'))}</button>
+        </div>
+      </div>`;
+    modal.classList.add('active');
+    modal.classList.toggle('reduced-motion',prefersReducedMotionUI());
+    requestAnimationFrame(()=>startSessionSummaryCelebration(modal,summaryData));
     window._summaryResolve=resolve;
   });
 }
 function closeSummaryModal(){
-  document.getElementById('summary-modal').classList.remove('active');
+  const modal=document.getElementById('summary-modal');
+  modal?.classList.remove('active','reduced-motion');
+  if(typeof window._summaryCleanup==='function')window._summaryCleanup();
+  window._summaryCleanup=null;
   if(window._summaryResolve){window._summaryResolve();window._summaryResolve=null;}
 }
 
@@ -2686,6 +3045,7 @@ async function finishWorkout(){
   const workoutId=Date.now();
   const workoutDate=new Date().toISOString();
   ensureWorkoutCommentaryRecord(activeWorkout);
+  const sessionPrCount=getWorkoutPrCount(activeWorkout);
 
   // Push workout record with canonical program metadata fields only.
   const savedWorkout={id:workoutId,date:workoutDate,
@@ -2706,6 +3066,7 @@ async function finishWorkout(){
       effectiveSessionMode:activeWorkout.runnerState.effectiveSessionMode||undefined,
       sportAwareLowerBody:activeWorkout.runnerState.sportAwareLowerBody===true
     }:undefined,
+    prCount:sessionPrCount,
     programStateBefore:stateBeforeSession,
     programStateUsedForBuild:cloneJson(progressionSourceState),
     duration:getWorkoutElapsedSeconds(),exercises:activeWorkout.exercises,rpe:sessionRPE,sets:totalSets};
@@ -2769,6 +3130,7 @@ async function finishWorkout(){
     exerciseCount:activeWorkout.exercises.length,
     completedSets,totalSets,tonnage,
     rpe:sessionRPE,
+    prCount:sessionPrCount,
     programLabel:activeWorkout.programLabel||''
   };
 

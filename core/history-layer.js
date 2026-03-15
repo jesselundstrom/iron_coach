@@ -45,7 +45,8 @@ function histComputePRs(){
   const best={}; // "ExerciseName_weight" -> maxReps seen so far
   const prs=new Set();
   for(const w of sorted){
-    let hasPR=false;
+    let hasPR=(parseInt(w?.prCount,10)||0)>0
+      || (w.exercises||[]).some(ex=>(ex.sets||[]).some(s=>s?.isPr===true));
     (w.exercises||[]).forEach(ex=>{
       ex.sets.forEach(s=>{
         if(!s.isLastHeavySet&&!s.isAmrap)return;
@@ -234,6 +235,7 @@ function histRenderCard(w,isPR,recovery){
   const rs=histRecoveryStyle(recovery);
   const recovBadge=rs?` <span class="hist-recovery-tag" style="background:${rs.bg};color:${rs.color};border-color:${rs.border}">${recovery}%</span>`:'';
   const durationBadge=mins>0?` <span class="hist-meta-tag">${mins}min</span>`:'';
+  const prBadge=isPR?` <span class="hist-pr-badge">${escapeHtml(trHist('history.pr_badge','NEW PR'))}</span>`:'';
 
   // Exercise rows
   const completedExercises=(w.exercises||[]).filter(ex=>ex.sets.some(s=>s.done));
@@ -263,7 +265,7 @@ function histRenderCard(w,isPR,recovery){
       <div class="hist-card-left">
         <span class="hist-lift-icon">${liftIcon}</span>
         <div class="hist-card-copy">
-          <div class="hist-card-title">${escapeHtml(cardTitle)}${recovBadge}${durationBadge}</div>
+          <div class="hist-card-title">${escapeHtml(cardTitle)}${prBadge}${recovBadge}${durationBadge}</div>
           <div class="hist-card-date">${escapeHtml(cardSub)}</div>
         </div>
       </div>

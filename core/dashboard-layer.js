@@ -1,5 +1,6 @@
 ﻿function isSportWorkout(w){return w.type==='sport'||w.type==='hockey';}
 let _lastTmSignature='';
+let _lastTmValues={};
 let dashboardUiState={coachingExpanded:false};
 function trDash(key,fallback,params){
   if(window.I18N)return I18N.t(key,params,fallback);
@@ -14,6 +15,49 @@ function clampDash(value,min,max){
 }
 function getDashboardFatigueLookbackDays(){
   return Math.max(1,parseInt(FATIGUE_CONFIG?.lookbackDays,10)||10);
+}
+function parseDashboardTmValue(rawValue){
+  const raw=String(rawValue||'').trim();
+  const match=raw.match(/^([0-9]+(?:[.,][0-9]+)?)(.*)$/);
+  if(!match)return{main:raw,unit:'',numeric:null};
+  const numeric=parseFloat(match[1].replace(',','.'));
+  return{
+    main:match[1],
+    unit:(match[2]||'').trim(),
+    numeric:Number.isFinite(numeric)?numeric:null
+  };
+}
+function padDashboardTmChars(chars,length){
+  const safe=Array.isArray(chars)?chars:[];
+  if(safe.length>=length)return safe;
+  return Array.from({length:length-safe.length},()=> ' ').concat(safe);
+}
+function renderDashboardTmDigits(currentValue,previousValue,animateCard){
+  const currentChars=String(currentValue||'').split('');
+  const previousChars=String(previousValue??currentValue??'').split('');
+  const width=Math.max(currentChars.length,previousChars.length);
+  const nextChars=padDashboardTmChars(currentChars,width);
+  const prevChars=padDashboardTmChars(previousChars,width);
+  return nextChars.map((char,index)=>{
+    if(char===' '){
+      return '<span class="tm-digit-slot is-spacer" aria-hidden="true"></span>';
+    }
+    const oldChar=prevChars[index]||' ';
+    const fromRight=(nextChars.length-1)-index;
+    const digitDelay=`${fromRight*80}ms`;
+    if(/[0-9]/.test(char)&&animateCard){
+      const startChar=/[0-9]/.test(oldChar)?oldChar:'0';
+      const changed=startChar!==char;
+      return `<span class="tm-digit-slot${changed?' is-changing':''}" style="--digit-delay:${digitDelay}"><span class="tm-digit-stack${changed?' is-changing':''}"><span class="tm-digit-face is-old">${escapeHtml(startChar)}</span><span class="tm-digit-face is-new">${escapeHtml(char)}</span></span></span>`;
+    }
+    const cls=/[0-9]/.test(char)?'tm-digit-slot':'tm-digit-slot tm-digit-sep';
+    return `<span class="${cls}" style="--digit-delay:${digitDelay}"><span class="tm-digit-face is-static">${escapeHtml(char)}</span></span>`;
+  }).join('');
+}
+function formatDashboardTmDelta(delta){
+  const rounded=Math.round((parseFloat(delta)||0)*10)/10;
+  if(!rounded)return'';
+  return `${rounded>0?'+':''}${Number.isInteger(rounded)?rounded.toFixed(0):rounded.toFixed(1)}`;
 }
 function getDashboardMuscleLoadLookbackDays(days){
   return Math.max(1,parseInt(days,10)||parseInt(MUSCLE_LOAD_CONFIG?.lookbackDays,10)||7);
@@ -883,14 +927,24 @@ function updateDashboard(){
   if(tmGrid&&prog.getDashboardTMs){
     const tms=prog.getDashboardTMs(ps);
     const tmSignature=tms.map(t=>`${t.name}:${t.value}`).join('|');
+    const previousTmValues={..._lastTmValues};
     const tmChanged=!!_lastTmSignature&&tmSignature!==_lastTmSignature;
     _lastTmSignature=tmSignature;
+    _lastTmValues=Object.fromEntries(tms.map(t=>[t.name,{value:String(t.value||'')}]));
     tmGrid.innerHTML=tms.map((t,i)=>{
-      const rawValue=String(t.value||'');
-      const match=rawValue.match(/^([0-9]+(?:[.,][0-9]+)?)(.*)$/);
-      const valueMain=match?match[1]:rawValue;
-      const valueUnit=match&&match[2]?match[2].trim():'';
-      return `<div class="lift-stat${tmChanged?' tm-updated':''}" style="--tm-delay:${i*65}ms"><div class="value">${escapeHtml(valueMain)}${valueUnit?`<span class="unit">${escapeHtml(valueUnit)}</span>`:''}</div><div class="label">${escapeHtml(dashExerciseName(t.name))}${t.stalled?' ⚠️':''}</div></div>`;
+      const currentValue=parseDashboardTmValue(t.value);
+      const previousValue=parseDashboardTmValue(previousTmValues[t.name]?.value||t.value);
+      const cardChanged=tmChanged&&previousTmValues[t.name]?.value!==undefined&&previousTmValues[t.name].value!==String(t.value||'');
+      const cardImproved=cardChanged
+        && currentValue.numeric!==null
+        && previousValue.numeric!==null
+        && currentValue.numeric>previousValue.numeric;
+      const delta=cardImproved?formatDashboardTmDelta((currentValue.numeric||0)-(previousValue.numeric||0)):'';
+      return `<div class="lift-stat${cardChanged?' tm-updated':''}${cardImproved?' tm-updated-up':''}" style="--tm-delay:${i*65}ms">
+        <div class="value${cardChanged?' is-animating':''}">${renderDashboardTmDigits(currentValue.main,previousValue.main,cardChanged)}${currentValue.unit?`<span class="unit">${escapeHtml(currentValue.unit)}</span>`:''}</div>
+        <div class="label">${escapeHtml(dashExerciseName(t.name))}${t.stalled?' ⚠️':''}</div>
+        ${delta?`<div class="tm-delta-badge">${escapeHtml(delta)}</div>`:''}
+      </div>`;
     }).join('');
     if(tmTitle)tmTitle.textContent=prog.dashboardStatsLabel||trDash('dashboard.training_maxes','Treenimaksimit');
   }
