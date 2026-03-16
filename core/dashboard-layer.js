@@ -27,6 +27,39 @@ function parseDashboardTmValue(rawValue){
     numeric:Number.isFinite(numeric)?numeric:null
   };
 }
+function roundDashboardTmNumber(value,step){
+  const numeric=parseFloat(value);
+  const roundingStep=parseFloat(step);
+  if(!Number.isFinite(numeric))return null;
+  if(!Number.isFinite(roundingStep)||roundingStep<=0)return numeric;
+  return Math.round(numeric/roundingStep)*roundingStep;
+}
+function formatDashboardTmNumber(value){
+  if(!Number.isFinite(value))return'';
+  const normalized=Math.round(value*1000)/1000;
+  if(Number.isInteger(normalized))return normalized.toFixed(0);
+  if(Number.isInteger(normalized*10))return normalized.toFixed(1);
+  if(Number.isInteger(normalized*100))return normalized.toFixed(2);
+  return String(normalized);
+}
+function roundDashboardTmDisplayValue(rawValue){
+  const parsed=parseDashboardTmValue(rawValue);
+  if(parsed.numeric===null)return{
+    main:parsed.main,
+    unit:parsed.unit,
+    numeric:null,
+    value:String(rawValue||'').trim()
+  };
+  const roundedNumeric=roundDashboardTmNumber(parsed.numeric,0.5);
+  const main=formatDashboardTmNumber(roundedNumeric);
+  const unit=parsed.unit;
+  return{
+    main,
+    unit,
+    numeric:roundedNumeric,
+    value:`${main}${unit}`
+  };
+}
 function padDashboardTmChars(chars,length){
   const safe=Array.isArray(chars)?chars:[];
   if(safe.length>=length)return safe;
@@ -928,7 +961,13 @@ function updateDashboard(){
   const tmGrid=document.getElementById('tm-grid');
   const tmTitle=document.getElementById('tm-section-title');
   if(tmGrid&&prog.getDashboardTMs){
-    const tms=prog.getDashboardTMs(ps);
+    const tms=(prog.getDashboardTMs(ps)||[]).map(t=>{
+      const roundedValue=roundDashboardTmDisplayValue(t.value);
+      return{
+        ...t,
+        value:roundedValue.value
+      };
+    });
     const tmSignature=tms.map(t=>`${t.name}:${t.value}`).join('|');
     const previousTmValues={..._lastTmValues};
     const tmChanged=!!_lastTmSignature&&tmSignature!==_lastTmSignature;

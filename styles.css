@@ -7123,8 +7123,8 @@ body.login-active::before {
 }
 .lift-stat .value {
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
+  align-items: baseline;
+  gap: 4px;
   font-size: 42px;
   line-height: 0.9;
   font-family: 'Barlow Condensed', sans-serif;
@@ -7136,9 +7136,12 @@ body.login-active::before {
   animation: tmForgeValueHeat 1s ease both;
 }
 .lift-stat .value .unit {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1;
+  letter-spacing: 0.03em;
   color: var(--muted);
+  opacity: 0.82;
+  transform: translateY(-2px);
 }
 .lift-stat.tm-updated {
   border-color: rgba(245, 200, 66, 0.35);
@@ -7209,10 +7212,10 @@ body.login-active::before {
   animation-delay: calc(var(--tm-delay, 0ms) + 0.18s);
 }
 .lift-stat .label {
-  margin-top: 8px;
-  font-size: 13px;
-  line-height: 1.15;
-  letter-spacing: 0.08em;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
   font-family: 'Barlow Condensed', sans-serif;
   color: var(--muted);
 }
