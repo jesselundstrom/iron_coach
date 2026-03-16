@@ -2878,7 +2878,7 @@ function showSessionSummary(summaryData){
     const content=document.getElementById('summary-modal-content');
     const modal=document.getElementById('summary-modal');
     if(!content||!modal){
-      resolve();
+      resolve({feedback:null});
       return;
     }
     content.innerHTML=`
@@ -2891,6 +2891,14 @@ function showSessionSummary(summaryData){
           <div class="summary-program">${escapeHtml(summaryData.programLabel||'')}</div>
           <div class="summary-stats">
             ${renderSessionSummaryStatMarkup(stats)}
+          </div>
+          <div class="summary-feedback">
+            <div class="summary-feedback-label">${escapeHtml(i18nText('workout.summary.feedback_label','How did it feel?'))}</div>
+            <div class="summary-feedback-options">
+              <button class="summary-feedback-btn" type="button" data-feedback="too_hard" onclick="setSummaryFeedback('too_hard')">${escapeHtml(i18nText('workout.summary.feedback_too_hard','Too hard'))}</button>
+              <button class="summary-feedback-btn" type="button" data-feedback="good" onclick="setSummaryFeedback('good')">${escapeHtml(i18nText('workout.summary.feedback_good','Good'))}</button>
+              <button class="summary-feedback-btn" type="button" data-feedback="too_easy" onclick="setSummaryFeedback('too_easy')">${escapeHtml(i18nText('workout.summary.feedback_too_easy','Too easy'))}</button>
+            </div>
           </div>
           <button class="btn btn-primary summary-action" type="button" onclick="closeSummaryModal()">${escapeHtml(i18nText('common.done','Done'))}</button>
         </div>
@@ -2906,7 +2914,16 @@ function closeSummaryModal(){
   modal?.classList.remove('active','reduced-motion');
   if(typeof window._summaryCleanup==='function')window._summaryCleanup();
   window._summaryCleanup=null;
-  if(window._summaryResolve){window._summaryResolve();window._summaryResolve=null;}
+  const feedback=window._summaryFeedbackValue||null;
+  window._summaryFeedbackValue=null;
+  if(window._summaryResolve){window._summaryResolve({feedback});window._summaryResolve=null;}
+}
+function setSummaryFeedback(value){
+  window._summaryFeedbackValue=value;
+  document.querySelectorAll('.summary-feedback-btn').forEach(btn=>{
+    btn.classList.toggle('is-active',btn.dataset.feedback===value);
+  });
+  if(typeof tryHaptic==='function')tryHaptic([20]);
 }
 
 function applyQuickWorkoutAdjustment(mode){
@@ -3144,7 +3161,10 @@ async function finishWorkout(){
   updateDashboard();
 
   if(programHookFailed)showToast(i18nText('workout.program_error','Session saved, but program state may need review.'),'var(--orange)');
-  await showSessionSummary(summaryData);
+  const summaryResult=await showSessionSummary(summaryData);
+  if(summaryResult?.feedback)savedWorkout.sessionFeedback=summaryResult.feedback;
+  if(typeof inferDurationSignal==='function')savedWorkout.durationSignal=inferDurationSignal(savedWorkout);
+  if(summaryResult?.feedback||savedWorkout.durationSignal)await saveWorkouts();
 }
 
 function cancelWorkout(){

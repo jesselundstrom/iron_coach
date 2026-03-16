@@ -177,6 +177,32 @@ function getPlanningBehaviorSignals(programId,workoutList){
   };
 }
 
+function inferDurationSignal(workout){
+  const durationSec=parseInt(workout?.duration,10)||0;
+  if(!durationSec)return null;
+  const durationMin=durationSec/60;
+  const prefs=(typeof normalizeTrainingPreferences==='function')
+    ? normalizeTrainingPreferences(profile||{})
+    : (profile?.preferences||{});
+  const targetMin=parseInt(prefs.sessionMinutes,10)||60;
+  if(durationMin>targetMin*1.20)return'too_long';
+  if(durationMin<targetMin*0.75)return'too_short';
+  return'on_target';
+}
+
+function getSessionFeedbackSignals(programId,workoutList){
+  const recent=getProgramWorkoutHistory(programId,workoutList,5);
+  const lastThree=recent.slice(0,3);
+  const tooHardCount=lastThree.filter(w=>w.sessionFeedback==='too_hard').length;
+  const tooEasyCount=lastThree.filter(w=>w.sessionFeedback==='too_easy').length;
+  const goodCount=lastThree.filter(w=>w.sessionFeedback==='good').length;
+  const tooLongCount=recent.slice(0,4).filter(w=>w.durationSignal==='too_long').length;
+  const tooHardBias=tooHardCount>=2&&lastThree[0]?.sessionFeedback!=='good';
+  const tooEasyBias=tooEasyCount>=2;
+  const durationFriction=tooLongCount>=2;
+  return{tooHardBias,tooEasyBias,durationFriction,tooHardCount,tooEasyCount,goodCount,tooLongCount};
+}
+
 function getPlanEquipmentTagsForAccess(equipmentAccess){
   if(equipmentAccess==='basic_gym')return['barbell','dumbbell','machine','cable','bodyweight','pullup_bar','band','general'];
   if(equipmentAccess==='home_gym')return['barbell','dumbbell','bodyweight','pullup_bar','band','trap_bar','general'];
@@ -342,6 +368,7 @@ function buildPlanningContext(input){
   const adherence=getPlanningAdherenceSignals(activeProgramId,workoutList);
   const progression=getPlanningProgressSignals(activeProgramState);
   const derivedBehaviorSignals=getPlanningBehaviorSignals(activeProgramId,workoutList);
+  const feedbackSignals=getSessionFeedbackSignals(activeProgramId,workoutList);
   const profileBehaviorSignals=coaching.behaviorSignals||{};
   const behaviorSignals={
     avoidedExerciseIds:[...new Set([
@@ -402,6 +429,7 @@ function buildPlanningContext(input){
     ])],
     adherence,
     progression,
+    feedbackSignals,
     sessionsDoneThisWeek,
     sessionsRemaining:Math.max(0,effectiveFrequency-sessionsDoneThisWeek),
     recommendedSessionOption:'',
@@ -436,6 +464,18 @@ function getTodayTrainingDecision(context){
   if(next.equipmentAccess==='minimal'||next.equipmentAccess==='home_gym')reasonCodes.push('equipment_constraint');
   if(next.progression.hasStalls)reasonCodes.push('progression_stall');
   if(next.guidanceMode==='guided'&&next.experienceLevel==='beginner')reasonCodes.push('guided_beginner');
+  // Session feedback modulation — only affects the gray zone, never overrides low_recovery or deload
+  if(next.feedbackSignals?.tooHardBias){
+    if(action==='train'){action='train_light';reasonCodes.push('session_feedback_hard');}
+    else if(action==='train_light'||action==='shorten')reasonCodes.push('session_feedback_hard');
+  }
+  if(next.feedbackSignals?.durationFriction&&action==='train'){
+    action='shorten';reasonCodes.push('duration_friction');
+  }
+  if(next.feedbackSignals?.tooEasyBias&&action==='train_light'
+    &&!reasonCodes.includes('low_recovery')&&next.recoveryScore>45){
+    action='train';reasonCodes.push('session_feedback_easy');
+  }
   const autoregulationLevel=action==='deload'?'deload':(action==='train_light'?'conservative':'normal');
   return{
     action,
@@ -585,7 +625,10 @@ function getTrainingCommentaryReasonLabel(code){
     equipment_constraint:['training.reason.equipment_constraint.label','Equipment'],
     progression_stall:['training.reason.progression_stall.label','Progress stall'],
     guided_beginner:['training.reason.guided_beginner.label','Guided path'],
-    week_complete:['training.reason.week_complete.label','Week complete']
+    week_complete:['training.reason.week_complete.label','Week complete'],
+    session_feedback_hard:['training.reason.session_feedback_hard.label','Felt hard'],
+    session_feedback_easy:['training.reason.session_feedback_easy.label','Felt easy'],
+    duration_friction:['training.reason.duration_friction.label','Running long']
   };
   const pair=keyMap[code];
   return pair?trPlan(pair[0],pair[1]):'';
@@ -1244,11 +1287,14 @@ function getCoachingInsights(input){
   if(swapNames.length)frictionItems.push(trPlan('plan.insight.swap_preferences','You keep gravitating toward these swaps: {names}.',{names:swapNames.join(', ')}));
   if((context.behaviorSignals?.sportCollisionCount||0)>=2)frictionItems.push(trPlan('plan.insight.sport_collision','Lower-body work keeps colliding with sport load in your recent sessions.'));
   const progressionSummary=getProgramProgressSummary(context);
+  const feedbackSignals=context.feedbackSignals||getSessionFeedbackSignals(context.activeProgramId,context.workouts||[]);
   let recommendationType='continue';
   if(decision.action==='deload')recommendationType='deload';
   else if((context.behaviorSignals?.shortenCount||0)>=3&&adherenceRate30<65)recommendationType='switch_block';
   else if(decision.action==='train_light'||(context.behaviorSignals?.lightenCount||0)>=2)recommendationType='lighten';
   else if(decision.action==='shorten'||(context.behaviorSignals?.shortenCount||0)>=2)recommendationType='shorten';
+  if(recommendationType==='continue'&&feedbackSignals.tooHardBias)recommendationType='lighten';
+  if(recommendationType==='continue'&&feedbackSignals.durationFriction)recommendationType='shorten';
   const recommendationMap={
     continue:{
       label:trPlan('plan.recommend.continue','Stay the course'),

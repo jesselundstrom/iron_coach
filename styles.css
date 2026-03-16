@@ -5000,6 +5000,45 @@ select optgroup {
   margin-top: 8px;
 }
 
+/* ── SESSION FEEDBACK ── */
+.summary-feedback {
+  margin: 16px 0 4px;
+}
+.summary-feedback-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.summary-feedback-options {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.summary-feedback-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.summary-feedback-btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.modal-overlay.active .summary-feedback {
+  animation: summaryReveal 0.25s ease 0.42s both;
+}
+
 /* ── SUMMARY CELEBRATION ── */
 @keyframes summaryIconPulse {
   0%   { transform: scale(0.5); opacity: 0; }
@@ -6538,6 +6577,25 @@ body.login-active::before {
 }
 .dashboard-plan-coach-copy.is-positive strong {
   color: var(--green);
+}
+.dashboard-plan-coach-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 14px;
+}
+.dashboard-plan-coach-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 .dashboard-plan-completion {
   padding: 0 16px 16px;

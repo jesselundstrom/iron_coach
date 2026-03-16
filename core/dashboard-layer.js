@@ -540,12 +540,14 @@ function getDashboardCoachCardContent(focusLine,decisionSummary,coachCommentary,
   if(completion){
     return{
       copy:`<strong>${escapeHtml(trDash('dashboard.today_done_coach_title','Hyvä työ'))}</strong> ${escapeHtml(trDash('dashboard.today_done_coach_body','Tämän päivän päätyö on jo kasassa. Anna palautumiselle työrauha ja tule seuraavaan sessioon tuoreena.'))}`,
-      positive:true
+      positive:true,
+      reasonLabels:[]
     };
   }
   return{
     copy:getDashboardCoachCopy(focusLine,decisionSummary,coachCommentary,decision),
-    positive:false
+    positive:false,
+    reasonLabels:decisionSummary?.reasonLabels||[]
   };
 }
 
@@ -722,6 +724,7 @@ function renderDashboardTodayPlan(input){
       <article class="dashboard-plan-card dashboard-plan-coach-card">
         <div class="dashboard-plan-card-head dashboard-plan-card-head-coach"><span class="dashboard-plan-head-dot${coachCard.positive?' is-positive':''}" aria-hidden="true"></span>${escapeHtml(coachCard.positive?trDash('dashboard.today_done','Päivän työ tehty'):trDash('workout.today.coach_note','Valmentajan huomio'))}</div>
         <div class="dashboard-plan-coach-copy${coachCard.positive?' is-positive':''}">${sanitizeDashboardRichText(coachCard.copy)}</div>
+        ${coachCard.reasonLabels?.length?`<div class="dashboard-plan-coach-reasons">${coachCard.reasonLabels.map(label=>`<div class="dashboard-plan-coach-chip">${escapeHtml(label)}</div>`).join('')}</div>`:''}
         ${completionMessage?`<div class="dashboard-plan-completion">${renderPlanStatus(completionMessage.title,completionMessage.body,'positive')}</div>`:''}
       </article>
     </section>
