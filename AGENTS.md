@@ -1,18 +1,26 @@
-## Project guidance
+## Project Guidance
 
-- For project-specific conventions and architectural context, read `CLAUDE.md` when relevant.
-- Treat the stack, UI rules, plugin interface, testing expectations, and recorded decisions in `CLAUDE.md` as project constraints unless the user explicitly overrides them.
-- Do not rewrite or duplicate `CLAUDE.md` by default. Use it as the shared source of truth and keep this file focused on Codex-specific guidance.
+- For project vision, working style, and architecture decisions, read `CLAUDE.md`.
+- For technical conventions, coding rules, and layer structure, read `.github/copilot-instructions.md`.
+- Treat both files as project constraints unless the user explicitly overrides them.
+- Do not rewrite or duplicate those files by default. Use them as shared sources of truth.
+
+## Project Context
+
+Ironforge is a personal coaching PWA with three pillars: Training, Nutrition, and Recovery. Built with vanilla JS (no frameworks), it runs primarily on iPhone. The codebase uses a layer architecture (`core/*.js`) with a plugin system for training programs (`programs/*.js`). Nutrition coaching is powered by the Anthropic Claude API (browser-side). The app will eventually be wrapped with Capacitor for native distribution, with React Native as a future option.
 
 ## Skills
 
 A skill is a set of local instructions stored in a `SKILL.md` file. Use the skills below when the task matches their description or the user names them directly.
 
-### Available skills
+### Available Skills
 
-- frontend-design: Create distinctive, production-grade frontend interfaces with high design quality. Use when building, restyling, or polishing pages, components, dashboards, landing pages, or other web UI. (file: C:/Users/jesse/ironforge/.agents/skills/frontend-design/SKILL.md)
+- **frontend-design**: Create distinctive, production-grade frontend interfaces with high design quality. Use when building, restyling, or polishing pages, components, dashboards, or other web UI. (file: .agents/skills/frontend-design/SKILL.md)
+- **web-design-guidelines**: Review UI code for Web Interface Guidelines compliance. Use for accessibility audits, design reviews, or UX checks. (file: .agents/skills/web-design-guidelines/SKILL.md)
+- **vercel-react-best-practices**: React and Next.js best practices. Relevant for future web framework migration planning. (file: .agents/skills/vercel-react-best-practices/SKILL.md)
+- **vercel-react-native-skills**: React Native and Expo best practices. Relevant for the future native mobile app port. (file: .agents/skills/vercel-react-native-skills/SKILL.md)
 
-## How to use skills
+### How to Use Skills
 
 - Discovery: Read the skill file listed above only when the task matches it.
 - Trigger rules: If the user names a skill or the task clearly matches the description, use that skill for the turn.

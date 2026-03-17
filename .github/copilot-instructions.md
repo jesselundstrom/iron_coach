@@ -1,15 +1,19 @@
 # Ironforge Project Instructions
 
 ## Project Shape
+- Ironforge is a **personal coaching app** with three pillars: Training, Nutrition, and Recovery.
 - This repository is a no-build vanilla web app and PWA.
 - Main entry points are `index.html`, `app.js`, `styles.css`, `manifest.json`, and `sw.js`.
-- Core business logic is split into layer files under `core/`.
-- Training program definitions live under `programs/`.
+- `app.js` is the orchestration/bootstrap layer. Heavy business logic lives in 11 layer files under `core/`.
+- Key layers: `core/workout-layer.js` (session logic), `core/nutrition-layer.js` (AI nutrition chat), `core/dashboard-layer.js`, `core/history-layer.js`, `core/plan-engine.js` (planning utilities), `core/data-layer.js` (persistence/sync), `core/i18n-layer.js` (translations), `core/exercise-library.js` (exercise catalog), `core/program-layer.js` (program helpers).
+- Training program definitions live under `programs/` (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
 - Contributor tooling now uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
 - Prefer extending the current global-function and shared-state style instead of introducing new architectural patterns.
 
 ## Primary Product Context
-- The app is primarily used as an installed PWA on a phone.
+- The app is primarily used as an installed PWA on a phone (iPhone).
+- The app has 5 pages: Dashboard, Log, History, Settings, and Nutrition.
+- AI nutrition coaching is a core feature, not an add-on — it bridges training and nutrition data.
 - Treat mobile usability as the default, not a secondary breakpoint.
 - Avoid changes that assume desktop-first layouts, hover-only interactions, wide tables, or precise pointer input.
 - Preserve installability, offline-friendly behavior, and fast startup.
@@ -52,6 +56,9 @@
 - Keep profile-document sync compatible with the additive migration flow under `supabase/migrations/`.
 - Preserve soft-delete behavior for synced workouts unless the task explicitly requires a different deletion model.
 - Avoid changes that could silently invalidate existing user data on devices.
+- `profile.bodyMetrics` stores body composition data (weight, height, age, sex, activity level, body goal, target weight).
+- `profile.coaching` stores experience level, guidance mode, sport profile, physical limitations, and behavior signals.
+- Nutrition chat history is stored separately under `ic_nutrition_history::<userId>` in localStorage.
 - Use canonical workout payload fields: `program`, `programMeta`, `programDayNum`. Do not reintroduce legacy fields like `forgeWeek` or `forgeDayNum`.
 - Profile and schedule sync use section-level timestamps in `profile.syncMeta`. Preserve that merge behavior when changing profile persistence.
 - Keep saves targeted: program-state writes should update the relevant `program:<id>` document instead of re-writing every program state blob.
@@ -59,13 +66,43 @@
 - Prefer small, explicit sync helpers in `core/data-layer.js` over spreading Supabase calls across unrelated files.
 
 ## Program Files
-- Files under `programs/` define training logic and metadata.
+- Files under `programs/` define training logic and metadata (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
 - Keep new program implementations consistent with the existing program modules.
 - Avoid mixing program logic into unrelated UI code when a program file or layer file is the correct home.
 - Exercise metadata such as movement tags, muscle groups, and equipment tags belongs in `core/exercise-library.js`. Reuse that catalog instead of scattering duplicate exercise heuristics across program files.
 - User-facing muscle-load UI should use the display-group mapping from `core/exercise-library.js` instead of inventing separate dashboard-only muscle labels.
 - Keep new program objects compatible with the existing integration points: id, name, description, icon, session options, session building, state advancement, and settings hooks. Extend the existing shape instead of introducing new abstractions.
 - When adding settings UI from a program file, follow the existing inline DOM rendering style already used by current program modules.
+
+## Nutrition And AI Coaching
+- `core/nutrition-layer.js` is a self-contained Claude-powered nutrition chat coach.
+- The user's Anthropic API key is stored in localStorage only (never synced to cloud).
+- Two models are used: Sonnet for food photo analysis, Haiku for text coaching.
+- The system prompt dynamically includes training context, body metrics, TDEE/macro targets, and today's intake via `_buildTrainingContext()`.
+- Chat history is limited to 60 messages in localStorage (`ic_nutrition_history::<userId>`).
+- AI responses include structured macro data (kcal, protein, carbs, fat) extracted for daily intake tracking.
+- Food photos are compressed client-side before sending to the API.
+- This is a browser-side direct API call using the `anthropic-dangerous-direct-browser-access` header.
+- When modifying nutrition features, preserve the `_buildTrainingContext()` bridge that connects training and nutrition data.
+- Do not sync the API key or chat history to Supabase.
+
+## Recovery And Readiness
+- The fatigue engine is a core coaching pillar, not just a training helper.
+- `FATIGUE_CONFIG` constants live in `app.js` and drive sport-aware fatigue scoring.
+- Three fatigue dimensions: Muscular, CNS, and Overall.
+- Sport schedule integration affects leg fatigue calculations and training day recommendations.
+- `getTodayTrainingDecision()` and readiness scoring form the recovery-layer logic.
+- Future expansion areas: sleep tracking, subjective readiness check-ins, recovery recommendations.
+- When changing readiness or fatigue logic, consider the impact on both training recommendations and the dashboard recovery display.
+
+## Mobile Portability
+- Mobile strategy: Capacitor (wrap PWA in native shell) as the pragmatic first step, React Native as a future option.
+- When writing new business logic in `core/*.js`, keep it separable from DOM manipulation.
+- Prefer pure functions (data in, data out) over functions that directly read/write the DOM in business logic layers.
+- Avoid introducing new web-only APIs (e.g., `window.speechSynthesis`, `navigator.share`) in core layers — use them only in UI code.
+- The `core/` layer split is the foundation for eventual extraction into a shared logic package.
+- Avoid APIs that Capacitor cannot bridge when adding new platform features.
+- React Native skills are available in `.agents/skills/vercel-react-native-skills/` for reference if a full rewrite is needed later.
 
 ## Change Strategy
 - Fix root causes instead of layering on narrow patches when feasible.

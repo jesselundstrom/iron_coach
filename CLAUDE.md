@@ -1,44 +1,61 @@
 # Ironforge — Claude Instructions
 
 > Full project architecture, stack, and coding rules are in `.github/copilot-instructions.md`.
-> This file covers only how Claude should work with the user.
+> This file covers project vision and how Claude should work with the user.
 
-## Käyttäjä
-- Aloittelija, joka ei osaa koodata itsenäisesti
-- Tavoite: ammattimainen, tuotantovalmis PWA avustettuna
-- Haluaa oppia samalla kun edetään
+## Project Vision
 
-## Miten toimin
+- **Personal coaching app** with three pillars: Training, Nutrition, Recovery
+- Currently a vanilla JS PWA, primarily used on iPhone
+- Mobile strategy: Capacitor (wrap PWA in native shell) as first step, React Native as future option
+- The PWA is the production product — not a prototype
 
-### Selitän aina
-- Kerro MITÄ teen ja MIKSI — älä vain tee
-- Jos teen arkkitehtuuripäätöksen, perustele se lyhyesti
-- Jos jokin käytäntö on "hyvää koodausta", sano se ääneen
+## About the User
 
-### Kysy ennen isoja muutoksia
-- Jos muutos koskee useampaa kuin 2-3 tiedostoa, kysy ensin
-- Jos olen epävarma mitä käyttäjä haluaa, kysy — älä arvaa
-- Ehdota vaihtoehtoja kun niitä on
+- Non-developer building a production app with AI coding assistance
+- Understands architecture, discusses tradeoffs, and makes design decisions
+- Wants to learn software engineering principles while building
+- Communicates in Finnish and English; code and docs should be in English
 
-### Opeta samalla
-- Huomauta jos pyyntö voisi aiheuttaa ongelmia pitkällä tähtäimellä
-- Selitä testauksen merkitys kun se on relevanttia
-- Nosta esiin hyviä käytäntöjä (nimeäminen, rakenne, turvallisuus) lyhyesti
+## How to Work With Me
 
-### Älä aliarvioi
-- Tee oikeaoppisia ratkaisuja, ei "se toimii kyllä näinkin" -pikakorjauksia
-- Tuotantovalmis tarkoittaa: toimii offline, on testattu, ei kaadu reunatapauksissa
-- Kaikki painot kilogrammoina (kg)
+### Always Explain
+- State WHAT you are doing and WHY — do not just produce code
+- If making an architecture decision, justify it briefly
+- If something is a best practice, name it explicitly
 
-### Päivitä nämä ohjeet
-- Kun teemme päätöksen joka vaikuttaa tuleviin sessioihin, lisää se tähän tiedostoon
-- Esimerkki: "päätetty käyttää X-pattern Y-ongelmaan" → lisää kohtaan Päätökset
+### Ask Before Big Changes
+- If a change touches more than 2–3 files, describe the plan first
+- If unsure what the user wants, ask — do not guess
+- Offer alternatives when they exist
+
+### Teach Along the Way
+- Flag choices that could cause problems long-term
+- Explain testing relevance when applicable
+- Surface good practices (naming, structure, security) briefly
+
+### Production Quality Always
+- No quick hacks — production-grade solutions only
+- Production-grade means: works offline, tested, handles edge cases
+- All weights in kilograms (kg)
+- Follow existing patterns and conventions in the codebase
+
+### Keep These Instructions Current
+- When we make a decision that affects future sessions, add it to the Decisions section below
+- Example: "decided to use X pattern for Y problem" → add to Decisions
 
 ---
 
-## Päätökset
-*Tähän kirjataan tehdyt arkkitehtuuripäätökset sitä mukaan kun niitä syntyy.*
+## Decisions
 
-- **UI-modaalit**: sheet-pattern (ei native dialog) — yhtenäisyys ja mobiilikäyttökokemus
-- **Ohjelmat**: plugin-arkkitehtuuri — helppo lisätä uusia ohjelmia ilman app.js-muutoksia
-- **Testaus**: Playwright e2e — testataan kuin oikea käyttäjä, ei yksikkötestejä
+*Architecture decisions are logged here as they are made.*
+
+- **UI modals**: Sheet-pattern (not native dialog) — consistency and mobile UX
+- **Training programs**: Plugin architecture — new programs register without touching core files
+- **Testing**: Playwright e2e — test like a real user, no unit tests
+- **Nutrition coaching**: Anthropic API (Claude) called directly from browser with user-provided key
+- **Recovery/readiness**: Fatigue engine (muscular, CNS, overall) is a core coaching pillar
+- **Code language**: All code, comments, and docs in English; UI supports EN/FI via i18n
+- **Layer architecture**: Business logic split into `core/*.js` layers, not a single monolith
+- **Sport schedule**: Configurable sport type (not hardcoded to hockey)
+- **Mobile strategy**: Capacitor for PWA wrapping first, React Native as future option
