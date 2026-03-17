@@ -773,6 +773,9 @@ function updateProgramDisplay(){
   }
   renderProgramSessionPreview(prog,selectedOption,startSnapshot);
   renderProgramTodayPanels(prog,state,trainingDecision,decisionBundle,planningContext,selectedOption);
+  if(typeof isLogStartIslandActive==='function'&&isLogStartIslandActive()&&!activeWorkout){
+    notifyLogStartIsland();
+  }
 }
 
 function onDaySelectChange(){updateProgramDisplay();}

@@ -517,49 +517,52 @@
 
         <!-- ===== LOG ===== -->
         <div class="page" id="page-log">
-          <div id="workout-not-started">
-            <div class="quick-log-row">
-              <button
-                class="quick-log-card ql-sport"
-                type="button"
-                onclick="quickLogSport()"
-              >
-                <div class="ql-icon">S</div>
-                <div>
-                  <div class="ql-title" data-i18n="workout.log_extra_sport">
-                    Log Extra Sport
-                  </div>
-                  <div
-                    class="ql-sub"
-                    data-i18n="workout.unscheduled_sport_session"
-                  >
-                    Unscheduled sport session
-                  </div>
-                </div>
-              </button>
-            </div>
-            <div class="divider-label">
-              <span data-i18n="workout.training_session">Training Session</span>
-            </div>
-            <div class="card card-roomy workout-start-card">
-              <label class="label-compact" data-i18n="workout.training_day"
-                >Training Day</label
-              >
-              <input type="hidden" id="program-day-select" value="" />
-              <div id="program-day-options" class="program-day-options"></div>
-              <div id="program-week-display" hidden></div>
-              <div class="button-stack-top">
+          <div id="log-start-legacy-shell">
+            <div id="workout-not-started">
+              <div class="quick-log-row">
                 <button
-                  class="btn btn-primary"
+                  class="quick-log-card ql-sport"
                   type="button"
-                  onclick="startWorkout()"
-                  data-i18n="workout.start_workout"
+                  onclick="quickLogSport()"
                 >
-                  Start Workout
+                  <div class="ql-icon">S</div>
+                  <div>
+                    <div class="ql-title" data-i18n="workout.log_extra_sport">
+                      Log Extra Sport
+                    </div>
+                    <div
+                      class="ql-sub"
+                      data-i18n="workout.unscheduled_sport_session"
+                    >
+                      Unscheduled sport session
+                    </div>
+                  </div>
                 </button>
+              </div>
+              <div class="divider-label">
+                <span data-i18n="workout.training_session">Training Session</span>
+              </div>
+              <div class="card card-roomy workout-start-card">
+                <label class="label-compact" data-i18n="workout.training_day"
+                  >Training Day</label
+                >
+                <input type="hidden" id="program-day-select" value="" />
+                <div id="program-day-options" class="program-day-options"></div>
+                <div id="program-week-display" hidden></div>
+                <div class="button-stack-top">
+                  <button
+                    class="btn btn-primary"
+                    type="button"
+                    onclick="startWorkout()"
+                    data-i18n="workout.start_workout"
+                  >
+                    Start Workout
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+          <div id="log-start-react-root"></div>
 
           <div id="workout-active" style="display: none">
             <div class="active-session-header">
@@ -1795,5 +1798,6 @@
     <script type="module" src="/src/dashboard-island/main.jsx"></script>
     <script type="module" src="/src/history-island/main.jsx"></script>
     <script type="module" src="/src/settings-body-island/main.jsx"></script>
+    <script type="module" src="/src/log-start-island/main.jsx"></script>
   </body>
 </html>

@@ -15,6 +15,35 @@
   return {sportName:displayName,icon,subtitle};
 }
 
+const LOG_START_ISLAND_EVENT='ironforge:log-start-updated';
+
+function hasLogStartIslandMount(){
+  return !!document.getElementById('log-start-react-root');
+}
+
+function isLogStartIslandActive(){
+  return window.__IRONFORGE_LOG_START_ISLAND_MOUNTED__===true;
+}
+
+function notifyLogStartIsland(){
+  if(!hasLogStartIslandMount())return;
+  window.dispatchEvent(new CustomEvent(LOG_START_ISLAND_EVENT));
+}
+
+function getLogStartReactSnapshot(){
+  const shell=document.getElementById('workout-not-started');
+  return{
+    values:{
+      html:shell?.innerHTML||'',
+      visible:!!shell&&shell.style.display!=='none'
+    }
+  };
+}
+
+window.__IRONFORGE_LOG_START_ISLAND_EVENT__=LOG_START_ISLAND_EVENT;
+window.getLogStartReactSnapshot=getLogStartReactSnapshot;
+window.notifyLogStartIsland=notifyLogStartIsland;
+
 function persistCurrentWorkoutDraft(){
   if(typeof persistActiveWorkoutDraft==='function')persistActiveWorkoutDraft();
 }
@@ -89,6 +118,7 @@ function resumeActiveWorkoutUI(options){
   }else{
     document.getElementById('rest-timer-bar')?.classList.remove('active');
   }
+  if(isLogStartIslandActive())notifyLogStartIsland();
   if(options?.toast){
     showToast(i18nText('workout.resumed','Resumed your in-progress workout.'),'var(--blue)');
   }
@@ -154,9 +184,10 @@ function resetNotStartedView(){
       <div class="workout-start-footer">
         <button class="btn btn-primary cta-btn workout-start-cta" onclick="startWorkout()">${i18nText('workout.start_workout','Start Workout')}</button>
       </div>
-    </div>`;
+      </div>`;
   updateSportReadinessChoiceUI();
   updateProgramDisplay();
+  if(isLogStartIslandActive())notifyLogStartIsland();
 }
 
 function exerciseIdForName(name){
