@@ -1730,6 +1730,7 @@ function updateLanguageDependentUI(){
   if(document.getElementById('onboarding-modal')?.classList.contains('active')){
     renderOnboarding();
   }
+  else if(document.getElementById('page-nutrition')?.classList.contains('active')&&typeof window.initNutritionPage==='function')window.initNutritionPage();
   else if(document.getElementById('page-history')?.classList.contains('active'))renderHistory();
   else if(document.getElementById('page-log')?.classList.contains('active'))resetNotStartedView();
 }

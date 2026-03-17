@@ -35,7 +35,9 @@ function showPage(name, btn) {
   if (name === 'dashboard') updateDashboard();
   if (name === 'history') renderHistory();
   if (name === 'settings') initSettings();
-  if (name === 'nutrition' && typeof initNutritionPage === 'function') initNutritionPage();
+  if (name === 'nutrition' && typeof window.initNutritionPage === 'function') {
+    window.initNutritionPage();
+  }
   if (name === 'log') {
     if (activeWorkout && typeof resumeActiveWorkoutUI === 'function') resumeActiveWorkoutUI({ toast: false });
     else resetNotStartedView();

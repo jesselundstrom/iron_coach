@@ -8,6 +8,34 @@
   let _streaming = false;
   let _pendingImage = null; // base64 data URL of selected photo
 
+  const NUTRITION_ISLAND_EVENT = 'ironforge:nutrition-updated';
+
+  function hasNutritionIslandMount() {
+    return !!document.getElementById('nutrition-react-root');
+  }
+
+  function isNutritionIslandActive() {
+    return window.__IRONFORGE_NUTRITION_ISLAND_MOUNTED__ === true;
+  }
+
+  function notifyNutritionIsland() {
+    if (!hasNutritionIslandMount()) return;
+    window.dispatchEvent(new CustomEvent(NUTRITION_ISLAND_EVENT));
+  }
+
+  function getNutritionReactSnapshot() {
+    var shell = document.getElementById('nutrition-shell') || document.getElementById('nutrition-legacy-shell');
+    return {
+      values: {
+        html: shell ? shell.innerHTML : ''
+      }
+    };
+  }
+
+  window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ = NUTRITION_ISLAND_EVENT;
+  window.getNutritionReactSnapshot = getNutritionReactSnapshot;
+  window.notifyNutritionIsland = notifyNutritionIsland;
+
   // ─── Storage keys ────────────────────────────────────────────────────────────
 
   function _historyKey() {
@@ -37,6 +65,7 @@
     if (typeof window.notifySettingsAccountIsland === 'function') {
       window.notifySettingsAccountIsland();
     }
+    notifyNutritionIsland();
   }
 
   // ─── History management ───────────────────────────────────────────────────────
@@ -544,6 +573,7 @@
         textEl.textContent = msg;
       }
     }
+    notifyNutritionIsland();
   }
 
   function _scrollToBottom(instant) {
@@ -705,6 +735,7 @@
       if (inputBar) inputBar.classList.add('nc-hidden');
       container.innerHTML = _renderSetupCard();
       if (window.I18N && I18N.applyTranslations) I18N.applyTranslations(container);
+      notifyNutritionIsland();
       return;
     }
 
@@ -715,6 +746,7 @@
     if (!_history.length) {
       container.innerHTML = _renderEmptyState();
       if (window.I18N && I18N.applyTranslations) I18N.applyTranslations(container);
+      notifyNutritionIsland();
       return;
     }
 
@@ -764,6 +796,7 @@
         );
       })
       .join('');
+    notifyNutritionIsland();
   }
 
   // ─── Setup card (no API key) ──────────────────────────────────────────
@@ -803,6 +836,7 @@
     if (settingsInp) settingsInp.value = val;
     showToast(tr('settings.claude_api_key.saved', 'API key saved'), 'var(--green)');
     _renderMessages();
+    notifyNutritionIsland();
   }
 
   // ─── Premium empty state ──────────────────────────────────────────────
@@ -937,6 +971,7 @@
         document.addEventListener('click', _closeMenuOnOutside, { once: true });
       }, 10);
     }
+    notifyNutritionIsland();
   }
 
   function _closeMenuOnOutside(e) {
@@ -944,6 +979,7 @@
     var wrap = menu && menu.closest('.nutrition-overflow-wrap');
     if (menu && wrap && !wrap.contains(e.target)) {
       menu.classList.remove('open');
+      notifyNutritionIsland();
     } else if (menu && menu.classList.contains('open')) {
       // Still open, re-listen
       setTimeout(function () {
@@ -986,6 +1022,7 @@
           img.src = compressed;
           preview.style.display = 'flex';
         }
+        notifyNutritionIsland();
       });
     };
     reader.readAsDataURL(file);
@@ -998,6 +1035,7 @@
     const img = document.getElementById('nutrition-preview-img');
     if (preview) preview.style.display = 'none';
     if (img) img.src = '';
+    notifyNutritionIsland();
   }
 
   // ─── Textarea auto-resize ────────────────────────────────────────────────────
@@ -1034,6 +1072,7 @@
       function () {
         _clearHistory();
         _renderMessages();
+        notifyNutritionIsland();
       }
     );
   }
@@ -1072,6 +1111,7 @@
     }
 
     _scrollToBottom();
+    notifyNutritionIsland();
   }
 
   // ─── Expose globals ───────────────────────────────────────────────────────────

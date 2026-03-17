@@ -11,6 +11,7 @@ export async function openApp(page: Page) {
 export async function bootstrapAppShell(page: Page) {
   await page.waitForFunction(() => typeof window.showPage === 'function');
   await page.waitForFunction(() => window.eval('Object.keys(PROGRAMS || {}).length > 0'));
+  await page.waitForFunction(() => window.eval("typeof window.initNutritionPage === 'function'"));
 
   await page.evaluate(() => {
     const suppressLoginUi = () => {

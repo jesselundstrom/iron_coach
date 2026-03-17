@@ -1539,97 +1539,100 @@
 
         <!-- ===== NUTRITION COACH ===== -->
         <div class="page" id="page-nutrition">
-          <div class="nutrition-page-header">
-            <div class="nutrition-page-title" data-i18n="nutrition.page.title">Nutrition Coach</div>
-            <div class="nutrition-overflow-wrap">
+          <div id="nutrition-legacy-shell">
+            <div class="nutrition-page-header">
+              <div class="nutrition-page-title" data-i18n="nutrition.page.title">Nutrition Coach</div>
+              <div class="nutrition-overflow-wrap">
+                <button
+                  class="nutrition-overflow-btn"
+                  type="button"
+                  onclick="toggleNutritionMenu()"
+                  aria-label="Menu"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                    <circle cx="12" cy="5" r="1.5"/>
+                    <circle cx="12" cy="12" r="1.5"/>
+                    <circle cx="12" cy="19" r="1.5"/>
+                  </svg>
+                </button>
+                <div class="nutrition-overflow-menu" id="nutrition-overflow-menu">
+                  <button type="button" onclick="clearNutritionHistory(); toggleNutritionMenu()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14H6L5 6"/>
+                      <path d="M10 11v6"/>
+                      <path d="M14 11v6"/>
+                      <path d="M9 6V4h6v2"/>
+                    </svg>
+                    <span data-i18n="nutrition.clear.btn">Clear conversation</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="nutrition-messages" id="nutrition-messages"></div>
+            <div class="nutrition-loading" id="nutrition-loading" style="display:none">
+              <div class="nutrition-coach-avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                  <path d="M17 8c.7-3.4-.8-6.2-3-7.5C12.3 3 11.5 5.4 12 8"/>
+                  <path d="M12 8c-4 0-7 2.5-7 6 0 4.5 3 8 7 8s7-3.5 7-8c0-3.5-3-6-7-6z"/>
+                </svg>
+              </div>
+              <div class="nutrition-loading-content">
+                <div class="nutrition-loading-text" id="nutrition-loading-text" data-i18n="nutrition.loading.thinking">Thinking...</div>
+                <div class="nutrition-loading-dots">
+                  <span class="nutrition-dot"></span>
+                  <span class="nutrition-dot"></span>
+                  <span class="nutrition-dot"></span>
+                </div>
+              </div>
+            </div>
+            <div class="nutrition-photo-preview" id="nutrition-photo-preview" style="display:none">
+              <img id="nutrition-preview-img" src="" alt="">
               <button
-                class="nutrition-overflow-btn"
+                class="nutrition-photo-clear"
                 type="button"
-                onclick="toggleNutritionMenu()"
-                aria-label="Menu"
+                onclick="clearNutritionPhoto()"
+                aria-label="Remove photo"
+              >&#x2715;</button>
+            </div>
+            <div class="nutrition-input-bar">
+              <label class="nutrition-photo-btn" for="nutrition-photo-input" aria-label="Add photo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <input
+                  type="file"
+                  id="nutrition-photo-input"
+                  accept="image/*"
+                  capture="environment"
+                  onchange="handleNutritionPhoto(event)"
+                  class="file-input-hidden"
+                >
+              </label>
+              <textarea
+                class="nutrition-input"
+                id="nutrition-input"
+                rows="1"
+                inputmode="text"
+                data-i18n-placeholder="nutrition.input.placeholder"
+                placeholder="Ask about your food..."
+              ></textarea>
+              <button
+                class="nutrition-send-btn"
+                id="nutrition-send-btn"
+                type="button"
+                onclick="submitNutritionMessage()"
+                aria-label="Send"
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                  <circle cx="12" cy="5" r="1.5"/>
-                  <circle cx="12" cy="12" r="1.5"/>
-                  <circle cx="12" cy="19" r="1.5"/>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                 </svg>
               </button>
-              <div class="nutrition-overflow-menu" id="nutrition-overflow-menu">
-                <button type="button" onclick="clearNutritionHistory(); toggleNutritionMenu()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14H6L5 6"/>
-                    <path d="M10 11v6"/>
-                    <path d="M14 11v6"/>
-                    <path d="M9 6V4h6v2"/>
-                  </svg>
-                  <span data-i18n="nutrition.clear.btn">Clear conversation</span>
-                </button>
-              </div>
             </div>
           </div>
-          <div class="nutrition-messages" id="nutrition-messages"></div>
-          <div class="nutrition-loading" id="nutrition-loading" style="display:none">
-            <div class="nutrition-coach-avatar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                <path d="M17 8c.7-3.4-.8-6.2-3-7.5C12.3 3 11.5 5.4 12 8"/>
-                <path d="M12 8c-4 0-7 2.5-7 6 0 4.5 3 8 7 8s7-3.5 7-8c0-3.5-3-6-7-6z"/>
-              </svg>
-            </div>
-            <div class="nutrition-loading-content">
-              <div class="nutrition-loading-text" id="nutrition-loading-text" data-i18n="nutrition.loading.thinking">Thinking...</div>
-              <div class="nutrition-loading-dots">
-                <span class="nutrition-dot"></span>
-                <span class="nutrition-dot"></span>
-                <span class="nutrition-dot"></span>
-              </div>
-            </div>
-          </div>
-          <div class="nutrition-photo-preview" id="nutrition-photo-preview" style="display:none">
-            <img id="nutrition-preview-img" src="" alt="">
-            <button
-              class="nutrition-photo-clear"
-              type="button"
-              onclick="clearNutritionPhoto()"
-              aria-label="Remove photo"
-            >&#x2715;</button>
-          </div>
-          <div class="nutrition-input-bar">
-            <label class="nutrition-photo-btn" for="nutrition-photo-input" aria-label="Add photo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-              <input
-                type="file"
-                id="nutrition-photo-input"
-                accept="image/*"
-                capture="environment"
-                onchange="handleNutritionPhoto(event)"
-                class="file-input-hidden"
-              >
-            </label>
-            <textarea
-              class="nutrition-input"
-              id="nutrition-input"
-              rows="1"
-              inputmode="text"
-              data-i18n-placeholder="nutrition.input.placeholder"
-              placeholder="Ask about your food..."
-            ></textarea>
-            <button
-              class="nutrition-send-btn"
-              id="nutrition-send-btn"
-              type="button"
-              onclick="submitNutritionMessage()"
-              aria-label="Send"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
-          </div>
+          <div id="nutrition-react-root"></div>
         </div>
 
         <!-- ===== PROGRAM SETUP SHEET ===== -->
@@ -1803,5 +1806,6 @@
     <script type="module" src="/src/settings-body-island/main.jsx"></script>
     <script type="module" src="/src/log-start-island/main.jsx"></script>
     <script type="module" src="/src/log-active-island/main.jsx"></script>
+    <script type="module" src="/src/nutrition-island/main.jsx"></script>
   </body>
 </html>
