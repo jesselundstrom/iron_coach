@@ -111,6 +111,7 @@ function PageHost({ name, active }) {
 function AppShellIsland() {
   const snapshot = useIslandSnapshot([APP_SHELL_EVENT, LANGUAGE_EVENT], getSnapshot);
   const pageContainerMount = document.getElementById('page-container-react-root');
+  const previousPageRef = useRef(snapshot.activePage);
 
   useEffect(() => {
     if (!snapshot.confirm?.open) return;
@@ -124,6 +125,12 @@ function AppShellIsland() {
     contentScroller.scrollTo({ top: 0, behavior: 'auto' });
     // Nutrition page manages its own scroll so the shell should not fight it.
     contentScroller.classList.toggle('no-scroll', snapshot.activePage === 'nutrition');
+  }, [snapshot.activePage]);
+
+  useEffect(() => {
+    if (previousPageRef.current === snapshot.activePage) return;
+    previousPageRef.current = snapshot.activePage;
+    window.runPageActivationSideEffects?.(snapshot.activePage);
   }, [snapshot.activePage]);
 
   return (

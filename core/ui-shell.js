@@ -112,8 +112,9 @@ function getAppShellReactSnapshot() {
 function showPage(name, btn) {
   const nextPage = APP_SHELL_PAGES.includes(name) ? name : 'dashboard';
   activePageName = nextPage;
-  if (!isAppShellActive()) syncLegacyShellDom(nextPage, btn);
   notifyAppShell();
+  if (isAppShellActive()) return;
+  syncLegacyShellDom(nextPage, btn);
   runPageActivationSideEffects(nextPage);
 }
 
@@ -249,6 +250,7 @@ function submitNameModal() {
 window.__IRONFORGE_APP_SHELL_EVENT__ = APP_SHELL_EVENT;
 window.getAppShellReactSnapshot = getAppShellReactSnapshot;
 window.getActivePageName = () => activePageName;
+window.runPageActivationSideEffects = runPageActivationSideEffects;
 window.showPage = showPage;
 window.goToLog = goToLog;
 window.showToast = showToast;
