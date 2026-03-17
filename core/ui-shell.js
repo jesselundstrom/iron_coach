@@ -6,6 +6,15 @@ const APP_SHELL_EVENT =
   window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
 const APP_SHELL_PAGES = ['dashboard', 'log', 'history', 'settings', 'nutrition'];
 let activePageName = detectInitialActivePage();
+let confirmState = createDefaultConfirmState();
+
+function createDefaultConfirmState() {
+  return {
+    open: false,
+    title: 'Confirm',
+    message: 'Are you sure?',
+  };
+}
 
 function detectInitialActivePage() {
   const activePage = document.querySelector('.page.active[id^="page-"]');
@@ -82,6 +91,20 @@ function notifyAppShell() {
   window.dispatchEvent(new CustomEvent(APP_SHELL_EVENT));
 }
 
+function isAppShellActive() {
+  return window.__IRONFORGE_APP_SHELL_MOUNTED__ === true;
+}
+
+function getConfirmReactSnapshot() {
+  return {
+    open: confirmState.open === true,
+    title: confirmState.title || tr('modal.confirm.title', 'Confirm'),
+    message: confirmState.message || 'Are you sure?',
+    confirmLabel: tr('modal.confirm.ok', 'Confirm'),
+    cancelLabel: tr('modal.confirm.cancel', 'Cancel'),
+  };
+}
+
 function getAppShellReactSnapshot() {
   return {
     activePage: activePageName,
@@ -90,6 +113,7 @@ function getAppShellReactSnapshot() {
       id: name,
       label: getNavLabel(name),
     })),
+    confirm: getConfirmReactSnapshot(),
   };
 }
 
@@ -155,9 +179,18 @@ function showToast(msg, color, undoFn) {
 
 function showConfirm(title, msg, cb) {
   confirmPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  document.getElementById('confirm-title').textContent = title;
-  document.getElementById('confirm-msg').textContent = msg;
+  confirmState = {
+    open: true,
+    title: title || tr('modal.confirm.title', 'Confirm'),
+    message: msg || 'Are you sure?',
+  };
   confirmCallback = cb;
+  if (isAppShellActive()) {
+    notifyAppShell();
+    return;
+  }
+  document.getElementById('confirm-title').textContent = confirmState.title;
+  document.getElementById('confirm-msg').textContent = confirmState.message;
   const modal = document.getElementById('confirm-modal');
   modal.classList.add('active');
   modal.setAttribute('aria-hidden', 'false');
@@ -165,9 +198,16 @@ function showConfirm(title, msg, cb) {
 }
 
 function hideConfirmModal() {
+  confirmState = {
+    ...confirmState,
+    open: false,
+  };
+  if (isAppShellActive()) notifyAppShell();
   const modal = document.getElementById('confirm-modal');
-  modal.classList.remove('active');
-  modal.setAttribute('aria-hidden', 'true');
+  if (!isAppShellActive() && modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+  }
   if (confirmPreviousFocus?.isConnected) confirmPreviousFocus.focus();
   confirmPreviousFocus = null;
 }

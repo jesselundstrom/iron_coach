@@ -31,7 +31,8 @@ export function mountIsland({
   const mountNode = document.getElementById(mountId);
   if (!mountNode) return false;
 
-  document.getElementById(legacyShellId)?.remove();
+  const legacyIds = Array.isArray(legacyShellId) ? legacyShellId : [legacyShellId];
+  legacyIds.filter(Boolean).forEach((id) => document.getElementById(id)?.remove());
   window[mountedFlag] = true;
   createRoot(mountNode).render(<Component />);
   window.dispatchEvent(new CustomEvent(eventName));

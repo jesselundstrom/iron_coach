@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const APP_SHELL_EVENT =
@@ -57,41 +58,87 @@ function getSnapshot() {
       { id: 'settings', label: 'Settings' },
       { id: 'nutrition', label: 'Nutrition' },
     ],
+    confirm: {
+      open: false,
+      title: 'Confirm',
+      message: 'Are you sure?',
+      confirmLabel: 'Confirm',
+      cancelLabel: 'Cancel',
+    },
   };
 }
 
 function AppShellIsland() {
   const snapshot = useIslandSnapshot([APP_SHELL_EVENT, LANGUAGE_EVENT], getSnapshot);
 
+  useEffect(() => {
+    if (!snapshot.confirm?.open) return;
+    window.requestAnimationFrame(() => document.getElementById('confirm-ok')?.focus());
+  }, [snapshot.confirm?.open]);
+
   return (
-    <nav
-      className="bottom-nav"
-      style={{ '--nav-indicator-x': snapshot.navIndicatorIndex }}
-      aria-label="Primary"
-    >
-      {snapshot.navItems.map((item) => {
-        const isActive = snapshot.activePage === item.id;
-        return (
-          <button
-            key={item.id}
-            className={`nav-btn${isActive ? ' active' : ''}`}
-            type="button"
-            data-page={item.id}
-            aria-current={isActive ? 'page' : undefined}
-            onClick={(event) => window.showPage?.(item.id, event.currentTarget)}
-          >
-            {NAV_ICONS[item.id]}
-            <span>{item.label}</span>
-          </button>
-        );
-      })}
-    </nav>
+    <>
+      <div className="toast" id="toast" />
+      <div
+        className={`confirm-modal${snapshot.confirm?.open ? ' active' : ''}`}
+        id="confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={snapshot.confirm?.open ? 'false' : 'true'}
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-msg"
+      >
+        <div className="confirm-box">
+          <h3 id="confirm-title">{snapshot.confirm?.title || 'Confirm'}</h3>
+          <p id="confirm-msg">{snapshot.confirm?.message || 'Are you sure?'}</p>
+          <div className="confirm-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => window.confirmCancel?.()}
+            >
+              {snapshot.confirm?.cancelLabel || 'Cancel'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              id="confirm-ok"
+              onClick={() => window.confirmOk?.()}
+            >
+              {snapshot.confirm?.confirmLabel || 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </div>
+      <nav
+        className="bottom-nav"
+        style={{ '--nav-indicator-x': snapshot.navIndicatorIndex }}
+        aria-label="Primary"
+      >
+        {snapshot.navItems.map((item) => {
+          const isActive = snapshot.activePage === item.id;
+          return (
+            <button
+              key={item.id}
+              className={`nav-btn${isActive ? ' active' : ''}`}
+              type="button"
+              data-page={item.id}
+              aria-current={isActive ? 'page' : undefined}
+              onClick={(event) => window.showPage?.(item.id, event.currentTarget)}
+            >
+              {NAV_ICONS[item.id]}
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </>
   );
 }
 
 mountIsland({
   mountId: 'app-shell-react-root',
-  legacyShellId: 'legacy-bottom-nav',
+  legacyShellId: ['toast', 'confirm-modal', 'legacy-bottom-nav'],
   mountedFlag: '__IRONFORGE_APP_SHELL_MOUNTED__',
   eventName: APP_SHELL_EVENT,
   Component: AppShellIsland,
