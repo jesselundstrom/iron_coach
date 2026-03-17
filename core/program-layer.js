@@ -280,8 +280,7 @@ function applyProgramDateCatchUp(programId){
   return true;
 }
 
-function renderProgramSwitcher(){
-  const container=document.getElementById('program-switcher-container');if(!container)return;
+function buildProgramSwitcherMarkup(){
   const active=getActiveProgramId();
   const requested=typeof getPreferredTrainingDaysPerWeek==='function'
     ? getPreferredTrainingDaysPerWeek(profile)
@@ -315,7 +314,12 @@ function renderProgramSwitcher(){
       ${p.id===active?'<div class="program-card-badge">'+escapeHtml(trProg('program.active','Active'))+'</div>':''}
     </div>`;}).join('');
   const helper=`<div class="program-switcher-note">${escapeHtml(trProg('program.frequency_filter.showing','Showing programs that fit {value}. Your current program stays visible if it needs a fallback.',{value:requestedLabel}))}</div>`;
-  container.innerHTML=helper+cards;
+  return helper+cards;
+}
+
+function renderProgramSwitcher(targetContainer){
+  const container=targetContainer||document.getElementById('program-switcher-container');if(!container)return;
+  container.innerHTML=buildProgramSwitcherMarkup();
 }
 
 function getProgramFrequencyCompatibility(programId,profileLike){

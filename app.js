@@ -715,6 +715,58 @@ function getSettingsScheduleReactSnapshot(){
 window.__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_EVENT__=SETTINGS_SCHEDULE_ISLAND_EVENT;
 window.getSettingsScheduleReactSnapshot=getSettingsScheduleReactSnapshot;
 window.notifySettingsScheduleIsland=notifySettingsScheduleIsland;
+const SETTINGS_PROGRAM_ISLAND_EVENT='ironforge:settings-program-updated';
+function hasSettingsProgramIslandMount(){
+  return !!document.getElementById('settings-program-react-root');
+}
+function isSettingsProgramIslandActive(){
+  return window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__===true;
+}
+function notifySettingsProgramIsland(){
+  if(!hasSettingsProgramIslandMount())return;
+  window.dispatchEvent(new CustomEvent(SETTINGS_PROGRAM_ISLAND_EVENT));
+}
+function getProgramBasicsSnapshotMarkup(){
+  const card=document.createElement('details');
+  const container=document.createElement('div');
+  const summaryEl=document.createElement('div');
+  renderProgramBasics({card,container,summaryEl,bindAutoSave:false});
+  return{
+    visible:card.style.display!=='none',
+    summary:summaryEl.textContent||'',
+    html:container.innerHTML||''
+  };
+}
+function getProgramSwitcherSnapshotMarkup(){
+  const container=document.createElement('div');
+  renderProgramSwitcher(container);
+  return container.innerHTML||'';
+}
+function getSettingsProgramReactSnapshot(){
+  const prog=getActiveProgram();
+  const basics=getProgramBasicsSnapshotMarkup();
+  const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name):prog.name;
+  const progDesc=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.description',null,prog.description||''):prog.description||'';
+  return{
+    labels:{
+      statusBar:(()=>{const canonicalName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name):prog.name;const summary=prog.getSimpleSettingsSummary?prog.getSimpleSettingsSummary(getActiveProgramState()):'';return summary?canonicalName+' · '+summary:canonicalName;})(),
+      basicsTitle:tr('settings.program_basics','Program Basics'),
+      trainingProgram:tr('settings.training_program','Training Program'),
+      advancedTitle:tr('settings.program_advanced_title','Advanced Setup'),
+      advancedHelp:tr('settings.program_advanced_help','Exercise swaps, cycle controls, peak block, and program-specific options.')
+    },
+    values:{
+      basicsVisible:basics.visible,
+      basicsSummary:basics.summary,
+      basicsHtml:basics.html,
+      trainingProgramSummary:progDesc?`${progName} · ${progDesc}`:progName,
+      switcherHtml:getProgramSwitcherSnapshotMarkup()
+    }
+  };
+}
+window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_EVENT__=SETTINGS_PROGRAM_ISLAND_EVENT;
+window.getSettingsProgramReactSnapshot=getSettingsProgramReactSnapshot;
+window.notifySettingsProgramIsland=notifySettingsProgramIsland;
 const SETTINGS_PREFERENCES_ISLAND_EVENT='ironforge:settings-preferences-updated';
 function hasSettingsPreferencesIslandMount(){
   return !!document.getElementById('settings-preferences-react-root');
@@ -849,10 +901,11 @@ function openProgramSetupSheet(){
   document.getElementById('program-setup-sheet').classList.add('active');
 }
 let _programBasicsAutoSaveBound=false;
-function renderProgramBasics(){
-  const card=document.getElementById('program-basics-panel');
-  const container=document.getElementById('program-basics-container');
-  const summaryEl=document.getElementById('program-basics-summary');
+function renderProgramBasics(options){
+  const opts=options||{};
+  const card=opts.card||document.getElementById('program-basics-panel');
+  const container=opts.container||document.getElementById('program-basics-container');
+  const summaryEl=opts.summaryEl||document.getElementById('program-basics-summary');
   const prog=getActiveProgram(),state=getActiveProgramState();
   if(!card||!container)return;
   if(prog&&prog.renderSimpleSettings){
@@ -865,7 +918,7 @@ function renderProgramBasics(){
     if(summaryEl)summaryEl.textContent=prog.getSimpleSettingsSummary?prog.getSimpleSettingsSummary(state):'';
     if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(card);
     // Auto-save: delegate change events from program basics fields
-    if(!_programBasicsAutoSaveBound){
+    if(opts.bindAutoSave!==false&&container.isConnected&&!_programBasicsAutoSaveBound){
       _programBasicsAutoSaveBound=true;
       container.addEventListener('change',function(e){
         if(e.target.matches('select,input[type="number"],input[type="text"],input[type="checkbox"],input[type="hidden"]')){
@@ -873,11 +926,13 @@ function renderProgramBasics(){
         }
       });
     }
+    if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
     return;
   }
   card.style.display='none';
   container.innerHTML='';
   if(summaryEl)summaryEl.textContent='';
+  if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
 }
 function renderTrainingProgramSummary(){
   const summaryEl=document.getElementById('training-program-summary');
@@ -886,6 +941,7 @@ function renderTrainingProgramSummary(){
   const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name):prog.name;
   const progDesc=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.description',null,prog.description||''):prog.description||'';
   summaryEl.textContent=progDesc?`${progName} · ${progDesc}`:progName;
+  if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
 }
 function renderTrainingPreferencesSummary(){
   const summaryEl=document.getElementById('training-preferences-summary');
@@ -915,13 +971,17 @@ function renderTrainingStatusBar(){
 }
 function renderProgramStatusBar(){
   const bar=document.getElementById('program-status-bar');
-  if(!bar)return;
+  if(!bar){
+    if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
+    return;
+  }
   const prog=getActiveProgram(),state=getActiveProgramState();
   if(!prog){bar.textContent='';return;}
   const sep='<span class="status-sep">\u00b7</span>';
   const progName=(window.I18N&&I18N.t)?I18N.t('program.'+prog.id+'.name',null,prog.name):prog.name;
   const summary=prog.getSimpleSettingsSummary?prog.getSimpleSettingsSummary(state):'';
   bar.innerHTML=summary?progName+sep+summary:progName;
+  if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
 }
 
 const ONBOARDING_JOINT_FLAGS=[
@@ -1420,6 +1480,7 @@ function initSettings(){
   if(isSettingsAccountIslandActive())notifySettingsAccountIsland();
   if(isSettingsScheduleIslandActive())notifySettingsScheduleIsland();
   if(isSettingsPreferencesIslandActive())notifySettingsPreferencesIsland();
+  if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
   if(isSettingsBodyIslandActive())notifySettingsBodyIsland();
 }
 
@@ -1499,6 +1560,7 @@ function saveSimpleProgramSettings(){
   setProgramState(prog.id,newState);
   saveProfileData({programIds:[prog.id]});
   renderProgramBasics();
+  notifySettingsProgramIsland();
   updateProgramDisplay();
   updateDashboard();
   renderProgramStatusBar();
@@ -1641,6 +1703,7 @@ function updateLanguageDependentUI(){
   notifySettingsAccountIsland();
   notifySettingsScheduleIsland();
   notifySettingsPreferencesIsland();
+  notifySettingsProgramIsland();
   notifySettingsBodyIsland();
   updateDashboard();
   renderSportDayToggles();

@@ -23,7 +23,10 @@ test('settings schedule island renders from the legacy bridge and saves schedule
   await expect(page.locator('#settings-schedule-legacy-shell')).toHaveCount(0);
   await expect(page.locator('#settings-schedule-react-root #sport-name')).toHaveValue('Hockey');
 
-  await page.locator('#settings-schedule-react-root #sport-name').fill('Padel');
+  await page.locator('#settings-schedule-react-root #sport-name').click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('Padel');
+  await expect(page.locator('#settings-schedule-react-root #sport-name')).toHaveValue('Padel');
   await page.locator('#settings-schedule-react-root #sport-name').blur();
   await page
     .locator('#settings-schedule-react-root button[data-intensity="moderate"]')

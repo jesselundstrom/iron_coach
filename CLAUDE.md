@@ -65,7 +65,7 @@
   - React islands are consumers of existing state via a thin adapter layer (custom events for sync)
   - Program plugins stay as vanilla `<script>` tags; React accesses them via global `PROGRAMS` object
   - Migration order: History (read-only first) → Dashboard → Settings → full shell replacement
-  - Settings migration starts with the Body tab as the first bounded slice; keep the heavier schedule, preferences, and program panels on the legacy shell until the form bridge pattern is proven
+  - Settings migration uses bounded slices with the Body tab as the proving pattern; Body, Account, Preferences, Schedule, and Program now run as React islands while advanced program setup stays on the legacy sheet flow
   - localStorage/Supabase data model unchanged throughout migration
   - Service worker must handle Vite's hashed output filenames
   - i18n and offline behavior preserved from day one in every migrated page
