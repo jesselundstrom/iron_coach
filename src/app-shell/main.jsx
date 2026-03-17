@@ -1,9 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const APP_SHELL_EVENT =
   window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
+const PAGE_NAMES = ['dashboard', 'log', 'history', 'settings', 'nutrition'];
+
+const pageSources = collectPageSources();
+window.__IRONFORGE_PAGE_CONTAINER_SHELL_MOUNTED__ =
+  document.getElementById('page-container-react-root') !== null;
+
+function collectPageSources() {
+  return PAGE_NAMES.reduce((acc, name) => {
+    const node = document.getElementById(`page-${name}`);
+    if (node) acc[name] = node;
+    return acc;
+  }, {});
+}
 
 const NAV_ICONS = {
   dashboard: (
@@ -68,8 +82,35 @@ function getSnapshot() {
   };
 }
 
+function PageHost({ name, active }) {
+  const hostRef = useRef(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const source = pageSources[name];
+    if (!host || !source || host.dataset.pageMounted === 'true') return;
+
+    while (source.firstChild) {
+      host.appendChild(source.firstChild);
+    }
+
+    host.dataset.pageMounted = 'true';
+    if (source.isConnected) source.remove();
+  }, [name]);
+
+  return (
+    <div
+      ref={hostRef}
+      className={`page${active ? ' active' : ''}`}
+      id={`page-${name}`}
+      data-page-shell={name}
+    />
+  );
+}
+
 function AppShellIsland() {
   const snapshot = useIslandSnapshot([APP_SHELL_EVENT, LANGUAGE_EVENT], getSnapshot);
+  const pageContainerMount = document.getElementById('page-container-react-root');
 
   useEffect(() => {
     if (!snapshot.confirm?.open) return;
@@ -78,7 +119,82 @@ function AppShellIsland() {
 
   return (
     <>
+      {pageContainerMount
+        ? createPortal(
+            <>
+              {PAGE_NAMES.map((name) => (
+                <PageHost
+                  key={name}
+                  name={name}
+                  active={snapshot.activePage === name}
+                />
+              ))}
+            </>,
+            pageContainerMount,
+          )
+        : null}
       <div className="toast" id="toast" />
+      <div className="modal-overlay" id="name-modal">
+        <div className="modal-sheet catalog-sheet">
+          <div className="modal-handle" />
+          <div className="catalog-header">
+            <div
+              className="modal-title"
+              id="name-modal-title"
+              data-i18n="catalog.title.add"
+            >
+              Add Exercise
+            </div>
+            <div
+              className="modal-sub"
+              id="exercise-catalog-sub"
+              data-i18n="catalog.sub"
+            >
+              Pick an exercise from the library or search by name.
+            </div>
+          </div>
+          <div className="catalog-search-wrap">
+            <input
+              type="text"
+              id="name-modal-input"
+              className="exercise-catalog-search-input"
+              data-i18n-placeholder="catalog.search.placeholder"
+              placeholder="Search exercises"
+            />
+            <button
+              className="btn btn-ghost btn-sm catalog-clear-btn"
+              id="catalog-clear-btn"
+              type="button"
+              onClick={() => window.clearExerciseCatalogFilters?.()}
+              data-i18n="catalog.clear_filters"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="catalog-filter-groups" id="exercise-catalog-filters" />
+          <div className="catalog-scroll" id="exercise-catalog-scroll">
+            <div id="exercise-catalog-content" />
+            <div
+              className="catalog-empty-state"
+              id="exercise-catalog-empty"
+              style={{ display: 'none' }}
+              data-i18n="catalog.empty"
+            >
+              No exercises matched your filters.
+            </div>
+          </div>
+          <div className="catalog-footer">
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => window.closeNameModal?.()}
+              data-i18n="common.cancel"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
       <div
         className={`confirm-modal${snapshot.confirm?.open ? ' active' : ''}`}
         id="confirm-modal"
@@ -110,6 +226,166 @@ function AppShellIsland() {
           </div>
         </div>
       </div>
+      <div className="modal-overlay" id="rpe-modal">
+        <div className="modal-sheet">
+          <div className="modal-handle" />
+          <div className="modal-title" data-i18n="rpe.session_title">
+            How hard was this session?
+          </div>
+          <div
+            className="modal-sub"
+            id="rpe-modal-sub"
+            data-i18n="rpe.session_prompt"
+          >
+            Rate overall effort (6 = easy, 10 = max)
+          </div>
+          <div className="rpe-grid" id="rpe-grid" />
+          <div
+            className="rpe-skip"
+            role="button"
+            tabIndex={0}
+            onClick={() => window.skipRPE?.()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                window.skipRPE?.();
+              }
+            }}
+            data-i18n="common.skip"
+          >
+            Skip
+          </div>
+        </div>
+      </div>
+      <div className="modal-overlay" id="summary-modal">
+        <div className="modal-sheet summary-sheet">
+          <div className="modal-handle" />
+          <div id="summary-modal-content" className="summary-modal-content" />
+        </div>
+      </div>
+      <div className="modal-overlay" id="sport-check-modal">
+        <div className="modal-sheet">
+          <div className="modal-handle" />
+          <div
+            className="modal-title"
+            id="sport-check-title"
+            data-i18n="workout.sport_check.title"
+          >
+            Sport check-in
+          </div>
+          <div
+            className="modal-sub"
+            id="sport-check-sub"
+            data-i18n="workout.sport_check.sub"
+          >
+            Have you had a leg-heavy sport session yesterday, or do you have one tomorrow?
+          </div>
+          <div className="sport-check-grid">
+            <button
+              className="btn btn-secondary sport-check-btn"
+              type="button"
+              onClick={() => window.selectSportReadiness?.('none')}
+              data-i18n="workout.sport_check.none"
+            >
+              No
+            </button>
+            <button
+              className="btn btn-secondary sport-check-btn"
+              type="button"
+              onClick={() => window.selectSportReadiness?.('yesterday')}
+              data-i18n="workout.sport_check.yesterday"
+            >
+              Yes, yesterday
+            </button>
+            <button
+              className="btn btn-secondary sport-check-btn"
+              type="button"
+              onClick={() => window.selectSportReadiness?.('tomorrow')}
+              data-i18n="workout.sport_check.tomorrow"
+            >
+              Yes, tomorrow
+            </button>
+            <button
+              className="btn btn-secondary sport-check-btn"
+              type="button"
+              onClick={() => window.selectSportReadiness?.('both')}
+              data-i18n="workout.sport_check.both"
+            >
+              Yes, both
+            </button>
+          </div>
+          <button
+            className="btn btn-ghost session-secondary-action"
+            type="button"
+            onClick={() => window.cancelSportReadinessCheck?.()}
+            data-i18n="common.cancel"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      <div className="modal-overlay" id="onboarding-modal">
+        <div className="modal-sheet onboarding-sheet">
+          <div className="modal-handle" />
+          <div id="onboarding-content" className="onboarding-scroll" />
+        </div>
+      </div>
+      <div
+        className="modal-overlay"
+        id="exercise-guide-modal"
+        onClick={(event) => window.closeExerciseGuide?.(event)}
+      >
+        <div className="modal-sheet exercise-guide-sheet">
+          <div className="modal-handle" />
+          <div
+            className="modal-title"
+            id="exercise-guide-modal-title"
+            data-i18n="guidance.title"
+          >
+            Movement Guide
+          </div>
+          <div className="modal-sub" id="exercise-guide-modal-sub" />
+          <div
+            className="exercise-guide-sheet-body"
+            id="exercise-guide-modal-body"
+          />
+          <button
+            className="btn btn-ghost exercise-guide-sheet-close"
+            type="button"
+            onClick={() => window.closeExerciseGuide?.()}
+            data-i18n="common.done"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+      <div
+        className="modal-overlay"
+        id="program-setup-sheet"
+        onClick={(event) => window.closeProgramSetupSheet?.(event)}
+      >
+        <div className="modal-sheet sheet-scroll-body">
+          <div className="modal-handle" />
+          <div className="sheet-header">
+            <div
+              className="modal-title"
+              id="program-setup-sheet-title"
+              data-i18n="settings.program_setup"
+            >
+              Program Setup
+            </div>
+            <button
+              className="sheet-close-btn"
+              type="button"
+              onClick={() => window.closeProgramSetupSheet?.()}
+              data-i18n="common.done"
+            >
+              Done
+            </button>
+          </div>
+          <div id="program-settings-container" />
+        </div>
+      </div>
       <nav
         className="bottom-nav"
         style={{ '--nav-indicator-x': snapshot.navIndicatorIndex }}
@@ -138,7 +414,18 @@ function AppShellIsland() {
 
 mountIsland({
   mountId: 'app-shell-react-root',
-  legacyShellId: ['toast', 'confirm-modal', 'legacy-bottom-nav'],
+  legacyShellId: [
+    'toast',
+    'name-modal',
+    'confirm-modal',
+    'rpe-modal',
+    'summary-modal',
+    'sport-check-modal',
+    'onboarding-modal',
+    'exercise-guide-modal',
+    'program-setup-sheet',
+    'legacy-bottom-nav',
+  ],
   mountedFlag: '__IRONFORGE_APP_SHELL_MOUNTED__',
   eventName: APP_SHELL_EVENT,
   Component: AppShellIsland,

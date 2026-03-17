@@ -212,8 +212,6 @@
           </div>
         </div>
       </div>
-      <div id="name-modal-shell-react-root"></div>
-
       <!-- SPORT READINESS MODAL -->
       <div class="modal-overlay" id="sport-check-modal">
         <div class="modal-sheet">
@@ -312,9 +310,6 @@
           </button>
         </div>
       </div>
-      <div id="workout-overlays-shell-react-root"></div>
-      <div id="settings-overlays-shell-react-root"></div>
-
       <main class="content">
         <div class="header">
           <div class="header-brand">
@@ -1639,34 +1634,6 @@
           <div id="nutrition-react-root"></div>
         </div>
 
-        <!-- ===== PROGRAM SETUP SHEET ===== -->
-        <div
-          class="modal-overlay"
-          id="program-setup-sheet"
-          onclick="closeProgramSetupSheet(event)"
-        >
-          <div class="modal-sheet sheet-scroll-body">
-            <div class="modal-handle"></div>
-            <div class="sheet-header">
-              <div
-                class="modal-title"
-                id="program-setup-sheet-title"
-                data-i18n="settings.program_setup"
-              >
-                Program Setup
-              </div>
-              <button
-                class="sheet-close-btn"
-                type="button"
-                onclick="closeProgramSetupSheet()"
-                data-i18n="common.done"
-              >
-                Done
-              </button>
-            </div>
-            <div id="program-settings-container"></div>
-          </div>
-        </div>
       </main>
 
       <!-- BOTTOM NAV -->
@@ -1838,9 +1805,5 @@
     <script type="module" src="/src/log-active-island/main.jsx"></script>
     <script type="module" src="/src/nutrition-island/main.jsx"></script>
     <script type="module" src="/src/app-shell/main.jsx"></script>
-    <script type="module" src="/src/name-modal-shell/main.jsx"></script>
-    <script type="module" src="/src/workout-overlays-shell/main.jsx"></script>
-    <script type="module" src="/src/settings-overlays-shell/main.jsx"></script>
-    <script type="module" src="/src/page-container-shell/main.jsx"></script>
   </body>
 </html>
