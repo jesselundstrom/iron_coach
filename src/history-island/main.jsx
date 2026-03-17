@@ -1,5 +1,5 @@
-import { startTransition, useEffect, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { useEffect } from 'react';
+import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const HISTORY_EVENT =
   window.__IRONFORGE_HISTORY_ISLAND_EVENT__ || 'ironforge:history-updated';
@@ -24,18 +24,8 @@ function getSnapshot() {
 }
 
 function HistoryIsland() {
-  const [snapshot, setSnapshot] = useState(() => getSnapshot());
+  const snapshot = useIslandSnapshot(HISTORY_EVENT, getSnapshot);
   const isStatsTab = snapshot.tab === 'stats';
-
-  useEffect(() => {
-    const handleChange = () => {
-      startTransition(() => {
-        setSnapshot(getSnapshot());
-      });
-    };
-    window.addEventListener(HISTORY_EVENT, handleChange);
-    return () => window.removeEventListener(HISTORY_EVENT, handleChange);
-  }, []);
 
   useEffect(() => {
     document
@@ -106,11 +96,10 @@ function HistoryIsland() {
   );
 }
 
-const mountNode = document.getElementById('history-react-root');
-
-if (mountNode) {
-  document.getElementById('history-legacy-shell')?.remove();
-  window.__IRONFORGE_HISTORY_ISLAND_MOUNTED__ = true;
-  createRoot(mountNode).render(<HistoryIsland />);
-  window.dispatchEvent(new CustomEvent(HISTORY_EVENT));
-}
+mountIsland({
+  mountId: 'history-react-root',
+  legacyShellId: 'history-legacy-shell',
+  mountedFlag: '__IRONFORGE_HISTORY_ISLAND_MOUNTED__',
+  eventName: HISTORY_EVENT,
+  Component: HistoryIsland,
+});

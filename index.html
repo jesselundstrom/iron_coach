@@ -1411,6 +1411,7 @@
 
           <!-- ── Body tab ── -->
           <div id="settings-tab-body" style="display: none">
+            <div id="settings-body-legacy-shell">
             <div class="card">
               <div class="card-title" data-i18n="settings.body.metrics_title">
                 Body Metrics
@@ -1513,6 +1514,8 @@
                 Save
               </button>
             </div>
+            </div>
+            <div id="settings-body-react-root"></div>
           </div>
         </div>
 
@@ -1775,5 +1778,6 @@
     <script src="programs/hypertrophysplit.js"></script>
     <script type="module" src="/src/dashboard-island/main.jsx"></script>
     <script type="module" src="/src/history-island/main.jsx"></script>
+    <script type="module" src="/src/settings-body-island/main.jsx"></script>
   </body>
 </html>

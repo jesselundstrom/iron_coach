@@ -594,6 +594,59 @@ function showSettingsTab(name,el){
     tab.setAttribute('aria-selected',isActive?'true':'false');
   });
 }
+const SETTINGS_BODY_ISLAND_EVENT='ironforge:settings-body-updated';
+function hasSettingsBodyIslandMount(){
+  return !!document.getElementById('settings-body-react-root');
+}
+function isSettingsBodyIslandActive(){
+  return window.__IRONFORGE_SETTINGS_BODY_ISLAND_MOUNTED__===true;
+}
+function notifySettingsBodyIsland(){
+  if(!hasSettingsBodyIslandMount())return;
+  window.dispatchEvent(new CustomEvent(SETTINGS_BODY_ISLAND_EVENT));
+}
+function getSettingsBodyReactSnapshot(){
+  const bodyMetrics=profile.bodyMetrics||{};
+  return{
+    labels:{
+      metricsTitle:tr('settings.body.metrics_title','Body Metrics'),
+      metricsHelp:tr('settings.body.metrics_help','Used by the AI Nutrition Coach to personalise advice. All weights in kg.'),
+      sex:tr('settings.body.sex','Sex'),
+      sexNone:tr('settings.body.sex_none','— select —'),
+      sexMale:tr('settings.body.sex_male','Male'),
+      sexFemale:tr('settings.body.sex_female','Female'),
+      activity:tr('settings.body.activity','Activity level'),
+      activityNone:tr('settings.body.activity_none','— select —'),
+      activitySedentary:tr('settings.body.activity_sedentary','Sedentary'),
+      activityLight:tr('settings.body.activity_light','Lightly active'),
+      activityModerate:tr('settings.body.activity_moderate','Active'),
+      activityVery:tr('settings.body.activity_very','Very active'),
+      weight:tr('settings.body.weight','Current weight (kg)'),
+      height:tr('settings.body.height','Height (cm)'),
+      age:tr('settings.body.age','Age'),
+      targetWeight:tr('settings.body.target_weight','Target weight (kg)'),
+      goalTitle:tr('settings.body.goal_title','Body Composition Goal'),
+      goalLabel:tr('settings.body.goal_label','What are you working towards?'),
+      goalNone:tr('settings.body.goal_none','— select —'),
+      goalLoseFat:tr('settings.body.goal.lose_fat','Lose fat'),
+      goalGainMuscle:tr('settings.body.goal.gain_muscle','Gain muscle'),
+      goalRecomp:tr('settings.body.goal.recomp','Body recomp (lose fat + gain muscle)'),
+      goalMaintain:tr('settings.body.goal.maintain','Maintain'),
+      save:tr('settings.body.save','Save')
+    },
+    values:{
+      sex:bodyMetrics.sex||'',
+      activityLevel:bodyMetrics.activityLevel||'',
+      weight:bodyMetrics.weight??'',
+      height:bodyMetrics.height??'',
+      age:bodyMetrics.age??'',
+      targetWeight:bodyMetrics.targetWeight??'',
+      bodyGoal:bodyMetrics.bodyGoal||''
+    }
+  };
+}
+window.__IRONFORGE_SETTINGS_BODY_ISLAND_EVENT__=SETTINGS_BODY_ISLAND_EVENT;
+window.getSettingsBodyReactSnapshot=getSettingsBodyReactSnapshot;
 function openProgramSetupSheet(){
   const prog=getActiveProgram(),state=getActiveProgramState();
   const container=document.getElementById('program-settings-container');
@@ -1168,6 +1221,7 @@ function initSettings(){
    const dzb=document.getElementById('danger-zone-delete-btn');if(dzb)dzb.disabled=true;}
   showSettingsTab(_settingsTab);
   if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(document);
+  if(isSettingsBodyIslandActive())notifySettingsBodyIsland();
 }
 
 // Program UI/state helpers moved to core/program-layer.js.
@@ -1199,6 +1253,7 @@ function saveBodyMetrics(){
     bodyGoal:document.getElementById('body-goal')?.value||null,
   };
   saveProfileData({docKeys:['profile_core']});
+  notifySettingsBodyIsland();
   showToast(tr('settings.body.saved','Saved'),'var(--green)');
 }
 function saveTrainingPreferences(){
@@ -1253,6 +1308,7 @@ function saveLanguageSetting(){
   if(window.I18N&&I18N.setLanguage)I18N.setLanguage(lang,{persist:true});
   profile.language=lang;
   saveProfileData({docKeys:['profile_core']});
+  notifySettingsBodyIsland();
   const msg=window.I18N&&I18N.t?I18N.t('settings.language.saved'):'Language updated';
   showToast(msg,'var(--blue)');
 }
@@ -1354,6 +1410,7 @@ async function clearAllData(){
 function updateLanguageDependentUI(){
   refreshDayNames();
   if(window.I18N&&I18N.applyTranslations)I18N.applyTranslations(document);
+  notifySettingsBodyIsland();
   updateDashboard();
   renderSportDayToggles();
   if(activeWorkout){
@@ -1388,4 +1445,3 @@ initAuth();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); });
 }
-

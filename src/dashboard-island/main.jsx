@@ -1,5 +1,5 @@
-import { startTransition, useEffect, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { useEffect } from 'react';
+import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const DASHBOARD_EVENT =
   window.__IRONFORGE_DASHBOARD_ISLAND_EVENT__ || 'ironforge:dashboard-updated';
@@ -33,17 +33,7 @@ function getSnapshot() {
 }
 
 function DashboardIsland() {
-  const [snapshot, setSnapshot] = useState(() => getSnapshot());
-
-  useEffect(() => {
-    const handleChange = () => {
-      startTransition(() => {
-        setSnapshot(getSnapshot());
-      });
-    };
-    window.addEventListener(DASHBOARD_EVENT, handleChange);
-    return () => window.removeEventListener(DASHBOARD_EVENT, handleChange);
-  }, []);
+  const snapshot = useIslandSnapshot(DASHBOARD_EVENT, getSnapshot);
 
   useEffect(() => {
     if (typeof window.animateDashboardPlanMuscleBars === 'function') {
@@ -137,11 +127,10 @@ function DashboardIsland() {
   );
 }
 
-const mountNode = document.getElementById('dashboard-react-root');
-
-if (mountNode) {
-  document.getElementById('dashboard-legacy-shell')?.remove();
-  window.__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__ = true;
-  createRoot(mountNode).render(<DashboardIsland />);
-  window.dispatchEvent(new CustomEvent(DASHBOARD_EVENT));
-}
+mountIsland({
+  mountId: 'dashboard-react-root',
+  legacyShellId: 'dashboard-legacy-shell',
+  mountedFlag: '__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__',
+  eventName: DASHBOARD_EVENT,
+  Component: DashboardIsland,
+});

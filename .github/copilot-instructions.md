@@ -25,6 +25,7 @@
 - Prefer extending the existing layer structure instead of adding new abstractions.
 - Do not introduce frameworks, bundlers, TypeScript, or a server dependency unless explicitly requested.
 - When React islands exist, load them into the current `index.html` shell and bridge them through explicit global adapters/events instead of importing the legacy runtime directly.
+- For form-heavy settings areas, migrate bounded slices first (starting with the Body tab) before replacing broader settings panels like schedule, preferences, or program setup.
 - Reuse existing state objects, helpers, and DOM patterns before creating new ones.
 - Keep changes small and compatible with the current file organization.
 
