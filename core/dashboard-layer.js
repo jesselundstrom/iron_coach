@@ -2,6 +2,8 @@
 let _lastTmSignature='';
 let _lastTmValues={};
 let dashboardUiState={coachingExpanded:false};
+let dashboardReactSnapshotCache=null;
+dashboardUiState.activeDayIndex=null;
 function trDash(key,fallback,params){
   if(window.I18N)return I18N.t(key,params,fallback);
   return fallback;
@@ -254,6 +256,41 @@ function updateFatigueBars(f){
   const badgeEl=document.getElementById('recovery-badge');
   if(badgeEl)badgeEl.innerHTML=`<span class="readiness-status ${badgeCls}"><span class="readiness-status-dot" aria-hidden="true"></span><span class="readiness-status-text">${badgeText}</span></span>`;
 }
+function buildDashboardRecoveryMarkup(f){
+  const muscularRecovery=100-f.muscular;
+  const cnsRecovery=100-f.cns;
+  const overallRec=100-f.overall;
+  let badgeText,badgeCls;
+  if(overallRec>=85){badgeText=trDash('dashboard.badge.go','Valmis');badgeCls='rbadge-go';}
+  else if(overallRec>=60){badgeText=trDash('dashboard.badge.caution','Kevennä');badgeCls='rbadge-caution';}
+  else{badgeText=trDash('dashboard.badge.rest','Palautus');badgeCls='rbadge-rest';}
+  const muscularBars=getRecoveryGradient(muscularRecovery);
+  const cnsBars=getRecoveryGradient(cnsRecovery);
+  return `<div class="dashboard-card-body">
+    <div class="dashboard-recovery-summary">
+      <div>
+        <div class="dashboard-recovery-summary-label">${escapeHtml(trDash('dashboard.overall','Yhteensä'))}</div>
+        <div class="dashboard-recovery-summary-copy" id="recovery-overall-copy"></div>
+        <div class="dashboard-recovery-summary-badge" id="recovery-badge"><span class="readiness-status ${badgeCls}"><span class="readiness-status-dot" aria-hidden="true"></span><span class="readiness-status-text">${escapeHtml(badgeText)}</span></span></div>
+      </div>
+      <div class="dashboard-recovery-summary-value" id="recovery-overall-value">${escapeHtml(String(overallRec))}%</div>
+    </div>
+    <div class="fatigue-row">
+      <div class="fatigue-label">${escapeHtml(trDash('dashboard.muscular','Lihaksisto'))}</div>
+      <div class="fatigue-bar-wrap">
+        <div class="fatigue-fill" id="f-muscular" style="width: ${muscularRecovery}%; --bar-start:${muscularBars.start}; --bar-mid:${muscularBars.mid}; --bar-end:${muscularBars.end}; --bar-glow:${muscularBars.glow};"></div>
+      </div>
+      <div class="fatigue-value" id="f-muscular-val">${escapeHtml(String(muscularRecovery))}%</div>
+    </div>
+    <div class="fatigue-row">
+      <div class="fatigue-label">${escapeHtml(trDash('dashboard.nervous','Hermosto'))}</div>
+      <div class="fatigue-bar-wrap">
+        <div class="fatigue-fill" id="f-cns" style="width: ${cnsRecovery}%; --bar-start:${cnsBars.start}; --bar-mid:${cnsBars.mid}; --bar-end:${cnsBars.end}; --bar-glow:${cnsBars.glow};"></div>
+      </div>
+      <div class="fatigue-value" id="f-cns-val">${escapeHtml(String(cnsRecovery))}%</div>
+    </div>
+  </div>`;
+}
 
 // DATA HELPERS
 function exerciseLookupKeys(exercise){
@@ -458,7 +495,10 @@ function renderSessionProgress(done,total,sportCount,sportName){
 function renderWeekLegend(){
   const legend=document.getElementById('dashboard-week-legend');
   if(!legend)return;
-  legend.innerHTML=`
+  legend.innerHTML=buildDashboardWeekLegendMarkup();
+}
+function buildDashboardWeekLegendMarkup(){
+  return `
     <div class="dashboard-week-legend-item"><span class="dashboard-week-legend-dot is-lift" aria-hidden="true"></span><span>${escapeHtml(trDash('dashboard.calendar.legend_lift','Treeni kirjattu'))}</span></div>
     <div class="dashboard-week-legend-item"><span class="dashboard-week-legend-dot is-scheduled" aria-hidden="true"></span><span>${escapeHtml(trDash('dashboard.calendar.legend_scheduled','Suunniteltu'))}</span></div>
   `;
@@ -791,6 +831,7 @@ function animateDashboardPlanMuscleBars(){
 
 window.toggleDashboardCoachingInsights=function(){
   dashboardUiState.coachingExpanded=!dashboardUiState.coachingExpanded;
+  dashboardReactSnapshotCache=null;
   updateDashboard();
 };
 
@@ -875,11 +916,47 @@ function getTrainingDecisionReasonLabels(decision){
 // WEEK STRIP
 function renderWeekStrip(){
   const strip=document.getElementById('week-strip');
+  if(!strip)return;
+  const snapshot=buildDashboardWeekStripSnapshot();
+  strip.innerHTML=snapshot.stripHtml;
+  const todayStatus=document.getElementById('today-status');
+  if(todayStatus)todayStatus.innerHTML=snapshot.statusHtml;
+  const panel=document.getElementById('day-detail-panel');
+  if(panel){
+    panel.innerHTML=snapshot.detailHtml;
+    panel.style.display=snapshot.detailVisible?'block':'none';
+    panel.dataset.active=snapshot.detailVisible?String(dashboardUiState.activeDayIndex):'';
+  }
+}
+
+function buildDashboardDayDetailMarkup(dayIdx){
+  const today=new Date(),todayDow=today.getDay();
+  const start=new Date(today);start.setDate(today.getDate()-((todayDow+6)%7));
+  const d=new Date(start);d.setDate(start.getDate()+dayIdx);
+  const logged=workouts.filter(w=>new Date(w.date).toDateString()===d.toDateString());
+  if(logged.length){
+    const items=[];
+    logged.forEach(w=>{
+      if(isSportWorkout(w)){
+        items.push(`<div class="day-detail-item day-detail-item-sport">${w.name||(schedule.sportName||trDash('common.sport','Laji'))}</div>`);
+      } else {
+        const names=(w.exercises||[]).map(e=>e.name);
+        if(names.length)names.forEach(n=>items.push(`<div class="day-detail-item">${n}</div>`));
+        else items.push(`<div class="day-detail-item day-detail-item-muted">${trDash('common.workout','Treeni')}</div>`);
+      }
+    });
+    return items.join('');
+  }
+  const dow=d.getDay(),isSportDay=schedule.sportDays.includes(dow);
+  const label=isSportDay?trDash('dashboard.status.sport_day','{sport}-päivä',{sport:(schedule.sportName||trDash('common.sport','Laji'))}):trDash('dashboard.no_session_logged','Ei kirjattua treeniä');
+  return`<div class="day-detail-item day-detail-item-muted">${label}</div>`;
+}
+
+function buildDashboardWeekStripSnapshot(){
   const today=new Date(),todayDow=today.getDay();
   const start=getWeekStart(today);
   const sn=schedule.sportName||trDash('common.sport','Laji');
-  strip.innerHTML='';
-  for(let i=0;i<7;i++){
+  const stripHtml=Array.from({length:7},(_,i)=>{
     const d=new Date(start);d.setDate(start.getDate()+i);
     const dow=d.getDay(),isToday=d.toDateString()===today.toDateString();
     const logged=workouts.filter(w=>new Date(w.date).toDateString()===d.toDateString());
@@ -899,99 +976,71 @@ function renderWeekStrip(){
     else if(isLogged)cls+=' logged';
     else if(isSportDay)cls+=' scheduled';
     else cls+=' free';
-    strip.innerHTML+=`<button class="${cls}" type="button" onclick="toggleDayDetail(${i})" title="${escapeHtml(tooltipParts.join(' · '))}" aria-label="${escapeHtml(tooltipParts.join(' · '))}"><div class="day-label">${DAY_NAMES[dow]}</div><div class="day-num">${d.getDate()}</div><div class="day-markers">${markers||'<span class="day-marker-placeholder" aria-hidden="true"></span>'}</div></button>`;
-  }
+    if(dashboardUiState.activeDayIndex===i)cls+=' active';
+    return`<button class="${cls}" type="button" onclick="toggleDayDetail(${i})" title="${escapeHtml(tooltipParts.join(' · '))}" aria-label="${escapeHtml(tooltipParts.join(' · '))}"><div class="day-label">${DAY_NAMES[dow]}</div><div class="day-num">${d.getDate()}</div><div class="day-markers">${markers||'<span class="day-marker-placeholder" aria-hidden="true"></span>'}</div></button>`;
+  }).join('');
   const todayIsSportDay=schedule.sportDays.includes(todayDow);
   const todayLogged=workouts.filter(w=>new Date(w.date).toDateString()===today.toDateString());
   const tHasLift=todayLogged.some(w=>!isSportWorkout(w)),tHasSport=todayLogged.some(w=>isSportWorkout(w));
-  let s='';
-  if(tHasLift&&tHasSport)s=`<span class="dashboard-status-line is-success">${trDash('dashboard.status.workout_plus_sport_logged','Treeni + {sport} kirjattu',{sport:sn})}</span>`;
-  else if(tHasLift)s=`<span class="dashboard-status-line is-success">${trDash('dashboard.status.workout_logged','Treeni kirjattu')}</span>`;
-  else if(tHasSport)s=`<span class="dashboard-status-line is-info">${trDash('dashboard.status.sport_logged','{sport} kirjattu',{sport:sn})}</span>`;
-  else if(todayIsSportDay)s=`<span class="dashboard-status-line is-info">${trDash('dashboard.status.sport_day','{sport}-päivä',{sport:sn})}</span>`;
-  else s=`<span class="dashboard-status-line is-neutral">${trDash('dashboard.no_session_logged','Ei kirjattua treeniä')}</span>`;
-  document.getElementById('today-status').innerHTML=s;
+  let statusHtml='';
+  if(tHasLift&&tHasSport)statusHtml=`<span class="dashboard-status-line is-success">${trDash('dashboard.status.workout_plus_sport_logged','Treeni + {sport} kirjattu',{sport:sn})}</span>`;
+  else if(tHasLift)statusHtml=`<span class="dashboard-status-line is-success">${trDash('dashboard.status.workout_logged','Treeni kirjattu')}</span>`;
+  else if(tHasSport)statusHtml=`<span class="dashboard-status-line is-info">${trDash('dashboard.status.sport_logged','{sport} kirjattu',{sport:sn})}</span>`;
+  else if(todayIsSportDay)statusHtml=`<span class="dashboard-status-line is-info">${trDash('dashboard.status.sport_day','{sport}-päivä',{sport:sn})}</span>`;
+  else statusHtml=`<span class="dashboard-status-line is-neutral">${trDash('dashboard.no_session_logged','Ei kirjattua treeniä')}</span>`;
+  return{
+    stripHtml,
+    statusHtml,
+    detailVisible:dashboardUiState.activeDayIndex!==null,
+    detailHtml:dashboardUiState.activeDayIndex!==null?buildDashboardDayDetailMarkup(dashboardUiState.activeDayIndex):''
+  };
 }
 
 function toggleDayDetail(dayIdx){
-  const panel=document.getElementById('day-detail-panel');
-  if(!panel)return;
-  if(panel.dataset.active===String(dayIdx)&&panel.style.display!=='none'){
-    panel.style.display='none';
-    panel.dataset.active='';
-    document.querySelectorAll('#week-strip .day-pill').forEach(p=>p.classList.remove('active'));
+  dashboardUiState.activeDayIndex=dashboardUiState.activeDayIndex===dayIdx?null:dayIdx;
+  if(isDashboardIslandActive()){
+    dashboardReactSnapshotCache=null;
+    notifyDashboardIsland();
     return;
   }
-  panel.dataset.active=String(dayIdx);
-  document.querySelectorAll('#week-strip .day-pill').forEach((p,i)=>p.classList.toggle('active',i===dayIdx));
-  const today=new Date(),todayDow=today.getDay();
-  const start=new Date(today);start.setDate(today.getDate()-((todayDow+6)%7));
-  const d=new Date(start);d.setDate(start.getDate()+dayIdx);
-  const logged=workouts.filter(w=>new Date(w.date).toDateString()===d.toDateString());
-  if(logged.length){
-    const items=[];
-    logged.forEach(w=>{
-      if(isSportWorkout(w)){
-        items.push(`<div class="day-detail-item day-detail-item-sport">${w.name||(schedule.sportName||trDash('common.sport','Laji'))}</div>`);
-      } else {
-        const names=(w.exercises||[]).map(e=>e.name);
-        if(names.length)names.forEach(n=>items.push(`<div class="day-detail-item">${n}</div>`));
-        else items.push(`<div class="day-detail-item day-detail-item-muted">${trDash('common.workout','Treeni')}</div>`);
-      }
-    });
-    panel.innerHTML=items.join('');
-  } else {
-    const dow=d.getDay(),isSportDay=schedule.sportDays.includes(dow);
-    const label=isSportDay?trDash('dashboard.status.sport_day','{sport}-päivä',{sport:(schedule.sportName||trDash('common.sport','Laji'))}):trDash('dashboard.no_session_logged','Ei kirjattua treeniä');
-    panel.innerHTML=`<div class="day-detail-item day-detail-item-muted">${label}</div>`;
-  }
-  panel.style.display='block';
+  renderWeekStrip();
 }
 
 // DASHBOARD
-function updateDashboard(){
-  document.querySelectorAll('#todays-plan-card > .card-title').forEach(el=>el.remove());
-  renderWeekStrip();
-  renderWeekLegend();
-  const f=computeFatigue();updateFatigueBars(f);
-  const prog=getActiveProgram(),ps=getActiveProgramState();
-  const programName=window.I18N&&I18N.t?I18N.t('program.'+prog.id+'.name',null,prog.name||'Treeni'):prog.name||'Treeni';
+function buildDashboardTmSnapshot(prog,ps){
+  const title=prog.dashboardStatsLabel||trDash('dashboard.training_maxes','Treenimaksimit');
+  if(!prog.getDashboardTMs)return{title,html:''};
+  const tms=(prog.getDashboardTMs(ps)||[]).map(t=>{
+    const roundedValue=roundDashboardTmDisplayValue(t.value);
+    return{
+      ...t,
+      value:roundedValue.value
+    };
+  });
+  const tmSignature=tms.map(t=>`${t.name}:${t.value}`).join('|');
+  const previousTmValues={..._lastTmValues};
+  const tmChanged=!!_lastTmSignature&&tmSignature!==_lastTmSignature;
+  _lastTmSignature=tmSignature;
+  _lastTmValues=Object.fromEntries(tms.map(t=>[t.name,{value:String(t.value||'')}])); 
+  const html=tms.map((t,i)=>{
+    const currentValue=parseDashboardTmValue(t.value);
+    const previousValue=parseDashboardTmValue(previousTmValues[t.name]?.value||t.value);
+    const cardChanged=tmChanged&&previousTmValues[t.name]?.value!==undefined&&previousTmValues[t.name].value!==String(t.value||'');
+    const cardImproved=cardChanged
+      && currentValue.numeric!==null
+      && previousValue.numeric!==null
+      && currentValue.numeric>previousValue.numeric;
+    const delta=cardImproved?formatDashboardTmDelta((currentValue.numeric||0)-(previousValue.numeric||0)):'';
+    return `<div class="lift-stat${cardChanged?' tm-updated':''}${cardImproved?' tm-updated-up':''}" style="--tm-delay:${i*65}ms">
+      <div class="value${cardChanged?' is-animating':''}">${renderDashboardTmDigits(currentValue.main,previousValue.main,cardChanged)}${currentValue.unit?`<span class="unit">${escapeHtml(currentValue.unit)}</span>`:''}</div>
+      <div class="label">${escapeHtml(dashExerciseName(t.name))}${t.stalled?' ⚠️':''}</div>
+      ${delta?`<div class="tm-delta-badge">${escapeHtml(delta)}</div>`:''}
+    </div>`;
+  }).join('');
+  return{title,html};
+}
 
-  // Training Maxes - dynamic per program
-  const tmGrid=document.getElementById('tm-grid');
-  const tmTitle=document.getElementById('tm-section-title');
-  if(tmGrid&&prog.getDashboardTMs){
-    const tms=(prog.getDashboardTMs(ps)||[]).map(t=>{
-      const roundedValue=roundDashboardTmDisplayValue(t.value);
-      return{
-        ...t,
-        value:roundedValue.value
-      };
-    });
-    const tmSignature=tms.map(t=>`${t.name}:${t.value}`).join('|');
-    const previousTmValues={..._lastTmValues};
-    const tmChanged=!!_lastTmSignature&&tmSignature!==_lastTmSignature;
-    _lastTmSignature=tmSignature;
-    _lastTmValues=Object.fromEntries(tms.map(t=>[t.name,{value:String(t.value||'')}]));
-    tmGrid.innerHTML=tms.map((t,i)=>{
-      const currentValue=parseDashboardTmValue(t.value);
-      const previousValue=parseDashboardTmValue(previousTmValues[t.name]?.value||t.value);
-      const cardChanged=tmChanged&&previousTmValues[t.name]?.value!==undefined&&previousTmValues[t.name].value!==String(t.value||'');
-      const cardImproved=cardChanged
-        && currentValue.numeric!==null
-        && previousValue.numeric!==null
-        && currentValue.numeric>previousValue.numeric;
-      const delta=cardImproved?formatDashboardTmDelta((currentValue.numeric||0)-(previousValue.numeric||0)):'';
-      return `<div class="lift-stat${cardChanged?' tm-updated':''}${cardImproved?' tm-updated-up':''}" style="--tm-delay:${i*65}ms">
-        <div class="value${cardChanged?' is-animating':''}">${renderDashboardTmDigits(currentValue.main,previousValue.main,cardChanged)}${currentValue.unit?`<span class="unit">${escapeHtml(currentValue.unit)}</span>`:''}</div>
-        <div class="label">${escapeHtml(dashExerciseName(t.name))}${t.stalled?' ⚠️':''}</div>
-        ${delta?`<div class="tm-delta-badge">${escapeHtml(delta)}</div>`:''}
-      </div>`;
-    }).join('');
-    if(tmTitle)tmTitle.textContent=prog.dashboardStatsLabel||trDash('dashboard.training_maxes','Treenimaksimit');
-  }
-
-  // Weekly session progress
+function buildDashboardPlanSnapshot(prog,ps,f){
   const now=new Date(),sow=getWeekStart(now);
   const freq=typeof getEffectiveProgramFrequency==='function'
     ? getEffectiveProgramFrequency(prog.id,profile)
@@ -1000,11 +1049,6 @@ function updateDashboard(){
   const doneThisWeek=workouts.filter(w=>(w.program===prog.id||(!w.program&&w.type===prog.id))&&new Date(w.date)>=sow).length;
   const sportThisWeek=workouts.filter(w=>isSportWorkout(w)&&new Date(w.date)>=sow).length;
   const sn=schedule.sportName||trDash('common.sport','Laji');
-  const sessionProgressEl=document.getElementById('session-progress');
-  if(sessionProgressEl)sessionProgressEl.innerHTML=renderSessionProgress(doneThisWeek,freq,sportThisWeek,sn);
-
-  // Today's Plan - unified through plan engine
-  const recovery=100-f.overall;
   const bi=prog.getBlockInfo?prog.getBlockInfo(ps):{name:'',weekLabel:'',isDeload:false,pct:null,modeDesc:'',modeName:''};
   const planningContext=typeof buildPlanningContext==='function'
     ? buildPlanningContext({profile,schedule,workouts,activeProgram:prog,activeProgramState:ps,fatigue:f})
@@ -1028,34 +1072,101 @@ function updateDashboard(){
   const reasonLabels=decisionSummary?.reasonLabels||getTrainingDecisionReasonLabels(trainingDecision);
   const guidance=getPreferenceGuidance(profile,{
     detail:focusSupport?.text||bi.modeDesc||'',
-    canPushVolume:recovery>=70&&trainingDecision.action==='train'&&!bi.isDeload,
+    canPushVolume:(100-f.overall)>=70&&trainingDecision.action==='train'&&!bi.isDeload,
     decisionSummary,
     reasonLabels
   });
   const shouldShowStart=trainingDecision.action!=='rest'&&!todaySummary.hasLift;
+  const startSlotHtml=shouldShowStart
+    ? `<div class="dashboard-top-cta"><button class="btn btn-primary cta-btn" type="button" onclick="goToLog()">${trDash('dashboard.start_session','Aloita sessio')}</button></div>`
+    : (todaySummary.hasLift?`<div class="dashboard-top-cta"><div class="dashboard-card-head-badge is-positive">${escapeHtml(trDash('dashboard.today_done_badge','Päivän työ tehty'))}</div></div>`:'');
+  return{
+    headerSub:[window.I18N&&I18N.t?I18N.t('program.'+prog.id+'.name',null,prog.name||'Treeni'):prog.name||'Treeni',bi.name||'',bi.weekLabel||''].filter(Boolean).join(' · '),
+    startSlotHtml,
+    sessionProgressHtml:renderSessionProgress(doneThisWeek,freq,sportThisWeek,sn),
+    nextSessionHtml:renderDashboardTodayPlan({
+      focusLine:guidance[0]||'',
+      trainingDecision,
+      decisionSummary,
+      coachCommentary,
+      coachingInsights,
+      todaySummary
+    })
+  };
+}
+
+function getDashboardLabels(){
+  return{
+    todayPlan:trDash('dashboard.today_plan','Today\'s Plan'),
+    weeklySessions:trDash('dashboard.weekly_sessions','Viikon sessiot'),
+    recovery:trDash('dashboard.recovery','Palautuminen'),
+    maxes:trDash('dashboard.maxes','Maksimit')
+  };
+}
+
+function getDashboardReactSnapshot(){
+  if(dashboardReactSnapshotCache)return dashboardReactSnapshotCache;
+  const prog=getActiveProgram(),ps=getActiveProgramState();
+  const fatigue=computeFatigue();
+  dashboardReactSnapshotCache={
+    labels:getDashboardLabels(),
+    week:buildDashboardWeekStripSnapshot(),
+    tm:buildDashboardTmSnapshot(prog,ps),
+    plan:buildDashboardPlanSnapshot(prog,ps,fatigue),
+    recoveryHtml:buildDashboardRecoveryMarkup(fatigue)
+  };
+  return dashboardReactSnapshotCache;
+}
+
+function updateDashboard(){
+  document.querySelectorAll('#todays-plan-card > .card-title').forEach(el=>el.remove());
+  const prog=getActiveProgram(),ps=getActiveProgramState();
+  const fatigue=computeFatigue();
+  const tm=buildDashboardTmSnapshot(prog,ps);
+  const plan=buildDashboardPlanSnapshot(prog,ps,fatigue);
+  dashboardReactSnapshotCache={
+    labels:getDashboardLabels(),
+    week:buildDashboardWeekStripSnapshot(),
+    tm,
+    plan,
+    recoveryHtml:buildDashboardRecoveryMarkup(fatigue)
+  };
+  const headerSub=document.getElementById('header-sub');
+  if(headerSub)headerSub.textContent=plan.headerSub;
+  if(isDashboardIslandActive()){
+    notifyDashboardIsland();
+    requestAnimationFrame(animateDashboardPlanMuscleBars);
+    return;
+  }
+  renderWeekStrip();
+  renderWeekLegend();
+  updateFatigueBars(fatigue);
+  const tmGrid=document.getElementById('tm-grid');
+  if(tmGrid)tmGrid.innerHTML=tm.html;
+  const tmTitle=document.getElementById('tm-section-title');
+  if(tmTitle)tmTitle.textContent=tm.title;
+  const sessionProgressEl=document.getElementById('session-progress');
+  if(sessionProgressEl)sessionProgressEl.innerHTML=plan.sessionProgressHtml;
   const startSlot=document.getElementById('dashboard-start-session-slot');
-  if(startSlot){
-    startSlot.innerHTML=shouldShowStart
-      ? `<div class="dashboard-top-cta"><button class="btn btn-primary cta-btn" type="button" onclick="goToLog()">${trDash('dashboard.start_session','Aloita sessio')}</button></div>`
-      : (todaySummary.hasLift?`<div class="dashboard-top-cta"><div class="dashboard-card-head-badge is-positive">${escapeHtml(trDash('dashboard.today_done_badge','Päivän työ tehty'))}</div></div>`:'');
-  }
-  const todayBadgeEl=document.getElementById('today-plan-badge');
-  if(todayBadgeEl){
-    todayBadgeEl.className='dashboard-card-head-badge';
-    todayBadgeEl.textContent='';
-  }
-  const rec=renderDashboardTodayPlan({
-    focusLine:guidance[0]||'',
-    trainingDecision,
-    decisionSummary,
-    coachCommentary,
-    coachingInsights,
-    todaySummary
-  });
-  document.getElementById('next-session-content').innerHTML=rec;
+  if(startSlot)startSlot.innerHTML=plan.startSlotHtml;
+  const nextSession=document.getElementById('next-session-content');
+  if(nextSession)nextSession.innerHTML=plan.nextSessionHtml;
   requestAnimationFrame(animateDashboardPlanMuscleBars);
-  document.getElementById('header-sub').textContent=[programName,bi.name||'',bi.weekLabel||''].filter(Boolean).join(' · ');
 }
 
 // Initialize muscle body flip listener (event delegation, safe to call once)
 initMuscleBodyFlip();
+const DASHBOARD_ISLAND_EVENT='ironforge:dashboard-updated';
+function hasDashboardIslandMount(){
+  return !!document.getElementById('dashboard-react-root');
+}
+function isDashboardIslandActive(){
+  return window.__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__===true;
+}
+function notifyDashboardIsland(){
+  if(!hasDashboardIslandMount())return;
+  window.dispatchEvent(new CustomEvent(DASHBOARD_ISLAND_EVENT));
+}
+window.__IRONFORGE_DASHBOARD_ISLAND_EVENT__=DASHBOARD_ISLAND_EVENT;
+window.getDashboardReactSnapshot=getDashboardReactSnapshot;
+window.buildDashboardWeekLegendMarkup=buildDashboardWeekLegendMarkup;
