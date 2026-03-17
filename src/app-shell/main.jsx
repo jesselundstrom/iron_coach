@@ -117,6 +117,15 @@ function AppShellIsland() {
     window.requestAnimationFrame(() => document.getElementById('confirm-ok')?.focus());
   }, [snapshot.confirm?.open]);
 
+  useEffect(() => {
+    const contentScroller = document.querySelector('.content');
+    if (!contentScroller) return;
+
+    contentScroller.scrollTo({ top: 0, behavior: 'auto' });
+    // Nutrition page manages its own scroll so the shell should not fight it.
+    contentScroller.classList.toggle('no-scroll', snapshot.activePage === 'nutrition');
+  }, [snapshot.activePage]);
+
   return (
     <>
       {pageContainerMount

@@ -51,33 +51,17 @@ function getNavIndicatorIndex(name) {
   return idx >= 0 ? idx : 0;
 }
 
-function syncShellDom(name, btn) {
-  if (!isPageContainerShellActive()) {
-    document.querySelectorAll('.page').forEach((page) => page.classList.remove('active'));
-  }
-  if (!isAppShellActive()) {
-    document.querySelectorAll('.nav-btn').forEach((navBtn) => navBtn.classList.remove('active'));
-  }
+function syncLegacyShellDom(name, btn) {
+  document.querySelectorAll('.page').forEach((page) => page.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach((navBtn) => navBtn.classList.remove('active'));
 
-  if (!isPageContainerShellActive()) {
-    const page = document.getElementById(`page-${name}`);
-    if (page) page.classList.add('active');
-  }
-
+  const page = document.getElementById(`page-${name}`);
+  if (page) page.classList.add('active');
   const resolvedButton = btn || getNavButtonForPage(name);
-  if (!isAppShellActive() && resolvedButton) resolvedButton.classList.add('active');
+  if (resolvedButton) resolvedButton.classList.add('active');
 
-  if (!isAppShellActive()) {
-    const nav = document.querySelector('.bottom-nav');
-    if (nav) nav.style.setProperty('--nav-indicator-x', getNavIndicatorIndex(name));
-  }
-
-  const contentScroller = document.querySelector('.content');
-  if (contentScroller) {
-    contentScroller.scrollTo({ top: 0, behavior: 'auto' });
-    // Nutrition page manages its own scroll - prevent double-scrolling
-    contentScroller.classList.toggle('no-scroll', name === 'nutrition');
-  }
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.setProperty('--nav-indicator-x', getNavIndicatorIndex(name));
 
   return resolvedButton;
 }
@@ -101,10 +85,6 @@ function notifyAppShell() {
 
 function isAppShellActive() {
   return window.__IRONFORGE_APP_SHELL_MOUNTED__ === true;
-}
-
-function isPageContainerShellActive() {
-  return window.__IRONFORGE_PAGE_CONTAINER_SHELL_MOUNTED__ === true;
 }
 
 function getConfirmReactSnapshot() {
@@ -132,7 +112,7 @@ function getAppShellReactSnapshot() {
 function showPage(name, btn) {
   const nextPage = APP_SHELL_PAGES.includes(name) ? name : 'dashboard';
   activePageName = nextPage;
-  syncShellDom(nextPage, btn);
+  if (!isAppShellActive()) syncLegacyShellDom(nextPage, btn);
   notifyAppShell();
   runPageActivationSideEffects(nextPage);
 }
@@ -279,4 +259,4 @@ window.showNameModal = showNameModal;
 window.closeNameModal = closeNameModal;
 window.submitNameModal = submitNameModal;
 
-syncShellDom(activePageName, getNavButtonForPage(activePageName));
+if (!isAppShellActive()) syncLegacyShellDom(activePageName, getNavButtonForPage(activePageName));
