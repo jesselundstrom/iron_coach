@@ -1043,6 +1043,24 @@ const STRINGS={
     'program.hs.simple.save':'Save Basics',
     'program.hs.simple.summary':'{count} sessions/week · {split}',
 
+    /* ── Body settings tab ───────────────────────────────────────── */
+    'settings.tabs.body':'Body',
+    'settings.body.metrics_title':'Body Metrics',
+    'settings.body.metrics_help':'Used by the AI Nutrition Coach to personalise advice. All weights in kg.',
+    'settings.body.weight':'Current weight (kg)',
+    'settings.body.height':'Height (cm)',
+    'settings.body.age':'Age',
+    'settings.body.target_weight':'Target weight (kg)',
+    'settings.body.goal_title':'Body Composition Goal',
+    'settings.body.goal_label':'What are you working towards?',
+    'settings.body.goal_none':'\u2014 select \u2014',
+    'settings.body.goal.lose_fat':'Lose fat',
+    'settings.body.goal.gain_muscle':'Gain muscle',
+    'settings.body.goal.recomp':'Body recomp (lose fat + gain muscle)',
+    'settings.body.goal.maintain':'Maintain',
+    'settings.body.save':'Save',
+    'settings.body.saved':'Body metrics saved',
+
     /* ── Nutrition Coach ──────────────────────────────────────────── */
     'nav.nutrition':'Nutrition',
     'nutrition.page.title':'Nutrition Coach',
@@ -2070,6 +2088,24 @@ const STRINGS={
     'program.hs.simple.summary':'{count} sessiota/viikko · {split}',
     'common.sets':'sarjaa',
     'program.future':'Tuleva',
+
+    /* ── Body settings tab ───────────────────────────────────────── */
+    'settings.tabs.body':'Keho',
+    'settings.body.metrics_title':'Kehon mittasuhteet',
+    'settings.body.metrics_help':'AI-ravintocoach k\u00e4ytt\u00e4\u00e4 n\u00e4it\u00e4 tietoja neuvojen r\u00e4\u00e4t\u00e4l\u00f6imiseen. Kaikki painot kilogrammoina.',
+    'settings.body.weight':'Nykyinen paino (kg)',
+    'settings.body.height':'Pituus (cm)',
+    'settings.body.age':'Ik\u00e4',
+    'settings.body.target_weight':'Tavoitepaino (kg)',
+    'settings.body.goal_title':'Kehonkoostumustavoite',
+    'settings.body.goal_label':'Mihin t\u00e4ht\u00e4\u00e4t?',
+    'settings.body.goal_none':'\u2014 valitse \u2014',
+    'settings.body.goal.lose_fat':'Rasvanpoltto',
+    'settings.body.goal.gain_muscle':'Lihasmassan kasvatus',
+    'settings.body.goal.recomp':'Kehon rekomp (rasvaa pois + lihasta lis\u00e4\u00e4)',
+    'settings.body.goal.maintain':'Yllapito',
+    'settings.body.save':'Tallenna',
+    'settings.body.saved':'Kehon tiedot tallennettu',
 
     /* ── Nutrition Coach ──────────────────────────────────────────── */
     'nav.nutrition':'Ravinto',

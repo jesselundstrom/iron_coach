@@ -7797,3 +7797,10 @@ body.login-active::before {
   width: 18px;
   height: 18px;
 }
+
+/* ── Body settings tab ──────────────────────────────────────────────────── */
+.settings-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}

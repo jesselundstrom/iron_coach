@@ -94,6 +94,126 @@
     });
   }
 
+  // ─── Training context builder ─────────────────────────────────────────────────
+  // Reads globally available app data and returns a text block that is injected
+  // into the Claude system prompt so advice is personalised to the user.
+
+  function _buildTrainingContext() {
+    var lines = [];
+
+    // Body metrics
+    var bm = (typeof profile !== 'undefined' && profile.bodyMetrics) || {};
+    var bodyParts = [];
+    if (bm.weight) bodyParts.push('weight ' + bm.weight + ' kg');
+    if (bm.height) bodyParts.push('height ' + bm.height + ' cm');
+    if (bm.age) bodyParts.push('age ' + bm.age);
+    if (bodyParts.length) lines.push('Body: ' + bodyParts.join(', '));
+    if (bm.targetWeight) lines.push('Target weight: ' + bm.targetWeight + ' kg');
+    if (bm.bodyGoal) {
+      var bodyGoalLabels = {
+        lose_fat: 'Lose fat',
+        gain_muscle: 'Gain muscle',
+        recomp: 'Body recomposition (lose fat and gain muscle simultaneously)',
+        maintain: 'Maintain current weight',
+      };
+      lines.push('Body goal: ' + (bodyGoalLabels[bm.bodyGoal] || bm.bodyGoal));
+    }
+
+    // Training preferences
+    if (typeof profile !== 'undefined' && profile.preferences) {
+      var prefs = profile.preferences;
+      var trainingGoalLabels = {
+        strength: 'Strength',
+        hypertrophy: 'Hypertrophy (muscle growth)',
+        general_fitness: 'General fitness',
+        sport_support: 'Sport performance support',
+      };
+      if (prefs.goal) lines.push('Training goal: ' + (trainingGoalLabels[prefs.goal] || prefs.goal));
+      if (prefs.trainingDaysPerWeek) lines.push('Trains: ' + prefs.trainingDaysPerWeek + ' days/week');
+    }
+
+    // Current program and block
+    if (typeof getActiveProgram === 'function') {
+      try {
+        var prog = getActiveProgram();
+        var state = getActiveProgramState();
+        if (prog && prog.name) {
+          var programLine = 'Program: ' + prog.name;
+          if (state.week) programLine += ', Week ' + state.week;
+          if (typeof prog.getBlockInfo === 'function') {
+            var blockInfo = prog.getBlockInfo(state);
+            if (blockInfo && blockInfo.name) programLine += ' (' + blockInfo.name + ' block)';
+          }
+          lines.push(programLine);
+        }
+      } catch (_) {}
+    }
+
+    // Recovery status
+    if (typeof computeFatigue === 'function') {
+      try {
+        var fatigue = computeFatigue();
+        var recovery = Math.round(100 - fatigue.overall);
+        var recoveryLabel =
+          recovery >= 80 ? 'well recovered' : recovery >= 60 ? 'moderate fatigue' : 'high fatigue';
+        lines.push('Recovery: ' + recovery + '% (' + recoveryLabel + ')');
+      } catch (_) {}
+    }
+
+    // Sport schedule
+    if (
+      typeof schedule !== 'undefined' &&
+      schedule.sportName &&
+      schedule.sportDays &&
+      schedule.sportDays.length
+    ) {
+      var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      var sportDayStr = schedule.sportDays.map(function (d) { return dayNames[d]; }).join(', ');
+      lines.push(
+        'Sport: ' +
+          schedule.sportName +
+          ' on ' +
+          sportDayStr +
+          ' (' +
+          (schedule.sportIntensity || 'hard') +
+          ' intensity' +
+          (schedule.sportLegsHeavy ? ', leg-heavy' : '') +
+          ')'
+      );
+    }
+
+    // Recent workouts (last 2 lifting sessions)
+    if (typeof workouts !== 'undefined' && workouts.length) {
+      var recentLifts = workouts
+        .filter(function (w) { return w.type !== 'sport' && w.type !== 'hockey'; })
+        .sort(function (a, b) { return new Date(b.date) - new Date(a.date); })
+        .slice(0, 2);
+
+      recentLifts.forEach(function (w, i) {
+        var label = i === 0 ? 'Last workout' : 'Previous workout';
+        var daysAgo = Math.round((Date.now() - new Date(w.date).getTime()) / 86400000);
+        var when = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : daysAgo + ' days ago';
+
+        var exerciseSummary = (w.exercises || [])
+          .map(function (ex) {
+            var workSets = (ex.sets || []).filter(function (s) { return s.done && !s.isWarmup; });
+            if (!workSets.length) return null;
+            var weights = workSets.map(function (s) { return s.weight; }).filter(Boolean);
+            var maxW = weights.length ? Math.max.apply(null, weights) : null;
+            return ex.name + (maxW ? ' ' + maxW + 'kg' : '') + ' ' + workSets.length + '×' + (workSets[0] && workSets[0].reps);
+          })
+          .filter(Boolean)
+          .slice(0, 4)
+          .join(', ');
+
+        var rpeStr = w.rpe ? ' · RPE ' + w.rpe : '';
+        lines.push(label + ' (' + when + '): ' + exerciseSummary + rpeStr);
+      });
+    }
+
+    return lines.join('\n');
+  }
+
   // ─── Claude API call ──────────────────────────────────────────────────────────
 
   async function _callClaude(apiMessages) {
@@ -102,6 +222,14 @@
       const err = new Error('no_key');
       throw err;
     }
+
+    const context = _buildTrainingContext();
+    const systemPrompt =
+      'You are a knowledgeable nutrition coach for a strength athlete who trains with weights. ' +
+      'When the user shares food photos or asks questions, analyze the food, estimate macros ' +
+      '(protein, carbs, fat, calories) when possible, and give practical coaching advice. ' +
+      'Keep responses concise and actionable. Use metric units. Be supportive and direct.' +
+      (context ? '\n\nUser context:\n' + context : '');
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -114,11 +242,7 @@
       body: JSON.stringify({
         model: 'claude-opus-4-6',
         max_tokens: 1024,
-        system:
-          'You are a knowledgeable nutrition coach for a strength athlete who trains with weights. ' +
-          'When the user shares food photos or asks questions, analyze the food, estimate macros ' +
-          '(protein, carbs, fat, calories) when possible, and give practical coaching advice. ' +
-          'Keep responses concise and actionable. Use metric units. Be supportive and direct.',
+        system: systemPrompt,
         messages: apiMessages,
       }),
     });
