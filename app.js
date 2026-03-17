@@ -1147,6 +1147,9 @@ function initSettings(){
   renderSportStatusBar();
   renderProgramStatusBar();
   renderBackupContext();
+  // Claude API key field (nutrition coach)
+  {const keyInp=document.getElementById('nutrition-api-key-input');
+   if(keyInp&&typeof getNutritionApiKey==='function')keyInp.value=getNutritionApiKey();}
   // Version display
   {const vEl=document.getElementById('app-version');if(vEl)vEl.textContent='Ironforge v'+APP_VERSION;}
   // Reset danger zone confirm state
