@@ -731,7 +731,7 @@ function getProgramBasicsSnapshotMarkup(){
   const card=document.createElement('details');
   const container=document.createElement('div');
   const summaryEl=document.createElement('div');
-  renderProgramBasics({card,container,summaryEl,bindAutoSave:false});
+  renderProgramBasics({card,container,summaryEl,bindAutoSave:false,notifyIsland:false});
   return{
     visible:card.style.display!=='none',
     summary:summaryEl.textContent||'',
@@ -927,13 +927,13 @@ function renderProgramBasics(options){
         }
       });
     }
-    if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
+    if(opts.notifyIsland!==false&&isSettingsProgramIslandActive())notifySettingsProgramIsland();
     return;
   }
   card.style.display='none';
   container.innerHTML='';
   if(summaryEl)summaryEl.textContent='';
-  if(isSettingsProgramIslandActive())notifySettingsProgramIsland();
+  if(opts.notifyIsland!==false&&isSettingsProgramIslandActive())notifySettingsProgramIsland();
 }
 function renderTrainingProgramSummary(){
   const summaryEl=document.getElementById('training-program-summary');

@@ -2,12 +2,47 @@ let _toastTimeout = null;
 let confirmCallback = null;
 let confirmPreviousFocus = null;
 let nameModalCallback = null;
+const APP_SHELL_EVENT =
+  window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
+const APP_SHELL_PAGES = ['dashboard', 'log', 'history', 'settings', 'nutrition'];
+let activePageName = detectInitialActivePage();
 
-function getNavButtonForPage(name) {
-  return document.querySelector(`.nav-btn[onclick*="showPage('${name}'"]`);
+function detectInitialActivePage() {
+  const activePage = document.querySelector('.page.active[id^="page-"]');
+  const pageName = activePage?.id?.replace(/^page-/, '') || 'dashboard';
+  return APP_SHELL_PAGES.includes(pageName) ? pageName : 'dashboard';
 }
 
-function showPage(name, btn) {
+function getNavButtonForPage(name) {
+  return (
+    document.querySelector(`.nav-btn[data-page="${name}"]`) ||
+    document.querySelector(`.nav-btn[onclick*="showPage('${name}'"]`)
+  );
+}
+
+function getNavLabel(name) {
+  switch (name) {
+    case 'dashboard':
+      return tr('nav.dashboard', 'Dashboard');
+    case 'log':
+      return tr('nav.train', 'Train');
+    case 'history':
+      return tr('nav.history', 'History');
+    case 'settings':
+      return tr('nav.settings', 'Settings');
+    case 'nutrition':
+      return tr('nav.nutrition', 'Nutrition');
+    default:
+      return name;
+  }
+}
+
+function getNavIndicatorIndex(name) {
+  const idx = APP_SHELL_PAGES.indexOf(name);
+  return idx >= 0 ? idx : 0;
+}
+
+function syncShellDom(name, btn) {
   document.querySelectorAll('.page').forEach((page) => page.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach((navBtn) => navBtn.classList.remove('active'));
 
@@ -17,21 +52,20 @@ function showPage(name, btn) {
   const resolvedButton = btn || getNavButtonForPage(name);
   if (resolvedButton) resolvedButton.classList.add('active');
 
-  // Slide the nav indicator to the active button
   const nav = document.querySelector('.bottom-nav');
-  if (nav && resolvedButton) {
-    const navBtns = nav.querySelectorAll('.nav-btn');
-    const idx = Array.from(navBtns).indexOf(resolvedButton);
-    if (idx >= 0) nav.style.setProperty('--nav-indicator-x', idx);
-  }
+  if (nav) nav.style.setProperty('--nav-indicator-x', getNavIndicatorIndex(name));
 
   const contentScroller = document.querySelector('.content');
   if (contentScroller) {
     contentScroller.scrollTo({ top: 0, behavior: 'auto' });
-    // Nutrition page manages its own scroll — prevent double-scrolling
+    // Nutrition page manages its own scroll - prevent double-scrolling
     contentScroller.classList.toggle('no-scroll', name === 'nutrition');
   }
 
+  return resolvedButton;
+}
+
+function runPageActivationSideEffects(name) {
   if (name === 'dashboard') updateDashboard();
   if (name === 'history') renderHistory();
   if (name === 'settings') initSettings();
@@ -42,6 +76,29 @@ function showPage(name, btn) {
     if (activeWorkout && typeof resumeActiveWorkoutUI === 'function') resumeActiveWorkoutUI({ toast: false });
     else resetNotStartedView();
   }
+}
+
+function notifyAppShell() {
+  window.dispatchEvent(new CustomEvent(APP_SHELL_EVENT));
+}
+
+function getAppShellReactSnapshot() {
+  return {
+    activePage: activePageName,
+    navIndicatorIndex: getNavIndicatorIndex(activePageName),
+    navItems: APP_SHELL_PAGES.map((name) => ({
+      id: name,
+      label: getNavLabel(name),
+    })),
+  };
+}
+
+function showPage(name, btn) {
+  const nextPage = APP_SHELL_PAGES.includes(name) ? name : 'dashboard';
+  activePageName = nextPage;
+  syncShellDom(nextPage, btn);
+  notifyAppShell();
+  runPageActivationSideEffects(nextPage);
 }
 
 function goToLog() {
@@ -156,3 +213,18 @@ function submitNameModal() {
   if (nameModalCallback) nameModalCallback(value);
   nameModalCallback = null;
 }
+
+window.__IRONFORGE_APP_SHELL_EVENT__ = APP_SHELL_EVENT;
+window.getAppShellReactSnapshot = getAppShellReactSnapshot;
+window.getActivePageName = () => activePageName;
+window.showPage = showPage;
+window.goToLog = goToLog;
+window.showToast = showToast;
+window.showConfirm = showConfirm;
+window.confirmOk = confirmOk;
+window.confirmCancel = confirmCancel;
+window.showNameModal = showNameModal;
+window.closeNameModal = closeNameModal;
+window.submitNameModal = submitNameModal;
+
+syncShellDom(activePageName, getNavButtonForPage(activePageName));

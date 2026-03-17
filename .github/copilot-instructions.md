@@ -28,7 +28,7 @@
 - For form-heavy settings areas, migrate bounded slices first (using the Body tab pattern) and keep the existing handlers, persistence flow, and advanced program setup sheet as the source of truth while React islands replace the main settings panels.
 - For the Log page, keep the legacy workout logic as the source of truth even when the visible start shell and active editor run through React islands. Preserve the existing DOM ids, draft restore flow, finish/discard handlers, rest-timer bar, and workout modals while React mirrors the rendered session UI through explicit snapshot events.
 - For the Nutrition page, keep the Claude request flow, local history, setup card, clear-history flow, and photo handling in the legacy runtime even when the visible chat shell is mounted through a React island.
-- Keep the bottom navigation and page routing shell legacy-controlled through `index.html` + `core/ui-shell.js`; React islands mount inside pages and do not own nav state.
+- The first shell-replacement step runs the visible bottom navigation through `src/app-shell/main.jsx`, while `core/ui-shell.js` remains the compatibility bridge for `showPage(...)`, page activation side effects, and legacy DOM ids.
 - Reuse existing state objects, helpers, and DOM patterns before creating new ones.
 - Keep changes small and compatible with the current file organization.
 
