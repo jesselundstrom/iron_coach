@@ -117,6 +117,11 @@ button,
 .content.no-scroll {
   overflow: hidden;
 }
+/* On the nutrition (chat) page the app header is hidden so the
+   full content box is available for the fixed-height flex layout */
+.content.no-scroll .header {
+  display: none;
+}
 .section {
   margin-bottom: var(--section-gap);
 }
