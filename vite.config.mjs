@@ -3,6 +3,48 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+function preserveClassicScripts() {
+  const marker = '<!--ironforge-legacy-scripts-->';
+  const scriptPattern =
+    /[ \t]*<script\b(?:(?!type=["']module["'])[^>])*\ssrc=["'][^"']+["'][^>]*><\/script>\s*/g;
+  let preservedScripts = '';
+  let isBuild = false;
+
+  return {
+    name: 'preserve-classic-scripts',
+    apply: 'build',
+    configResolved(config) {
+      isBuild = config.command === 'build';
+    },
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        if (!isBuild) return html;
+        const matches = html.match(scriptPattern) || [];
+        if (!matches.length) return html;
+        preservedScripts = matches.map((script) => script.trim()).join('\n    ');
+        const withoutClassicScripts = html.replace(scriptPattern, '');
+        return withoutClassicScripts.replace(
+          '</body>',
+          `    ${marker}\n  </body>`
+        );
+      },
+    },
+    closeBundle() {
+      if (!isBuild || !preservedScripts) return;
+      const distIndexPath = path.resolve(process.cwd(), 'dist', 'index.html');
+      if (!fs.existsSync(distIndexPath)) return;
+      const builtHtml = fs.readFileSync(distIndexPath, 'utf8');
+      fs.writeFileSync(
+        distIndexPath,
+        builtHtml.replace(marker, preservedScripts),
+        'utf8'
+      );
+      preservedScripts = '';
+    },
+  };
+}
+
 function copyLegacyRuntime() {
   const files = ['app.js', 'manifest.json', 'sw.js', 'icon-180.png', 'icon-512.png'];
   const directories = ['core', 'programs'];
@@ -30,7 +72,7 @@ export default defineConfig({
   // GitHub Pages serves this project from /ironforge/, so built asset URLs
   // need that prefix in production while local dev still runs from /.
   base: '/ironforge/',
-  plugins: [react(), copyLegacyRuntime()],
+  plugins: [preserveClassicScripts(), react(), copyLegacyRuntime()],
   build: {
     // The vanilla shell remains the app entry. Vite only bundles module assets
     // that the existing index.html scripts into the page.

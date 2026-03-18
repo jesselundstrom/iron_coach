@@ -203,7 +203,137 @@
     };
   }
 
-  function _getNutritionTodayCardSnapshot() {
+  function _normalizeNutritionNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    var parsed = parseFloat(String(value).replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.round(parsed);
+  }
+
+  function _normalizeStructuredMacroGroup(rawGroup) {
+    if (!rawGroup || typeof rawGroup !== 'object') return null;
+    var next = {};
+    var calories = _normalizeNutritionNumber(rawGroup.calories);
+    var protein = _normalizeNutritionNumber(rawGroup.protein_g);
+    var carbs = _normalizeNutritionNumber(rawGroup.carbs_g);
+    var fat = _normalizeNutritionNumber(rawGroup.fat_g);
+    if (calories !== null) next.calories = calories;
+    if (protein !== null) next.protein_g = protein;
+    if (carbs !== null) next.carbs_g = carbs;
+    if (fat !== null) next.fat_g = fat;
+    return Object.keys(next).length ? next : null;
+  }
+
+  function _normalizeRemainingTodayGroup(rawGroup) {
+    if (!rawGroup || typeof rawGroup !== 'object') return null;
+    var next = {};
+    var calories = _normalizeNutritionNumber(rawGroup.calories);
+    var protein = _normalizeNutritionNumber(rawGroup.protein_g);
+    if (calories !== null) next.calories = calories;
+    if (protein !== null) next.protein_g = protein;
+    return Object.keys(next).length ? next : null;
+  }
+
+  function _normalizeNutritionTags(rawTags) {
+    if (!Array.isArray(rawTags)) return [];
+    return rawTags
+      .map(function (tag) {
+        return String(tag || '').trim().slice(0, 40);
+      })
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+
+  function _normalizeStructuredNutritionResponse(rawResponse) {
+    if (!rawResponse || typeof rawResponse !== 'object') return null;
+    var displayMarkdown = String(rawResponse.display_markdown || '').trim();
+    var estimatedMacros = _normalizeStructuredMacroGroup(
+      rawResponse.estimated_macros
+    );
+    var remainingToday = _normalizeRemainingTodayGroup(
+      rawResponse.remaining_today
+    );
+    var tags = _normalizeNutritionTags(rawResponse.tags);
+    if (!displayMarkdown) return null;
+    return {
+      display_markdown: displayMarkdown,
+      estimated_macros: estimatedMacros,
+      remaining_today: remainingToday,
+      tags: tags,
+    };
+  }
+
+  function _parseStructuredNutritionResponse(rawText) {
+    var text = String(rawText || '').trim();
+    if (!text) return null;
+
+    function tryParse(candidate) {
+      if (!candidate) return null;
+      try {
+        return JSON.parse(candidate);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    var parsed = tryParse(text);
+    if (!parsed) {
+      var fenceMatch = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+      if (fenceMatch) parsed = tryParse(fenceMatch[1].trim());
+    }
+    if (!parsed) {
+      var firstBrace = text.indexOf('{');
+      var lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        parsed = tryParse(text.slice(firstBrace, lastBrace + 1));
+      }
+    }
+
+    return _normalizeStructuredNutritionResponse(parsed);
+  }
+
+  function _normalizeHistoryEntry(entry) {
+    if (!entry || typeof entry !== 'object') return null;
+    var next = { ...entry };
+    next.role = next.role === 'assistant' ? 'assistant' : 'user';
+    next.text = String(next.text || '');
+    if (next.promptText !== undefined) {
+      next.promptText = String(next.promptText || '');
+    }
+    if (next.rawText !== undefined) {
+      next.rawText = String(next.rawText || '');
+    }
+    var structured = _normalizeStructuredNutritionResponse(next.structured);
+    if (structured) next.structured = structured;
+    else delete next.structured;
+    return next;
+  }
+
+  function _getStructuredMessageMacros(structured) {
+    var estimated = structured && structured.estimated_macros;
+    if (!estimated || typeof estimated !== 'object') return null;
+    var next = {};
+    if (estimated.calories !== null && estimated.calories !== undefined) {
+      next.calories = estimated.calories;
+    }
+    if (estimated.protein_g !== null && estimated.protein_g !== undefined) {
+      next.protein = estimated.protein_g;
+    }
+    if (estimated.carbs_g !== null && estimated.carbs_g !== undefined) {
+      next.carbs = estimated.carbs_g;
+    }
+    if (estimated.fat_g !== null && estimated.fat_g !== undefined) {
+      next.fat = estimated.fat_g;
+    }
+    return Object.keys(next).length ? next : null;
+  }
+
+  function _getAssistantMessageMacros(msg) {
+    if (!msg || msg.role !== 'assistant' || msg.isError) return null;
+    return _getStructuredMessageMacros(msg.structured) || _extractMacros(msg.text);
+  }
+
+  function _getTodayTrackedMacroTotals() {
     _ensureTodayHistoryLoaded();
     var ts = _todayStartTimestamp();
     var totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
@@ -219,16 +349,30 @@
       ) {
         continue;
       }
-      var macros = _extractMacros(msg.text || '');
+      var macros = _getAssistantMessageMacros(msg);
       if (!macros) continue;
       mealCount++;
-      if (macros.calories) totals.calories += parseFloat(macros.calories) || 0;
-      if (macros.protein) totals.protein += parseFloat(macros.protein) || 0;
-      if (macros.carbs) totals.carbs += parseFloat(macros.carbs) || 0;
-      if (macros.fat) totals.fat += parseFloat(macros.fat) || 0;
+      if (macros.calories !== undefined) {
+        totals.calories += parseFloat(macros.calories) || 0;
+      }
+      if (macros.protein !== undefined) {
+        totals.protein += parseFloat(macros.protein) || 0;
+      }
+      if (macros.carbs !== undefined) {
+        totals.carbs += parseFloat(macros.carbs) || 0;
+      }
+      if (macros.fat !== undefined) {
+        totals.fat += parseFloat(macros.fat) || 0;
+      }
     }
 
-    if (!mealCount) return null;
+    return { totals: totals, mealCount: mealCount };
+  }
+
+  function _getNutritionTodayCardSnapshot() {
+    var tracked = _getTodayTrackedMacroTotals();
+    var totals = tracked.totals;
+    if (!tracked.mealCount) return null;
 
     var targets = _calculateTargets();
     return {
@@ -270,7 +414,7 @@
     var isLast = idx === _history.length - 1;
     var isStreaming = isLast && _streaming;
     var macros =
-      !msg.isError && !isStreaming ? _extractMacros(msg.text || '') : null;
+      !msg.isError && !isStreaming ? _getAssistantMessageMacros(msg) : null;
     var modelTag = msg.model
       ? ' · ' +
         msg.model
@@ -347,9 +491,12 @@
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
       const todayTs = _todayStartTimestamp();
-      return parsed.filter(function (msg) {
-        return msg && msg.timestamp && msg.timestamp >= todayTs;
-      });
+      return parsed
+        .filter(function (msg) {
+          return msg && msg.timestamp && msg.timestamp >= todayTs;
+        })
+        .map(_normalizeHistoryEntry)
+        .filter(Boolean);
     } catch (_) {
       return [];
     }
@@ -360,7 +507,9 @@
     try {
       const raw = localStorage.getItem(_historyKey());
       if (raw) {
-        _history = JSON.parse(raw) || [];
+        _history = (JSON.parse(raw) || [])
+          .map(_normalizeHistoryEntry)
+          .filter(Boolean);
         return;
       }
       _history = _loadLegacyTodayHistory();
@@ -426,6 +575,181 @@
   // ─── Training context builder ─────────────────────────────────────────────────
   // Reads globally available app data and returns a text block that is injected
   // into the Claude system prompt so advice is personalised to the user.
+
+  function _formatRelativeDayLabel(dateInput) {
+    var ts = new Date(dateInput).getTime();
+    if (!Number.isFinite(ts)) return null;
+    var daysAgo = Math.round((Date.now() - ts) / 86400000);
+    if (daysAgo <= 0) return 'today';
+    if (daysAgo === 1) return 'yesterday';
+    return daysAgo + ' days ago';
+  }
+
+  function _buildSportContextLines() {
+    if (
+      typeof schedule === 'undefined' ||
+      !schedule.sportName ||
+      !schedule.sportDays ||
+      !schedule.sportDays.length
+    ) {
+      return [];
+    }
+
+    var now = new Date();
+    var todayDow = now.getDay();
+    var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var sportDays = schedule.sportDays
+      .filter(function (d) {
+        return Number.isInteger(d) && d >= 0 && d <= 6;
+      })
+      .sort(function (a, b) {
+        return a - b;
+      });
+    if (!sportDays.length) return [];
+
+    var sportDayStr = sportDays
+      .map(function (d) {
+        return dayNames[d];
+      })
+      .join(', ');
+    var sportName = schedule.sportName;
+    var lines = [
+      'Today: ' + dayNames[todayDow],
+      'Sport: ' +
+        sportName +
+        ' on ' +
+        sportDayStr +
+        ' (' +
+        (schedule.sportIntensity || 'hard') +
+        ' intensity' +
+        (schedule.sportLegsHeavy ? ', leg-heavy' : '') +
+        ')',
+      'Scheduled sport today: ' + (sportDays.includes(todayDow) ? 'yes' : 'no'),
+    ];
+
+    var nextSportDay = null;
+    var daysUntilNext = null;
+    for (var offset = 1; offset <= 7; offset++) {
+      var dow = (todayDow + offset) % 7;
+      if (!sportDays.includes(dow)) continue;
+      nextSportDay = dayNames[dow];
+      daysUntilNext = offset;
+      break;
+    }
+    if (nextSportDay) {
+      lines.push(
+        'Next scheduled sport: ' +
+          nextSportDay +
+          (daysUntilNext === 1 ? ' (tomorrow)' : ' (in ' + daysUntilNext + ' days)')
+      );
+    }
+
+    if (typeof workouts === 'undefined' || !workouts.length) return lines;
+
+    var recentSport = workouts
+      .filter(function (w) {
+        return w && (w.type === 'sport' || w.type === 'hockey');
+      })
+      .sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+      })[0];
+
+    if (!recentSport) return lines;
+
+    var when = _formatRelativeDayLabel(recentSport.date);
+    var sportParts = [];
+    if (when) sportParts.push(when);
+    var durationMin = Math.round((parseFloat(recentSport.duration) || 0) / 60);
+    if (durationMin > 0) sportParts.push(durationMin + ' min');
+    if (recentSport.rpe) sportParts.push('RPE ' + recentSport.rpe);
+    if (recentSport.subtype === 'extra') sportParts.push('extra session');
+    lines.push(
+      'Most recent sport session: ' +
+        (sportParts.length ? sportParts.join(', ') : 'logged')
+    );
+
+    return lines;
+  }
+
+  function _buildCoachingContext() {
+    try {
+      var prefs =
+        typeof normalizeTrainingPreferences === 'function'
+          ? normalizeTrainingPreferences(profile || {})
+          : ((profile && profile.preferences) || {});
+      var coaching =
+        typeof normalizeCoachingProfile === 'function'
+          ? normalizeCoachingProfile(profile || {})
+          : ((profile && profile.coaching) || {});
+      var planningContext =
+        typeof buildPlanningContext === 'function'
+          ? buildPlanningContext({})
+          : null;
+      var decision =
+        typeof getTodayTrainingDecision === 'function'
+          ? getTodayTrainingDecision(planningContext || {})
+          : null;
+
+      var snapshot = {};
+      if (decision && decision.action) {
+        snapshot.today_training_recommendation = decision.action;
+      }
+      if (
+        decision &&
+        Array.isArray(decision.restrictionFlags) &&
+        decision.restrictionFlags.length
+      ) {
+        snapshot.restriction_flags = decision.restrictionFlags.slice(0, 4);
+      }
+      if (
+        planningContext &&
+        Number.isFinite(parseInt(planningContext.recoveryScore, 10))
+      ) {
+        snapshot.recovery_score = parseInt(planningContext.recoveryScore, 10);
+      }
+      if (
+        planningContext &&
+        Number.isFinite(parseInt(planningContext.sessionsRemaining, 10))
+      ) {
+        snapshot.sessions_remaining_this_week = parseInt(
+          planningContext.sessionsRemaining,
+          10
+        );
+      }
+
+      var timeBudget =
+        (decision && parseInt(decision.timeBudgetMinutes, 10)) ||
+        parseInt(planningContext && planningContext.timeBudgetMinutes, 10) ||
+        parseInt(prefs.sessionMinutes, 10);
+      if (Number.isFinite(timeBudget) && timeBudget > 0) {
+        snapshot.time_budget_minutes = timeBudget;
+      }
+      if (coaching && coaching.guidanceMode) {
+        snapshot.guidance_mode = coaching.guidanceMode;
+      }
+      if (coaching && coaching.experienceLevel) {
+        snapshot.experience_level = coaching.experienceLevel;
+      }
+      if (coaching && coaching.sportProfile) {
+        snapshot.in_season = coaching.sportProfile.inSeason === true;
+      }
+      if (Number.isFinite(parseInt(prefs.sessionMinutes, 10))) {
+        snapshot.session_minutes = parseInt(prefs.sessionMinutes, 10);
+      }
+      if (prefs && prefs.equipmentAccess) {
+        snapshot.equipment_access = prefs.equipmentAccess;
+      }
+      if (prefs && prefs.notes) {
+        snapshot.user_notes = String(prefs.notes).trim().slice(0, 240);
+      }
+
+      return Object.keys(snapshot).length
+        ? 'Daily coaching snapshot: ' + JSON.stringify(snapshot)
+        : '';
+    } catch (_) {
+      return '';
+    }
+  }
 
   function _buildTrainingContext() {
     var lines = [];
@@ -512,31 +836,11 @@
       } catch (_) {}
     }
 
-    // Sport schedule
-    if (
-      typeof schedule !== 'undefined' &&
-      schedule.sportName &&
-      schedule.sportDays &&
-      schedule.sportDays.length
-    ) {
-      var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      var sportDayStr = schedule.sportDays
-        .map(function (d) {
-          return dayNames[d];
-        })
-        .join(', ');
-      lines.push(
-        'Sport: ' +
-          schedule.sportName +
-          ' on ' +
-          sportDayStr +
-          ' (' +
-          (schedule.sportIntensity || 'hard') +
-          ' intensity' +
-          (schedule.sportLegsHeavy ? ', leg-heavy' : '') +
-          ')'
-      );
-    }
+    // Sport schedule and today's sport context
+    lines = lines.concat(_buildSportContextLines());
+
+    var coachingContext = _buildCoachingContext();
+    if (coachingContext) lines.push(coachingContext);
 
     // Recent workouts (last 2 lifting sessions)
     if (typeof workouts !== 'undefined' && workouts.length) {
@@ -653,29 +957,9 @@
   // knows what the user has already eaten.
 
   function _buildTodayIntakeSummary() {
-    _ensureTodayHistoryLoaded();
-    var ts = _todayStartTimestamp();
-
-    var totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-    var mealCount = 0;
-
-    for (var i = 0; i < _history.length; i++) {
-      var msg = _history[i];
-      if (
-        msg.role !== 'assistant' ||
-        msg.isError ||
-        !msg.timestamp ||
-        msg.timestamp < ts
-      )
-        continue;
-      var macros = _extractMacros(msg.text || '');
-      if (!macros) continue;
-      mealCount++;
-      if (macros.calories) totals.calories += parseFloat(macros.calories) || 0;
-      if (macros.protein) totals.protein += parseFloat(macros.protein) || 0;
-      if (macros.carbs) totals.carbs += parseFloat(macros.carbs) || 0;
-      if (macros.fat) totals.fat += parseFloat(macros.fat) || 0;
-    }
+    var tracked = _getTodayTrackedMacroTotals();
+    var totals = tracked.totals;
+    var mealCount = tracked.mealCount;
 
     if (!mealCount) return '';
     return (
@@ -728,14 +1012,18 @@
       : '';
     const systemPrompt =
       'You are a concise, motivating nutrition coach for a strength athlete. ' +
-      'Keep every response SHORT — 3-5 sentences max for simple queries, a brief list for meal plans. ' +
-      'No filler, no disclaimers, no generic health warnings.\n\n' +
+      'Return EXACTLY one JSON object and nothing else. No code fences, no backticks, and no prose outside the JSON.\n\n' +
+      'Required JSON schema:\n' +
+      '{"display_markdown":"string","estimated_macros":{"calories":0,"protein_g":0,"carbs_g":0,"fat_g":0},"remaining_today":{"calories":0,"protein_g":0},"tags":["string"]}\n\n' +
       'RULES:\n' +
-      '- When the user logs food or shares a photo, estimate macros (protein, carbs, fat, calories) ' +
-      'and ALWAYS end with a "remaining today" line showing calories and protein left vs targets.\n' +
-      '- Be direct and encouraging. Celebrate hitting targets, flag shortfalls matter-of-factly.\n' +
-      '- Use metric units (g, kg, kcal). Format macros clearly.\n' +
-      '- When giving meal suggestions, keep them practical — real foods, not exotic ingredients.' +
+      '- Put the full user-facing answer only in display_markdown.\n' +
+      '- display_markdown must stay short and polished, and only use simple markdown that our UI supports: short paragraphs, bullets, ##/### headings, and **bold**.\n' +
+      '- Do not use tables, HTML, or code fences inside display_markdown.\n' +
+      '- Apply any response-format instruction from the user prompt to display_markdown.\n' +
+      '- When the user logs food or shares a photo, fill estimated_macros whenever you can.\n' +
+      '- When daily targets are available, fill remaining_today with calories and protein left vs target.\n' +
+      '- Use metric units (g, kg, kcal). Keep meal suggestions practical - real foods, not exotic ingredients.\n' +
+      '- Be direct and encouraging. Celebrate hitting targets, and flag shortfalls matter-of-factly.' +
       (context ? '\n\nUser context:\n' + context : '') +
       (targetsStr ? '\n\n' + targetsStr : '') +
       (todayIntake ? '\n' + todayIntake : '');
@@ -916,33 +1204,37 @@
 
     try {
       var result = await _callClaude(apiMessages, hasImage);
-      var assistantEntry = {
-        id: Date.now() + '-a',
-        role: 'assistant',
-        text: '',
-        timestamp: Date.now(),
-        model: result.model,
-      };
-      _history.push(assistantEntry);
-      _setLoading(false);
-      _streaming = true;
-      _renderMessages();
-      _scrollToBottom();
-
-      var _renderPending = false;
+      var rawText = '';
       await _readStream(result.response, function (chunk) {
-        assistantEntry.text += chunk;
-        if (!_renderPending) {
-          _renderPending = true;
-          requestAnimationFrame(function () {
-            _renderPending = false;
-            _renderMessages();
-            _scrollToBottom(true);
-          });
-        }
+        rawText += chunk;
       });
 
       _streaming = false;
+      var structured = _parseStructuredNutritionResponse(rawText);
+      var assistantEntry = {
+        id: Date.now() + '-a',
+        role: 'assistant',
+        text: structured
+          ? structured.display_markdown
+          : String(rawText || '').trim(),
+        timestamp: Date.now(),
+        model: result.model,
+      };
+      if (structured) {
+        assistantEntry.structured = structured;
+        assistantEntry.rawText = String(rawText || '');
+      } else if (rawText) {
+        assistantEntry.rawText = String(rawText);
+      }
+      if (!assistantEntry.text) {
+        assistantEntry.text = tr(
+          'nutrition.error.api',
+          'Something went wrong. Check your API key and try again.'
+        );
+        assistantEntry.isError = true;
+      }
+      _history.push(assistantEntry);
+      _setLoading(false);
       _saveHistory();
     } catch (e) {
       _setLoading(false);
@@ -1304,7 +1596,7 @@
         var isLast = idx === _history.length - 1;
         var isStreaming = isLast && _streaming;
         var macros =
-          !msg.isError && !isStreaming ? _extractMacros(msg.text || '') : null;
+          !msg.isError && !isStreaming ? _getAssistantMessageMacros(msg) : null;
         var macroHtml = macros ? _renderMacroCard(macros) : '';
         var retryHtml = msg.isError
           ? '<div class="nutrition-msg-text"><button class="nutrition-retry-btn" onclick="retryLastNutritionMessage()" data-i18n="nutrition.retry">' +
@@ -1532,31 +1824,9 @@
   // ─── Today's intake summary card ─────────────────────────────────────
 
   function _renderTodayCard() {
-    _ensureTodayHistoryLoaded();
-    var ts = _todayStartTimestamp();
-
-    var totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-    var mealCount = 0;
-
-    for (var i = 0; i < _history.length; i++) {
-      var msg = _history[i];
-      if (
-        msg.role !== 'assistant' ||
-        msg.isError ||
-        !msg.timestamp ||
-        msg.timestamp < ts
-      )
-        continue;
-      var macros = _extractMacros(msg.text || '');
-      if (!macros) continue;
-      mealCount++;
-      if (macros.calories) totals.calories += parseFloat(macros.calories) || 0;
-      if (macros.protein) totals.protein += parseFloat(macros.protein) || 0;
-      if (macros.carbs) totals.carbs += parseFloat(macros.carbs) || 0;
-      if (macros.fat) totals.fat += parseFloat(macros.fat) || 0;
-    }
-
-    if (!mealCount) return '';
+    var tracked = _getTodayTrackedMacroTotals();
+    var totals = tracked.totals;
+    if (!tracked.mealCount) return '';
 
     var targets = _calculateTargets();
 
