@@ -2,6 +2,50 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { confirmModal, openAppShell } from './helpers';
 
+async function seedNutritionHistory(page: Page, entries: unknown[]) {
+  await page.evaluate((entries) => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const key = `ic_nutrition_day::e2e-user::${stamp}`;
+    localStorage.removeItem('ic_nutrition_history::e2e-user');
+    localStorage.setItem(key, JSON.stringify(entries));
+  }, entries);
+}
+
+async function clearTodayNutrition(page: Page) {
+  await page.evaluate(() => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const key = `ic_nutrition_day::e2e-user::${stamp}`;
+    localStorage.removeItem('ic_nutrition_key');
+    localStorage.removeItem('ic_nutrition_history::e2e-user');
+    localStorage.removeItem(key);
+  });
+}
+
+async function seedYesterdayOnly(page: Page) {
+  await page.evaluate(() => {
+    const todayStamp = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStamp = yesterday.toISOString().slice(0, 10);
+    const todayKey = `ic_nutrition_day::e2e-user::${todayStamp}`;
+    const yesterdayKey = `ic_nutrition_day::e2e-user::${yesterdayStamp}`;
+
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+    localStorage.removeItem(todayKey);
+    localStorage.removeItem('ic_nutrition_history::e2e-user');
+    localStorage.setItem(
+      yesterdayKey,
+      JSON.stringify([
+        {
+          role: 'user',
+          text: 'Yesterday note',
+          timestamp: Date.now() - 86_400_000,
+        },
+      ])
+    );
+  });
+}
+
 async function openNutrition(page: Page) {
   await page.evaluate(() => {
     const navButton =
@@ -22,10 +66,7 @@ test('nutrition island renders the setup card when no API key is present', async
 }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    localStorage.removeItem('ic_nutrition_key');
-    localStorage.removeItem('ic_nutrition_history::e2e-user');
-  });
+  await clearTodayNutrition(page);
   await openNutrition(page);
 
   await expect(page.locator('#nutrition-legacy-shell')).toHaveCount(0);
@@ -41,34 +82,33 @@ test('nutrition island renders the setup card when no API key is present', async
   ).toBeHidden();
 });
 
-test('nutrition island renders seeded history and can clear it through the existing flow', async ({
+test('nutrition island renders today session, guided actions, and can clear the day', async ({
   page,
 }) => {
   await openAppShell(page);
 
   await page.evaluate(() => {
     localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
-    localStorage.setItem(
-      'ic_nutrition_history::e2e-user',
-      JSON.stringify([
-        {
-          role: 'user',
-          text: 'Rate my lunch',
-          timestamp: Date.now() - 60_000,
-        },
-        {
-          role: 'assistant',
-          text: 'Protein: 40g\nCarbs: 55g\nFat: 18g\nCalories: 520',
-          timestamp: Date.now() - 30_000,
-          model: 'claude-haiku-4-5-20251001',
-        },
-      ])
-    );
   });
+  await seedNutritionHistory(page, [
+    {
+      role: 'user',
+      text: 'Review today so far',
+      promptText: 'Primary task: Review today so far',
+      actionId: 'review_today',
+      timestamp: Date.now() - 60_000,
+    },
+    {
+      role: 'assistant',
+      text: 'Protein: 40g\nCarbs: 55g\nFat: 18g\nCalories: 520',
+      timestamp: Date.now() - 30_000,
+      model: 'claude-haiku-4-5-20251001',
+    },
+  ]);
   await openNutrition(page);
 
   await expect(page.locator('#nutrition-react-root')).toContainText(
-    /rate my lunch/i
+    /review today so far/i
   );
   await expect(page.locator('#nutrition-react-root')).toContainText(/protein/i);
   await expect(
@@ -80,6 +120,12 @@ test('nutrition island renders seeded history and can clear it through the exist
   await expect(
     page.locator('#nutrition-react-root .nutrition-composer')
   ).toBeVisible();
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-action-grid')
+  ).toBeVisible();
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-note-label')
+  ).toBeVisible();
 
   await page.evaluate(() => {
     window.eval('clearNutritionHistory()');
@@ -87,34 +133,49 @@ test('nutrition island renders seeded history and can clear it through the exist
   await confirmModal(page);
 
   await expect(page.locator('#nutrition-react-root')).toContainText(
-    /personal nutrition coach|henkilökohtainen ravintocoachisi/i
+    /daily nutrition coach|p\u00e4ivitt\u00e4inen ravintocoachisi/i
   );
 });
 
-test('nutrition layout keeps the composer inside the shell when app viewport height shrinks', async ({
+test("nutrition ignores yesterday's history and starts fresh for today", async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await seedYesterdayOnly(page);
+  await openNutrition(page);
+
+  await expect(page.locator('#nutrition-react-root')).not.toContainText(
+    /yesterday note/i
+  );
+  await expect(page.locator('#nutrition-react-root')).toContainText(
+    /daily nutrition coach|p\u00e4ivitt\u00e4inen ravintocoachisi/i
+  );
+});
+
+test('nutrition layout keeps the action tray inside the shell when app viewport height shrinks', async ({
   page,
 }) => {
   await openAppShell(page);
 
   await page.evaluate(() => {
     localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
-    localStorage.setItem(
-      'ic_nutrition_history::e2e-user',
-      JSON.stringify([
-        {
-          role: 'user',
-          text: 'Rate my lunch',
-          timestamp: Date.now() - 60_000,
-        },
-        {
-          role: 'assistant',
-          text: 'Protein: 40g\nCarbs: 55g\nFat: 18g\nCalories: 520',
-          timestamp: Date.now() - 30_000,
-          model: 'claude-haiku-4-5-20251001',
-        },
-      ])
-    );
   });
+  await seedNutritionHistory(page, [
+    {
+      role: 'user',
+      text: 'Build my food plan for today',
+      promptText: 'Primary task: Build my food plan for today',
+      actionId: 'plan_today',
+      timestamp: Date.now() - 60_000,
+    },
+    {
+      role: 'assistant',
+      text: 'Protein: 40g\nCarbs: 55g\nFat: 18g\nCalories: 520',
+      timestamp: Date.now() - 30_000,
+      model: 'claude-haiku-4-5-20251001',
+    },
+  ]);
   await openNutrition(page);
 
   const layout = await page.evaluate(() => {

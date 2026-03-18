@@ -1723,6 +1723,24 @@
               </div>
             </div>
             <div class="nutrition-composer">
+              <div class="nutrition-composer-copy">
+                <div
+                  class="nutrition-composer-kicker"
+                  data-i18n="nutrition.composer.kicker"
+                >
+                  DAILY COACHING
+                </div>
+                <div
+                  class="nutrition-composer-title"
+                  data-i18n="nutrition.composer.title"
+                >
+                  Pick a nutrition action for today
+                </div>
+              </div>
+              <div
+                class="nutrition-action-grid"
+                id="nutrition-action-grid"
+              ></div>
               <div
                 class="nutrition-photo-preview"
                 id="nutrition-photo-preview"
@@ -1737,6 +1755,23 @@
                 >
                   &#x2715;
                 </button>
+              </div>
+              <div class="nutrition-note-wrap">
+                <label
+                  class="nutrition-note-label"
+                  for="nutrition-input"
+                  data-i18n="nutrition.note.label"
+                >
+                  Optional detail
+                </label>
+                <textarea
+                  class="nutrition-input"
+                  id="nutrition-input"
+                  rows="1"
+                  inputmode="text"
+                  data-i18n-placeholder="nutrition.note.placeholder"
+                  placeholder="Add a short note only if needed..."
+                ></textarea>
               </div>
               <div class="nutrition-input-bar">
                 <label
@@ -1764,20 +1799,12 @@
                     class="file-input-hidden"
                   />
                 </label>
-                <textarea
-                  class="nutrition-input"
-                  id="nutrition-input"
-                  rows="1"
-                  inputmode="text"
-                  data-i18n-placeholder="nutrition.input.placeholder"
-                  placeholder="Ask about your food..."
-                ></textarea>
                 <button
                   class="nutrition-send-btn"
                   id="nutrition-send-btn"
                   type="button"
                   onclick="submitNutritionMessage()"
-                  aria-label="Send"
+                  aria-label="Run action"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -1788,6 +1815,11 @@
                     <line x1="22" y1="2" x2="11" y2="13" />
                     <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
+                  <span
+                    id="nutrition-submit-label"
+                    data-i18n="nutrition.submit"
+                    >Coach me</span
+                  >
                 </button>
               </div>
             </div>

@@ -8,8 +8,47 @@
   let _streaming = false;
   let _pendingImage = null; // base64 data URL of selected photo
   let _keyboardViewportBound = false;
+  let _activeHistoryDate = '';
+  let _selectedActionId = 'plan_today';
 
   const NUTRITION_ISLAND_EVENT = 'ironforge:nutrition-updated';
+  const NUTRITION_ACTIONS = [
+    {
+      id: 'plan_today',
+      labelKey: 'nutrition.action.plan_today',
+      fallbackLabel: 'Build my food plan for today',
+      prompt:
+        'Build a practical food plan for the rest of today based on my targets, training context, and what I have likely eaten so far. Give a simple meal-by-meal plan.',
+    },
+    {
+      id: 'next_meal',
+      labelKey: 'nutrition.action.next_meal',
+      fallbackLabel: 'What should I eat next?',
+      prompt:
+        'Recommend the best next meal or snack for today based on my targets, training context, and what I have eaten so far. Keep it practical.',
+    },
+    {
+      id: 'review_today',
+      labelKey: 'nutrition.action.review_today',
+      fallbackLabel: 'Review today so far',
+      prompt:
+        'Review my nutrition so far today. Summarize what looks good, what is missing, and the clearest next step for the rest of the day.',
+    },
+    {
+      id: 'protein_target',
+      labelKey: 'nutrition.action.protein_target',
+      fallbackLabel: 'Help me hit my protein target',
+      prompt:
+        'Help me hit my protein target today. Focus on the fastest and easiest remaining options and estimate how much protein I still need.',
+    },
+    {
+      id: 'analyze_photo',
+      labelKey: 'nutrition.action.analyze_photo',
+      fallbackLabel: 'Analyze this food photo',
+      prompt:
+        'Analyze the attached food photo, estimate macros when possible, and explain how this meal fits my goals today. If no photo is attached, tell me to add one.',
+    },
+  ];
 
   function hasNutritionIslandMount() {
     return !!document.getElementById('nutrition-react-root');
@@ -41,14 +80,57 @@
 
   // ─── Storage keys ────────────────────────────────────────────────────────────
 
-  function _historyKey() {
+  function _todaySessionDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function _todayStartTimestamp() {
+    var todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return todayStart.getTime();
+  }
+
+  function _legacyHistoryKey() {
     return currentUser
       ? 'ic_nutrition_history::' + currentUser.id
       : 'ic_nutrition_history';
   }
 
+  function _historyKey(dateStamp) {
+    var stamp = dateStamp || _todaySessionDate();
+    return currentUser
+      ? 'ic_nutrition_day::' + currentUser.id + '::' + stamp
+      : 'ic_nutrition_day::' + stamp;
+  }
+
   function _apiKeyStorageKey() {
     return 'ic_nutrition_key';
+  }
+
+  function _getActionById(actionId) {
+    for (var i = 0; i < NUTRITION_ACTIONS.length; i++) {
+      if (NUTRITION_ACTIONS[i].id === actionId) return NUTRITION_ACTIONS[i];
+    }
+    return NUTRITION_ACTIONS[0];
+  }
+
+  function _getSelectedAction() {
+    return _getActionById(_selectedActionId);
+  }
+
+  function _getActionLabel(action) {
+    return tr(action.labelKey, action.fallbackLabel);
+  }
+
+  function _ensureTodayHistoryLoaded() {
+    var today = _todaySessionDate();
+    if (_activeHistoryDate === today) return;
+    _pendingImage = null;
+    var preview = document.getElementById('nutrition-photo-preview');
+    var img = document.getElementById('nutrition-preview-img');
+    if (preview) preview.style.display = 'none';
+    if (img) img.src = '';
+    _loadHistory();
   }
 
   // ─── API key management ───────────────────────────────────────────────────────
@@ -89,16 +171,40 @@
 
   // ─── History management ───────────────────────────────────────────────────────
 
+  function _loadLegacyTodayHistory() {
+    try {
+      const raw = localStorage.getItem(_legacyHistoryKey());
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const todayTs = _todayStartTimestamp();
+      return parsed.filter(function (msg) {
+        return msg && msg.timestamp && msg.timestamp >= todayTs;
+      });
+    } catch (_) {
+      return [];
+    }
+  }
+
   function _loadHistory() {
+    _activeHistoryDate = _todaySessionDate();
     try {
       const raw = localStorage.getItem(_historyKey());
-      _history = raw ? JSON.parse(raw) : [];
+      if (raw) {
+        _history = JSON.parse(raw) || [];
+        return;
+      }
+      _history = _loadLegacyTodayHistory();
+      if (_history.length) {
+        _saveHistory();
+      }
     } catch (_) {
       _history = [];
     }
   }
 
   function _saveHistory() {
+    _activeHistoryDate = _todaySessionDate();
     // Keep last 60 messages to avoid localStorage overflow
     if (_history.length > 60) {
       _history = _history.slice(-60);
@@ -110,6 +216,7 @@
 
   function _clearHistory() {
     _history = [];
+    _activeHistoryDate = _todaySessionDate();
     try {
       localStorage.removeItem(_historyKey());
     } catch (_) {}
@@ -377,9 +484,8 @@
   // knows what the user has already eaten.
 
   function _buildTodayIntakeSummary() {
-    var todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    var ts = todayStart.getTime();
+    _ensureTodayHistoryLoaded();
+    var ts = _todayStartTimestamp();
 
     var totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
     var mealCount = 0;
@@ -453,7 +559,7 @@
       : '';
     const systemPrompt =
       'You are a knowledgeable nutrition coach for a strength athlete who trains with weights. ' +
-      'When the user shares food photos or asks questions, analyze the food, estimate macros ' +
+      'Treat this as a day-specific nutrition session. When the user shares food photos or asks for a coaching action, analyze the food, estimate macros ' +
       '(protein, carbs, fat, calories) when possible, and give practical coaching advice. ' +
       'Keep responses concise and actionable. Use metric units. Be supportive and direct.' +
       (context ? '\n\nUser context:\n' + context : '') +
@@ -493,7 +599,7 @@
   // We include the last 10 history entries as context, but strip image data from
   // old entries to keep the request small. Only the current message carries an image.
 
-  function _buildApiMessages(newImageDataUrl, newText) {
+  function _buildApiMessages(userEntry) {
     // Exclude the last entry — it's the user message we just pushed to _history
     // and we'll re-add it below with the full image payload.
     const contextEntries = _history.slice(-11, -1);
@@ -501,7 +607,8 @@
       if (msg.role === 'user') {
         // Include image only if it's the most recent user message with an image
         // (for history context we send text only)
-        const text = msg.text || (msg.imageDataUrl ? '[food photo]' : '');
+        const text =
+          msg.promptText || msg.text || (msg.imageDataUrl ? '[food photo]' : '');
         return { role: 'user', content: text };
       }
       return { role: 'assistant', content: msg.text || '' };
@@ -509,8 +616,8 @@
 
     // Build the new user message with optional image
     const content = [];
-    if (newImageDataUrl) {
-      const parts = newImageDataUrl.split(',');
+    if (userEntry.imageDataUrl) {
+      const parts = userEntry.imageDataUrl.split(',');
       const base64 = parts[1] || '';
       const mediaMatch = parts[0] && parts[0].match(/data:([^;]+)/);
       const mediaType = (mediaMatch && mediaMatch[1]) || 'image/jpeg';
@@ -519,8 +626,8 @@
         source: { type: 'base64', media_type: mediaType, data: base64 },
       });
     }
-    if (newText) {
-      content.push({ type: 'text', text: newText });
+    if (userEntry.promptText) {
+      content.push({ type: 'text', text: userEntry.promptText });
     }
     if (!content.length) {
       content.push({
@@ -572,8 +679,9 @@
 
   // ─── Send a message ───────────────────────────────────────────────────────────
 
-  async function sendNutritionMessage(text, imageDataUrl) {
+  async function sendNutritionMessage(payload) {
     if (_loading) return;
+    _ensureTodayHistoryLoaded();
 
     // Offline check
     if (!navigator.onLine) {
@@ -596,18 +704,21 @@
     var userEntry = {
       id: Date.now() + '-u',
       role: 'user',
-      text: text || '',
-      imageDataUrl: imageDataUrl || null,
+      text: payload.displayText || '',
+      promptText: payload.promptText || payload.displayText || '',
+      imageDataUrl: payload.imageDataUrl || null,
+      actionId: payload.actionId || null,
+      note: payload.note || '',
       timestamp: Date.now(),
     };
     _history.push(userEntry);
     _saveHistory();
     _renderMessages();
     _scrollToBottom();
-    _setLoading(true, imageDataUrl ? 'photo' : 'text');
+    _setLoading(true, userEntry.imageDataUrl ? 'photo' : 'text');
 
-    var hasImage = !!imageDataUrl;
-    var apiMessages = _buildApiMessages(imageDataUrl, text);
+    var hasImage = !!userEntry.imageDataUrl;
+    var apiMessages = _buildApiMessages(userEntry);
 
     try {
       var result = await _callClaude(apiMessages, hasImage);
@@ -938,6 +1049,7 @@
   // ─── Render messages ──────────────────────────────────────────────────
 
   function _updateMetaStack() {
+    _ensureTodayHistoryLoaded();
     var metaStack = document.getElementById('nutrition-meta-stack');
     if (!metaStack) return;
     if (!getNutritionApiKey()) {
@@ -954,6 +1066,7 @@
   }
 
   function _renderMessages() {
+    _ensureTodayHistoryLoaded();
     var container = document.getElementById('nutrition-messages');
     if (!container) return;
     var inputBar = document.querySelector('.nutrition-input-bar');
@@ -980,6 +1093,7 @@
     // Show input bar
     if (inputBar) inputBar.classList.remove('nc-hidden');
     if (composer) composer.classList.remove('nc-hidden');
+    _renderComposerControls();
 
     // Empty state with quick prompts
     if (!_history.length) {
@@ -1109,6 +1223,65 @@
 
   // ─── Premium empty state ──────────────────────────────────────────────
 
+  function _buildActionRequest(action, note, imageDataUrl) {
+    var trimmedNote = (note || '').trim();
+    var label = _getActionLabel(action);
+    var displayText = label;
+    if (trimmedNote) {
+      displayText +=
+        '\n' + tr('nutrition.note.prefix', 'Note') + ': ' + trimmedNote;
+    }
+
+    var promptParts = ['Primary task: ' + label, action.prompt];
+    if (trimmedNote) promptParts.push('User note: ' + trimmedNote);
+    if (imageDataUrl) {
+      promptParts.push('A food photo is attached.');
+    } else if (action.id === 'analyze_photo') {
+      promptParts.push('No food photo is currently attached.');
+    }
+
+    return {
+      actionId: action.id,
+      displayText: displayText,
+      promptText: promptParts.join('\n\n'),
+      imageDataUrl: imageDataUrl || null,
+      note: trimmedNote,
+    };
+  }
+
+  function _renderActionCard(action) {
+    return (
+      '<button class="nutrition-prompt-chip nutrition-action-card' +
+      (action.id === _selectedActionId ? ' active' : '') +
+      '" type="button" data-nc-action="' +
+      action.id +
+      '">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+      '<line x1="5" y1="12" x2="19" y2="12"/>' +
+      '<polyline points="12 5 19 12 12 19"/>' +
+      '</svg>' +
+      '<span data-i18n="' +
+      action.labelKey +
+      '">' +
+      escapeHtml(action.fallbackLabel) +
+      '</span>' +
+      '</button>'
+    );
+  }
+
+  function _renderActionGrid() {
+    return NUTRITION_ACTIONS.map(_renderActionCard).join('');
+  }
+
+  function _renderComposerControls() {
+    var grid = document.getElementById('nutrition-action-grid');
+    if (!grid) return;
+    grid.innerHTML = _renderActionGrid();
+    if (window.I18N && I18N.applyTranslations) {
+      I18N.applyTranslations(grid);
+    }
+  }
+
   function _renderEmptyState() {
     return (
       '<div class="nutrition-empty">' +
@@ -1118,59 +1291,22 @@
       '<path d="M17 8c.7-3.4-.8-6.2-3-7.5C12.3 3 11.5 5.4 12 8"/>' +
       '<path d="M12 8c-4 0-7 2.5-7 6 0 4.5 3 8 7 8s7-3.5 7-8c0-3.5-3-6-7-6z"/>' +
       '</svg></div>' +
-      '<div class="nutrition-empty-title" data-i18n="nutrition.empty.title">Your personal nutrition coach</div>' +
+      '<div class="nutrition-empty-title" data-i18n="nutrition.empty.title">Your daily nutrition coach</div>' +
       '<div class="nutrition-empty-sub" data-i18n="nutrition.empty.body">' +
-      'Snap a meal photo, ask questions, and get personalised advice based on your training.</div>' +
-      '<div class="nutrition-quick-prompts">' +
-      _renderPromptChip(
-        'nutrition.prompt.pre_workout',
-        'What should I eat before training?'
-      ) +
-      _renderPromptChip(
-        'nutrition.prompt.protein',
-        'Help me hit my protein target'
-      ) +
-      _renderPromptChip('nutrition.prompt.rate', 'Rate my last meal') +
-      '</div>' +
+      'Pick one guided action for today, add a short note only if needed, and keep the session focused on this day.</div>' +
+      '<div class="nutrition-empty-reset" data-i18n="nutrition.empty.reset">' +
+      'This coach resets to a fresh day automatically tomorrow.</div>' +
       '</div>'
     );
   }
 
-  function _renderPromptChip(i18nKey, fallback) {
-    return (
-      '<button class="nutrition-prompt-chip" data-nc-prompt="' +
-      escapeHtml(fallback) +
-      '" data-nc-prompt-key="' +
-      i18nKey +
-      '">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-      '<line x1="5" y1="12" x2="19" y2="12"/>' +
-      '<polyline points="12 5 19 12 12 19"/>' +
-      '</svg>' +
-      '<span data-i18n="' +
-      i18nKey +
-      '">' +
-      escapeHtml(fallback) +
-      '</span>' +
-      '</button>'
-    );
-  }
-
-  // Delegated click handler for prompt chips (avoids inline onclick escaping issues)
   document.addEventListener('click', function (e) {
-    var chip = e.target.closest('.nutrition-prompt-chip');
-    if (!chip) return;
-    var key = chip.getAttribute('data-nc-prompt-key');
-    var fallback = chip.getAttribute('data-nc-prompt');
-    var text = key ? tr(key, fallback) : fallback;
-    if (text) {
-      var input = document.getElementById('nutrition-input');
-      if (input) {
-        input.value = text;
-        input.focus();
-      }
-      submitNutritionMessage();
-    }
+    var actionCard = e.target.closest('.nutrition-action-card');
+    if (!actionCard) return;
+    _selectedActionId =
+      actionCard.getAttribute('data-nc-action') || NUTRITION_ACTIONS[0].id;
+    _renderComposerControls();
+    notifyNutritionIsland();
   });
 
   // ─── Body metrics context banner ──────────────────────────────────────
@@ -1221,9 +1357,8 @@
   // ─── Today's intake summary card ─────────────────────────────────────
 
   function _renderTodayCard() {
-    var todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    var ts = todayStart.getTime();
+    _ensureTodayHistoryLoaded();
+    var ts = _todayStartTimestamp();
 
     var totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
     var mealCount = 0;
@@ -1317,13 +1452,18 @@
     // Find the last user message and replay it
     for (var i = _history.length - 1; i >= 0; i--) {
       if (_history[i].role === 'user') {
-        var text = _history[i].text;
-        var image = _history[i].imageDataUrl;
+        var entry = _history[i];
         // Remove the user message and everything after it (error response)
         _history.splice(i);
         _saveHistory();
         _renderMessages();
-        sendNutritionMessage(text, image);
+        sendNutritionMessage({
+          actionId: entry.actionId,
+          displayText: entry.text,
+          promptText: entry.promptText || entry.text,
+          imageDataUrl: entry.imageDataUrl,
+          note: entry.note || '',
+        });
         return;
       }
     }
@@ -1365,17 +1505,19 @@
 
   function _autoResizeInput(el) {
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    el.style.height = Math.min(el.scrollHeight, 96) + 'px';
   }
 
   // ─── Submit ───────────────────────────────────────────────────────────────────
 
   function submitNutritionMessage() {
+    _ensureTodayHistoryLoaded();
     const input = document.getElementById('nutrition-input');
-    const text = input ? input.value.trim() : '';
+    const note = input ? input.value.trim() : '';
     const image = _pendingImage;
+    const action = _getSelectedAction();
 
-    if (!text && !image) return;
+    if (!action) return;
 
     if (input) {
       input.value = '';
@@ -1383,7 +1525,7 @@
     }
     clearNutritionPhoto();
 
-    sendNutritionMessage(text, image);
+    sendNutritionMessage(_buildActionRequest(action, note, image));
   }
 
   // ─── Clear history ────────────────────────────────────────────────────────────
@@ -1424,7 +1566,7 @@
     }
     if (input) {
       input.onkeydown = function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault();
           submitNutritionMessage();
         }

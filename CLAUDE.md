@@ -54,6 +54,7 @@
 - **Training programs**: Plugin architecture — new programs register without touching core files
 - **Testing**: Playwright e2e — test like a real user, no unit tests
 - **Nutrition coaching**: Anthropic API (Claude) called directly from browser with user-provided key
+- **Nutrition flow**: Guided daily actions with an optional short note, not an open-ended rolling chat
 - **Recovery/readiness**: Fatigue engine (muscular, CNS, overall) is a core coaching pillar
 - **Code language**: All code, comments, and docs in English; UI supports EN/FI via i18n
 - **Layer architecture**: Business logic split into `core/*.js` layers, not a single monolith
@@ -67,7 +68,7 @@
   - Migration order: History (read-only first) → Dashboard → Settings → full shell replacement
   - Settings migration uses bounded slices with the Body tab as the proving pattern; Body, Account, Preferences, Schedule, and Program now run as React islands while advanced program setup stays on the legacy sheet flow
   - Log migration now runs both the workout start shell and active workout editor through React islands, while the workout logic, draft persistence, rest-timer bar, modals, and finish/discard handlers stay legacy-backed under the same DOM contract
-  - Nutrition migration now runs the visible chat shell through a React island while the Claude request flow, local history, setup card, clear-history flow, and photo handling remain legacy-backed under explicit snapshot events
+  - Nutrition migration now runs the visible guided daily coaching shell through a React island while the Claude request flow, day-scoped local history, setup card, clear-history flow, and photo handling remain legacy-backed under explicit snapshot events
   - The shell replacement now runs through a single top-level React AppShell entry point: it owns the visible bottom nav, toast host, confirm modal, exercise catalog/name modal, workout overlay hosts (RPE, summary, sport-check, exercise guide), settings overlay hosts (onboarding and program setup), and the top-level page container via a React portal into the existing content root; `core/ui-shell.js` remains the compatibility bridge for `showPage(...)`, `showToast(...)`, and `showConfirm(...)`, while the mounted React shell now owns nav metadata, rendered active-page classes, content scroll-lock state, and the timing of page-activation side effects after route changes
   - localStorage/Supabase data model unchanged throughout migration
   - Service worker must handle Vite's hashed output filenames

@@ -5,7 +5,7 @@
 - This repository is a no-build vanilla web app and PWA.
 - Main entry points are `index.html`, `app.js`, `styles.css`, `manifest.json`, and `sw.js`.
 - `app.js` is the orchestration/bootstrap layer. Heavy business logic lives in 11 layer files under `core/`.
-- Key layers: `core/workout-layer.js` (session logic), `core/nutrition-layer.js` (AI nutrition chat), `core/dashboard-layer.js`, `core/history-layer.js`, `core/plan-engine.js` (planning utilities), `core/data-layer.js` (persistence/sync), `core/i18n-layer.js` (translations), `core/exercise-library.js` (exercise catalog), `core/program-layer.js` (program helpers).
+- Key layers: `core/workout-layer.js` (session logic), `core/nutrition-layer.js` (AI nutrition coach), `core/dashboard-layer.js`, `core/history-layer.js`, `core/plan-engine.js` (planning utilities), `core/data-layer.js` (persistence/sync), `core/i18n-layer.js` (translations), `core/exercise-library.js` (exercise catalog), `core/program-layer.js` (program helpers).
 - Training program definitions live under `programs/` (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
 - Contributor tooling now uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
 - React islands may be introduced incrementally when explicitly requested, but the existing vanilla shell remains the source of truth during migration.
@@ -27,7 +27,7 @@
 - When React islands exist, load them into the current `index.html` shell and bridge them through explicit global adapters/events instead of importing the legacy runtime directly.
 - For form-heavy settings areas, migrate bounded slices first (using the Body tab pattern) and keep the existing handlers, persistence flow, and advanced program setup sheet as the source of truth while React islands replace the main settings panels.
 - For the Log page, keep the legacy workout logic as the source of truth even when the visible start shell and active editor run through React islands. Preserve the existing DOM ids, draft restore flow, finish/discard handlers, rest-timer bar, and workout modals while React mirrors the rendered session UI through explicit snapshot events.
-- For the Nutrition page, keep the Claude request flow, local history, setup card, clear-history flow, and photo handling in the legacy runtime even when the visible chat shell is mounted through a React island.
+- For the Nutrition page, keep the Claude request flow, day-scoped local history, setup card, clear-history flow, and photo handling in the legacy runtime even when the visible guided coaching shell is mounted through a React island.
 - The current shell-replacement step runs through a single React shell entry point in `src/app-shell/main.jsx`: visible bottom navigation, toast host, confirm modal, exercise catalog/name modal, workout overlay hosts, settings overlay hosts, and the top-level page container (rendered into the existing content root via portal). `core/ui-shell.js` remains the compatibility bridge for `showPage(...)`, `showToast(...)`, and `showConfirm(...)`, while the mounted React shell owns nav metadata, active-page rendering, content scroll-lock state, and page-activation timing after route changes.
 - Reuse existing state objects, helpers, and DOM patterns before creating new ones.
 - Keep changes small and compatible with the current file organization.
@@ -64,7 +64,7 @@
 - Avoid changes that could silently invalidate existing user data on devices.
 - `profile.bodyMetrics` stores body composition data (weight, height, age, sex, activity level, body goal, target weight).
 - `profile.coaching` stores experience level, guidance mode, sport profile, physical limitations, and behavior signals.
-- Nutrition chat history is stored separately under `ic_nutrition_history::<userId>` in localStorage.
+- Nutrition day sessions are stored separately under `ic_nutrition_day::<userId>::YYYY-MM-DD` in localStorage.
 - Use canonical workout payload fields: `program`, `programMeta`, `programDayNum`. Do not reintroduce legacy fields like `forgeWeek` or `forgeDayNum`.
 - Profile and schedule sync use section-level timestamps in `profile.syncMeta`. Preserve that merge behavior when changing profile persistence.
 - Keep saves targeted: program-state writes should update the relevant `program:<id>` document instead of re-writing every program state blob.
@@ -81,16 +81,17 @@
 - When adding settings UI from a program file, follow the existing inline DOM rendering style already used by current program modules.
 
 ## Nutrition And AI Coaching
-- `core/nutrition-layer.js` is a self-contained Claude-powered nutrition chat coach.
+- `core/nutrition-layer.js` is a self-contained Claude-powered nutrition coach.
 - The user's Anthropic API key is stored in localStorage only (never synced to cloud).
 - Two models are used: Sonnet for food photo analysis, Haiku for text coaching.
 - The system prompt dynamically includes training context, body metrics, TDEE/macro targets, and today's intake via `_buildTrainingContext()`.
-- Chat history is limited to 60 messages in localStorage (`ic_nutrition_history::<userId>`).
+- Nutrition uses guided daily actions with an optional short note instead of an open-ended free chat input.
+- Day-scoped nutrition history is limited to 60 messages in localStorage (`ic_nutrition_day::<userId>::YYYY-MM-DD`).
 - AI responses include structured macro data (kcal, protein, carbs, fat) extracted for daily intake tracking.
 - Food photos are compressed client-side before sending to the API.
 - This is a browser-side direct API call using the `anthropic-dangerous-direct-browser-access` header.
 - When modifying nutrition features, preserve the `_buildTrainingContext()` bridge that connects training and nutrition data.
-- Do not sync the API key or chat history to Supabase.
+- Do not sync the API key or nutrition session history to Supabase.
 
 ## Recovery And Readiness
 - The fatigue engine is a core coaching pillar, not just a training helper.
