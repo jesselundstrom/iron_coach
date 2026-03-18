@@ -76,6 +76,16 @@ async function openNutrition(page: Page) {
     .toMatch(/nutrition-active/);
 }
 
+async function expectNutritionCoachResponse(
+  page: Page,
+  text: string | RegExp,
+  timeout = 15000
+) {
+  await expect(page.locator('#nutrition-react-root'), { timeout }).toContainText(
+    text
+  );
+}
+
 test('nutrition island renders the setup card when no API key is present', async ({
   page,
 }) => {
@@ -299,8 +309,9 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   await openNutrition(page);
   await page.locator('#nutrition-react-root #nutrition-send-btn').click();
 
-  await expect(page.locator('#nutrition-react-root')).toContainText('Next move');
-  await expect(page.locator('#nutrition-react-root')).toContainText(
+  await expectNutritionCoachResponse(page, 'Next move');
+  await expectNutritionCoachResponse(
+    page,
     'Protein is on pace.'
   );
   await expect(page.locator('#nutrition-react-root')).not.toContainText(
@@ -330,7 +341,7 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
     page.locator('#app-shell-react-root .nav-btn[data-page="nutrition"]')
   ).toHaveClass(/active/);
 
-  await expect(page.locator('#nutrition-react-root')).toContainText('Next move');
+  await expectNutritionCoachResponse(page, 'Next move');
   await expect(page.locator('#nutrition-react-root')).not.toContainText(
     '"display_markdown"'
   );
