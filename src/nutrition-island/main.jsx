@@ -21,6 +21,7 @@ const initialSnapshot = {
     todayCard: null,
     messagesState: 'setup',
     messages: [],
+    scrollVersion: 0,
   },
 };
 
@@ -600,13 +601,16 @@ function NutritionIsland() {
   );
 
   useEffect(() => {
-    const container = document.getElementById('nutrition-messages');
-    if (!container) return;
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: 'auto',
+    const id = requestAnimationFrame(() => {
+      const container = document.getElementById('nutrition-messages');
+      if (!container) return;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'auto',
+      });
     });
-  }, [snapshot.values.messages.length, snapshot.values.loading.visible]);
+    return () => cancelAnimationFrame(id);
+  }, [snapshot.values.scrollVersion]);
 
   return (
     <div id="nutrition-shell">

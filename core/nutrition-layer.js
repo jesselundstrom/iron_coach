@@ -7,6 +7,7 @@
   let _loading = false;
   let _loadingContext = 'text';
   let _streaming = false;
+  let _snapshotVersion = 0;
   let _activeHistoryDate = '';
   let _selectedActionId = 'plan_today';
   let _nutritionMenuOpen = false;
@@ -61,6 +62,7 @@
 
   function notifyNutritionIsland() {
     if (!hasNutritionIslandMount()) return;
+    _snapshotVersion++;
     window.dispatchEvent(new CustomEvent(NUTRITION_ISLAND_EVENT));
   }
 
@@ -90,6 +92,7 @@
             ? 'empty'
             : 'thread',
         messages: hasApiKey ? _getNutritionMessagesSnapshot() : [],
+        scrollVersion: _snapshotVersion,
       },
     };
   }
