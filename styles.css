@@ -8060,6 +8060,35 @@ body.login-active::before {
   color: #fff;
   border-bottom-right-radius: 4px;
 }
+/* -- User action tag (compact, replaces chat bubble) -- */
+.nutrition-msg-action-tag {
+  align-self: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 4px 0;
+  animation: nutritionMsgIn 0.24s ease both;
+}
+.nutrition-msg-action-tag span {
+  padding: 3px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+/* -- User photo tag (thumbnail, no bubble) -- */
+.nutrition-msg-photo-tag {
+  align-self: flex-end;
+  animation: nutritionMsgIn 0.24s ease both;
+}
+.nutrition-msg-photo-thumb {
+  display: block;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 2px solid var(--accent);
+}
 .nutrition-msg-coach {
   align-self: flex-start;
   display: flex;
@@ -8357,13 +8386,19 @@ body.login-active::before {
 /* ── Today's intake summary card ──────────────────────────────────────── */
 .nutrition-today-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
   background: var(--card);
   border-bottom: 1px solid var(--border);
 }
-.nutrition-today-card .nc-today-label {
+.nc-today-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nc-today-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -8371,19 +8406,17 @@ body.login-active::before {
   color: var(--muted);
   white-space: nowrap;
 }
-.nutrition-today-card .nc-today-values {
+.nc-today-cal {
   font-size: 13px;
   color: var(--text);
-  flex: 1;
 }
-.nutrition-today-card .nc-today-values strong {
+.nc-today-cal strong {
   color: var(--accent);
 }
 .nc-today-bar {
   height: 4px;
   background: var(--border);
   border-radius: 2px;
-  margin-top: 4px;
   overflow: hidden;
 }
 .nc-today-bar-fill {
@@ -8392,6 +8425,30 @@ body.login-active::before {
   border-radius: 2px;
   transition: width 0.3s ease;
 }
+.nc-today-bar-fill-pro {
+  background: var(--green);
+}
+.nc-today-macros {
+  display: flex;
+  gap: 2px;
+}
+.nc-today-macro {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px 0;
+  background: var(--surface2);
+  border-radius: 6px;
+}
+.nc-today-macro strong {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.nc-today-macro.nc-macro-pro strong { color: var(--green); }
+.nc-today-macro.nc-macro-carb strong { color: var(--gold); }
+.nc-today-macro.nc-macro-fat strong { color: var(--muted); }
 
 /* ── Body settings tab ──────────────────────────────────────────────────── */
 .content.nutrition-active {
@@ -8777,6 +8834,17 @@ body.login-active::before {
   color: #fffdf8;
   box-shadow: 0 18px 30px rgba(214, 105, 23, 0.24);
 }
+.content.nutrition-active .nutrition-msg-action-tag {
+  color: rgba(255, 220, 162, 0.6);
+}
+.content.nutrition-active .nutrition-msg-action-tag span {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.content.nutrition-active .nutrition-msg-photo-thumb {
+  border-radius: 18px;
+  border-color: rgba(255, 181, 94, 0.3);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+}
 .content.nutrition-active .nutrition-msg-coach {
   gap: 10px;
 }
@@ -8930,27 +8998,37 @@ body.login-active::before {
   text-transform: uppercase;
 }
 .content.nutrition-active .nutrition-today-card {
-  align-items: center;
   padding: 10px 12px;
+  gap: 5px;
 }
-.content.nutrition-active .nutrition-today-card .nc-today-label {
+.content.nutrition-active .nc-today-label {
   font-weight: 700;
   letter-spacing: 0.12em;
   color: rgba(255, 215, 145, 0.76);
 }
-.content.nutrition-active .nutrition-today-card .nc-today-values {
+.content.nutrition-active .nc-today-cal {
   color: rgba(255, 244, 228, 0.9);
-  line-height: 1.55;
 }
 .content.nutrition-active .nc-today-bar {
-  height: 6px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
-  margin-top: 8px;
 }
 .content.nutrition-active .nc-today-bar-fill {
   background: linear-gradient(90deg, #ffcf84, #f5821f);
   border-radius: 999px;
+}
+.content.nutrition-active .nc-today-bar-fill-pro {
+  background: linear-gradient(90deg, #81d4a0, #4caf79);
+}
+.content.nutrition-active .nc-today-macros {
+  gap: 3px;
+}
+.content.nutrition-active .nc-today-macro {
+  background: rgba(12, 15, 21, 0.8);
+  border-radius: 10px;
+  padding: 5px 0;
+  color: rgba(236, 228, 218, 0.6);
 }
 
 .settings-row-2col {

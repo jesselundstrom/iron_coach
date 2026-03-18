@@ -179,7 +179,7 @@ test('nutrition layout keeps the action tray inside the shell when app viewport 
       .getElementById('page-nutrition')
       ?.getBoundingClientRect();
     const shellRect = document
-      .getElementById('nutrition-shell')
+      .getElementById('nutrition-legacy-shell')
       ?.getBoundingClientRect();
     const composerRect = document
       .querySelector('.nutrition-composer')

@@ -17,6 +17,8 @@
       fallbackLabel: 'Build my food plan for today',
       prompt:
         'Build a practical food plan for the rest of today based on my targets, training context, and what I have likely eaten so far. Give a simple meal-by-meal plan.',
+      responseHint:
+        'Give a structured meal-by-meal plan with bullet points. This response can be longer than usual.',
     },
     {
       id: 'next_meal',
@@ -24,20 +26,17 @@
       fallbackLabel: 'What should I eat next?',
       prompt:
         'Recommend the best next meal or snack for today based on my targets, training context, and what I have eaten so far. Keep it practical.',
+      responseHint:
+        'Keep it to 2-3 sentences — one clear recommendation with estimated macros.',
     },
     {
       id: 'review_today',
       labelKey: 'nutrition.action.review_today',
       fallbackLabel: 'Review today so far',
       prompt:
-        'Review my nutrition so far today. Summarize what looks good, what is missing, and the clearest next step for the rest of the day.',
-    },
-    {
-      id: 'protein_target',
-      labelKey: 'nutrition.action.protein_target',
-      fallbackLabel: 'Help me hit my protein target',
-      prompt:
-        'Help me hit my protein target today. Focus on the fastest and easiest remaining options and estimate how much protein I still need.',
+        'Review my nutrition so far today. Summarize what looks good, what is missing, and the clearest next step. Always include protein progress vs target — flag if I am falling behind and suggest quick protein sources if needed.',
+      responseHint:
+        'Summarize in 3-5 sentences. Always include protein progress vs target.',
     },
     {
       id: 'analyze_photo',
@@ -45,6 +44,8 @@
       fallbackLabel: 'Analyze this food photo',
       prompt:
         'Analyze the attached food photo, estimate macros when possible, and explain how this meal fits my goals today. If no photo is attached, tell me to add one.',
+      responseHint:
+        'Estimate macros first, then 1-2 sentences of coaching. End with remaining calories and protein for today.',
     },
   ];
 
@@ -582,6 +583,27 @@
     });
 
     if (!resp.ok) {
+      if (resp.status === 401) {
+        throw new Error(
+          tr('nutrition.error.auth', 'API key is invalid or expired.')
+        );
+      }
+      if (resp.status === 429) {
+        throw new Error(
+          tr(
+            'nutrition.error.rate_limit',
+            'Rate limit reached — wait a moment and try again.'
+          )
+        );
+      }
+      if (resp.status >= 500) {
+        throw new Error(
+          tr(
+            'nutrition.error.server',
+            'Claude API is temporarily unavailable.'
+          )
+        );
+      }
       const errData = await resp.json().catch(function () {
         return {};
       });
@@ -751,18 +773,23 @@
       _setLoading(false);
       _streaming = false;
       var isNoKey = e.message === 'no_key';
+      var errorText;
+      if (isNoKey) {
+        errorText = tr(
+          'nutrition.error.no_key',
+          'Please add your Claude API key in Settings \u2192 Account to use the Nutrition Coach.'
+        );
+      } else {
+        // Specific errors (auth, rate limit, server) already have translated messages
+        errorText = e.message || tr(
+          'nutrition.error.api',
+          'Something went wrong. Check your API key and try again.'
+        );
+      }
       _history.push({
         id: Date.now() + '-a',
         role: 'assistant',
-        text: isNoKey
-          ? tr(
-              'nutrition.error.no_key',
-              'Please add your Claude API key in Settings \u2192 Account to use the Nutrition Coach.'
-            )
-          : tr(
-              'nutrition.error.api',
-              'Something went wrong. Check your API key and try again.'
-            ) + (e.message && !isNoKey ? ' (' + e.message + ')' : ''),
+        text: errorText,
         timestamp: Date.now(),
         isError: true,
       });
@@ -1071,19 +1098,21 @@
           _formatTimestamp(msg.timestamp) +
           '</div>';
         if (msg.role === 'user') {
+          // Photo messages: show thumbnail with action label
+          if (msg.imageDataUrl) {
+            return (
+              '<div class="nutrition-msg-photo-tag">' +
+              '<img class="nutrition-msg-photo-thumb" src="' +
+              escapeHtml(msg.imageDataUrl) +
+              '" alt="">' +
+              '</div>'
+            );
+          }
+          // Action-only messages: compact centered tag
+          var actionLabel = msg.text || '';
           return (
-            '<div class="nutrition-msg nutrition-msg-user">' +
-            (msg.imageDataUrl
-              ? '<img class="nutrition-msg-img" src="' +
-                escapeHtml(msg.imageDataUrl) +
-                '" alt="">'
-              : '') +
-            (msg.text
-              ? '<div class="nutrition-msg-text">' +
-                escapeHtml(msg.text) +
-                '</div>'
-              : '') +
-            time +
+            '<div class="nutrition-msg-action-tag">' +
+            '<span>' + escapeHtml(actionLabel) + '</span>' +
             '</div>'
           );
         }
@@ -1184,6 +1213,9 @@
     var label = _getActionLabel(action);
 
     var promptParts = ['Primary task: ' + label, action.prompt];
+    if (action.responseHint) {
+      promptParts.push('Response format: ' + action.responseHint);
+    }
     if (imageDataUrl) {
       promptParts.push('A food photo is attached.');
     } else if (action.id === 'analyze_photo') {
@@ -1339,35 +1371,49 @@
     if (!mealCount) return '';
 
     var targets = _calculateTargets();
+
+    // Calorie headline with target
     var calStr =
       Math.round(totals.calories) +
       (targets ? ' / ' + targets.calories : '') +
       ' kcal';
-    var proStr =
-      Math.round(totals.protein) +
-      'g ' +
-      tr('nutrition.macro.protein', 'protein');
-    var pct = targets
+    var calPct = targets
       ? Math.min(100, Math.round((totals.calories / targets.calories) * 100))
       : 0;
-    var barHtml = targets
+    var calBar = targets
       ? '<div class="nc-today-bar"><div class="nc-today-bar-fill" style="width:' +
-        pct +
+        calPct +
         '%"></div></div>'
       : '';
 
+    // Protein bar (most critical for athletes)
+    var proPct = targets
+      ? Math.min(100, Math.round((totals.protein / targets.protein) * 100))
+      : 0;
+    var proBar = targets
+      ? '<div class="nc-today-bar nc-today-bar-pro"><div class="nc-today-bar-fill nc-today-bar-fill-pro" style="width:' +
+        proPct +
+        '%"></div></div>'
+      : '';
+
+    // Compact macro row
+    var macroRow =
+      '<div class="nc-today-macros">' +
+      '<div class="nc-today-macro nc-macro-pro"><strong>' + Math.round(totals.protein) + 'g</strong> ' + tr('nutrition.macro.protein', 'P') + '</div>' +
+      '<div class="nc-today-macro nc-macro-carb"><strong>' + Math.round(totals.carbs) + 'g</strong> ' + tr('nutrition.macro.carbs', 'C') + '</div>' +
+      '<div class="nc-today-macro nc-macro-fat"><strong>' + Math.round(totals.fat) + 'g</strong> ' + tr('nutrition.macro.fat', 'F') + '</div>' +
+      '</div>';
+
     return (
       '<div class="nutrition-today-card">' +
-      '<div><div class="nc-today-label">' +
-      tr('nutrition.today.label', 'Today') +
-      '</div></div>' +
-      '<div style="flex:1"><div class="nc-today-values"><strong>' +
-      calStr +
-      '</strong> · ' +
-      proStr +
+      '<div class="nc-today-header">' +
+      '<div class="nc-today-label">' + tr('nutrition.today.label', 'Today') + '</div>' +
+      '<div class="nc-today-cal"><strong>' + calStr + '</strong></div>' +
       '</div>' +
-      barHtml +
-      '</div></div>'
+      calBar +
+      proBar +
+      macroRow +
+      '</div>'
     );
   }
 
