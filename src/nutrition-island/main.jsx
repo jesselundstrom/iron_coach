@@ -674,11 +674,15 @@ function Composer({ snapshot }) {
             <span>{t(action.labelKey, action.fallbackLabel)}</span>
           </button>
         ))}
-        <label className="nutrition-photo-btn" htmlFor="nutrition-photo-input" aria-label="Add photo">
+        <label
+          className="nutrition-prompt-chip nutrition-action-card nutrition-photo-btn"
+          htmlFor="nutrition-photo-input"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="12 5 19 12 12 19" />
           </svg>
+          <span>{t('nutrition.photo.label', 'Add photo')}</span>
           <input
             type="file"
             id="nutrition-photo-input"
