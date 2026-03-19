@@ -38,6 +38,7 @@
 }
 :root {
   --app-vh: 100vh;
+  --vv-offset-top: 0px;
 }
 @supports (height: 100dvh) {
   :root {
@@ -8977,10 +8978,13 @@ body.login-active::before {
   background: rgba(255, 181, 94, 0.13);
   border-color: rgba(255, 181, 94, 0.38);
 }
-/* -- Correction overlay (fixed, keyboard-aware) -- */
+/* -- Correction overlay (keyboard-aware via --app-vh + --vv-offset-top) -- */
 .nc-correction-overlay {
   position: fixed;
-  inset: 0;
+  top: var(--vv-offset-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--app-vh, 100vh);
   z-index: 900;
   background: rgba(0, 0, 0, 0.55);
   display: flex;
@@ -8988,7 +8992,7 @@ body.login-active::before {
 }
 .nc-correction-sheet {
   width: 100%;
-  padding: 14px 14px calc(env(safe-area-inset-bottom) + 14px);
+  padding: 14px 14px 20px;
   background: rgba(14, 17, 24, 0.98);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 26px 26px 0 0;
