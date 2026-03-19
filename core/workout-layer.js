@@ -3477,7 +3477,7 @@ function executeQuickWorkoutAdjustment(mode,detailLevel){
       : null;
     showToast(runnerToast?.text||i18nText(mode==='shorten'?'workout.runner.shorten_toast':'workout.runner.light_toast',mode==='shorten'?'Session shortened to the essential work':'Remaining work lightened'),'var(--blue)');
     persistCurrentWorkoutDraft();
-    renderExercises();
+    if(isLogActiveIslandActive())notifyLogActiveIsland();else renderExercises();
     return;
   }
   const currentState=getWorkoutCommentaryState(activeWorkout)||{};
@@ -3501,7 +3501,7 @@ function undoQuickWorkoutAdjustment(){
   delete activeWorkout.runnerState.undoSnapshot;
   appendWorkoutRunnerEvent(activeWorkout,'runner_undo');
   persistCurrentWorkoutDraft();
-  renderExercises();
+  if(isLogActiveIslandActive())notifyLogActiveIsland();else renderExercises();
   const undoToast=(typeof presentTrainingCommentary==='function')
     ? presentTrainingCommentary(getWorkoutCommentaryState(activeWorkout),'runner_toast')
     : null;
