@@ -29,7 +29,7 @@ function RouteInitializer() {
     if (routePage !== activePage) {
       window.showPage?.(routePage);
     }
-  }, [activePage, location.pathname, navigate]);
+  }, [location.pathname, navigate]);
 
   return null;
 }
