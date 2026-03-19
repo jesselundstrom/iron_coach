@@ -9047,24 +9047,7 @@ body.login-active::before {
   opacity: 0.35;
   cursor: default;
 }
-.content.nutrition-active .nutrition-photo-btn {
-  /* Fills its 1fr grid cell — same size as the action cards. */
-  width: 100%;
-  height: 100%;
-  border-radius: 14px;
-  color: rgba(255, 240, 219, 0.72);
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
-}
-.content.nutrition-active .nutrition-photo-btn:hover {
-  color: #fff7ec;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 181, 94, 0.2);
-}
+/* nutrition-photo-btn now shares nutrition-prompt-chip + nutrition-action-card styles */
 .content.nutrition-active .nutrition-today-card {
   padding: 10px 12px;
   gap: 5px;

@@ -1122,7 +1122,8 @@ const STRINGS={
     'settings.claude_api_key.saved':'API key saved',
     'settings.claude_api_key.cleared':'API key removed',
     'nutrition.correction.label':'Correct the food analysis',
-    'nutrition.correction.placeholder':'e.g. That was 2 portions, not 1...'
+    'nutrition.correction.placeholder':'e.g. That was 2 portions, not 1...',
+    'nutrition.photo.label':'Add photo'
   },
   fi:{
     'common.undo':'Kumoa',
@@ -2211,7 +2212,8 @@ const STRINGS={
     'settings.claude_api_key.saved':'API-avain tallennettu',
     'settings.claude_api_key.cleared':'API-avain poistettu',
     'nutrition.correction.label':'Korjaa ruoka-analyysi',
-    'nutrition.correction.placeholder':'esim. Se oli 2 annosta, ei 1...'
+    'nutrition.correction.placeholder':'esim. Se oli 2 annosta, ei 1...',
+    'nutrition.photo.label':'Lisää kuva'
   }
 };
 
