@@ -336,6 +336,7 @@
       if (
         msg.role !== 'assistant' ||
         msg.isError ||
+        msg.actionId !== 'analyze_photo' ||
         !msg.timestamp ||
         msg.timestamp < ts
       ) {
@@ -1234,6 +1235,7 @@
           : String(rawText || '').trim(),
         timestamp: Date.now(),
         model: result.model,
+        actionId: userEntry.actionId || null,
       };
       if (structured) {
         assistantEntry.structured = structured;
