@@ -381,3 +381,81 @@ test('nutrition falls back to plain text when Claude returns malformed JSON and 
     '410'
   );
 });
+
+test('nutrition action card submits immediately on tap without send button', async ({
+  page,
+}) => {
+  let requestCount = 0;
+
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    requestCount++;
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: buildAnthropicSseResponse(
+        JSON.stringify({
+          display_markdown: 'Here is your meal plan.',
+          estimated_macros: null,
+          remaining_today: null,
+          tags: [],
+        })
+      ),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+  await openNutrition(page);
+
+  // Tap action card directly — no send button click needed
+  await page.locator('#nutrition-react-root .nutrition-action-card').first().click();
+
+  await expectNutritionCoachResponse(page, 'Here is your meal plan.');
+  expect(requestCount).toBe(1);
+});
+
+test('nutrition free-text input sends typed correction to Claude', async ({
+  page,
+}) => {
+  let capturedUserText = '';
+
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    const body = route.request().postDataJSON();
+    const lastMsg = body?.messages?.[body.messages.length - 1];
+    const content = lastMsg?.content;
+    capturedUserText =
+      typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? (content.find((c: { type: string }) => c.type === 'text')?.text ?? '')
+          : '';
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: buildAnthropicSseResponse(
+        JSON.stringify({
+          display_markdown: 'Updated — noted.',
+          estimated_macros: null,
+          remaining_today: null,
+          tags: [],
+        })
+      ),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+  await openNutrition(page);
+
+  await page.locator('#nutrition-text-input').fill('Actually that was 2 portions');
+  await page.locator('#nutrition-react-root #nutrition-send-btn').click();
+
+  await expectNutritionCoachResponse(page, 'Updated — noted.');
+  expect(capturedUserText).toContain('Actually that was 2 portions');
+});

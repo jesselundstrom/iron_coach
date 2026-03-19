@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { t } from '../core/i18n.js';
 import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
 
@@ -43,9 +43,6 @@ function handleSetupSave() {
   window.saveNutritionSetupKey?.();
 }
 
-function handleSubmit() {
-  window.submitNutritionMessage?.();
-}
 
 function handleClear() {
   window.clearNutritionHistory?.();
@@ -530,17 +527,21 @@ function LoadingRow({ loading }) {
 }
 
 function Composer({ snapshot }) {
+  const [freeText, setFreeText] = useState('');
   const hidden = !snapshot.values.hasApiKey;
+
+  function handleSend() {
+    const trimmed = freeText.trim();
+    if (trimmed) {
+      window.submitNutritionTextMessage?.(trimmed);
+      setFreeText('');
+    } else {
+      window.submitNutritionMessage?.();
+    }
+  }
+
   return (
     <div className={`nutrition-composer${hidden ? ' nc-hidden' : ''}`}>
-      <div className="nutrition-composer-copy">
-        <div className="nutrition-composer-kicker">
-          {t('nutrition.composer.kicker', 'DAILY COACHING')}
-        </div>
-        <div className="nutrition-composer-title">
-          {t('nutrition.composer.title', 'Pick a nutrition action for today')}
-        </div>
-      </div>
       <div className="nutrition-action-grid" id="nutrition-action-grid">
         {snapshot.values.actions.map((action) => (
           <button
@@ -575,11 +576,29 @@ function Composer({ snapshot }) {
             className="file-input-hidden"
           />
         </label>
+        <textarea
+          className="nutrition-text-input"
+          id="nutrition-text-input"
+          rows={1}
+          placeholder={t('nutrition.input.placeholder', 'Add a note or correction...')}
+          value={freeText}
+          onChange={(e) => {
+            setFreeText(e.target.value);
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+        />
         <button
           className="nutrition-send-btn"
           id="nutrition-send-btn"
           type="button"
-          onClick={handleSubmit}
+          onClick={handleSend}
           aria-label="Run action"
           disabled={snapshot.values.loading.visible}
         >

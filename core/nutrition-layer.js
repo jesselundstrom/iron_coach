@@ -41,15 +41,6 @@
       responseHint:
         'Summarize in 3-5 sentences. Always include protein progress vs target.',
     },
-    {
-      id: 'analyze_photo',
-      labelKey: 'nutrition.action.analyze_photo',
-      fallbackLabel: 'Analyze this food photo',
-      prompt:
-        'Analyze the attached food photo, estimate macros when possible, and explain how this meal fits my goals today. If no photo is attached, tell me to add one.',
-      responseHint:
-        'Estimate macros first, then 1-2 sentences of coaching. End with remaining calories and protein for today.',
-    },
   ];
 
   function hasNutritionIslandMount() {
@@ -1694,8 +1685,6 @@
     }
     if (imageDataUrl) {
       promptParts.push('A food photo is attached.');
-    } else if (action.id === 'analyze_photo') {
-      promptParts.push('No food photo is currently attached.');
     }
 
     return {
@@ -1768,6 +1757,7 @@
       actionCard.getAttribute('data-nc-action') || NUTRITION_ACTIONS[0].id;
     _renderComposerControls();
     notifyNutritionIsland();
+    submitNutritionMessage(); // one-tap: submit immediately on card click
   });
 
   // ─── Body metrics context banner ──────────────────────────────────────
@@ -1935,9 +1925,18 @@
     const reader = new FileReader();
     reader.onload = function (e) {
       _compressImage(e.target.result).then(function (compressed) {
-        // Auto-send as "analyze photo" — no extra tap needed
-        var action = _getActionById('analyze_photo');
-        sendNutritionMessage(_buildActionRequest(action, compressed));
+        // Auto-send photo analysis — no extra tap needed
+        sendNutritionMessage({
+          actionId: 'analyze_photo',
+          displayText: tr('nutrition.action.analyze_photo', 'Analyze this food photo'),
+          promptText: [
+            'Primary task: Analyze this food photo.',
+            'Analyze the attached food photo, estimate macros when possible, and explain how this meal fits my goals today.',
+            'Response format: Estimate macros first, then 1-2 sentences of coaching. End with remaining calories and protein for today.',
+            'A food photo is attached.',
+          ].join('\n\n'),
+          imageDataUrl: compressed,
+        });
       });
     };
     reader.readAsDataURL(file);
@@ -1954,6 +1953,18 @@
     if (!action) return;
 
     sendNutritionMessage(_buildActionRequest(action, null));
+  }
+
+  function submitNutritionTextMessage(text) {
+    var trimmed = (text || '').trim();
+    if (!trimmed) return;
+    _ensureTodayHistoryLoaded();
+    sendNutritionMessage({
+      actionId: null,
+      displayText: trimmed,
+      promptText: trimmed,
+      imageDataUrl: null,
+    });
   }
 
   // ─── Clear history ────────────────────────────────────────────────────────────
@@ -1987,6 +1998,7 @@
   window.initNutritionPage = initNutritionPage;
   window.handleNutritionPhoto = handleNutritionPhoto;
   window.submitNutritionMessage = submitNutritionMessage;
+  window.submitNutritionTextMessage = submitNutritionTextMessage;
   window.clearNutritionHistory = clearNutritionHistory;
   window.getNutritionApiKey = getNutritionApiKey;
   window.saveNutritionApiKey = saveNutritionApiKey;
