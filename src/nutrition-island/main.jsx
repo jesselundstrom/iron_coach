@@ -651,11 +651,51 @@ function CorrectionRow() {
   );
 }
 
+const ACTION_ICONS = {
+  plan_today: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <line x1="8" y1="14" x2="16" y2="14" />
+      <line x1="8" y1="18" x2="13" y2="18" />
+    </svg>
+  ),
+  next_meal: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+      <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+      <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+      <line x1="6" y1="1" x2="6" y2="4" />
+      <line x1="10" y1="1" x2="10" y2="4" />
+      <line x1="14" y1="1" x2="14" y2="4" />
+    </svg>
+  ),
+  review_today: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+  ),
+  photo: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </svg>
+  ),
+};
+
 function Composer({ snapshot }) {
   const hidden = !snapshot.values.hasApiKey;
+  const hasMessages = snapshot.values.messagesState === 'thread';
 
   return (
     <div className={`nutrition-composer${hidden ? ' nc-hidden' : ''}`}>
+      {!hasMessages && (
+        <div className="nc-composer-hint">
+          {t('nutrition.composer.hint', 'Tap an action to get started')}
+        </div>
+      )}
       <div className="nutrition-action-grid" id="nutrition-action-grid">
         {snapshot.values.actions.map((action) => (
           <button
@@ -667,6 +707,7 @@ function Composer({ snapshot }) {
             key={action.id}
             onClick={() => handleActionSelect(action.id)}
           >
+            {ACTION_ICONS[action.id] || null}
             <span>{t(action.labelKey, action.fallbackLabel)}</span>
           </button>
         ))}
@@ -674,6 +715,7 @@ function Composer({ snapshot }) {
           className="nutrition-prompt-chip nutrition-action-card nutrition-photo-btn"
           htmlFor="nutrition-photo-input"
         >
+          {ACTION_ICONS.photo}
           <span>{t('nutrition.photo.label', 'Add photo')}</span>
           <input
             type="file"

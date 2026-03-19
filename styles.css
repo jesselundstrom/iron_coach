@@ -8599,9 +8599,10 @@ body.login-active::before {
 .content.nutrition-active .nutrition-context-banner {
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   color: rgba(232, 222, 211, 0.78);
   font-size: 11px;
+  margin-bottom: 0;
 }
 .content.nutrition-active .nutrition-context-banner svg {
   width: 16px;
@@ -8624,25 +8625,28 @@ body.login-active::before {
 .content.nutrition-active .nutrition-messages-empty {
   justify-content: center;
 }
-.content.nutrition-active .nutrition-messages-empty .nutrition-empty,
+.content.nutrition-active .nutrition-messages-empty .nutrition-empty {
+  margin-top: auto;
+  margin-bottom: 0;
+}
 .content.nutrition-active .nutrition-messages-setup .nutrition-setup-card {
   margin-top: auto;
   margin-bottom: auto;
 }
 .content.nutrition-active .nutrition-empty {
-  justify-content: center;
-  min-height: 100%;
-  padding: 16px 10px 20px;
+  justify-content: flex-end;
+  min-height: 0;
+  padding: 0 10px 12px;
 }
 .content.nutrition-active .nutrition-empty-kicker {
   color: rgba(255, 216, 147, 0.88);
   letter-spacing: 0.18em;
 }
 .content.nutrition-active .nutrition-empty-orb {
-  width: 88px;
-  height: 88px;
-  margin: 14px 0 12px;
-  border-radius: 28px;
+  width: 64px;
+  height: 64px;
+  margin: 10px 0 10px;
+  border-radius: 22px;
   background:
     radial-gradient(
       circle at top,
@@ -8657,29 +8661,30 @@ body.login-active::before {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .content.nutrition-active .nutrition-empty-orb svg {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   color: #ffdba6;
 }
 .content.nutrition-active .nutrition-empty-title {
-  font-size: 24px;
+  font-size: 20px;
   color: #fff4de;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .content.nutrition-active .nutrition-empty-sub {
   color: rgba(236, 228, 218, 0.72);
   max-width: 300px;
-  line-height: 1.6;
+  line-height: 1.5;
   font-size: 13px;
+  margin-bottom: 8px;
 }
 .content.nutrition-active .nutrition-empty-reset {
-  margin-top: 12px;
-  padding: 8px 12px;
+  margin-top: 4px;
+  padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 220, 162, 0.78);
-  font-size: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 220, 162, 0.55);
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -8701,7 +8706,7 @@ body.login-active::before {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-auto-rows: 1fr;
-  gap: 6px;
+  gap: 8px;
   overflow-x: visible;
   padding-bottom: 0;
   -webkit-mask-image: none;
@@ -8728,18 +8733,18 @@ body.login-active::before {
   /* Reset chip defaults */
   background: rgba(255, 255, 255, 0.025);
   border: none;
-  border-top: 2px solid rgba(255, 255, 255, 0.14);
+  border-left: 2px solid rgba(255, 255, 255, 0.14);
   border-radius: 4px;
   box-shadow: none;
-  padding: 10px 12px 13px;
-  gap: 0;
+  padding: 12px 12px 14px;
+  gap: 6px;
   /* Layout */
   flex: none;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-end;
   height: 100%;
-  min-height: 78px;
+  min-height: 84px;
   /* Typography */
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 14px;
@@ -8752,9 +8757,20 @@ body.login-active::before {
   animation: nc-card-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
   transition:
     background 0.14s,
-    border-top-color 0.14s,
+    border-left-color 0.14s,
     color 0.14s,
     transform 0.1s;
+}
+/* Action card icons */
+.content.nutrition-active .nc-action-icon {
+  width: 18px;
+  height: 18px;
+  color: rgba(255, 181, 94, 0.55);
+  flex-shrink: 0;
+  transition: color 0.14s;
+}
+.content.nutrition-active .nutrition-action-card.active .nc-action-icon {
+  color: rgba(18, 10, 0, 0.7);
 }
 .content.nutrition-active .nutrition-action-grid > *:nth-child(1) {
   animation-delay: 0ms;
@@ -8770,15 +8786,18 @@ body.login-active::before {
 }
 .content.nutrition-active .nutrition-action-card:not(.active):hover {
   background: rgba(245, 130, 31, 0.07);
-  border-top-color: var(--accent);
+  border-left-color: var(--accent);
   color: rgba(255, 244, 228, 0.95);
+}
+.content.nutrition-active .nutrition-action-card:not(.active):hover .nc-action-icon {
+  color: var(--accent);
 }
 .content.nutrition-active .nutrition-action-card:active {
   transform: scale(0.96);
 }
 .content.nutrition-active .nutrition-action-card.active {
   background: var(--accent);
-  border-top-color: transparent;
+  border-left-color: transparent;
   color: rgba(18, 10, 0, 0.9);
   box-shadow: 0 4px 18px rgba(245, 130, 31, 0.3);
 }
@@ -8914,11 +8933,15 @@ body.login-active::before {
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.18);
 }
 .content.nutrition-active .nutrition-macro-card {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px 14px 0 0;
+  gap: 3px;
+  padding: 10px 10px;
 }
 .content.nutrition-active .nutrition-macro-item {
-  background: rgba(12, 15, 21, 0.95);
-  padding: 11px 8px;
+  background: rgba(12, 15, 21, 0.8);
+  padding: 10px 8px;
+  border-radius: 8px;
 }
 .content.nutrition-active .nutrition-loading {
   gap: 10px;
@@ -8936,9 +8959,9 @@ body.login-active::before {
 .content.nutrition-active .nutrition-composer {
   flex-shrink: 0;
   margin-top: 6px;
-  padding: 8px;
+  padding: 10px;
   border-radius: 22px;
-  max-height: calc(var(--app-vh) * 0.32);
+  max-height: calc(var(--app-vh) * 0.38);
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -9091,9 +9114,19 @@ body.login-active::before {
   opacity: 0.35;
   cursor: default;
 }
+/* Composer hint text */
+.content.nutrition-active .nc-composer-hint {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 220, 162, 0.4);
+  padding: 4px 0 8px;
+}
 /* nutrition-photo-btn now shares nutrition-prompt-chip + nutrition-action-card styles */
 .content.nutrition-active .nutrition-today-card {
-  padding: 10px 12px;
+  padding: 9px 12px;
   gap: 5px;
 }
 .content.nutrition-active .nc-today-label {
@@ -9122,8 +9155,12 @@ body.login-active::before {
 .content.nutrition-active .nc-today-macro {
   background: rgba(12, 15, 21, 0.8);
   border-radius: 10px;
-  padding: 5px 0;
+  padding: 4px 0;
   color: rgba(236, 228, 218, 0.6);
+}
+.content.nutrition-active .nc-today-macro.nc-macro-pro {
+  background: rgba(76, 175, 121, 0.08);
+  border: 1px solid rgba(76, 175, 121, 0.12);
 }
 
 .settings-row-2col {
