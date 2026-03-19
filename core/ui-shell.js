@@ -98,6 +98,9 @@ function showPage(name, btn) {
   syncHashToPage(nextPage);
   notifyAppShell();
   const resolvedButton = syncLegacyShellDom(nextPage, btn);
+  if (typeof window.syncRuntimeStoreFromLegacy === 'function') {
+    window.syncRuntimeStoreFromLegacy();
+  }
   if (isAppShellActive()) {
     if (previousPage === nextPage) runPageActivationSideEffects(nextPage);
     return resolvedButton;

@@ -125,6 +125,7 @@ export function startLegacyRuntimeBridge() {
   window.addEventListener(LOG_START_EVENT, onSession);
   window.addEventListener('pageshow', onSession);
   document.addEventListener('visibilitychange', onSession);
+  window.__IRONFORGE_APP_SHELL_READY__ = true;
 
   return () => {
     window.removeEventListener(APP_SHELL_EVENT, onAppShell);
@@ -155,5 +156,8 @@ export function prepareLegacyShellMount() {
   ].forEach((id) => document.getElementById(id)?.remove());
 
   window.__IRONFORGE_APP_SHELL_MOUNTED__ = true;
+  window.__IRONFORGE_APP_SHELL_READY__ = false;
   window.dispatchEvent(new CustomEvent(APP_SHELL_EVENT));
 }
+
+window.syncRuntimeStoreFromLegacy = syncRuntimeStoreFromLegacy;

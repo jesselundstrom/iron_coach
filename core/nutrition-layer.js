@@ -334,7 +334,6 @@
       if (
         msg.role !== 'assistant' ||
         msg.isError ||
-        msg.actionId !== 'analyze_photo' ||
         !msg.timestamp ||
         msg.timestamp < ts
       ) {

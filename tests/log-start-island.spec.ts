@@ -13,6 +13,8 @@ test('log start island renders from the legacy bridge and still starts a workout
     `);
   });
 
+  await expect(page.locator('#page-log')).toHaveClass(/active/);
+
   await expect(page.locator('#log-start-legacy-shell')).toHaveCount(0);
   await expect(page.locator('#log-start-react-root #workout-not-started')).toBeVisible();
   await expect(
@@ -44,6 +46,8 @@ test('log start island keeps sport readiness check-in interactions working', asy
       showPage('log', document.querySelectorAll('.nav-btn')[1]);
     `);
   });
+
+  await expect(page.locator('#page-log')).toHaveClass(/active/);
 
   await expect(page.locator('#log-start-react-root [data-sport-check-kind="level"]')).toHaveCount(3);
 

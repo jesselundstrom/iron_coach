@@ -11,3 +11,10 @@ declare module './OnboardingFlow.jsx' {
   const OnboardingFlow: ComponentType;
   export default OnboardingFlow;
 }
+
+declare global {
+  interface Window {
+    __IRONFORGE_APP_SHELL_READY__?: boolean;
+    syncRuntimeStoreFromLegacy?: () => void;
+  }
+}

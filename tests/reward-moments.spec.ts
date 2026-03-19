@@ -56,6 +56,9 @@ test('live PR detection flows into the summary and history views', async ({ page
     window.resumeActiveWorkoutUI({ toast: false });
   });
 
+  await expect(page.locator('#log-active-react-root #workout-active')).toBeVisible();
+  await expect(page.locator('#log-active-react-root .exercise-block')).toHaveCount(1);
+
   await page.evaluate(() => {
     window.eval('toggleSet(0,0)');
   });

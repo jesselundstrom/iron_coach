@@ -307,7 +307,9 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   });
 
   await openNutrition(page);
-  await page.locator('#nutrition-react-root #nutrition-send-btn').click();
+  await page
+    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .click();
 
   await expectNutritionCoachResponse(page, 'Next move');
   await expectNutritionCoachResponse(
@@ -369,7 +371,9 @@ test('nutrition falls back to plain text when Claude returns malformed JSON and 
     localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
   });
   await openNutrition(page);
-  await page.locator('#nutrition-react-root #nutrition-send-btn').click();
+  await page
+    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .click();
 
   await expect(page.locator('#nutrition-react-root')).toContainText(
     'Good quick meal. Add vegetables later.'
@@ -472,8 +476,9 @@ test('nutrition correction row appears inline after photo analysis and sends typ
   });
   await openNutrition(page);
 
-  // Inline correction row should be visible in the message list
-  await expect(page.locator('.nc-correction-row')).toBeVisible();
+  // Open the correction sheet from the trigger in the message list.
+  await expect(page.locator('.nc-correction-trigger')).toBeVisible();
+  await page.locator('.nc-correction-trigger').click();
   await expect(page.locator('#nutrition-text-input')).toBeVisible();
 
   // Type the correction and send
@@ -511,6 +516,8 @@ test('nutrition correction input stays visible when the viewport shrinks after f
   });
   await openNutrition(page);
 
+  await expect(page.locator('.nc-correction-trigger')).toBeVisible();
+  await page.locator('.nc-correction-trigger').click();
   await expect(page.locator('#nutrition-text-input')).toBeVisible();
   await page.locator('#nutrition-text-input').focus();
   await page.evaluate(() => {
@@ -520,33 +527,33 @@ test('nutrition correction input stays visible when the viewport shrinks after f
 
   await expect
     .poll(
-      () =>
-        page.evaluate(() => {
+        () =>
+          page.evaluate(() => {
           const input = document.getElementById('nutrition-text-input');
-          const messages = document.getElementById('nutrition-messages');
-          const composer = document.querySelector('#nutrition-shell .nutrition-composer');
-          if (!(input instanceof HTMLElement) || !messages || !(composer instanceof HTMLElement)) {
+          const sheet = document.querySelector('.nc-correction-sheet');
+          if (!(input instanceof HTMLElement) || !(sheet instanceof HTMLElement)) {
             return {
-              inputInsideMessages: false,
-              inputAboveComposer: false,
+              inputVisibleInViewport: false,
+              sheetVisibleInViewport: false,
             };
           }
 
           const inputRect = input.getBoundingClientRect();
-          const messagesRect = messages.getBoundingClientRect();
-          const composerRect = composer.getBoundingClientRect();
+          const sheetRect = sheet.getBoundingClientRect();
 
           return {
-            inputInsideMessages:
-              inputRect.top >= messagesRect.top - 0.5 &&
-              inputRect.bottom <= messagesRect.bottom + 0.5,
-            inputAboveComposer: inputRect.bottom <= composerRect.top + 0.5,
+            inputVisibleInViewport:
+              inputRect.top >= -0.5 &&
+              inputRect.bottom <= window.innerHeight + 0.5,
+            sheetVisibleInViewport:
+              sheetRect.top >= -0.5 &&
+              sheetRect.bottom <= window.innerHeight + 0.5,
           };
         }),
       { timeout: 1500 }
     )
     .toEqual({
-      inputInsideMessages: true,
-      inputAboveComposer: true,
+      inputVisibleInViewport: true,
+      sheetVisibleInViewport: true,
     });
 });

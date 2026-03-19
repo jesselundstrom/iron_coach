@@ -10,6 +10,7 @@ export async function openApp(page: Page) {
 
 export async function bootstrapAppShell(page: Page) {
   await page.waitForFunction(() => typeof window.showPage === 'function');
+  await page.waitForFunction(() => typeof window.loadData === 'function');
   await page.waitForFunction(() => window.eval('Object.keys(PROGRAMS || {}).length > 0'));
   await page.waitForFunction(() => window.eval("typeof window.initNutritionPage === 'function'"));
 
@@ -32,6 +33,10 @@ export async function bootstrapAppShell(page: Page) {
   await page.evaluate(async () => {
     await window.eval("loadData({ allowCloudSync: false, userId: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user' })");
   });
+
+  await page.waitForFunction(
+    () => typeof window.syncRuntimeStoreFromLegacy === 'function'
+  );
 }
 
 export async function openAppShell(page: Page) {

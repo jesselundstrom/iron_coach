@@ -9018,7 +9018,7 @@ body.login-active::before {
   margin-top: 6px;
   padding: 10px;
   border-radius: 22px;
-  max-height: calc(var(--app-vh) * 0.38);
+  max-height: calc(var(--app-vh) * 0.32);
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
