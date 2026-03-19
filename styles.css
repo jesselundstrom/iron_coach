@@ -8690,15 +8690,15 @@ body.login-active::before {
 .content.nutrition-active .nutrition-action-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 4px;
   overflow-x: visible;
   padding-bottom: 0;
   -webkit-mask-image: none;
   mask-image: none;
 }
 .content.nutrition-active .nutrition-prompt-chip {
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 8px 10px;
   background:
     linear-gradient(
       180deg,
@@ -8707,15 +8707,15 @@ body.login-active::before {
     ),
     rgba(18, 21, 27, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border-radius: 14px;
   color: rgba(255, 244, 228, 0.92);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 .content.nutrition-active .nutrition-action-card {
   flex: none;
-  min-height: 44px;
+  min-height: 36px;
   align-items: flex-start;
   justify-content: flex-start;
   text-align: left;
@@ -8749,8 +8749,8 @@ body.login-active::before {
   box-shadow: 0 14px 24px rgba(0, 0, 0, 0.18);
 }
 .content.nutrition-active .nutrition-prompt-chip svg {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
 }
 .content.nutrition-active .nutrition-setup-card {
   background:
@@ -8891,9 +8891,9 @@ body.login-active::before {
 .content.nutrition-active .nutrition-composer {
   flex-shrink: 0;
   margin-top: 6px;
-  padding: 10px;
-  border-radius: 26px;
-  max-height: calc(var(--app-vh) * 0.28);
+  padding: 8px;
+  border-radius: 22px;
+  max-height: calc(var(--app-vh) * 0.32);
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -8921,7 +8921,7 @@ body.login-active::before {
   justify-content: space-between;
   gap: 8px;
   padding: 0;
-  margin-top: 8px;
+  margin-top: 5px;
   border-top: none;
   background: none;
 }
