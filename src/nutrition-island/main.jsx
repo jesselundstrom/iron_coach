@@ -534,6 +534,7 @@ function LoadingRow({ loading }) {
 // Inline correction row — lives in the message list and keeps itself visible
 // inside the message scroller when the iOS keyboard changes the viewport.
 function CorrectionRow() {
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const inputRef = useRef(null);
 
@@ -573,8 +574,11 @@ function CorrectionRow() {
   }
 
   useEffect(() => {
+    if (!open) return undefined;
     const field = inputRef.current;
     if (!(field instanceof HTMLElement)) return undefined;
+
+    field.focus();
 
     let scheduled = [];
     const syncDelays = [0, 80, 180, 320, 480];
@@ -613,19 +617,45 @@ function CorrectionRow() {
         viewport.removeEventListener('scroll', handleViewportChange);
       }
     };
-  }, []);
+  }, [open]);
 
   function handleSend() {
     const trimmed = text.trim();
     if (!trimmed) return;
     window.submitNutritionTextMessage?.(trimmed);
     setText('');
+    setOpen(false);
+  }
+
+  function handleClose() {
+    setOpen(false);
+    setText('');
+  }
+
+  if (!open) {
+    return (
+      <button className="nc-correction-trigger" type="button" onClick={() => setOpen(true)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+        <span>{t('nutrition.correction.label', 'Correct the food analysis')}</span>
+      </button>
+    );
   }
 
   return (
     <div className="nc-correction-row">
-      <div className="nc-correction-label">
-        {t('nutrition.correction.label', 'Correct the food analysis')}
+      <div className="nc-correction-header">
+        <div className="nc-correction-label">
+          {t('nutrition.correction.label', 'Correct the food analysis')}
+        </div>
+        <button className="nc-correction-close" type="button" onClick={handleClose} aria-label="Cancel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
       <div className="nc-correction-inputs">
         <textarea
@@ -683,8 +713,6 @@ function Composer({ snapshot }) {
             <span>{t(action.labelKey, action.fallbackLabel)}</span>
           </button>
         ))}
-      </div>
-      <div className={`nutrition-input-bar${hidden ? ' nc-hidden' : ''}`}>
         <label className="nutrition-photo-btn" htmlFor="nutrition-photo-input" aria-label="Add photo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
