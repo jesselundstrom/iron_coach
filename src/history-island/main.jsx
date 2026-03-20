@@ -11,7 +11,7 @@ function getSnapshot() {
   }
   return {
     tab: 'log',
-    labels: { log: 'Workout Log', stats: 'Stats', sessions: 'sessions', session: 'session', delete: 'Delete', prBadge: 'NEW PR', volume: 'Volume', exercises: 'Exercises' },
+    labels: { log: 'Workout Log', stats: 'Stats', sessions: 'sessions', session: 'session', delete: 'Delete', prBadge: 'NEW PR', volume: 'Volume', exercises: 'Exercises', notes: 'Notes' },
     heatmap: { isOpen: false, weeks: 14, cells: [], weekNums: [], dayLabels: [], stats: { weekStreak: 0, perWeek: '0.0', totalVolume: 0 }, sportName: 'Sport', labels: {} },
     log: { empty: true, labels: { kicker: 'Activity', title: 'No sessions yet', sub: '', cta: 'Start', currentPhase: '' }, phase: null },
     stats: { numbers: [], volume: { title: '', weeks: [], visible: false }, strength: { title: '', lifts: [], nWeeks: 16, visible: false } },
@@ -150,6 +150,12 @@ function WorkoutCard({ card, labels, style }) {
           ))}
         </div>
       )}
+      {card.sessionNotes ? (
+        <div className="hist-session-notes-wrap">
+          <div className="hist-session-notes-label">{labels.notes}</div>
+          <blockquote className="hist-session-notes">{card.sessionNotes}</blockquote>
+        </div>
+      ) : null}
       <div className="hist-card-footer">
         <span className="hist-footer-stat">{labels.volume} <span className="hist-footer-val">{volStr}</span></span>
         <span className="hist-footer-stat">{labels.exercises} <span className="hist-footer-val">{card.exerciseCount}</span></span>

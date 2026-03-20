@@ -3414,8 +3414,9 @@ function showSessionSummary(summaryData){
     const stats=buildSessionSummaryStats(summaryData);
     const content=document.getElementById('summary-modal-content');
     const modal=document.getElementById('summary-modal');
+    const canLogNutrition=typeof window.getNutritionApiKey==='function'&&!!window.getNutritionApiKey();
     if(!content||!modal){
-      resolve({feedback:null});
+      resolve({feedback:null,notes:'',goToNutrition:false});
       return;
     }
     content.innerHTML=`
@@ -3430,6 +3431,17 @@ function showSessionSummary(summaryData){
             ${renderSessionSummaryStatMarkup(stats)}
           </div>
           ${summaryData.coachNote?`<div class="summary-coach-note">${escapeHtml(summaryData.coachNote)}</div>`:''}
+          <div class="summary-notes-shell">
+            <label class="summary-notes-label" for="summary-notes-textarea">${escapeHtml(i18nText('workout.summary.notes_label','Session notes'))}</label>
+            <textarea
+              id="summary-notes-textarea"
+              class="summary-notes-textarea"
+              placeholder="${escapeHtml(i18nText('workout.summary.notes_placeholder','Any notes about this session?'))}"
+              maxlength="500"
+              rows="3"
+              oninput="autoResizeSummaryNotes(this)"
+            ></textarea>
+          </div>
           <div class="summary-feedback">
             <div class="summary-feedback-label">${escapeHtml(i18nText('workout.summary.feedback_label','How did it feel?'))}</div>
             <div class="summary-feedback-options">
@@ -3438,23 +3450,36 @@ function showSessionSummary(summaryData){
               <button class="summary-feedback-btn" type="button" data-feedback="too_easy" onclick="setSummaryFeedback('too_easy')">${escapeHtml(i18nText('workout.summary.feedback_too_easy','Too easy'))}</button>
             </div>
           </div>
+          ${canLogNutrition?`<button class="btn btn-ghost summary-nutrition-action" type="button" onclick="closeSummaryModal(true)">${escapeHtml(i18nText('workout.summary.log_post_workout_meal','Log post-workout meal'))}</button>`:''}
           <button class="btn btn-primary summary-action" type="button" onclick="closeSummaryModal()">${escapeHtml(i18nText('common.done','Done'))}</button>
         </div>
       </div>`;
     modal.classList.add('active');
     modal.classList.toggle('reduced-motion',prefersReducedMotionUI());
+    const notesField=content.querySelector('#summary-notes-textarea');
+    if(notesField)autoResizeSummaryNotes(notesField);
     requestAnimationFrame(()=>startSessionSummaryCelebration(modal,summaryData));
     window._summaryResolve=resolve;
   });
 }
-function closeSummaryModal(){
+function autoResizeSummaryNotes(textarea){
+  if(!textarea)return;
+  textarea.style.height='auto';
+  textarea.style.height=Math.min(textarea.scrollHeight,168)+'px';
+}
+function closeSummaryModal(goToNutrition){
   const modal=document.getElementById('summary-modal');
   modal?.classList.remove('active','reduced-motion');
   if(typeof window._summaryCleanup==='function')window._summaryCleanup();
   window._summaryCleanup=null;
   const feedback=window._summaryFeedbackValue||null;
+  const notesField=document.getElementById('summary-notes-textarea');
+  const notes=String(notesField?.value||'').trim().slice(0,500);
   window._summaryFeedbackValue=null;
-  if(window._summaryResolve){window._summaryResolve({feedback});window._summaryResolve=null;}
+  if(window._summaryResolve){
+    window._summaryResolve({feedback,notes,goToNutrition:goToNutrition===true});
+    window._summaryResolve=null;
+  }
 }
 function setSummaryFeedback(value){
   window._summaryFeedbackValue=value;
@@ -3703,8 +3728,17 @@ async function finishWorkout(){
   if(programHookFailed)showToast(i18nText('workout.program_error','Session saved, but program state may need review.'),'var(--orange)');
   const summaryResult=await showSessionSummary(summaryData);
   if(summaryResult?.feedback)savedWorkout.sessionFeedback=summaryResult.feedback;
+  if(summaryResult?.notes)savedWorkout.sessionNotes=summaryResult.notes;
   if(typeof inferDurationSignal==='function')savedWorkout.durationSignal=inferDurationSignal(savedWorkout);
-  if(summaryResult?.feedback||savedWorkout.durationSignal)await saveWorkouts();
+  if(summaryResult?.feedback||summaryResult?.notes||savedWorkout.durationSignal)await saveWorkouts();
+  if(summaryResult?.goToNutrition){
+    if(typeof window.setNutritionSessionContext==='function'){
+      window.setNutritionSessionContext(summaryData);
+    }
+    if(typeof window.showPage==='function'){
+      window.showPage('nutrition');
+    }
+  }
 }
 
 function cancelWorkout(){

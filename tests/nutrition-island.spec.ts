@@ -367,6 +367,67 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   );
 });
 
+test('nutrition consumes post-workout session context on the first send only', async ({
+  page,
+}) => {
+  const capturedSystems: string[] = [];
+
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    const body = route.request().postDataJSON();
+    capturedSystems.push(String(body?.system || ''));
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: buildAnthropicSseResponse(
+        JSON.stringify({
+          display_markdown: '## Next move\n- Protein first.',
+          estimated_macros: {
+            calories: 420,
+            protein_g: 35,
+            carbs_g: 38,
+            fat_g: 14,
+          },
+          remaining_today: {
+            calories: 1600,
+            protein_g: 100,
+          },
+          tags: ['post_workout'],
+        })
+      ),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+    window.setNutritionSessionContext?.({
+      duration: 3600,
+      exerciseCount: 4,
+      tonnage: 12500,
+      rpe: 8,
+    });
+  });
+
+  await openNutrition(page);
+  await page
+    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .click();
+  await expectNutritionCoachResponse(page, 'Next move');
+
+  await page
+    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="review_today"]')
+    .click();
+  await expect(page.locator('#nutrition-react-root .nutrition-msg-coach')).toHaveCount(2);
+
+  expect(capturedSystems[0]).toContain(
+    'The user just finished a training session (duration: 60 min, 4 exercises, 12500 kg total volume, RPE: 8).'
+  );
+  expect(capturedSystems[1]).not.toContain(
+    'The user just finished a training session'
+  );
+});
+
 test('nutrition records request trace metrics and token usage without changing the rendered response', async ({
   page,
 }) => {

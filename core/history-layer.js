@@ -820,6 +820,7 @@ function _buildStructuredCard(w,isPR,recovery){
     isPR,recovery:recovery!=null?recovery:null,recoveryStyle:rs,
     duration:mins,tonnage,
     exerciseCount:completedExercises.length,rpe:w.rpe||null,exercises,
+    sessionNotes:w.sessionNotes||null,
     deleteTitle:histDeleteTitle(w)
   };
 }
@@ -909,6 +910,7 @@ function getHistoryReactSnapshot(){
       prBadge:trHist('history.pr_badge','NEW PR'),
       volume:trHist('history.card.volume','Volume'),
       exercises:trHist('history.card.exercises','Exercises'),
+      notes:trHist('history.card.notes','Notes'),
       statsEmptyTitle:trHist('history.stats_empty_title','No stats yet'),
       statsEmptySub:trHist('history.stats_empty_sub','Complete a few workouts to see your training trends.')
     },

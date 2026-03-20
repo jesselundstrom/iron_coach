@@ -110,6 +110,72 @@ test('feedback survives reload', async ({ page }) => {
   expect(feedback).toBe('good');
 });
 
+test('summary notes persist onto the workout record and history card', async ({ page }) => {
+  await openAppShell(page);
+  await setupWorkoutState(page);
+
+  await page.evaluate(() => { window.finishWorkout(); });
+  await expect(page.locator('#summary-modal')).toHaveClass(/active/);
+
+  await page.locator('#summary-notes-textarea').fill('Left shoulder felt tight on the descent.');
+  await page.evaluate(() => {
+    window.eval('closeSummaryModal()');
+  });
+
+  const saved = await page.evaluate(() => {
+    const ws = window.eval('workouts');
+    return ws[ws.length - 1]?.sessionNotes || null;
+  });
+  expect(saved).toBe('Left shoulder felt tight on the descent.');
+
+  await page.evaluate(() => {
+    window.eval(`
+      renderHistory();
+      showPage('history', document.querySelectorAll('.nav-btn')[2]);
+    `);
+  });
+  await expect(page.locator('.hist-session-notes')).toContainText(
+    'Left shoulder felt tight on the descent.'
+  );
+});
+
+test('post-workout nutrition nudge appears with API key and routes into nutrition', async ({ page }) => {
+  await openAppShell(page);
+  await setupWorkoutState(page);
+
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+
+  await page.evaluate(() => { window.finishWorkout(); });
+  await expect(page.locator('#summary-modal')).toHaveClass(/active/);
+  await expect(page.locator('.summary-nutrition-action')).toBeVisible();
+
+  await page.locator('#summary-notes-textarea').fill('Quick post-workout note.');
+  await page.locator('.summary-nutrition-action').click();
+
+  await expect(page.locator('#page-nutrition')).toHaveClass(/active/);
+
+  const saved = await page.evaluate(() => {
+    const ws = window.eval('workouts');
+    return ws[ws.length - 1]?.sessionNotes || null;
+  });
+  expect(saved).toBe('Quick post-workout note.');
+});
+
+test('post-workout nutrition nudge stays hidden without API key', async ({ page }) => {
+  await openAppShell(page);
+  await setupWorkoutState(page);
+
+  await page.evaluate(() => {
+    localStorage.removeItem('ic_nutrition_key');
+  });
+
+  await page.evaluate(() => { window.finishWorkout(); });
+  await expect(page.locator('#summary-modal')).toHaveClass(/active/);
+  await expect(page.locator('.summary-nutrition-action')).toHaveCount(0);
+});
+
 test('duration signal: long session infers too_long', async ({ page }) => {
   await openAppShell(page);
   await setupWorkoutState(page);

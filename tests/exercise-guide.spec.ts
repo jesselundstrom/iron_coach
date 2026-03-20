@@ -1,0 +1,51 @@
+import { expect, test } from '@playwright/test';
+import { openAppShell } from './helpers';
+
+test('exercise guide modal shows specific bench guidance from the active workout', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    const benchId = window.eval("EXERCISE_LIBRARY.resolveExerciseId('Bench Press')");
+
+    window.eval(`
+      activeWorkout = {
+        program: 'forge',
+        type: 'forge',
+        programOption: '1',
+        programDayNum: 1,
+        programLabel: 'Forge · Day 1',
+        sessionDescription: 'Bench focus',
+        rewardState: typeof buildWorkoutRewardState === 'function' ? buildWorkoutRewardState() : {},
+        exercises: typeof ensureWorkoutExerciseUiKeys === 'function'
+          ? ensureWorkoutExerciseUiKeys([{
+              name: 'Bench Press',
+              exerciseId: '${benchId}',
+              sets: [{ weight: 80, reps: 5, done: false, rpe: null }]
+            }])
+          : [{
+              name: 'Bench Press',
+              exerciseId: '${benchId}',
+              sets: [{ weight: 80, reps: 5, done: false, rpe: null }]
+            }],
+        startTime: Date.now() - 120000
+      };
+      showPage('log', document.querySelectorAll('.nav-btn')[1]);
+      resumeActiveWorkoutUI({ toast: false });
+    `);
+  });
+
+  await expect(page.locator('.exercise-guide-open-btn')).toBeVisible();
+  await page.locator('.exercise-guide-open-btn').click();
+
+  await expect(page.locator('#exercise-guide-modal')).toHaveClass(/active/);
+  await expect(page.locator('#exercise-guide-modal-title')).toHaveText('Bench Press');
+  await expect(page.locator('#exercise-guide-modal-body')).toContainText('Setup');
+  await expect(page.locator('#exercise-guide-modal-body')).toContainText('Execution');
+  await expect(page.locator('#exercise-guide-modal-body')).toContainText('Key cues');
+  await expect(page.locator('#exercise-guide-modal-body')).toContainText('Safety');
+  await expect(page.locator('#exercise-guide-modal-body')).toContainText(
+    'Same touch point every rep.'
+  );
+});

@@ -13,6 +13,9 @@
   let _historyVersion = 0;
   let _todayTotalsCacheKey = '';
   let _todayTotalsCacheValue = null;
+  let _sessionContext = null;
+  let _sessionContextTimeoutId = 0;
+  let _sessionContextExpiresAt = 0;
 
   function _nowMs() {
     return typeof performance !== 'undefined' && performance.now
@@ -23,6 +26,90 @@
   function _invalidateTodayTotalsCache() {
     _todayTotalsCacheKey = '';
     _todayTotalsCacheValue = null;
+  }
+
+  function _clearNutritionSessionContext() {
+    _sessionContext = null;
+    _sessionContextExpiresAt = 0;
+    if (_sessionContextTimeoutId) {
+      clearTimeout(_sessionContextTimeoutId);
+      _sessionContextTimeoutId = 0;
+    }
+  }
+
+  function _normalizeNutritionSessionContext(ctx) {
+    if (!ctx || typeof ctx !== 'object') return null;
+    var durationMinutesRaw = Number(ctx.duration || 0) / 60;
+    var durationMinutes = Number.isFinite(durationMinutesRaw)
+      ? Math.max(0, Math.round(durationMinutesRaw))
+      : null;
+    var exerciseCountRaw = Number(ctx.exerciseCount);
+    var exerciseCount = Number.isFinite(exerciseCountRaw)
+      ? Math.max(0, Math.round(exerciseCountRaw))
+      : null;
+    var tonnageRaw = Number(ctx.tonnage);
+    var tonnageKg = Number.isFinite(tonnageRaw)
+      ? Math.max(0, Math.round(tonnageRaw))
+      : null;
+    var rpeRaw = Number(ctx.rpe);
+    var rpe = Number.isFinite(rpeRaw)
+      ? Math.max(0, Math.round(rpeRaw * 10) / 10)
+      : null;
+    if (
+      durationMinutes == null &&
+      exerciseCount == null &&
+      tonnageKg == null &&
+      rpe == null
+    ) {
+      return null;
+    }
+    return {
+      durationMinutes: durationMinutes,
+      exerciseCount: exerciseCount,
+      tonnageKg: tonnageKg,
+      rpe: rpe,
+    };
+  }
+
+  function setNutritionSessionContext(ctx) {
+    var next = _normalizeNutritionSessionContext(ctx);
+    if (!next) {
+      _clearNutritionSessionContext();
+      return;
+    }
+    _clearNutritionSessionContext();
+    _sessionContext = next;
+    _sessionContextExpiresAt = Date.now() + 30 * 60 * 1000;
+    _sessionContextTimeoutId = setTimeout(function () {
+      _clearNutritionSessionContext();
+    }, 30 * 60 * 1000);
+    notifyNutritionIsland();
+  }
+
+  function _consumeNutritionSessionContextLine() {
+    if (!_sessionContext) return '';
+    if (_sessionContextExpiresAt && Date.now() >= _sessionContextExpiresAt) {
+      _clearNutritionSessionContext();
+      return '';
+    }
+    var parts = [];
+    if (_sessionContext.durationMinutes != null) {
+      parts.push('duration: ' + _sessionContext.durationMinutes + ' min');
+    }
+    if (_sessionContext.exerciseCount != null) {
+      parts.push(_sessionContext.exerciseCount + ' exercises');
+    }
+    if (_sessionContext.tonnageKg != null) {
+      parts.push(_sessionContext.tonnageKg + ' kg total volume');
+    }
+    if (_sessionContext.rpe != null) {
+      parts.push('RPE: ' + _sessionContext.rpe);
+    }
+    var line = parts.length
+      ? 'The user just finished a training session (' + parts.join(', ') + ').'
+      : '';
+    _clearNutritionSessionContext();
+    return line;
   }
 
   function _markHistoryMutated() {
@@ -1049,6 +1136,9 @@
         lines.push(label + ' (' + when + '): ' + exerciseSummary + rpeStr);
       });
     }
+
+    var sessionContextLine = _consumeNutritionSessionContextLine();
+    if (sessionContextLine) lines.push(sessionContextLine);
 
     return lines.join('\n');
   }
@@ -2271,6 +2361,7 @@
   window.submitNutritionTextMessage = submitNutritionTextMessage;
   window.clearNutritionHistory = clearNutritionHistory;
   window.getNutritionApiKey = getNutritionApiKey;
+  window.setNutritionSessionContext = setNutritionSessionContext;
   window.saveNutritionApiKey = saveNutritionApiKey;
   window.saveNutritionSetupKey = saveNutritionSetupKey;
   window.retryLastNutritionMessage = retryLastNutritionMessage;

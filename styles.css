@@ -4841,6 +4841,34 @@ select optgroup {
   padding-top: 8px;
   margin-top: 2px;
 }
+.hist-session-notes-wrap {
+  margin-top: 10px;
+  padding: 10px 12px 12px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
+    rgba(17, 17, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.hist-session-notes-label {
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: 700;
+  font-family: 'Barlow Condensed', sans-serif;
+}
+.hist-session-notes {
+  margin: 8px 0 0;
+  padding: 0 0 0 12px;
+  border-left: 2px solid rgba(245, 130, 31, 0.38);
+  color: rgba(255, 246, 231, 0.86);
+  font-size: 13px;
+  line-height: 1.55;
+  font-style: italic;
+  white-space: pre-wrap;
+}
 .hist-exercise-row {
   display: flex;
   justify-content: space-between;
@@ -5207,6 +5235,47 @@ select optgroup {
   line-height: 1.4;
   text-align: left;
 }
+.summary-notes-shell {
+  margin: 14px 0 0;
+  text-align: left;
+}
+.summary-notes-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+}
+.summary-notes-textarea {
+  width: 100%;
+  min-height: 92px;
+  max-height: 168px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(14, 14, 18, 0.72);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+.summary-notes-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+.summary-notes-textarea:focus {
+  border-color: rgba(245, 200, 66, 0.38);
+  background: rgba(18, 18, 24, 0.88);
+  box-shadow: 0 0 0 3px rgba(245, 200, 66, 0.12);
+}
 
 /* ── SESSION FEEDBACK ── */
 .summary-feedback {
@@ -5244,6 +5313,26 @@ select optgroup {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--bg);
+}
+.summary-nutrition-action {
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 16px;
+  border-color: rgba(110, 196, 255, 0.26);
+  background:
+    linear-gradient(180deg, rgba(90, 168, 255, 0.14), rgba(90, 168, 255, 0.05)),
+    rgba(15, 20, 28, 0.84);
+  color: #d9eeff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 30px rgba(6, 18, 34, 0.24);
+}
+.summary-nutrition-action:hover,
+.summary-nutrition-action:focus-visible {
+  border-color: rgba(110, 196, 255, 0.42);
+  background:
+    linear-gradient(180deg, rgba(90, 168, 255, 0.2), rgba(90, 168, 255, 0.08)),
+    rgba(15, 20, 28, 0.92);
 }
 .modal-overlay.active .summary-feedback {
   animation: summaryReveal 0.25s ease 0.42s both;
@@ -5434,6 +5523,14 @@ select optgroup {
   opacity: 0;
   transform: translateY(12px);
   animation: summaryForgeReveal 0.3s ease 0.2s forwards;
+}
+#summary-modal .summary-coach-note,
+#summary-modal .summary-notes-shell,
+#summary-modal .summary-feedback,
+#summary-modal .summary-nutrition-action {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: summaryForgeReveal 0.3s ease 0.28s forwards;
 }
 #summary-modal .summary-stats {
   display: grid;
