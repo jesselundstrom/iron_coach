@@ -10,6 +10,66 @@
   let _snapshotVersion = 0;
   let _activeHistoryDate = '';
   let _selectedActionId = 'plan_today';
+  let _historyVersion = 0;
+  let _todayTotalsCacheKey = '';
+  let _todayTotalsCacheValue = null;
+
+  function _nowMs() {
+    return typeof performance !== 'undefined' && performance.now
+      ? performance.now()
+      : Date.now();
+  }
+
+  function _invalidateTodayTotalsCache() {
+    _todayTotalsCacheKey = '';
+    _todayTotalsCacheValue = null;
+  }
+
+  function _markHistoryMutated() {
+    // Any history write invalidates cached day totals so snapshot counts stay exact.
+    _historyVersion++;
+    _invalidateTodayTotalsCache();
+  }
+
+  function _createNutritionTrace(payload) {
+    // Trace data stays off the UI path and is only used for debugging and regression checks.
+    return {
+      requestId: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      startedAt: _nowMs(),
+      actionId: payload && payload.actionId ? payload.actionId : null,
+      hasImage: !!(payload && payload.imageDataUrl),
+      input: {
+        displayTextChars: String((payload && payload.displayText) || '').length,
+        promptChars: String((payload && (payload.promptText || payload.displayText)) || '').length,
+        imageDataUrlChars: payload && payload.imageDataUrl ? String(payload.imageDataUrl).length : 0,
+        originalImageBytes: payload && payload.imageFileSize ? payload.imageFileSize : null,
+      },
+      stages: {},
+      model: null,
+      usage: null,
+      parseSource: 'none',
+      success: false,
+      error: null,
+    };
+  }
+
+  function _finalizeNutritionTrace(trace) {
+    if (!trace) return;
+    trace.finishedAt = _nowMs();
+    trace.totalMs = Math.max(0, Math.round(trace.finishedAt - trace.startedAt));
+    window.__IRONFORGE_NUTRITION_LAST_TRACE__ = trace;
+    var debugEnabled = false;
+    try {
+      debugEnabled =
+        window.__IRONFORGE_NUTRITION_DEBUG__ === true ||
+        localStorage.getItem('ic_nutrition_trace') === '1';
+    } catch (_) {}
+    if (debugEnabled) {
+      try {
+        console.debug('[Ironforge][nutrition]', trace);
+      } catch (_) {}
+    }
+  }
 
   const NUTRITION_ISLAND_EVENT = 'ironforge:nutrition-updated';
   const NUTRITION_ACTIONS = [
@@ -59,6 +119,8 @@
   function getNutritionReactSnapshot() {
     _ensureTodayHistoryLoaded();
     var hasApiKey = !!getNutritionApiKey();
+    var tracked = hasApiKey ? _getTodayTrackedMacroTotals() : null;
+    var targets = hasApiKey ? _calculateTargets() : null;
     var loadingText = _loading
       ? _loadingContext === 'photo'
         ? tr('nutrition.loading.analyzing', 'Analyzing your meal...')
@@ -73,8 +135,8 @@
         },
         selectedActionId: _selectedActionId,
         actions: NUTRITION_ACTIONS.map(_getNutritionActionSnapshot),
-        contextBanner: hasApiKey ? _getNutritionContextBannerSnapshot() : null,
-        todayCard: hasApiKey ? _getNutritionTodayCardSnapshot() : null,
+        contextBanner: hasApiKey ? _getNutritionContextBannerSnapshot(targets) : null,
+        todayCard: hasApiKey ? _getNutritionTodayCardSnapshot(tracked, targets) : null,
         messagesState: !hasApiKey
           ? 'setup'
           : !_history.length
@@ -181,7 +243,7 @@
     };
   }
 
-  function _getNutritionContextBannerSnapshot() {
+  function _getNutritionContextBannerSnapshot(targets) {
     var bm = (typeof profile !== 'undefined' && profile.bodyMetrics) || {};
     var parts = [];
     var goalKeys = {
@@ -200,7 +262,7 @@
     if (bm.bodyGoal && goalKeys[bm.bodyGoal]) {
       parts.push(tr(goalKeys[bm.bodyGoal], goalFallbacks[bm.bodyGoal]));
     }
-    var targets = _calculateTargets();
+    targets = targets || _calculateTargets();
     if (targets) parts.push(targets.calories + ' kcal/day');
 
     if (parts.length) {
@@ -281,7 +343,7 @@
     };
   }
 
-  function _parseStructuredNutritionResponse(rawText) {
+  function _parseStructuredNutritionResponse(rawText, trace) {
     var text = String(rawText || '').trim();
     if (!text) return null;
 
@@ -297,16 +359,30 @@
     var parsed = tryParse(text);
     if (!parsed) {
       var fenceMatch = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-      if (fenceMatch) parsed = tryParse(fenceMatch[1].trim());
+      if (fenceMatch) {
+        parsed = tryParse(fenceMatch[1].trim());
+        if (parsed && trace && trace.parseSource === 'none') {
+          trace.parseSource = 'fenced-json';
+        }
+      }
     }
     if (!parsed) {
       var firstBrace = text.indexOf('{');
       var lastBrace = text.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace > firstBrace) {
         parsed = tryParse(text.slice(firstBrace, lastBrace + 1));
+        if (parsed && trace && trace.parseSource === 'none') {
+          trace.parseSource = 'brace-slice';
+        }
       }
     }
 
+    if (parsed && trace && trace.parseSource === 'none') {
+      trace.parseSource = 'direct-json';
+    }
+    if (!parsed && trace && trace.parseSource === 'none') {
+      trace.parseSource = 'none';
+    }
     return _normalizeStructuredNutritionResponse(parsed);
   }
 
@@ -353,6 +429,11 @@
 
   function _getTodayTrackedMacroTotals() {
     _ensureTodayHistoryLoaded();
+    // Memoize the current day's scan so snapshot/card/prompt builders reuse the same totals.
+    var cacheKey = _activeHistoryDate + '|' + _historyVersion + '|' + _history.length;
+    if (_todayTotalsCacheKey === cacheKey && _todayTotalsCacheValue) {
+      return _todayTotalsCacheValue;
+    }
     var ts = _todayStartTimestamp();
     var totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
     var mealCount = 0;
@@ -384,15 +465,18 @@
       }
     }
 
-    return { totals: totals, mealCount: mealCount };
+    var snapshot = { totals: totals, mealCount: mealCount };
+    _todayTotalsCacheKey = cacheKey;
+    _todayTotalsCacheValue = snapshot;
+    return snapshot;
   }
 
-  function _getNutritionTodayCardSnapshot() {
-    var tracked = _getTodayTrackedMacroTotals();
+  function _getNutritionTodayCardSnapshot(tracked, targets) {
+    tracked = tracked || _getTodayTrackedMacroTotals();
     var totals = tracked.totals;
     if (!tracked.mealCount) return null;
 
-    var targets = _calculateTargets();
+    targets = targets || _calculateTargets();
     return {
       calories: {
         value: Math.round(totals.calories),
@@ -513,7 +597,6 @@
     if (typeof window.initNutritionPage === 'function') {
       window.initNutritionPage();
     }
-    notifyNutritionIsland();
   }
 
   // ─── History management ───────────────────────────────────────────────────────
@@ -544,6 +627,7 @@
         _history = (JSON.parse(raw) || [])
           .map(_normalizeHistoryEntry)
           .filter(Boolean);
+        _markHistoryMutated();
         return;
       }
       _history = _loadLegacyTodayHistory();
@@ -561,6 +645,7 @@
     if (_history.length > 60) {
       _history = _history.slice(-60);
     }
+    _markHistoryMutated();
     try {
       localStorage.setItem(_historyKey(), JSON.stringify(_history));
     } catch (_) {}
@@ -569,6 +654,7 @@
   function _clearHistory() {
     _history = [];
     _activeHistoryDate = _todaySessionDate();
+    _markHistoryMutated();
     try {
       localStorage.removeItem(_historyKey());
     } catch (_) {}
@@ -576,14 +662,18 @@
 
   // ─── Image compression ────────────────────────────────────────────────────────
 
-  function _compressImage(dataUrl, maxPx, quality) {
+  function _compressImage(dataUrl, maxPx, quality, trace) {
     maxPx = maxPx || 1024;
     quality = quality || 0.82;
     return new Promise(function (resolve) {
+      var startedAt = _nowMs();
+      // Keep the existing resize policy; we only record the work and add a safe fallback.
       var img = new Image();
       img.onload = function () {
         var w = img.width,
+          originalW = img.width,
           h = img.height;
+        var originalH = img.height;
         if (w > maxPx || h > maxPx) {
           if (w > h) {
             h = Math.round((h * maxPx) / w);
@@ -596,10 +686,41 @@
         var canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        var ctx = canvas.getContext('2d', { alpha: false });
+        var output = dataUrl;
+        try {
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h);
+            output = canvas.toDataURL('image/jpeg', quality);
+          }
+        } catch (_) {
+          output = dataUrl;
+        }
+        if (trace) {
+          trace.image = {
+            originalWidth: originalW,
+            originalHeight: originalH,
+            width: w,
+            height: h,
+            originalDataUrlChars: String(dataUrl || '').length,
+            compressedDataUrlChars: String(output || '').length,
+            maxPx: maxPx,
+            quality: quality,
+          };
+          trace.stages.compressMs = Math.max(0, Math.round(_nowMs() - startedAt));
+        }
+        resolve(output);
       };
       img.onerror = function () {
+        if (trace) {
+          trace.image = {
+            originalDataUrlChars: String(dataUrl || '').length,
+            compressedDataUrlChars: String(dataUrl || '').length,
+            maxPx: maxPx,
+            quality: quality,
+          };
+          trace.stages.compressMs = Math.max(0, Math.round(_nowMs() - startedAt));
+        }
         resolve(dataUrl); // fall back to original
       };
       img.src = dataUrl;
@@ -990,8 +1111,8 @@
   // Sums macros extracted from today's coach responses so the system prompt
   // knows what the user has already eaten.
 
-  function _buildTodayIntakeSummary() {
-    var tracked = _getTodayTrackedMacroTotals();
+  function _buildTodayIntakeSummary(tracked) {
+    tracked = tracked || _getTodayTrackedMacroTotals();
     var totals = tracked.totals;
     var mealCount = tracked.mealCount;
 
@@ -1019,7 +1140,7 @@
     return hasImage ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
   }
 
-  async function _callClaude(apiMessages, hasImage) {
+  async function _callClaude(apiMessages, hasImage, trace) {
     const apiKey = getNutritionApiKey();
     if (!apiKey) {
       const err = new Error('no_key');
@@ -1027,8 +1148,12 @@
     }
 
     const model = _pickModel(hasImage);
+    if (trace) {
+      trace.model = model;
+      trace.hasImage = !!hasImage;
+    }
     const context = _buildTrainingContext();
-    const todayIntake = _buildTodayIntakeSummary();
+    const todayIntake = _buildTodayIntakeSummary(trace && trace.todayTracked);
     const targets = _calculateTargets();
     const targetsStr = targets
       ? 'Daily targets: ' +
@@ -1069,6 +1194,34 @@
       (targetsStr ? '\n\n' + targetsStr : '') +
       (todayIntake ? '\n' + todayIntake : '');
 
+    if (trace) {
+      trace.systemPromptChars = systemPrompt.length;
+      trace.contextChars = context.length;
+      trace.todayIntakeChars = todayIntake.length;
+      trace.targets = targets
+        ? {
+            calories: targets.calories,
+            protein: targets.protein,
+            carbs: targets.carbs,
+            fat: targets.fat,
+            tdee: targets.tdee,
+          }
+        : null;
+    }
+
+    const requestBody = JSON.stringify({
+      model: model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: apiMessages,
+      stream: true,
+    });
+
+    if (trace) {
+      trace.requestPayloadChars = requestBody.length;
+      trace.stages.requestBuildMs = Math.max(0, Math.round(_nowMs() - trace.startedAt));
+    }
+
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -1077,13 +1230,7 @@
         'anthropic-dangerous-direct-browser-access': 'true',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        model: model,
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: apiMessages,
-        stream: true,
-      }),
+      body: requestBody,
     });
 
     if (!resp.ok) {
@@ -1123,10 +1270,13 @@
   // We include the last 10 history entries as context, but strip image data from
   // old entries to keep the request small. Only the current message carries an image.
 
-  function _buildApiMessages(userEntry) {
+  function _buildApiMessages(userEntry, trace) {
     // Exclude the last entry — it's the user message we just pushed to _history
     // and we'll re-add it below with the full image payload.
     const contextEntries = _history.slice(-11, -1);
+    if (trace) {
+      trace.contextMessageCount = contextEntries.length;
+    }
     const apiMessages = contextEntries.map(function (msg) {
       if (msg.role === 'user') {
         // Include image only if it's the most recent user message with an image
@@ -1164,15 +1314,19 @@
     }
 
     apiMessages.push({ role: 'user', content: content });
+    if (trace) {
+      trace.apiMessageCount = apiMessages.length;
+    }
     return apiMessages;
   }
 
   // ─── SSE stream parser ───────────────────────────────────────────────────────
 
-  async function _readStream(resp, onChunk) {
+  async function _readStream(resp, onChunk, onEvent) {
     var reader = resp.body.getReader();
     var decoder = new TextDecoder();
     var buffer = '';
+    var usage = null;
 
     while (true) {
       var result = await reader.read();
@@ -1186,19 +1340,28 @@
         var line = lines[i].trim();
         if (!line.startsWith('data: ')) continue;
         var json = line.slice(6);
-        if (json === '[DONE]') return;
+        if (json === '[DONE]') return { usage: usage };
         try {
           var evt = JSON.parse(json);
+          if (typeof onEvent === 'function') {
+            try {
+              onEvent(evt);
+            } catch (_) {}
+          }
           if (
             evt.type === 'content_block_delta' &&
             evt.delta &&
             evt.delta.text
           ) {
             onChunk(evt.delta.text);
+          } else if (evt.type === 'message_delta' && evt.usage) {
+            usage = evt.usage;
           }
         } catch (_) {}
       }
     }
+
+    return { usage: usage };
   }
 
   // ─── Send a message ───────────────────────────────────────────────────────────
@@ -1206,9 +1369,20 @@
   async function sendNutritionMessage(payload) {
     if (_loading) return;
     _ensureTodayHistoryLoaded();
+    // Capture one trace per request so we can measure internals without changing the success path.
+    var trace = payload && payload.trace ? payload.trace : _createNutritionTrace(payload);
+    trace.actionId = payload && payload.actionId ? payload.actionId : trace.actionId || null;
+    trace.hasImage = !!(payload && payload.imageDataUrl);
+    trace.input = trace.input || {};
+    trace.stages = trace.stages || {};
+    trace.input.displayTextChars = String((payload && payload.displayText) || '').length;
+    trace.input.promptChars = String((payload && (payload.promptText || payload.displayText)) || '').length;
+    trace.input.imageDataUrlChars = payload && payload.imageDataUrl ? String(payload.imageDataUrl).length : 0;
+    trace.input.originalImageBytes = payload && payload.imageFileSize ? payload.imageFileSize : trace.input.originalImageBytes || null;
 
     // Offline check
     if (!navigator.onLine) {
+      var offlineRenderStartedAt = _nowMs();
       _history.push({
         id: Date.now() + '-a',
         role: 'assistant',
@@ -1222,6 +1396,16 @@
       _saveHistory();
       _renderMessages();
       _scrollToBottom();
+      trace.stages.renderMs = Math.max(
+        0,
+        Math.round(_nowMs() - offlineRenderStartedAt)
+      );
+      trace.error = 'offline';
+      trace.stages.preflightMs = Math.max(
+        0,
+        Math.round(_nowMs() - trace.startedAt)
+      );
+      _finalizeNutritionTrace(trace);
       return;
     }
 
@@ -1232,6 +1416,7 @@
       promptText: payload.promptText || payload.displayText || '',
       imageDataUrl: payload.imageDataUrl || null,
       actionId: payload.actionId || null,
+      imageFileSize: payload.imageFileSize || null,
       timestamp: Date.now(),
     };
     _history.push(userEntry);
@@ -1241,17 +1426,51 @@
     _setLoading(true, userEntry.imageDataUrl ? 'photo' : 'text');
 
     var hasImage = !!userEntry.imageDataUrl;
-    var apiMessages = _buildApiMessages(userEntry);
+    trace.todayTracked = _getTodayTrackedMacroTotals();
+    trace.stages.preflightMs = Math.max(
+      0,
+      Math.round(_nowMs() - trace.startedAt)
+    );
+    var apiMessages = _buildApiMessages(userEntry, trace);
 
     try {
-      var result = await _callClaude(apiMessages, hasImage);
+      var requestStartedAt = _nowMs();
+      var result = await _callClaude(apiMessages, hasImage, trace);
+      trace.stages.requestMs = Math.max(
+        0,
+        Math.round(_nowMs() - requestStartedAt)
+      );
       var rawText = '';
-      await _readStream(result.response, function (chunk) {
-        rawText += chunk;
-      });
+      var streamStartedAt = _nowMs();
+      var streamResult = await _readStream(
+        result.response,
+        function (chunk) {
+          rawText += chunk;
+        },
+        function (evt) {
+          if (evt && evt.type === 'message_delta' && evt.usage) {
+            trace.usage = evt.usage;
+          }
+        }
+      );
+      trace.stages.streamMs = Math.max(
+        0,
+        Math.round(_nowMs() - streamStartedAt)
+      );
+      trace.stages.modelMs =
+        Math.max(0, trace.stages.requestMs || 0) +
+        Math.max(0, trace.stages.streamMs || 0);
+      if (streamResult && streamResult.usage) {
+        trace.usage = streamResult.usage;
+      }
 
       _streaming = false;
-      var structured = _parseStructuredNutritionResponse(rawText);
+      var parseStartedAt = _nowMs();
+      var structured = _parseStructuredNutritionResponse(rawText, trace);
+      trace.stages.parseMs = Math.max(
+        0,
+        Math.round(_nowMs() - parseStartedAt)
+      );
       var assistantEntry = {
         id: Date.now() + '-a',
         role: 'assistant',
@@ -1265,8 +1484,10 @@
       if (structured) {
         assistantEntry.structured = structured;
         assistantEntry.rawText = String(rawText || '');
+        trace.parseSource = trace.parseSource === 'none' ? 'structured' : trace.parseSource;
       } else if (rawText) {
         assistantEntry.rawText = String(rawText);
+        trace.parseSource = trace.parseSource === 'none' ? 'plain_text' : trace.parseSource;
       }
       if (!assistantEntry.text) {
         assistantEntry.text = tr(
@@ -1274,14 +1495,21 @@
           'Something went wrong. Check your API key and try again.'
         );
         assistantEntry.isError = true;
+        trace.parseSource = 'empty';
       }
       _history.push(assistantEntry);
       _setLoading(false);
       _saveHistory();
+      trace.success = !assistantEntry.isError;
+      trace.outputChars = String(assistantEntry.text || '').length;
+      trace.messageCount = _history.length;
     } catch (e) {
       _setLoading(false);
       _streaming = false;
-      var isNoKey = e.message === 'no_key';
+      trace.success = false;
+      var errorMessage = e && e.message ? e.message : 'unknown';
+      trace.error = errorMessage;
+      var isNoKey = errorMessage === 'no_key';
       var errorText;
       if (isNoKey) {
         errorText = tr(
@@ -1290,7 +1518,7 @@
         );
       } else {
         // Specific errors (auth, rate limit, server) already have translated messages
-        errorText = e.message || tr(
+        errorText = errorMessage || tr(
           'nutrition.error.api',
           'Something went wrong. Check your API key and try again.'
         );
@@ -1303,10 +1531,18 @@
         isError: true,
       });
       _saveHistory();
+      trace.outputChars = String(errorText || '').length;
+      trace.messageCount = _history.length;
+    } finally {
+      var finalRenderStartedAt = _nowMs();
+      _renderMessages();
+      _scrollToBottom();
+      trace.stages.renderMs = Math.max(
+        0,
+        Math.round(_nowMs() - finalRenderStartedAt)
+      );
+      _finalizeNutritionTrace(trace);
     }
-
-    _renderMessages();
-    _scrollToBottom();
   }
 
   // ─── UI helpers ───────────────────────────────────────────────────────────────
@@ -1555,8 +1791,10 @@
       return;
     }
 
-    var html = _renderContextBanner();
-    var todayHtml = _renderTodayCard();
+    var targets = _calculateTargets();
+    var tracked = _getTodayTrackedMacroTotals();
+    var html = _renderContextBanner(targets);
+    var todayHtml = _renderTodayCard(tracked, targets);
     if (todayHtml) html += todayHtml;
     metaStack.innerHTML = html;
     if (window.I18N && I18N.applyTranslations)
@@ -1722,7 +1960,6 @@
       'var(--green)'
     );
     _renderMessages();
-    notifyNutritionIsland();
   }
 
   // ─── Premium empty state ──────────────────────────────────────────────
@@ -1813,7 +2050,7 @@
 
   // ─── Body metrics context banner ──────────────────────────────────────
 
-  function _renderContextBanner() {
+  function _renderContextBanner(targets) {
     var bm = (typeof profile !== 'undefined' && profile.bodyMetrics) || {};
     var parts = [];
     if (bm.weight) parts.push(bm.weight + ' kg');
@@ -1832,7 +2069,7 @@
     if (bm.bodyGoal && goalKeys[bm.bodyGoal])
       parts.push(tr(goalKeys[bm.bodyGoal], goalFallbacks[bm.bodyGoal]));
 
-    var targets = _calculateTargets();
+    targets = targets || _calculateTargets();
     if (targets) parts.push(targets.calories + ' kcal/day');
 
     if (parts.length) {
@@ -1864,12 +2101,12 @@
 
   // ─── Today's intake summary card ─────────────────────────────────────
 
-  function _renderTodayCard() {
-    var tracked = _getTodayTrackedMacroTotals();
+  function _renderTodayCard(tracked, targets) {
+    tracked = tracked || _getTodayTrackedMacroTotals();
     var totals = tracked.totals;
     if (!tracked.mealCount) return '';
 
-    var targets = _calculateTargets();
+    targets = targets || _calculateTargets();
 
     // Calorie headline with target
     var calStr =
@@ -1945,9 +2182,18 @@
     const file = event.target.files && event.target.files[0];
     if (!file) return;
 
+    const trace = _createNutritionTrace({
+      actionId: 'analyze_photo',
+      displayText: '',
+      promptText: '',
+      imageDataUrl: '',
+      imageFileSize: file.size,
+    });
+    trace.kind = 'photo';
+
     const reader = new FileReader();
     reader.onload = function (e) {
-      _compressImage(e.target.result).then(function (compressed) {
+      _compressImage(e.target.result, 1024, 0.82, trace).then(function (compressed) {
         // Auto-send photo analysis — no extra tap needed
         sendNutritionMessage({
           actionId: 'analyze_photo',
@@ -1959,6 +2205,8 @@
             'A food photo is attached.',
           ].join('\n\n'),
           imageDataUrl: compressed,
+          imageFileSize: file.size,
+          trace: trace,
         });
       });
     };
@@ -2002,7 +2250,6 @@
       function () {
         _clearHistory();
         _renderMessages();
-        notifyNutritionIsland();
       }
     );
   }

@@ -4,15 +4,28 @@ import { openAppShell, reloadAppShell } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
-function buildAnthropicSseResponse(text: string) {
-  return [
+function buildAnthropicSseResponse(
+  text: string,
+  usage?: { input_tokens: number; output_tokens: number }
+) {
+  const events = [
     `data: ${JSON.stringify({
       type: 'content_block_delta',
       delta: { text },
     })}`,
-    'data: [DONE]',
-    '',
-  ].join('\n');
+  ];
+
+  if (usage) {
+    events.push(
+      `data: ${JSON.stringify({
+        type: 'message_delta',
+        usage,
+      })}`
+    );
+  }
+
+  events.push('data: [DONE]', '');
+  return events.join('\n');
 }
 
 async function seedNutritionHistory(page: Page, entries: unknown[]) {
@@ -352,6 +365,87 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   await expect(page.locator('#nutrition-react-root .nutrition-today-card')).toContainText(
     '42g'
   );
+});
+
+test('nutrition records request trace metrics and token usage without changing the rendered response', async ({
+  page,
+}) => {
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: buildAnthropicSseResponse(
+        JSON.stringify({
+          display_markdown:
+            '## Next move\n- **Protein** is on pace.\n- Add fruit and oats around training.',
+          estimated_macros: {
+            calories: 640,
+            protein_g: 42,
+            carbs_g: 68,
+            fat_g: 18,
+          },
+          remaining_today: {
+            calories: 1800,
+            protein_g: 118,
+          },
+          tags: ['sport_day', 'training_fuel'],
+        }),
+        {
+          input_tokens: 812,
+          output_tokens: 96,
+        }
+      ),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+  await openNutrition(page);
+  await page
+    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .click();
+
+  await expectNutritionCoachResponse(page, 'Next move');
+
+  const trace = (await page.evaluate(
+    () =>
+      (window as Window & {
+        __IRONFORGE_NUTRITION_LAST_TRACE__?: unknown;
+      }).__IRONFORGE_NUTRITION_LAST_TRACE__
+  )) as
+    | {
+        actionId?: string | null;
+        hasImage?: boolean;
+        model?: string | null;
+        parseSource?: string;
+        success?: boolean;
+        usage?: { input_tokens?: number; output_tokens?: number };
+        stages?: Record<string, number>;
+        requestPayloadChars?: number;
+      }
+    | null;
+
+  expect(trace).toMatchObject({
+    actionId: 'plan_today',
+    hasImage: false,
+    model: 'claude-haiku-4-5-20251001',
+    parseSource: 'direct-json',
+    success: true,
+    usage: {
+      input_tokens: 812,
+      output_tokens: 96,
+    },
+  });
+  expect(trace?.stages?.preflightMs).toBeGreaterThanOrEqual(0);
+  expect(trace?.stages?.requestMs).toBeGreaterThanOrEqual(0);
+  expect(trace?.stages?.streamMs).toBeGreaterThanOrEqual(0);
+  expect(trace?.stages?.modelMs).toBeGreaterThanOrEqual(0);
+  expect(trace?.stages?.parseMs).toBeGreaterThanOrEqual(0);
+  expect(trace?.stages?.renderMs).toBeGreaterThanOrEqual(0);
+  expect(trace?.requestPayloadChars).toBeGreaterThan(0);
 });
 
 test('nutrition falls back to plain text when Claude returns malformed JSON and still extracts macros', async ({
