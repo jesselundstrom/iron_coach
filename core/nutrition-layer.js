@@ -87,10 +87,38 @@
     };
   }
 
+  function getDashboardNutritionSnapshot() {
+    var apiKey = getNutritionApiKey();
+    if (!apiKey) return null;
+    var targets = _calculateTargets();
+    if (!targets) return null;
+    _ensureTodayHistoryLoaded();
+    var tracked = _getTodayTrackedMacroTotals();
+    if (!tracked.mealCount) {
+      return { state: 'empty', mealCount: 0 };
+    }
+    var totals = tracked.totals;
+    return {
+      state: 'active',
+      mealCount: tracked.mealCount,
+      calories: {
+        value: Math.round(totals.calories),
+        target: targets.calories,
+        percent: Math.min(100, Math.round((totals.calories / targets.calories) * 100))
+      },
+      protein: {
+        value: Math.round(totals.protein),
+        target: targets.protein,
+        percent: Math.min(100, Math.round((totals.protein / targets.protein) * 100))
+      }
+    };
+  }
+
   window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ = NUTRITION_ISLAND_EVENT;
   window.getNutritionReactSnapshot = getNutritionReactSnapshot;
   window.notifyNutritionIsland = notifyNutritionIsland;
   window.setSelectedNutritionAction = setSelectedNutritionAction;
+  window.getDashboardNutritionSnapshot = getDashboardNutritionSnapshot;
 
   // ─── Storage keys ────────────────────────────────────────────────────────────
 

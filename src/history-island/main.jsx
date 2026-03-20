@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const HISTORY_EVENT =
@@ -35,7 +36,7 @@ function Heatmap({ data }) {
   const volStr = (stats.totalVolume / 1000).toFixed(1);
 
   const streakNode = stats.weekStreak > 0
-    ? <span className="heatmap-stat"><span className="heatmap-stat-val">{stats.weekStreak}vk</span> putki</span>
+    ? <span className="heatmap-stat"><span className="heatmap-stat-val">{stats.weekStreak}{labels.streakUnit}</span> {labels.streakLabel}</span>
     : <span className="heatmap-stat heatmap-stat-muted">{labels.noStreak}</span>;
 
   return (
@@ -173,7 +174,9 @@ function WeekGroup({ week, labels, isFirst }) {
     <details className="hist-week-details" open={isFirst || undefined}>
       <summary className="hist-week-toggle">
         <div className="hist-week-toggle-left">
-          <span className="hist-week-chevron">v</span>
+          <span className="hist-week-chevron" aria-hidden="true">
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </span>
           <span className="hist-week-label">{week.weekLabel}</span>
         </div>
         <span className="hist-week-count">{week.count} {countLabel}</span>
@@ -249,6 +252,7 @@ function StatsNumbers({ numbers }) {
 /* ── Stats: Volume Chart ───────────────────────────────────── */
 
 function VolumeChart({ data }) {
+  const [activeBar, setActiveBar] = useState(null);
   if (!data.visible) return null;
   const { weeks, title } = data;
   const W = 300, H = 90, padX = 4, bottomH = 18, topPad = 12;
@@ -259,10 +263,12 @@ function VolumeChart({ data }) {
   const maxVol = Math.max(...weeks.map(w => w.vol), 1);
   const maxLabel = maxVol >= 1000 ? (maxVol / 1000).toFixed(0) + 't' : Math.round(maxVol) + 'kg';
 
+  const fmtVol = (v) => v >= 1000 ? (v / 1000).toFixed(1) + 't' : Math.round(v) + 'kg';
+
   return (
     <>
       <div className="stats-chart-title">{title}</div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="stats-svg">
+      <svg viewBox={`0 0 ${W} ${H}`} className="stats-svg" onClick={() => setActiveBar(null)}>
         <text x={W - padX} y="9" textAnchor="end" className="stats-axis-top">{maxLabel}</text>
         {weeks.map((wk, i) => {
           const x = padX + i * (barW + gap);
@@ -270,9 +276,14 @@ function VolumeChart({ data }) {
           const y = topPad + chartH - h;
           const op = (wk.vol > 0 ? (0.3 + 0.7 * (i / (n - 1))) : 0.1).toFixed(2);
           const fill = wk.isCurrent ? 'var(--orange)' : '#c46a10';
+          const isActive = activeBar === i;
           return (
-            <g key={i}>
-              <rect x={x} y={y} width={barW} height={h} rx="2" fill={fill} style={{ '--bar-op': op }} className={`stats-bar stats-bar-${i}`} />
+            <g key={i} onClick={(e) => { e.stopPropagation(); setActiveBar(isActive ? null : i); }}>
+              <rect x={x} y={topPad} width={barW} height={chartH} fill="transparent" />
+              <rect x={x} y={y} width={barW} height={h} rx="2" fill={fill} style={{ '--bar-op': op }} className={`stats-bar stats-bar-${i}`} opacity={isActive ? 1 : undefined} />
+              {isActive && wk.vol > 0 && (
+                <text x={x + barW / 2} y={y - 4} textAnchor="middle" className="stats-tooltip-text">{fmtVol(wk.vol)}</text>
+              )}
               <text x={x + barW / 2} y={H - 2} textAnchor="middle" className="stats-wlabel">{wk.label}</text>
             </g>
           );
@@ -285,6 +296,7 @@ function VolumeChart({ data }) {
 /* ── Stats: Strength Chart ─────────────────────────────────── */
 
 function StrengthChart({ data }) {
+  const [activePt, setActivePt] = useState(null);
   if (!data.visible) return null;
   const { lifts, nWeeks, title } = data;
   const active = lifts.filter(l => l.pts.length >= 1);
@@ -310,11 +322,12 @@ function StrengthChart({ data }) {
   for (let kg = gridStart; kg <= maxW; kg += step) gridLines.push(kg);
 
   const activeLegend = lifts.filter(l => l.pts.length > 0);
+  const ptKey = (li, pi) => `${li}-${pi}`;
 
   return (
     <>
       <div className="stats-chart-title">{title}</div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="stats-svg">
+      <svg viewBox={`0 0 ${W} ${H}`} className="stats-svg" onClick={() => setActivePt(null)}>
         {gridLines.map((kg, i) => {
           const y = ty(kg);
           return (
@@ -325,15 +338,38 @@ function StrengthChart({ data }) {
           );
         })}
         {active.map((l, li) => {
-          const dots = l.pts.map((p, pi) => (
-            <circle key={pi} cx={tx(p.date)} cy={ty(p.weight)} r={l.pts.length === 1 ? 4 : 2.5} fill={l.color} />
-          ));
-          if (l.pts.length === 1) return <g key={li}>{dots}</g>;
+          if (l.pts.length === 1) {
+            const p = l.pts[0];
+            const key = ptKey(li, 0);
+            const isActive = activePt === key;
+            return (
+              <g key={li}>
+                <circle cx={tx(p.date)} cy={ty(p.weight)} r={isActive ? 5 : 4} fill={l.color}
+                  onClick={(e) => { e.stopPropagation(); setActivePt(isActive ? null : key); }} style={{ cursor: 'pointer' }} />
+                {isActive && (
+                  <text x={tx(p.date)} y={ty(p.weight) - 8} textAnchor="middle" className="stats-tooltip-text">{Math.round(p.weight)} kg</text>
+                )}
+              </g>
+            );
+          }
           const pts = l.pts.map(p => `${tx(p.date)},${ty(p.weight)}`).join(' ');
           return (
             <g key={li}>
               <polyline points={pts} fill="none" stroke={l.color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />
-              {dots}
+              {l.pts.map((p, pi) => {
+                const key = ptKey(li, pi);
+                const isActive = activePt === key;
+                return (
+                  <g key={pi}>
+                    <circle cx={tx(p.date)} cy={ty(p.weight)} r={isActive ? 5 : 2.5} fill={l.color} />
+                    <circle cx={tx(p.date)} cy={ty(p.weight)} r="8" fill="transparent"
+                      onClick={(e) => { e.stopPropagation(); setActivePt(isActive ? null : key); }} style={{ cursor: 'pointer' }} />
+                    {isActive && (
+                      <text x={tx(p.date)} y={ty(p.weight) - 8} textAnchor="middle" className="stats-tooltip-text">{Math.round(p.weight)} kg</text>
+                    )}
+                  </g>
+                );
+              })}
             </g>
           );
         })}
@@ -392,20 +428,29 @@ function HistoryIsland() {
         <div className="stats-numbers-grid" id="stats-numbers-grid">
           <StatsNumbers numbers={snapshot.stats.numbers} />
         </div>
-        <div
-          className="card stats-chart-card"
-          id="stats-volume-wrap"
-          style={{ display: snapshot.stats.volume.visible ? 'block' : 'none' }}
-        >
-          <VolumeChart data={snapshot.stats.volume} />
-        </div>
-        <div
-          className="card stats-chart-card"
-          id="stats-strength-wrap"
-          style={{ display: snapshot.stats.strength.visible ? 'block' : 'none' }}
-        >
-          <StrengthChart data={snapshot.stats.strength} />
-        </div>
+        {!snapshot.stats.volume.visible && !snapshot.stats.strength.visible ? (
+          <div className="stats-empty">
+            <div className="stats-empty-title">{snapshot.labels.statsEmptyTitle}</div>
+            <div className="stats-empty-sub">{snapshot.labels.statsEmptySub}</div>
+          </div>
+        ) : (
+          <>
+            <div
+              className="card stats-chart-card"
+              id="stats-volume-wrap"
+              style={{ display: snapshot.stats.volume.visible ? 'block' : 'none' }}
+            >
+              <VolumeChart data={snapshot.stats.volume} />
+            </div>
+            <div
+              className="card stats-chart-card"
+              id="stats-strength-wrap"
+              style={{ display: snapshot.stats.strength.visible ? 'block' : 'none' }}
+            >
+              <StrengthChart data={snapshot.stats.strength} />
+            </div>
+          </>
+        )}
       </div>
     </>
   );

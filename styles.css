@@ -4614,9 +4614,13 @@ select optgroup {
   gap: 8px;
 }
 .hist-week-chevron {
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
   transition: transform 0.2s;
+}
+.hist-week-chevron svg {
+  display: block;
 }
 .hist-week-details[open] .hist-week-chevron {
   transform: rotate(180deg);
@@ -4708,10 +4712,28 @@ select optgroup {
   font-family: 'Barlow Condensed', sans-serif;
   cursor: pointer;
   flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
   transition:
+    opacity 0.18s ease,
     background-color 0.2s,
     border-color 0.2s,
     color 0.2s;
+}
+.hist-card:hover .hist-delete-btn,
+.hist-card:focus-within .hist-delete-btn,
+.hist-delete-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (hover: none) {
+  .hist-delete-btn {
+    opacity: 0.55;
+    pointer-events: auto;
+  }
+  .hist-card:active .hist-delete-btn {
+    opacity: 1;
+  }
 }
 .hist-delete-btn:hover,
 .hist-delete-btn:focus-visible {
@@ -5014,19 +5036,19 @@ select optgroup {
   flex-wrap: wrap;
 }
 .heatmap-stat {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
-  font-weight: 500;
+  font-weight: 600;
 }
 .heatmap-stat-muted {
   opacity: 0.9;
 }
 .heatmap-stat-val {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--accent2);
   font-family: 'Barlow Condensed', sans-serif;
-  margin-right: 3px;
+  margin-right: 2px;
 }
 .heatmap-legend {
   display: flex;
@@ -5056,19 +5078,31 @@ select optgroup {
 /* Collapsed heatmap: stats shown inline in title row */
 .heatmap-inline-stats {
   display: flex;
-  gap: 10px;
-  align-items: center;
+  gap: 12px;
+  align-items: baseline;
   flex-wrap: wrap;
+  max-height: 40px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
 }
 .heatmap-wrap.open .heatmap-inline-stats {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 /* Legend only visible when grid is shown */
 .heatmap-title-row .heatmap-legend {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: max-height 0.25s ease, opacity 0.2s ease 0.05s;
 }
 .heatmap-wrap.open .heatmap-title-row .heatmap-legend {
-  display: flex;
+  max-height: 30px;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ── SESSION SUMMARY ── */
@@ -6531,12 +6565,52 @@ body.login-active::before {
 }
 .dashboard-hero-card {
   border-radius: 22px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.01)
+    ),
+    var(--surface);
+}
+.dashboard-hero-card.is-train {
   border-color: rgba(245, 130, 31, 0.22);
   background:
     radial-gradient(
       circle at top right,
       rgba(245, 130, 31, 0.18),
       rgba(245, 130, 31, 0) 42%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.01)
+    ),
+    var(--surface);
+}
+.dashboard-hero-card.is-rest {
+  border-color: rgba(74, 143, 232, 0.18);
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(74, 143, 232, 0.12),
+      rgba(74, 143, 232, 0) 42%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.01)
+    ),
+    var(--surface);
+}
+.dashboard-hero-card.is-done {
+  border-color: rgba(76, 175, 121, 0.22);
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(76, 175, 121, 0.14),
+      rgba(76, 175, 121, 0) 42%
     ),
     linear-gradient(
       180deg,
@@ -6563,6 +6637,12 @@ body.login-active::before {
   color: #ffcf9c;
   font-family: 'Barlow Condensed', sans-serif;
   font-weight: 700;
+}
+.dashboard-hero-card.is-rest .dashboard-hero-kicker {
+  color: rgba(74, 143, 232, 0.8);
+}
+.dashboard-hero-card.is-done .dashboard-hero-kicker {
+  color: rgba(76, 175, 121, 0.8);
 }
 .dashboard-hero-status {
   margin-top: 8px;
@@ -7331,11 +7411,23 @@ body.login-active::before {
   font-weight: 500;
 }
 .fatigue-bar-wrap {
+  position: relative;
   height: 6px;
   background: var(--border);
   border: none;
   border-radius: 999px;
   box-shadow: none;
+}
+.fatigue-bar-wrap::after {
+  content: '';
+  position: absolute;
+  right: 20%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: rgba(224, 82, 82, 0.3);
+  pointer-events: none;
+  border-radius: 1px;
 }
 .fatigue-fill {
   background: var(--bar-start);
@@ -7378,6 +7470,137 @@ body.login-active::before {
 .rbadge-rest {
   color: var(--red);
 }
+
+/* ── DASHBOARD: NUTRITION STATUS ── */
+.dashboard-nutrition-card {
+  border-color: rgba(76, 175, 121, 0.15);
+  background:
+    radial-gradient(
+      ellipse at bottom left,
+      rgba(76, 175, 121, 0.06),
+      rgba(76, 175, 121, 0) 50%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.01)
+    ),
+    var(--surface);
+}
+.dashboard-nutrition-body {
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+}
+.dashboard-nutrition-row {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.dashboard-nutrition-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-family: 'Barlow Condensed', sans-serif;
+}
+.dashboard-nutrition-bar-wrap {
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+}
+.dashboard-nutrition-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.45s ease;
+  animation: fillBar 0.55s ease;
+}
+.dashboard-nutrition-bar.is-cal {
+  background: var(--orange);
+}
+.dashboard-nutrition-bar.is-protein {
+  background: var(--green);
+}
+.dashboard-nutrition-nums {
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  font-family: 'Barlow Condensed', sans-serif;
+  white-space: nowrap;
+}
+.dashboard-nutrition-current {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.dashboard-nutrition-sep {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 1px;
+  opacity: 0.5;
+}
+.dashboard-nutrition-target {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1;
+}
+.dashboard-nutrition-unit {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.7;
+  margin-left: 2px;
+}
+.dashboard-nutrition-foot {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.dashboard-nutrition-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dashboard-nutrition-empty-text {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.dashboard-nutrition-log-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(76, 175, 121, 0.3);
+  background: rgba(76, 175, 121, 0.1);
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: 'Barlow Condensed', sans-serif;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.dashboard-nutrition-log-btn:hover,
+.dashboard-nutrition-log-btn:focus-visible {
+  background: rgba(76, 175, 121, 0.18);
+  border-color: rgba(76, 175, 121, 0.45);
+}
+.dashboard-nutrition-log-btn:active {
+  opacity: 0.85;
+}
+
 .lifts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -7506,6 +7729,20 @@ body.login-active::before {
   letter-spacing: 0.05em;
   font-family: 'Barlow Condensed', sans-serif;
   color: var(--muted);
+}
+.tm-stalled-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--yellow);
+  background: rgba(245, 200, 66, 0.12);
+  border: 1px solid rgba(245, 200, 66, 0.25);
+  vertical-align: middle;
 }
 @keyframes tmDigitRoll {
   from {
@@ -7786,6 +8023,24 @@ body.login-active::before {
   padding: 16px;
   margin-bottom: 12px;
 }
+.stats-empty {
+  text-align: center;
+  padding: 32px 16px;
+}
+.stats-empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.stats-empty-sub {
+  font-size: 13px;
+  color: var(--muted);
+  opacity: 0.7;
+  line-height: 1.5;
+  max-width: 260px;
+  margin: 0 auto;
+}
 .stats-chart-title {
   font-size: 10px;
   font-weight: 700;
@@ -7837,6 +8092,18 @@ body.login-active::before {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+.stats-tooltip-text {
+  font-size: 10px;
+  font-weight: 800;
+  fill: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.03em;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 @keyframes stats-bar-in {
   from {

@@ -436,7 +436,7 @@ function buildHeatmapMarkup(isOpen){
 
   // Stats
   const streakHtml=weekStreak>0
-    ?`<span class="heatmap-stat"><span class="heatmap-stat-val">${weekStreak}vk</span> putki</span>`
+    ?`<span class="heatmap-stat"><span class="heatmap-stat-val">${weekStreak}${trHist('history.streak_unit','wk')}</span> ${trHist('history.streak_label','streak')}</span>`
     :`<span class="heatmap-stat heatmap-stat-muted">${trHist('history.no_streak','No streak yet')}</span>`;
   const rateHtml=`<span class="heatmap-stat"><span class="heatmap-stat-val">${perWeek}</span> ${trHist('history.lifts_per_week','lifts/wk')}</span>`;
   const volHtml=`<span class="heatmap-stat"><span class="heatmap-stat-val">${volStr}t</span> ${trHist('history.total_volume_label','total volume')}</span>`;
@@ -760,6 +760,8 @@ function _buildStructuredHeatmap(){
     labels:{
       title:trHist('history.activity_title','ACTIVITY \u00B7 {weeks} WK',{weeks:WEEKS}),
       noStreak:trHist('history.no_streak','No streak yet'),
+      streakUnit:trHist('history.streak_unit','wk'),
+      streakLabel:trHist('history.streak_label','streak'),
       liftsPerWeek:trHist('history.lifts_per_week','lifts/wk'),
       totalVolumeLabel:trHist('history.total_volume_label','total volume'),
       lift:trHist('history.legend.lift','Lift')
@@ -906,7 +908,9 @@ function getHistoryReactSnapshot(){
       delete:trHist('common.delete','Delete'),
       prBadge:trHist('history.pr_badge','NEW PR'),
       volume:trHist('history.card.volume','Volume'),
-      exercises:trHist('history.card.exercises','Exercises')
+      exercises:trHist('history.card.exercises','Exercises'),
+      statsEmptyTitle:trHist('history.stats_empty_title','No stats yet'),
+      statsEmptySub:trHist('history.stats_empty_sub','Complete a few workouts to see your training trends.')
     },
     heatmap:_buildStructuredHeatmap(),
     log:_buildStructuredLog(),

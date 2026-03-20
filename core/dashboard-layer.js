@@ -1371,6 +1371,7 @@ function buildDashboardPlanStructuredSnapshot(prog,ps,fatigue){
     hero:{
       kicker:trDash('dashboard.today_plan','Today\'s Plan'),
       status:getDashboardWeekStructuredSnapshot().status,
+      tone:shouldShowStart?'train':(todaySummary.hasLift?'done':'rest'),
       cta:shouldShowStart
         ? {type:'button',label:trDash('dashboard.start_session','Aloita sessio'),action:'goToLog'}
         : (todaySummary.hasLift
@@ -1439,6 +1440,27 @@ function buildDashboardPlanStructuredSnapshot(prog,ps,fatigue){
   };
 }
 
+function getDashboardNutritionData(){
+  const snap=typeof window.getDashboardNutritionSnapshot==='function'?window.getDashboardNutritionSnapshot():null;
+  if(!snap)return null;
+  return{
+    state:snap.state,
+    mealCount:snap.mealCount||0,
+    calories:snap.calories||null,
+    protein:snap.protein||null,
+    labels:{
+      title:trDash('dashboard.nutrition','Ravitsemus'),
+      calories:trDash('dashboard.nutrition.calories','Kalorit'),
+      protein:trDash('dashboard.nutrition.protein','Proteiini'),
+      empty:trDash('dashboard.nutrition.empty','Ei aterioita kirjattu tänään'),
+      logMeal:trDash('dashboard.nutrition.log_meal','Kirjaa ateria'),
+      meals:trDash('dashboard.nutrition.meals','{count} ateriaa kirjattu',{count:snap.mealCount||0}),
+      kcal:'kcal',
+      gram:'g'
+    }
+  };
+}
+
 function buildDashboardReactSnapshotInternal(prog,ps,fatigue,tmData){
   const week=getDashboardWeekStructuredSnapshot();
   const plan=buildDashboardPlanStructuredSnapshot(prog,ps,fatigue);
@@ -1452,6 +1474,7 @@ function buildDashboardReactSnapshotInternal(prog,ps,fatigue,tmData){
       sections:plan.sections
     },
     recovery:getDashboardRecoverySnapshot(fatigue),
+    nutrition:getDashboardNutritionData(),
     trainingMaxesTitle:(tmData||getDashboardTrainingMaxData(prog,ps)).title,
     trainingMaxes:(tmData||getDashboardTrainingMaxData(prog,ps)).items
   };
@@ -1462,6 +1485,7 @@ function getDashboardLabels(){
     todayPlan:trDash('dashboard.today_plan','Today\'s Plan'),
     weeklySessions:trDash('dashboard.weekly_sessions','Viikon sessiot'),
     recovery:trDash('dashboard.recovery','Palautuminen'),
+    nutrition:trDash('dashboard.nutrition','Ravitsemus'),
     maxes:trDash('dashboard.maxes','Maksimit')
   };
 }

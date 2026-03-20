@@ -388,12 +388,10 @@ function PlanCard({ plan }) {
   const muscle = plan.sections.find((section) => section.id === 'muscle');
 
   return (
-    <div className="dashboard-card-body" id="next-session-content">
-      <div className="dashboard-plan-stack">
-        {coach ? <CoachSection section={coach} /> : null}
-        {stats ? <StatsSection section={stats} /> : null}
-        {muscle ? <MuscleSection section={muscle} /> : null}
-      </div>
+    <div className="dashboard-plan-stack" id="next-session-content">
+      {coach ? <CoachSection section={coach} /> : null}
+      {stats ? <StatsSection section={stats} /> : null}
+      {muscle ? <MuscleSection section={muscle} /> : null}
     </div>
   );
 }
@@ -407,7 +405,6 @@ function RecoveryCard({ recovery }) {
             <div className="dashboard-recovery-summary-label">
               {recovery.overallLabel}
             </div>
-            <div className="dashboard-recovery-summary-copy" id="recovery-overall-copy" />
             <div className="dashboard-recovery-summary-badge" id="recovery-badge">
               <span className={`readiness-status rbadge-${recovery.badge.tone}`}>
                 <span className="readiness-status-dot" aria-hidden="true" />
@@ -493,6 +490,67 @@ function TrainingMaxDigits({ currentValue, previousValue, animate }) {
   });
 }
 
+function NutritionStatus({ nutrition }) {
+  if (!nutrition) return null;
+
+  if (nutrition.state === 'empty') {
+    return (
+      <div className="card dashboard-card dashboard-nutrition-card">
+        <div className="dashboard-card-body dashboard-nutrition-body">
+          <div className="dashboard-nutrition-empty">
+            <span className="dashboard-nutrition-empty-text">{nutrition.labels.empty}</span>
+            <button
+              className="dashboard-nutrition-log-btn"
+              type="button"
+              onClick={() => window.showPage?.('nutrition', document.querySelectorAll('.nav-btn')[4])}
+            >
+              {nutrition.labels.logMeal}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card dashboard-card dashboard-nutrition-card">
+      <div className="dashboard-card-body dashboard-nutrition-body">
+        <div className="dashboard-nutrition-row">
+          <div className="dashboard-nutrition-label">{nutrition.labels.calories}</div>
+          <div className="dashboard-nutrition-bar-wrap">
+            <div
+              className="dashboard-nutrition-bar is-cal"
+              style={{ width: `${nutrition.calories.percent}%` }}
+            />
+          </div>
+          <div className="dashboard-nutrition-nums">
+            <span className="dashboard-nutrition-current">{nutrition.calories.value}</span>
+            <span className="dashboard-nutrition-sep">/</span>
+            <span className="dashboard-nutrition-target">{nutrition.calories.target}</span>
+            <span className="dashboard-nutrition-unit">{nutrition.labels.kcal}</span>
+          </div>
+        </div>
+        <div className="dashboard-nutrition-row">
+          <div className="dashboard-nutrition-label">{nutrition.labels.protein}</div>
+          <div className="dashboard-nutrition-bar-wrap">
+            <div
+              className="dashboard-nutrition-bar is-protein"
+              style={{ width: `${nutrition.protein.percent}%` }}
+            />
+          </div>
+          <div className="dashboard-nutrition-nums">
+            <span className="dashboard-nutrition-current">{nutrition.protein.value}</span>
+            <span className="dashboard-nutrition-sep">/</span>
+            <span className="dashboard-nutrition-target">{nutrition.protein.target}</span>
+            <span className="dashboard-nutrition-unit">{nutrition.labels.gram}</span>
+          </div>
+        </div>
+        <div className="dashboard-nutrition-foot">{nutrition.labels.meals}</div>
+      </div>
+    </div>
+  );
+}
+
 function TrainingMaxes({ title, items }) {
   return (
     <>
@@ -520,7 +578,7 @@ function TrainingMaxes({ title, items }) {
                 </div>
                 <div className="label">
                   {item.label}
-                  {item.stalled ? ' ⚠️' : ''}
+                  {item.stalled ? <span className="tm-stalled-badge">STALL</span> : null}
                 </div>
                 {item.delta ? <div className="tm-delta-badge">{item.delta}</div> : null}
               </div>
@@ -546,7 +604,7 @@ function DashboardIsland() {
   return (
     <>
       <div className="dashboard-hero dashboard-animate dashboard-delay-1">
-        <div className="card dashboard-card dashboard-hero-card">
+        <div className={`card dashboard-card dashboard-hero-card is-${snapshot.hero.tone || 'rest'}`}>
           <div className="dashboard-card-body dashboard-hero-body">
             <div className="dashboard-hero-copy">
               <div className="dashboard-hero-kicker">{snapshot.hero.kicker}</div>
@@ -575,9 +633,7 @@ function DashboardIsland() {
 
       <div className="dashboard-section dashboard-animate dashboard-delay-3">
         <div className="dashboard-section-label">{snapshot.labels.todayPlan}</div>
-        <div className="card dashboard-card" id="todays-plan-card">
-          <PlanCard plan={snapshot.plan} />
-        </div>
+        <PlanCard plan={snapshot.plan} />
       </div>
 
       <div className="dashboard-section dashboard-section-recovery dashboard-animate dashboard-delay-4">
@@ -585,7 +641,14 @@ function DashboardIsland() {
         <RecoveryCard recovery={snapshot.recovery} />
       </div>
 
-      <div className="dashboard-section dashboard-section-maxes dashboard-animate dashboard-delay-5">
+      {snapshot.nutrition ? (
+        <div className="dashboard-section dashboard-section-nutrition dashboard-animate dashboard-delay-5">
+          <div className="dashboard-section-label">{snapshot.nutrition.labels.title}</div>
+          <NutritionStatus nutrition={snapshot.nutrition} />
+        </div>
+      ) : null}
+
+      <div className="dashboard-section dashboard-section-maxes dashboard-animate dashboard-delay-6">
         <TrainingMaxes
           title={snapshot.trainingMaxesTitle || snapshot.labels.maxes}
           items={snapshot.trainingMaxes}
