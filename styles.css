@@ -3160,8 +3160,70 @@ select optgroup {
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.02)
+    ),
     var(--surface);
+}
+.workout-setup-summary {
+  display: grid;
+  gap: 6px;
+  padding: 12px 13px;
+  border-radius: 14px;
+  border: 1px solid rgba(74, 143, 232, 0.18);
+  background:
+    linear-gradient(180deg, rgba(74, 143, 232, 0.12), rgba(74, 143, 232, 0.03)),
+    rgba(255, 255, 255, 0.02);
+}
+.workout-setup-summary.is-recommendation {
+  border-color: rgba(74, 143, 232, 0.24);
+}
+.workout-setup-summary.is-caution {
+  border-color: rgba(245, 130, 31, 0.22);
+  background:
+    linear-gradient(180deg, rgba(245, 130, 31, 0.12), rgba(245, 130, 31, 0.03)),
+    rgba(255, 255, 255, 0.02);
+}
+.workout-setup-summary-kicker {
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 225, 179, 0.72);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+}
+.workout-setup-summary-title {
+  font-size: 17px;
+  line-height: 1.05;
+  color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+}
+.workout-setup-summary-copy {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.workout-setup-summary-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(255, 241, 221, 0.82);
+}
+.workout-setup-summary-context-label {
+  font-weight: 700;
+  color: rgba(255, 225, 179, 0.92);
+}
+.workout-setup-summary-context-timing {
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 241, 221, 0.66);
 }
 .workout-setup-advanced-wrap {
   display: grid;
@@ -3864,72 +3926,127 @@ select optgroup {
   color: var(--text);
 }
 /* ── Session character badge ──────────────────────────── */
-.session-character-row{padding:0;margin-top:14px;margin-bottom:2px}
-.session-character-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--muted);animation:pageSectionFadeUp .24s ease both;animation-delay:.06s}
-.session-character-icon{font-size:14px;line-height:1}
-.session-character-badge-heavy{color:var(--orange);border-color:rgba(245,130,31,.25);background:rgba(245,130,31,.08)}
-.session-character-badge-volume{color:var(--blue);border-color:rgba(74,143,232,.25);background:rgba(74,143,232,.08)}
-.session-character-badge-deload{color:var(--green);border-color:rgba(76,175,121,.25);background:rgba(76,175,121,.08)}
-.session-character-badge-amrap{color:var(--gold);border-color:rgba(245,200,66,.25);background:rgba(245,200,66,.08)}
-.session-character-badge-test{color:var(--purple);border-color:rgba(139,123,214,.25);background:rgba(139,123,214,.08)}
-.session-character-badge-normal{color:var(--muted)}
+.session-character-row {
+  padding: 0;
+  margin-top: 14px;
+  margin-bottom: 2px;
+}
+.session-character-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  animation: pageSectionFadeUp 0.24s ease both;
+  animation-delay: 0.06s;
+}
+.session-character-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.session-character-badge-heavy {
+  color: var(--orange);
+  border-color: rgba(245, 130, 31, 0.25);
+  background: rgba(245, 130, 31, 0.08);
+}
+.session-character-badge-volume {
+  color: var(--blue);
+  border-color: rgba(74, 143, 232, 0.25);
+  background: rgba(74, 143, 232, 0.08);
+}
+.session-character-badge-deload {
+  color: var(--green);
+  border-color: rgba(76, 175, 121, 0.25);
+  background: rgba(76, 175, 121, 0.08);
+}
+.session-character-badge-amrap {
+  color: var(--gold);
+  border-color: rgba(245, 200, 66, 0.25);
+  background: rgba(245, 200, 66, 0.08);
+}
+.session-character-badge-test {
+  color: var(--purple);
+  border-color: rgba(139, 123, 214, 0.25);
+  background: rgba(139, 123, 214, 0.08);
+}
+.session-character-badge-normal {
+  color: var(--muted);
+}
 
 /* ── Pre-session coaching note ────────────────────────── */
-.pre-session-note{padding:6px 2px 0;font-size:13px;line-height:1.5;color:var(--muted);font-style:italic;animation:pageSectionFadeUp .24s ease both;animation-delay:.08s}
-.energy-assessment{
-  padding:14px 0 4px;
-  animation:pageSectionFadeUp .24s ease both;
-  animation-delay:.1s;
+.pre-session-note {
+  padding: 6px 2px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  font-style: italic;
+  animation: pageSectionFadeUp 0.24s ease both;
+  animation-delay: 0.08s;
 }
-.energy-assessment.is-embedded{
-  padding:0;
-  animation:none;
+.energy-assessment {
+  padding: 14px 0 4px;
+  animation: pageSectionFadeUp 0.24s ease both;
+  animation-delay: 0.1s;
 }
-.energy-assessment-label{
-  font-family:'Barlow Condensed',sans-serif;
-  font-size:11px;
-  font-weight:700;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  color:var(--muted);
-  margin-bottom:10px;
+.energy-assessment.is-embedded {
+  padding: 0;
+  animation: none;
 }
-.energy-assessment-options{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:8px;
+.energy-assessment-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 10px;
 }
-.energy-assessment-btn{
-  min-height:48px;
-  border-radius:14px;
-  border:1.5px solid var(--border);
-  background:var(--surface2);
-  color:var(--text);
-  font-size:13px;
-  font-weight:600;
-  transition:all .15s ease;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:8px 6px;
+.energy-assessment-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
-.energy-assessment-btn:active{transform:scale(.97)}
-.energy-assessment-btn-caution.active{
-  border-color:rgba(245,130,31,.4);
-  background:rgba(245,130,31,.1);
-  color:var(--orange);
+.energy-assessment-btn {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 6px;
 }
-.energy-assessment-btn-neutral.active{
-  border-color:rgba(74,143,232,.35);
-  background:rgba(74,143,232,.08);
-  color:var(--blue);
+.energy-assessment-btn:active {
+  transform: scale(0.97);
 }
-.energy-assessment-btn-positive.active{
-  border-color:rgba(76,175,121,.4);
-  background:rgba(76,175,121,.1);
-  color:var(--green);
+.energy-assessment-btn-caution.active {
+  border-color: rgba(245, 130, 31, 0.4);
+  background: rgba(245, 130, 31, 0.1);
+  color: var(--orange);
+}
+.energy-assessment-btn-neutral.active {
+  border-color: rgba(74, 143, 232, 0.35);
+  background: rgba(74, 143, 232, 0.08);
+  color: var(--blue);
+}
+.energy-assessment-btn-positive.active {
+  border-color: rgba(76, 175, 121, 0.4);
+  background: rgba(76, 175, 121, 0.1);
+  color: var(--green);
 }
 .program-day-badge {
   display: inline-flex;
@@ -4020,6 +4137,35 @@ select optgroup {
 }
 .workout-session-card-body {
   padding: 0;
+}
+.workout-session-brief {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px 15px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.015)
+    ),
+    rgba(10, 11, 14, 0.58);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.workout-session-brief-copy {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  font-weight: 700;
+}
+.workout-session-brief-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.workout-session-brief-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .workout-session-row {
   display: grid;
@@ -4973,7 +5119,11 @@ select optgroup {
   padding: 10px 12px 12px;
   border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.015)
+    ),
     rgba(17, 17, 22, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -5293,7 +5443,9 @@ select optgroup {
   max-height: 40px;
   opacity: 1;
   overflow: hidden;
-  transition: max-height 0.25s ease, opacity 0.2s ease;
+  transition:
+    max-height 0.25s ease,
+    opacity 0.2s ease;
 }
 .heatmap-wrap.open .heatmap-inline-stats {
   max-height: 0;
@@ -5306,7 +5458,9 @@ select optgroup {
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
-  transition: max-height 0.25s ease, opacity 0.2s ease 0.05s;
+  transition:
+    max-height 0.25s ease,
+    opacity 0.2s ease 0.05s;
 }
 .heatmap-wrap.open .heatmap-title-row .heatmap-legend {
   max-height: 30px;
@@ -7890,7 +8044,9 @@ body.login-active::before {
   font-family: 'Barlow Condensed', sans-serif;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 .dashboard-nutrition-log-btn:hover,
 .dashboard-nutrition-log-btn:focus-visible {
@@ -8430,7 +8586,11 @@ body.login-active::before {
 }
 .stats-milestones-card {
   background:
-    radial-gradient(circle at top right, rgba(245, 130, 31, 0.08), transparent 42%),
+    radial-gradient(
+      circle at top right,
+      rgba(245, 130, 31, 0.08),
+      transparent 42%
+    ),
     var(--surface);
 }
 .stats-milestones-grid {
@@ -9017,7 +9177,6 @@ body.login-active::before {
   }
 }
 
-
 /* -- Input bar -- */
 .nutrition-input-bar {
   display: flex;
@@ -9138,9 +9297,15 @@ body.login-active::before {
   font-size: 14px;
   font-weight: 700;
 }
-.nc-today-macro.nc-macro-pro strong { color: var(--green); }
-.nc-today-macro.nc-macro-carb strong { color: var(--gold); }
-.nc-today-macro.nc-macro-fat strong { color: var(--muted); }
+.nc-today-macro.nc-macro-pro strong {
+  color: var(--green);
+}
+.nc-today-macro.nc-macro-carb strong {
+  color: var(--gold);
+}
+.nc-today-macro.nc-macro-fat strong {
+  color: var(--muted);
+}
 
 /* ── Body settings tab ──────────────────────────────────────────────────── */
 .content.nutrition-active {
@@ -9480,7 +9645,8 @@ body.login-active::before {
 .content.nutrition-active .nutrition-action-card:active {
   transform: scale(0.96);
 }
-.content.nutrition-active .nutrition-prompt-chip:not(.nutrition-action-card):hover {
+.content.nutrition-active
+  .nutrition-prompt-chip:not(.nutrition-action-card):hover {
   border-color: rgba(255, 181, 94, 0.3);
   background:
     linear-gradient(
@@ -9491,7 +9657,9 @@ body.login-active::before {
     rgba(18, 21, 27, 0.98);
   box-shadow: 0 14px 24px rgba(0, 0, 0, 0.18);
 }
-.content.nutrition-active .nutrition-prompt-chip:not(.nutrition-action-card) svg {
+.content.nutrition-active
+  .nutrition-prompt-chip:not(.nutrition-action-card)
+  svg {
   width: 15px;
   height: 15px;
 }
@@ -9708,7 +9876,11 @@ body.login-active::before {
   right: 0;
   padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(255, 255, 255, 0.02)
+    ),
     rgba(14, 17, 24, 0.98);
   border-top: 1px solid rgba(255, 181, 94, 0.2);
   border-radius: 24px 24px 0 0;
@@ -9766,7 +9938,9 @@ body.login-active::before {
   line-height: 1.45;
   resize: none;
   outline: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .nc-correction-input::placeholder {
   color: rgba(255, 220, 162, 0.32);

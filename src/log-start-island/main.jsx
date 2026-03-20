@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const LOG_START_EVENT =
-  window.__IRONFORGE_LOG_START_ISLAND_EVENT__ ||
-  'ironforge:log-start-updated';
+  window.__IRONFORGE_LOG_START_ISLAND_EVENT__ || 'ironforge:log-start-updated';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
 
 const initialSnapshot = {
@@ -38,36 +37,18 @@ function getSnapshot() {
   return initialSnapshot;
 }
 
-function DecisionCard({ card }) {
-  if (!card) return null;
-  return (
-    <div className="workout-today-section">
-      <div className="workout-today-section-label">{card.kicker}</div>
-      <div className="workout-decision-card workout-decision-card-summary">
-        <div className="workout-decision-kicker">{card.kicker}</div>
-        <div className="workout-decision-title">{card.title}</div>
-        <div className="workout-decision-copy">{card.copy}</div>
-        {card.reasons?.length ? (
-          <div className="workout-decision-reasons">
-            {card.reasons.map((reason) => (
-              <div className="workout-decision-chip" key={reason}>
-                {reason}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function PreviewCard({ preview }) {
+function PreviewCard({ preview, context }) {
   if (!preview) return null;
+  const lead = context?.focusCopy || '';
+  const note = context?.note || '';
+  const metaTags = context?.tags || [];
   return (
     <div className="workout-today-section">
       <div className="workout-session-card">
         <div className="workout-session-card-head">
-          <div className="workout-session-card-title">{preview.headerTitle}</div>
+          <div className="workout-session-card-title">
+            {preview.headerTitle}
+          </div>
           <div className="workout-session-card-chips">
             {preview.chips.map((chip) => (
               <span className="workout-session-chip" key={chip}>
@@ -77,6 +58,28 @@ function PreviewCard({ preview }) {
           </div>
         </div>
         <div className="workout-session-card-body">
+          {lead || note || metaTags.length ? (
+            <div className="workout-session-brief">
+              {lead ? (
+                <div className="workout-session-brief-copy">{lead}</div>
+              ) : null}
+              {note && note !== lead ? (
+                <div className="workout-session-brief-note">{note}</div>
+              ) : null}
+              {metaTags.length ? (
+                <div className="workout-session-brief-tags">
+                  {metaTags.map((tag) => (
+                    <span
+                      className={`workout-today-tag is-${tag.level}`}
+                      key={`${tag.name}-${tag.level}`}
+                    >
+                      {tag.name} {tag.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {preview.rows.length ? (
             preview.rows.map((row) => (
               <div className="workout-session-row" key={row.id}>
@@ -84,10 +87,14 @@ function PreviewCard({ preview }) {
                 <div className="workout-session-row-main">{row.name}</div>
                 <div className="workout-session-row-meta">
                   {row.pattern ? (
-                    <div className="workout-session-row-pattern">{row.pattern}</div>
+                    <div className="workout-session-row-pattern">
+                      {row.pattern}
+                    </div>
                   ) : null}
                   {row.weight ? (
-                    <div className="workout-session-row-weight">{row.weight}</div>
+                    <div className="workout-session-row-weight">
+                      {row.weight}
+                    </div>
                   ) : null}
                 </div>
                 <div className="workout-session-row-chevron" aria-hidden="true">
@@ -104,51 +111,22 @@ function PreviewCard({ preview }) {
   );
 }
 
-function FocusCard({ panel }) {
-  if (!panel) return null;
-  return (
-    <div className="workout-today-section">
-      <div className="workout-today-section-label">{panel.kicker}</div>
-      <div className="workout-today-card">
-        <div className="workout-today-copy">{panel.copy}</div>
-        {panel.sub ? <div className="workout-today-sub">{panel.sub}</div> : null}
-        {panel.tags?.length ? (
-          <div className="workout-today-tags">
-            {panel.tags.map((tag) => (
-              <span className={`workout-today-tag is-${tag.level}`} key={`${tag.name}-${tag.level}`}>
-                {tag.name} {tag.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function WarningCard({ card }) {
-  if (!card) return null;
-  return (
-    <div className="workout-today-section">
-      <div className="workout-today-section-label">{card.kicker}</div>
-      <div className={`workout-warning-card${card.caution ? ' is-caution' : ''}`}>
-        <div className="workout-warning-title">{card.title}</div>
-        <div className="workout-warning-copy">{card.copy}</div>
-      </div>
-    </div>
-  );
-}
-
 function SportReadiness({ sportReadiness, embedded = false }) {
   if (!sportReadiness) return null;
   return (
     <div className={`sport-readiness-inline${embedded ? ' is-embedded' : ''}`}>
       <div className="sport-readiness-inline-header">
-        <div className="sport-readiness-inline-title">{sportReadiness.title}</div>
-        <div className="sport-readiness-inline-sub">{sportReadiness.subtitle}</div>
+        <div className="sport-readiness-inline-title">
+          {sportReadiness.title}
+        </div>
+        <div className="sport-readiness-inline-sub">
+          {sportReadiness.subtitle}
+        </div>
       </div>
       <div className="sport-readiness-step">
-        <div className="sport-readiness-step-label">{sportReadiness.levelTitle}</div>
+        <div className="sport-readiness-step-label">
+          {sportReadiness.levelTitle}
+        </div>
         <div className="sport-readiness-inline-grid sport-readiness-inline-grid-level">
           {sportReadiness.levels.map((option) => (
             <button
@@ -159,7 +137,9 @@ function SportReadiness({ sportReadiness, embedded = false }) {
               data-sport-check-kind="level"
               data-sport-check-option={option.value}
               key={option.value}
-              onClick={() => window.setPendingSportReadinessLevel?.(option.value)}
+              onClick={() =>
+                window.setPendingSportReadinessLevel?.(option.value)
+              }
             >
               {option.label}
             </button>
@@ -168,7 +148,9 @@ function SportReadiness({ sportReadiness, embedded = false }) {
       </div>
       {sportReadiness.showTimingStep ? (
         <div className="sport-readiness-step">
-          <div className="sport-readiness-step-label">{sportReadiness.timingTitle}</div>
+          <div className="sport-readiness-step-label">
+            {sportReadiness.timingTitle}
+          </div>
           <div className="sport-readiness-inline-grid sport-readiness-inline-grid-timing">
             {sportReadiness.timings.map((option) => (
               <button
@@ -179,39 +161,23 @@ function SportReadiness({ sportReadiness, embedded = false }) {
                 data-sport-check-kind="timing"
                 data-sport-check-option={option.value}
                 key={option.value}
-                onClick={() => window.setPendingSportReadinessTiming?.(option.value)}
+                onClick={() =>
+                  window.setPendingSportReadinessTiming?.(option.value)
+                }
               >
                 {option.label}
               </button>
             ))}
           </div>
           {sportReadiness.hint ? (
-            <div className="sport-readiness-inline-hint">{sportReadiness.hint}</div>
+            <div className="sport-readiness-inline-hint">
+              {sportReadiness.hint}
+            </div>
           ) : null}
         </div>
       ) : null}
     </div>
   );
-}
-
-function SessionCharacterBadge({ character }) {
-  if (!character) return null;
-  const label = character.labelKey && window.I18N?.t
-    ? window.I18N.t(character.labelKey, character.labelParams, character.labelFallback)
-    : character.labelFallback;
-  return (
-    <div className="session-character-row">
-      <span className={`session-character-badge session-character-badge-${character.tone}`}>
-        <span className="session-character-icon">{character.icon}</span>
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function PreSessionNote({ note }) {
-  if (!note) return null;
-  return <div className="pre-session-note">{note}</div>;
 }
 
 function EnergyAssessment({ assessment }) {
@@ -237,7 +203,32 @@ function EnergyAssessment({ assessment }) {
   );
 }
 
-function SessionSetupCard({ assessment, sportReadiness, decisionCard }) {
+function getSportLoadDecisionContext(sportReadiness, decisionCard) {
+  if (!sportReadiness || !decisionCard?.reasons?.length) return null;
+  const sportLoadLabel =
+    window.I18N?.t?.('training.reason.sport_load.label', null, 'Sport load') ||
+    'Sport load';
+  if (!decisionCard.reasons.includes(sportLoadLabel)) return null;
+
+  const activeLevel = sportReadiness.levels?.find(
+    (option) => option.active && option.value !== 'none'
+  );
+  if (!activeLevel) return null;
+
+  const activeTiming = sportReadiness.timings?.find((option) => option.active);
+  return {
+    label: sportLoadLabel,
+    value: activeLevel.label,
+    timing: activeTiming?.label || '',
+  };
+}
+
+function SessionSetupCard({
+  assessment,
+  sportReadiness,
+  decisionCard,
+  warningCard,
+}) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const activeMode = decisionCard?.options?.find((option) => option.active);
   const setupKicker =
@@ -256,12 +247,71 @@ function SessionSetupCard({ assessment, sportReadiness, decisionCard }) {
       'Use this only if you want to override the usual recommendation.'
     ) || 'Use this only if you want to override the usual recommendation.';
 
-  if (!assessment && !sportReadiness && !decisionCard?.options?.length) return null;
+  if (
+    !assessment &&
+    !sportReadiness &&
+    !decisionCard?.options?.length &&
+    !warningCard
+  ) {
+    return null;
+  }
+
+  const summary = decisionCard
+    ? {
+        kicker: decisionCard.kicker,
+        title: decisionCard.title,
+        copy: decisionCard.copy,
+        reasons: decisionCard.reasons,
+        tone: 'is-recommendation',
+      }
+    : warningCard
+      ? {
+          kicker: warningCard.kicker,
+          title: warningCard.title,
+          copy: warningCard.copy,
+          reasons: [],
+          tone: warningCard.caution ? 'is-caution' : '',
+        }
+      : null;
+  const sportLoadContext = getSportLoadDecisionContext(
+    sportReadiness,
+    decisionCard
+  );
 
   return (
     <div className="workout-today-section">
       <div className="workout-today-section-label">{setupKicker}</div>
       <div className="workout-setup-card">
+        {summary ? (
+          <div
+            className={`workout-setup-summary${summary.tone ? ` ${summary.tone}` : ''}`}
+          >
+            <div className="workout-setup-summary-title">{summary.title}</div>
+            <div className="workout-setup-summary-copy">{summary.copy}</div>
+            {sportLoadContext ? (
+              <div className="workout-setup-summary-context">
+                <span className="workout-setup-summary-context-label">
+                  {sportLoadContext.label}:
+                </span>
+                <span>{sportLoadContext.value}</span>
+                {sportLoadContext.timing ? (
+                  <span className="workout-setup-summary-context-timing">
+                    {sportLoadContext.timing}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {summary.reasons?.length ? (
+              <div className="workout-decision-reasons">
+                {summary.reasons.map((reason) => (
+                  <div className="workout-decision-chip" key={reason}>
+                    {reason}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {assessment ? <EnergyAssessment assessment={assessment} /> : null}
         {sportReadiness ? (
           <SportReadiness sportReadiness={sportReadiness} embedded />
@@ -277,8 +327,11 @@ function SessionSetupCard({ assessment, sportReadiness, decisionCard }) {
               aria-expanded={advancedOpen ? 'true' : 'false'}
             >
               <span>{advancedLabel}</span>
-              <span className="workout-setup-advanced-chevron" aria-hidden="true">
-                {advancedOpen ? '−' : '+'}
+              <span
+                className="workout-setup-advanced-chevron"
+                aria-hidden="true"
+              >
+                {advancedOpen ? '-' : '+'}
               </span>
             </button>
             <div className="workout-setup-advanced-hint">{advancedHint}</div>
@@ -293,8 +346,12 @@ function SessionSetupCard({ assessment, sportReadiness, decisionCard }) {
                     key={option.value}
                     onClick={() => window.setPendingSessionMode?.(option.value)}
                   >
-                    <div className="workout-decision-option-title">{option.title}</div>
-                    <div className="workout-decision-option-copy">{option.copy}</div>
+                    <div className="workout-decision-option-title">
+                      {option.title}
+                    </div>
+                    <div className="workout-decision-option-copy">
+                      {option.copy}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -318,7 +375,11 @@ function LogStartIsland() {
       style={{ display: snapshot.values.visible ? '' : 'none' }}
     >
       <div className="quick-log-row">
-        <button className="quick-log-card ql-sport" type="button" onClick={() => window.quickLogSport?.()}>
+        <button
+          className="quick-log-card ql-sport"
+          type="button"
+          onClick={() => window.quickLogSport?.()}
+        >
           <div className="ql-icon">{snapshot.values.quickLog.icon}</div>
           <div>
             <div className="ql-title">{snapshot.values.quickLog.title}</div>
@@ -333,7 +394,12 @@ function LogStartIsland() {
 
       <div className="workout-start-shell">
         <div id="program-week-display" hidden />
-        <input type="hidden" id="program-day-select" value={snapshot.values.selectedOption} readOnly />
+        <input
+          type="hidden"
+          id="program-day-select"
+          value={snapshot.values.selectedOption}
+          readOnly
+        />
         <div id="program-day-options" className="program-day-options">
           {snapshot.values.options.map((option) => (
             <button
@@ -344,8 +410,12 @@ function LogStartIsland() {
               key={option.value}
               onClick={() => window.setProgramDayOption?.(option.value)}
             >
-              <div className="program-day-option-day">{snapshot.labels.day}</div>
-              <div className="program-day-option-number">{option.dayNumber}</div>
+              <div className="program-day-option-day">
+                {snapshot.labels.day}
+              </div>
+              <div className="program-day-option-number">
+                {option.dayNumber}
+              </div>
               <div className="program-day-option-status">
                 {option.statusIcon ? (
                   <span className="program-day-option-status-icon">
@@ -357,32 +427,30 @@ function LogStartIsland() {
             </button>
           ))}
         </div>
-        <SessionCharacterBadge character={snapshot.values.sessionCharacter} />
-        <PreSessionNote note={snapshot.values.preSessionNote} />
-        <div id="program-warning-panel">
-          <DecisionCard card={snapshot.values.decisionCard} />
-          <WarningCard
-            card={
-              snapshot.values.warningCard
-                ? {
-                    ...snapshot.values.warningCard,
-                    kicker: snapshot.labels.warningTitle,
-                  }
-                : null
-            }
-          />
-        </div>
-        <div id="program-session-preview">
-          <PreviewCard preview={snapshot.values.preview} />
-        </div>
-        <div id="program-today-panel">
-          <FocusCard panel={snapshot.values.focusPanel} />
-        </div>
         <SessionSetupCard
           assessment={snapshot.values.energyAssessment}
           sportReadiness={snapshot.values.sportReadiness}
           decisionCard={snapshot.values.decisionCard}
+          warningCard={
+            snapshot.values.warningCard
+              ? {
+                  ...snapshot.values.warningCard,
+                  kicker: snapshot.labels.warningTitle,
+                }
+              : null
+          }
         />
+        <div id="program-session-preview">
+          <PreviewCard
+            preview={snapshot.values.preview}
+            context={{
+              focusCopy: snapshot.values.focusPanel?.copy,
+              note: snapshot.values.preSessionNote,
+              tags: snapshot.values.focusPanel?.tags || [],
+            }}
+          />
+        </div>
+        <div id="program-warning-panel" hidden />
         <div className="workout-start-footer">
           <button
             className="btn btn-primary cta-btn workout-start-cta"

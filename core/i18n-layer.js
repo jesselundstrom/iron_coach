@@ -955,7 +955,7 @@ function daysSince(dateStr) {
         'Sport check-in is enabled. You will be asked about leg-heavy sport before the workout starts.',
       'workout.sport_check.inline_title': 'Sport load check-in',
       'workout.sport_check.inline_sub':
-        'Use sport load around today to guide the session recommendation.',
+        'Tell the app the sport load around today so the session recommendation can account for it.',
       'workout.sport_check.level_title':
         'How much sport load are you working around?',
       'workout.sport_check.timing_title': 'When is it?',
@@ -2534,7 +2534,7 @@ function daysSince(dateStr) {
         'Lajikuorman check-in on käytössä. Sinulta kysytään jaloille raskaasta lajista ennen treenin aloitusta.',
       'workout.sport_check.inline_title': 'Lajikuorman check-in',
       'workout.sport_check.inline_sub':
-        'Käytä tämän päivän ympärillä olevaa lajikuormaa treenin suosittelun ohjaamiseen.',
+        'Kerro päivän lajikuorma, niin treenisuositus osaa huomioida sen.',
       'workout.sport_check.level_title': 'Kuinka paljon lajikuormaa on mukana?',
       'workout.sport_check.timing_title': 'Milloin se on?',
       'workout.sport_check.today_hint':
