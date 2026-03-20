@@ -16,7 +16,7 @@ test('dashboard island renders from the legacy bridge and removes the fallback s
         type: 'forge',
         programDayNum: 1,
         programMeta: { week: 2 },
-        programLabel: 'Forge · Day 1',
+        programLabel: 'Forge Day 1',
         duration: 1800,
         rpe: 7,
         exercises: [{
@@ -55,5 +55,86 @@ test('dashboard island keeps week strip detail toggling working', async ({ page 
   await expect(page.locator('#day-detail-panel')).toBeVisible();
   await expect(page.locator('#day-detail-panel')).toContainText(
     /päivä|treeni|sport|no session logged/i
+  );
+});
+
+test('dashboard coach card shows a rotating rest-day tip when the week is complete', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    weekStart.setHours(12, 0, 0, 0);
+
+    const pastDates = [];
+    for (let offset = 0; offset < 7; offset += 1) {
+      const candidate = new Date(weekStart);
+      candidate.setDate(weekStart.getDate() + offset);
+      candidate.setHours(12, 0, 0, 0);
+      if (candidate.getTime() < today.getTime()) pastDates.push(candidate);
+    }
+
+    const completedCount = pastDates.length ? Math.min(3, pastDates.length) : 1;
+
+    window.eval(`
+      profile.activeProgram = 'forge';
+      profile.preferences = { ...(profile.preferences || {}), trainingDaysPerWeek: ${completedCount} };
+      profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(forgeState)} };
+      workouts = [];
+    `);
+
+    const seededWorkouts = pastDates.slice(0, completedCount).map((date, index) => ({
+      id: 400 + index,
+      date: date.toISOString(),
+      program: 'forge',
+      type: 'forge',
+      programDayNum: index + 1,
+      programMeta: { week: 1 },
+      programLabel: `Forge Day ${index + 1}`,
+      duration: 1800,
+      rpe: 7,
+      exercises: [
+        {
+          name: 'Bench Press',
+          sets: [{ weight: 80 + index * 2.5, reps: 5, done: true }],
+        },
+      ],
+    }));
+
+    if (!pastDates.length) {
+      window.eval(`
+        const __originalGetTodayTrainingDecision = window.getTodayTrainingDecision;
+        window.getTodayTrainingDecision = function patchedRestDecision(context) {
+          const base = typeof __originalGetTodayTrainingDecision === 'function'
+            ? (__originalGetTodayTrainingDecision(context) || {})
+            : {};
+          return {
+            ...base,
+            action: 'rest',
+            reasonCodes: ['week_complete'],
+            restrictionFlags: base.restrictionFlags || [],
+            timeBudgetMinutes: base.timeBudgetMinutes || 60
+          };
+        };
+      `);
+    }
+
+    window.eval(`
+      workouts = ${JSON.stringify(seededWorkouts)};
+      updateDashboard();
+      showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
+    `);
+  });
+
+  await expect(page.locator('.dashboard-plan-card-head-coach')).toContainText(
+    /Recovery|Palautuminen/i
+  );
+  await expect(page.locator('.dashboard-plan-coach-copy')).not.toContainText(
+    /Today, prioritize crisp top sets|Tämän päivän päätyö/
   );
 });

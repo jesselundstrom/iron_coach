@@ -624,6 +624,43 @@ function getDashboardCoachCardContent(focusLine,decisionSummary,coachCommentary,
   };
 }
 
+const REST_DAY_TIP_ITEMS=[
+  {key:'rest_day.tip.1',category:'sleep',fallback:'Protect tonight\'s sleep and let recovery lead.'},
+  {key:'rest_day.tip.2',category:'sleep',fallback:'A steady bedtime makes tomorrow feel easier.'},
+  {key:'rest_day.tip.3',category:'sleep',fallback:'Trade late scrolling for a quieter evening.'},
+  {key:'rest_day.tip.4',category:'sleep',fallback:'Good recovery is often just food, calm, and sleep.'},
+  {key:'rest_day.tip.5',category:'hydration',fallback:'Start the day with water and stay ahead of thirst.'},
+  {key:'rest_day.tip.6',category:'hydration',fallback:'Sip through the day instead of catching up at night.'},
+  {key:'rest_day.tip.7',category:'hydration',fallback:'After a hard session, extra fluids help more than you think.'},
+  {key:'rest_day.tip.8',category:'hydration',fallback:'Keep a bottle nearby and make hydration automatic.'},
+  {key:'rest_day.tip.9',category:'mobility',fallback:'Five easy minutes of mobility is enough today.'},
+  {key:'rest_day.tip.10',category:'mobility',fallback:'Move gently and finish feeling better than you started.'},
+  {key:'rest_day.tip.11',category:'mobility',fallback:'Pick one tight area and give it focused attention.'},
+  {key:'rest_day.tip.12',category:'mobility',fallback:'Use long exhales to relax into each position.'},
+  {key:'rest_day.tip.13',category:'active_recovery',fallback:'A short walk is plenty for active recovery.'},
+  {key:'rest_day.tip.14',category:'active_recovery',fallback:'Light movement usually beats doing nothing.'},
+  {key:'rest_day.tip.15',category:'active_recovery',fallback:'Keep today easy enough that energy comes back.'},
+  {key:'rest_day.tip.16',category:'active_recovery',fallback:'Recovery work should feel almost too easy.'},
+  {key:'rest_day.tip.17',category:'mental',fallback:'Rest days count. They are part of the plan.'},
+  {key:'rest_day.tip.18',category:'mental',fallback:'Use today to notice what worked this week.'},
+  {key:'rest_day.tip.19',category:'mental',fallback:'Discipline also means skipping junk fatigue.'},
+  {key:'rest_day.tip.20',category:'mental',fallback:'Progress comes from training well and recovering on purpose.'}
+];
+
+function getRestDayTip(dateLike){
+  if(!REST_DAY_TIP_ITEMS.length)return null;
+  const now=dateLike instanceof Date?dateLike:new Date();
+  const startOfYear=new Date(now.getFullYear(),0,0);
+  const dayOfYear=Math.max(1,Math.floor((now-startOfYear)/86400000));
+  const tip=REST_DAY_TIP_ITEMS[(dayOfYear-1)%REST_DAY_TIP_ITEMS.length];
+  if(!tip)return null;
+  return{
+    text:trDash(tip.key,tip.fallback),
+    category:tip.category,
+    categoryLabel:trDash(`rest_day.category.${tip.category}`,tip.category)
+  };
+}
+
 function getDashboardProgressMetric(insights){
   const summary=String(insights?.progressionSummary||'');
   const deltaMatch=summary.match(/([+-]?\d+(?:[.,]\d+)?)\s*kg/i);
@@ -1363,6 +1400,9 @@ function buildDashboardPlanStructuredSnapshot(prog,ps,fatigue){
   const bestDays=(coachingInsights?.bestDayIndexes||[]).map(getDashboardDayLabel).filter(Boolean).slice(0,2);
   const bestDaysValue=bestDays.length?bestDays.join('/'):'-';
   const coachCard=getDashboardCoachCardContent(guidance[0]||'',decisionSummary,coachCommentary,trainingDecision,todaySummary);
+  const restDayTip=!todaySummary.hasLift&&trainingDecision.action==='rest'
+    ? getRestDayTip(now)
+    : null;
   const completionMessage=getDashboardCompletionMessage(todaySummary);
   const shouldShowStart=trainingDecision.action!=='rest'&&!todaySummary.hasLift;
   const progress=getDashboardSessionProgressData(doneThisWeek,frequency,sportThisWeek,sportName);
@@ -1382,11 +1422,14 @@ function buildDashboardPlanStructuredSnapshot(prog,ps,fatigue){
     sections:[
       {
         id:'coach',
-        label:trDash('dashboard.insights.title','Valmennusnostot'),
-        head:coachCard.positive?trDash('dashboard.today_done','Päivän työ tehty'):trDash('workout.today.coach_note','Valmentajan huomio'),
+        label:trDash('dashboard.insights.title','Valmentajan huomio'),
+        head:restDayTip
+          ? trDash('rest_day.head','Recovery')
+          : (coachCard.positive?trDash('dashboard.today_done','Päivän työ tehty'):trDash('workout.today.coach_note','Valmentajan huomio')),
         positive:coachCard.positive===true,
-        copy:coachCard.copy,
-        reasonLabels:coachCard.reasonLabels||[],
+        copy:restDayTip?restDayTip.text:coachCard.copy,
+        reasonLabels:restDayTip?[]:(coachCard.reasonLabels||[]),
+        restDayTip:!!restDayTip,
         completion:completionMessage?{...completionMessage,tone:'positive'}:null
       },
       {

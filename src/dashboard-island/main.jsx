@@ -247,16 +247,21 @@ function SessionProgress({ progress }) {
 function CoachSection({ section }) {
   return (
     <section className="dashboard-plan-section dashboard-plan-section-coach">
-      <div className="dashboard-plan-section-label">{section.label}</div>
       <article className="dashboard-plan-card dashboard-plan-coach-card">
         <div className="dashboard-plan-card-head dashboard-plan-card-head-coach">
           <span
-            className={`dashboard-plan-head-dot${section.positive ? ' is-positive' : ''}`}
+            className={`dashboard-plan-head-dot${section.positive ? ' is-positive' : ''}${
+              section.restDayTip ? ' is-rest' : ''
+            }`}
             aria-hidden="true"
           />
           {section.head}
         </div>
-        <div className={`dashboard-plan-coach-copy${section.positive ? ' is-positive' : ''}`}>
+        <div
+          className={`dashboard-plan-coach-copy${section.positive ? ' is-positive' : ''}${
+            section.restDayTip ? ' is-rest-tip' : ''
+          }`}
+        >
           <RichText text={section.copy} />
         </div>
         {section.reasonLabels?.length ? (

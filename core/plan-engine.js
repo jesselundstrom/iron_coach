@@ -344,13 +344,29 @@ function getRecommendedSessionOptionForDecision(context){
   }
 }
 
+function getPlanningProgramState(program,rawState){
+  const cloned=clonePlanValue(rawState)||{};
+  if(typeof program?.migrateState==='function'){
+    try{
+      return program.migrateState(cloned)||cloned;
+    }catch(_error){}
+  }
+  if((!cloned||typeof cloned!=='object'||!Object.keys(cloned).length)&&typeof program?.getInitialState==='function'){
+    try{
+      return clonePlanValue(program.getInitialState())||cloned;
+    }catch(_error){}
+  }
+  return cloned;
+}
+
 function buildPlanningContext(input){
   const next=input||{};
   const profileLike=next.profile||profile||{};
   const scheduleLike=next.schedule||schedule||{};
   const workoutList=next.workouts||workouts||[];
   const activeProgram=next.activeProgram||((typeof getActiveProgram==='function')?getActiveProgram():null);
-  const activeProgramState=next.activeProgramState||((typeof getActiveProgramState==='function')?getActiveProgramState():{});
+  const rawActiveProgramState=next.activeProgramState||((typeof getActiveProgramState==='function')?getActiveProgramState():{});
+  const activeProgramState=getPlanningProgramState(activeProgram,rawActiveProgramState);
   const fatigue=next.fatigue||((typeof computeFatigue==='function')?computeFatigue():{overall:0,muscular:0,cns:0});
   const prefs=typeof normalizeTrainingPreferences==='function'
     ? normalizeTrainingPreferences(profileLike)
@@ -485,6 +501,230 @@ function getTodayTrainingDecision(context){
     timeBudgetMinutes:next.timeBudgetMinutes,
     restrictionFlags:[...new Set(next.restrictionFlags||[])],
     autoregulationLevel
+  };
+}
+
+function getWeekPlanDateKey(date){
+  if(!(date instanceof Date)||!Number.isFinite(date.getTime()))return '';
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function normalizeWeekPlanLabel(label){
+  return String(label||'')
+    .replace(/^[\u{1F300}-\u{1FFFF}\u2600-\u27FF]\s*/u,'')
+    .replace(/^\u2705\s*/u,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function getWeekPlanSessionLabel(program,state,optionValue,context,optionLabel){
+  let label='';
+  if(typeof program?.getSessionLabel==='function'){
+    try{
+      label=program.getSessionLabel(optionValue,state||{},context||{})||'';
+    }catch(_error){}
+  }
+  if(!label)label=optionLabel||'';
+  return normalizeWeekPlanLabel(label);
+}
+
+function getWeekPlanWorkoutLabel(workout,program,fallbackState){
+  if(!workout)return '';
+  if(typeof program?.getSessionLabel==='function'&&workout.programDayNum!=null){
+    try{
+      const stateForLabel=clonePlanValue(workout.programStateBefore||fallbackState||{})||{};
+      const label=program.getSessionLabel(workout.programDayNum,stateForLabel,{preview:true});
+      if(label)return normalizeWeekPlanLabel(label);
+    }catch(_error){}
+  }
+  return normalizeWeekPlanLabel(workout.programLabel||workout.sessionDescription||workout.name||'');
+}
+
+function pickDistributedWeekPlanIndices(candidateIndices,count){
+  const safeIndices=(candidateIndices||[]).filter(Number.isFinite);
+  const target=Math.max(0,parseInt(count,10)||0);
+  if(!safeIndices.length||!target)return[];
+  if(target>=safeIndices.length)return safeIndices.slice();
+  if(target===1)return[safeIndices[Math.floor((safeIndices.length-1)/2)]];
+  const picked=[];
+  for(let step=0;step<target;step++){
+    const rawIndex=Math.round((step*(safeIndices.length-1))/(target-1));
+    const candidate=safeIndices[rawIndex];
+    if(!picked.includes(candidate))picked.push(candidate);
+  }
+  safeIndices.forEach(index=>{
+    if(picked.length>=target)return;
+    if(!picked.includes(index))picked.push(index);
+  });
+  return picked.sort((a,b)=>a-b);
+}
+
+function getWeekPlanPreview(planningContext,workoutList,scheduleLike,programLike,programState){
+  const context=planningContext||buildPlanningContext({
+    workouts:workoutList,
+    schedule:scheduleLike,
+    activeProgram:programLike,
+    activeProgramState:programState
+  });
+  const program=programLike||context?.activeProgram||((typeof getActiveProgram==='function')?getActiveProgram():null);
+  const state=getPlanningProgramState(
+    program,
+    programState||context?.activeProgramState||((typeof getActiveProgramState==='function')?getActiveProgramState():{})
+  );
+  const scheduleData=scheduleLike||context?.schedule||schedule||{};
+  const workoutsForPreview=Array.isArray(workoutList)?workoutList:(context?.workouts||workouts||[]);
+  if(!program){
+    return{visible:false,days:[],title:'',labels:{}};
+  }
+
+  const today=new Date();
+  const weekStart=typeof getWeekStart==='function'?getWeekStart(today):new Date(today);
+  const todayIndex=((today.getDay()+6)%7);
+  const activeProgramId=typeof getCanonicalProgramId==='function'
+    ? getCanonicalProgramId(program.id||context?.activeProgramId||'')
+    : String(program.id||context?.activeProgramId||'');
+  const targetSessions=Math.max(0,parseInt(context?.effectiveFrequency,10)||parseInt(context?.sessionsDoneThisWeek,10)||0);
+  const weekDays=Array.from({length:7},(_,offset)=>{
+    const date=new Date(weekStart);
+    date.setDate(weekStart.getDate()+offset);
+    const dayDow=date.getDay();
+    const dateKey=getWeekPlanDateKey(date);
+    const logged=workoutsForPreview.filter(workout=>getWeekPlanDateKey(new Date(workout?.date))===dateKey);
+    const loggedLift=logged.find(workout=>{
+      if(!workout||isSportWorkout(workout))return false;
+      const workoutProgramId=typeof getWorkoutProgramId==='function'?getWorkoutProgramId(workout):workout?.program;
+      return workoutProgramId===activeProgramId;
+    })||null;
+    const loggedSport=logged.some(workout=>isSportWorkout(workout));
+    return{
+      date,
+      dateKey,
+      index:offset,
+      dow:dayDow,
+      isToday:offset===todayIndex,
+      isPast:offset<todayIndex,
+      isSportDay:Array.isArray(scheduleData?.sportDays)&&scheduleData.sportDays.includes(dayDow),
+      loggedLift,
+      loggedSport
+    };
+  });
+
+  const nonSportIndices=weekDays.filter(day=>!day.isSportDay).map(day=>day.index);
+  const plannedWeekIndices=pickDistributedWeekPlanIndices(nonSportIndices,targetSessions);
+  const optionEntries=typeof program.getSessionOptions==='function'
+    ? (program.getSessionOptions(state,workoutsForPreview,scheduleData)||[])
+    : [];
+  const allPlanLabels=optionEntries.map(option=>getWeekPlanSessionLabel(program,state,option.value,{preview:true},option.label));
+  while(allPlanLabels.length<plannedWeekIndices.length){
+    const count=allPlanLabels.length+1;
+    allPlanLabels.push(
+      typeof trPlan==='function'
+        ? trPlan('plan.week.day_label','Day {day}',{day:count})
+        : `Day ${count}`
+    );
+  }
+  const plannedLabelMap=new Map();
+  plannedWeekIndices.forEach((dayIndex,labelIndex)=>{
+    plannedLabelMap.set(dayIndex,allPlanLabels[labelIndex]||'');
+  });
+
+  const pendingLabels=optionEntries
+    .filter(option=>!option.done)
+    .map(option=>getWeekPlanSessionLabel(program,state,option.value,{preview:true},option.label));
+
+  const todayHasLift=!!weekDays[todayIndex]?.loggedLift;
+  const todayDecision=getTodayTrainingDecision(context);
+  const todayNeedsSession=!todayHasLift
+    &&(parseInt(context?.sessionsRemaining,10)||0)>0
+    &&pendingLabels.length>0
+    &&todayDecision.action!=='rest';
+  let pendingCursor=todayNeedsSession?1:0;
+  const futureCandidateIndices=weekDays
+    .filter(day=>day.index>todayIndex&&!day.isSportDay)
+    .map(day=>day.index);
+  const futurePlannedCount=Math.max(0,(parseInt(context?.sessionsRemaining,10)||0)-(todayNeedsSession?1:0));
+  const futurePlannedIndices=pickDistributedWeekPlanIndices(futureCandidateIndices,futurePlannedCount);
+  const futurePlannedSet=new Set(futurePlannedIndices);
+
+  const labels={
+    title:typeof trPlan==='function'?trPlan('dashboard.week_plan.title','Week Preview'): 'Week Preview',
+    train:typeof trPlan==='function'?trPlan('dashboard.week_plan.train','Train'): 'Train',
+    sport:typeof trPlan==='function'?trPlan('dashboard.week_plan.sport','Sport'): 'Sport',
+    rest:typeof trPlan==='function'?trPlan('dashboard.week_plan.rest','Rest'): 'Rest',
+    missed:typeof trPlan==='function'?trPlan('dashboard.week_plan.missed','Missed'): 'Missed',
+    done:typeof trPlan==='function'?trPlan('dashboard.week_plan.done','Done'): 'Done'
+  };
+
+  const days=weekDays.map(day=>{
+    const dayName=typeof DAY_NAMES!=='undefined'&&Array.isArray(DAY_NAMES)?(DAY_NAMES[day.dow]||''):String(day.dow);
+    const base={
+      dayIndex:day.index,
+      dayName,
+      dayNumber:day.date.getDate(),
+      slot:'rest',
+      sessionLabel:'',
+      isToday:day.isToday,
+      isPast:day.isPast
+    };
+
+    if(day.loggedLift){
+      return{
+        ...base,
+        slot:'done',
+        sessionLabel:getWeekPlanWorkoutLabel(day.loggedLift,program,state)||labels.done
+      };
+    }
+
+    if(day.isPast){
+      if(plannedLabelMap.has(day.index)){
+        return{
+          ...base,
+          slot:'missed',
+          sessionLabel:plannedLabelMap.get(day.index)||labels.missed
+        };
+      }
+      if(day.loggedSport){
+        return{...base,slot:'sport',sessionLabel:labels.sport};
+      }
+      return{...base,slot:'rest',sessionLabel:labels.rest};
+    }
+
+    if(day.isToday){
+      if(todayNeedsSession){
+        return{
+          ...base,
+          slot:'train',
+          sessionLabel:pendingLabels[0]||plannedLabelMap.get(day.index)||labels.train
+        };
+      }
+      if(day.loggedSport||todayDecision.action==='rest'&&day.isSportDay){
+        return{...base,slot:'sport',sessionLabel:labels.sport};
+      }
+      return{...base,slot:'rest',sessionLabel:labels.rest};
+    }
+
+    if(futurePlannedSet.has(day.index)){
+      const label=pendingLabels[pendingCursor]||plannedLabelMap.get(day.index)||labels.train;
+      pendingCursor++;
+      return{
+        ...base,
+        slot:'train',
+        sessionLabel:label
+      };
+    }
+
+    if(day.isSportDay){
+      return{...base,slot:'sport',sessionLabel:labels.sport};
+    }
+
+    return{...base,slot:'rest',sessionLabel:labels.rest};
+  });
+
+  return{
+    visible:true,
+    title:labels.title,
+    labels,
+    days
   };
 }
 
@@ -1464,3 +1704,5 @@ function getInitialPlanRecommendation(input){
     initialAdjustments:[...new Set(initialAdjustments)]
   };
 }
+
+window.getWeekPlanPreview=getWeekPlanPreview;

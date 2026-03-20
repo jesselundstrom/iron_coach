@@ -7064,6 +7064,10 @@ body.login-active::before {
   background: var(--green);
   box-shadow: 0 0 12px rgba(76, 175, 121, 0.3);
 }
+.dashboard-plan-head-dot.is-rest {
+  background: var(--blue);
+  box-shadow: 0 0 12px rgba(74, 143, 232, 0.3);
+}
 .dashboard-plan-coach-copy {
   padding: 18px 16px;
   font-size: 14px;
@@ -7075,6 +7079,10 @@ body.login-active::before {
   color: var(--orange);
   font-style: normal;
   font-weight: 800;
+}
+.dashboard-plan-coach-copy.is-rest-tip {
+  color: #e6ecff;
+  font-style: normal;
 }
 .dashboard-plan-coach-copy.is-positive strong {
   color: var(--green);
