@@ -140,15 +140,13 @@ function bindLegacyShellActions() {
         break;
       case 'close-name-modal':
         event.preventDefault();
-        if (typeof window.closeNameModal === 'function') window.closeNameModal();
+        if (typeof window.closeNameModal === 'function')
+          window.closeNameModal();
         break;
       case 'sport-readiness': {
         event.preventDefault();
         const readiness = target.dataset.sportReadiness || '';
-        if (
-          readiness &&
-          typeof window.selectSportReadiness === 'function'
-        ) {
+        if (readiness && typeof window.selectSportReadiness === 'function') {
           window.selectSportReadiness(readiness);
         }
         break;

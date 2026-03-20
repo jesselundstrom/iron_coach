@@ -34,18 +34,16 @@ test('settings schedule island renders from the legacy bridge and saves schedule
       sportName: 'Padel',
       sportIntensity: 'moderate',
       sportLegsHeavy: false,
-      sportDays: [1, 2, 4]
+      sportDays: [1, 2, 4],
     });
   });
 
-  const saved = await page.evaluate(() =>
-    ({
-      sportName: schedule.sportName,
-      sportIntensity: schedule.sportIntensity,
-      sportLegsHeavy: schedule.sportLegsHeavy,
-      sportDays: [...schedule.sportDays].sort((a, b) => a - b)
-    })
-  );
+  const saved = await page.evaluate(() => ({
+    sportName: schedule.sportName,
+    sportIntensity: schedule.sportIntensity,
+    sportLegsHeavy: schedule.sportLegsHeavy,
+    sportDays: [...schedule.sportDays].sort((a, b) => a - b),
+  }));
 
   expect(saved?.sportName).toBe('Padel');
   expect(saved?.sportIntensity).toBe('moderate');

@@ -21,7 +21,8 @@ function getSnapshot() {
       dataBackup: 'Data Backup',
       export: 'Export',
       import: 'Import',
-      backupHelp: 'Export saves all data as a JSON file. Import replaces all current data.',
+      backupHelp:
+        'Export saves all data as a JSON file. Import replaces all current data.',
       apiTitle: 'AI Nutrition Coach',
       apiHelp:
         'Get your API key at console.anthropic.com. It stays on this device, and nutrition requests are sent directly from this browser to Anthropic. Use a personal key and avoid shared devices.',
@@ -106,7 +107,11 @@ function SettingsAccountIsland() {
             <option value="fi">{labels.optionFi}</option>
           </select>
         </div>
-        <button className="btn btn-ghost" type="button" onClick={() => window.logout?.()}>
+        <button
+          className="btn btn-ghost"
+          type="button"
+          onClick={() => window.logout?.()}
+        >
           {labels.signOut}
         </button>
       </div>
@@ -135,7 +140,9 @@ function SettingsAccountIsland() {
             />
           </label>
         </div>
-        <div className="settings-note settings-note-tight">{labels.backupHelp}</div>
+        <div className="settings-note settings-note-tight">
+          {labels.backupHelp}
+        </div>
       </div>
 
       <div className="card">
@@ -154,7 +161,9 @@ function SettingsAccountIsland() {
           />
         </div>
         {values.hasApiKey ? (
-          <div className="settings-note settings-note-tight">{labels.apiSavedHint}</div>
+          <div className="settings-note settings-note-tight">
+            {labels.apiSavedHint}
+          </div>
         ) : null}
         <div className="settings-button-row">
           <button

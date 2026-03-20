@@ -4,8 +4,7 @@ import { t } from '../core/i18n.js';
 import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const NUTRITION_EVENT =
-  window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ ||
-  'ironforge:nutrition-updated';
+  window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ || 'ironforge:nutrition-updated';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
 
 const initialSnapshot = {
@@ -43,7 +42,6 @@ function openNutritionSettings() {
 function handleSetupSave() {
   window.saveNutritionSetupKey?.();
 }
-
 
 function handleClear() {
   window.clearNutritionHistory?.();
@@ -217,12 +215,22 @@ function ContextBanner({ banner }) {
   return (
     <div className="nutrition-context-banner">
       {banner.kind === 'personalized' ? (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
       ) : (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="16" x2="12" y2="12" />
           <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -260,7 +268,9 @@ function TodayCard({ card }) {
   return (
     <div className="nutrition-today-card">
       <div className="nc-today-header">
-        <div className="nc-today-label">{t('nutrition.today.label', 'Today')}</div>
+        <div className="nc-today-label">
+          {t('nutrition.today.label', 'Today')}
+        </div>
         <div className="nc-today-cal">
           <strong>{calorieText}</strong>
         </div>
@@ -283,7 +293,8 @@ function TodayCard({ card }) {
       ) : null}
       <div className="nc-today-macros">
         <div className="nc-today-macro nc-macro-pro">
-          <strong>{card.protein.value}g</strong> {t('nutrition.macro.protein', 'P')}
+          <strong>{card.protein.value}g</strong>{' '}
+          {t('nutrition.macro.protein', 'P')}
         </div>
         <div className="nc-today-macro nc-macro-carb">
           <strong>{card.carbs}g</strong> {t('nutrition.macro.carbs', 'C')}
@@ -299,7 +310,9 @@ function TodayCard({ card }) {
 function SetupCard() {
   return (
     <div className="nutrition-setup-card">
-      <div className="card-title">{t('nutrition.setup.title', 'Setup Required')}</div>
+      <div className="card-title">
+        {t('nutrition.setup.title', 'Setup Required')}
+      </div>
       <div className="nutrition-setup-icon">
         <svg
           viewBox="0 0 24 24"
@@ -329,10 +342,17 @@ function SetupCard() {
           spellCheck="false"
         />
       </div>
-      <button className="btn btn-primary" type="button" onClick={handleSetupSave}>
+      <button
+        className="btn btn-primary"
+        type="button"
+        onClick={handleSetupSave}
+      >
         {t('nutrition.setup.save', 'Save & Start')}
       </button>
-      <div className="nutrition-setup-desc" style={{ marginTop: 12, fontSize: 12 }}>
+      <div
+        className="nutrition-setup-desc"
+        style={{ marginTop: 12, fontSize: 12 }}
+      >
         {t(
           'nutrition.setup.help',
           'Get your API key at console.anthropic.com. Use a personal key and avoid shared devices.'
@@ -425,66 +445,74 @@ function MessageList({ snapshot }) {
 
   return [
     ...snapshot.values.messages.map((message) => {
-    if (message.kind === 'photo') {
-      return (
-        <div className="nutrition-msg-photo-tag" key={message.id}>
-          <img className="nutrition-msg-photo-thumb" src={message.imageDataUrl} alt="" />
-        </div>
-      );
-    }
-
-    if (message.kind === 'action') {
-      return (
-        <div className="nutrition-msg-action-tag" key={message.id}>
-          <span>{message.text}</span>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className={`nutrition-msg nutrition-msg-coach${
-          message.isError ? ' nutrition-msg-error' : ''
-        }`}
-        key={message.id}
-      >
-        <div className="nutrition-coach-avatar">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            width="14"
-            height="14"
-          >
-            <path d="M17 8c.7-3.4-.8-6.2-3-7.5C12.3 3 11.5 5.4 12 8" />
-            <path d="M12 8c-4 0-7 2.5-7 6 0 4.5 3 8 7 8s7-3.5 7-8c0-3.5-3-6-7-6z" />
-          </svg>
-        </div>
-        <div className="nutrition-msg-body">
-          <MacroCard macros={message.macros} />
-          <div className="nutrition-msg-text">
-            {renderFormattedText(message.text)}
-            {message.isStreaming ? <span className="nc-cursor" /> : null}
+      if (message.kind === 'photo') {
+        return (
+          <div className="nutrition-msg-photo-tag" key={message.id}>
+            <img
+              className="nutrition-msg-photo-thumb"
+              src={message.imageDataUrl}
+              alt=""
+            />
           </div>
-          {message.isError ? (
+        );
+      }
+
+      if (message.kind === 'action') {
+        return (
+          <div className="nutrition-msg-action-tag" key={message.id}>
+            <span>{message.text}</span>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          className={`nutrition-msg nutrition-msg-coach${
+            message.isError ? ' nutrition-msg-error' : ''
+          }`}
+          key={message.id}
+        >
+          <div className="nutrition-coach-avatar">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              width="14"
+              height="14"
+            >
+              <path d="M17 8c.7-3.4-.8-6.2-3-7.5C12.3 3 11.5 5.4 12 8" />
+              <path d="M12 8c-4 0-7 2.5-7 6 0 4.5 3 8 7 8s7-3.5 7-8c0-3.5-3-6-7-6z" />
+            </svg>
+          </div>
+          <div className="nutrition-msg-body">
+            <MacroCard macros={message.macros} />
             <div className="nutrition-msg-text">
-              <button className="nutrition-retry-btn" onClick={handleRetry} type="button">
-                {t('nutrition.retry', 'Try again')}
-              </button>
+              {renderFormattedText(message.text)}
+              {message.isStreaming ? <span className="nc-cursor" /> : null}
             </div>
-          ) : null}
-          <div className="nutrition-msg-time">
-            {message.timestamp}
-            {message.modelTag}
+            {message.isError ? (
+              <div className="nutrition-msg-text">
+                <button
+                  className="nutrition-retry-btn"
+                  onClick={handleRetry}
+                  type="button"
+                >
+                  {t('nutrition.retry', 'Try again')}
+                </button>
+              </div>
+            ) : null}
+            <div className="nutrition-msg-time">
+              {message.timestamp}
+              {message.modelTag}
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }),
-  snapshot.values.showCorrectionInput
-    ? <CorrectionRow key="correction-row" />
-    : null,
+      );
+    }),
+    snapshot.values.showCorrectionInput ? (
+      <CorrectionRow key="correction-row" />
+    ) : null,
   ];
 }
 
@@ -540,7 +568,8 @@ function CorrectionRow() {
       const sheet = sheetRef.current;
       if (!sheet || !viewport) return;
       // Distance the keyboard has pushed the visible bottom up.
-      const keyboardOffset = window.innerHeight - viewport.height - viewport.offsetTop;
+      const keyboardOffset =
+        window.innerHeight - viewport.height - viewport.offsetTop;
       sheet.style.transform = `translateY(-${Math.max(0, keyboardOffset)}px)`;
     }
 
@@ -577,73 +606,104 @@ function CorrectionRow() {
 
   return (
     <>
-      <button className="nc-correction-trigger" type="button" onClick={() => setOpen(true)}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <button
+        className="nc-correction-trigger"
+        type="button"
+        onClick={() => setOpen(true)}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
-        <span>{t('nutrition.correction.label', 'Correct the food analysis')}</span>
+        <span>
+          {t('nutrition.correction.label', 'Correct the food analysis')}
+        </span>
       </button>
-      {open && createPortal(
-        <div className="nc-correction-overlay">
-          <div className="nc-correction-backdrop" onClick={handleClose} />
-          <div className="nc-correction-sheet" ref={sheetRef}>
-            <div className="nc-correction-header">
-              <div className="nc-correction-label">
-                {t('nutrition.correction.label', 'Correct the food analysis')}
+      {open &&
+        createPortal(
+          <div className="nc-correction-overlay">
+            <div className="nc-correction-backdrop" onClick={handleClose} />
+            <div className="nc-correction-sheet" ref={sheetRef}>
+              <div className="nc-correction-header">
+                <div className="nc-correction-label">
+                  {t('nutrition.correction.label', 'Correct the food analysis')}
+                </div>
+                <button
+                  className="nc-correction-close"
+                  type="button"
+                  onClick={handleClose}
+                  aria-label="Cancel"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
               </div>
-              <button
-                className="nc-correction-close"
-                type="button"
-                onClick={handleClose}
-                aria-label="Cancel"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
+              <div className="nc-correction-inputs">
+                <textarea
+                  className="nc-correction-input"
+                  id="nutrition-text-input"
+                  ref={inputRef}
+                  rows={2}
+                  placeholder={t(
+                    'nutrition.correction.placeholder',
+                    'e.g. That was 2 portions, not 1...'
+                  )}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                />
+                <button
+                  className="nc-correction-send"
+                  type="button"
+                  onClick={handleSend}
+                  disabled={!text.trim()}
+                  aria-label="Send correction"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div className="nc-correction-inputs">
-              <textarea
-                className="nc-correction-input"
-                id="nutrition-text-input"
-                ref={inputRef}
-                rows={2}
-                placeholder={t('nutrition.correction.placeholder', 'e.g. That was 2 portions, not 1...')}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-              />
-              <button
-                className="nc-correction-send"
-                type="button"
-                onClick={handleSend}
-                disabled={!text.trim()}
-                aria-label="Send correction"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
 
 const ACTION_ICONS = {
   plan_today: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="nc-action-icon"
+    >
       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
       <line x1="16" y1="2" x2="16" y2="6" />
       <line x1="8" y1="2" x2="8" y2="6" />
@@ -653,7 +713,13 @@ const ACTION_ICONS = {
     </svg>
   ),
   next_meal: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="nc-action-icon"
+    >
       <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
       <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
       <line x1="6" y1="1" x2="6" y2="4" />
@@ -662,12 +728,24 @@ const ACTION_ICONS = {
     </svg>
   ),
   review_today: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="nc-action-icon"
+    >
       <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
     </svg>
   ),
   photo: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="nc-action-icon">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="nc-action-icon"
+    >
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
       <circle cx="8.5" cy="8.5" r="1.5" />
       <polyline points="21 15 16 10 5 21" />
@@ -680,10 +758,7 @@ function Composer({ snapshot }) {
 
   return (
     <div className={`nutrition-composer${hidden ? ' nc-hidden' : ''}`}>
-      <label
-        className="nc-photo-cta"
-        htmlFor="nutrition-photo-input"
-      >
+      <label className="nc-photo-cta" htmlFor="nutrition-photo-input">
         {ACTION_ICONS.photo}
         <span>{t('nutrition.photo.cta', 'Snap your meal')}</span>
         <input

@@ -169,7 +169,9 @@ test('nutrition island renders today session, guided actions, and can clear the 
     confirmOk();
   });
 
-  await expect(page.locator('#nutrition-react-root .nutrition-today-card')).toHaveCount(0);
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).toHaveCount(0);
 });
 
 test("nutrition ignores yesterday's history and starts fresh for today", async ({
@@ -322,27 +324,28 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
 
   await openNutrition(page);
   await page
-    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .locator(
+      '#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]'
+    )
     .click();
 
   await expectNutritionCoachResponse(page, 'Next move');
-  await expectNutritionCoachResponse(
-    page,
-    'Protein is on pace.'
-  );
+  await expectNutritionCoachResponse(page, 'Protein is on pace.');
   await expect(page.locator('#nutrition-react-root')).not.toContainText(
     '"display_markdown"'
   );
-  await expect(page.locator('#nutrition-react-root .nutrition-macro-card')).toContainText(
-    '640'
-  );
-  await expect(page.locator('#nutrition-react-root .nutrition-today-card')).toContainText(
-    '42g'
-  );
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-macro-card')
+  ).toContainText('640');
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).toContainText('42g');
   expect(capturedSystem).toContain('Daily coaching snapshot:');
   expect(capturedSystem).toContain('"guidance_mode":"guided"');
   expect(capturedSystem).toContain('"in_season":true');
-  expect(capturedSystem).toContain('"user_notes":"Avoid huge dinners before evening sport."');
+  expect(capturedSystem).toContain(
+    '"user_notes":"Avoid huge dinners before evening sport."'
+  );
   expect(capturedSystem).toContain('Scheduled sport today: yes');
 
   await reloadAppShell(page);
@@ -361,9 +364,9 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   await expect(page.locator('#nutrition-react-root')).not.toContainText(
     '"display_markdown"'
   );
-  await expect(page.locator('#nutrition-react-root .nutrition-today-card')).toContainText(
-    '42g'
-  );
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).toContainText('42g');
 });
 
 test('nutrition consumes post-workout session context on the first send only', async ({
@@ -410,14 +413,20 @@ test('nutrition consumes post-workout session context on the first send only', a
 
   await openNutrition(page);
   await page
-    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .locator(
+      '#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]'
+    )
     .click();
   await expectNutritionCoachResponse(page, 'Next move');
 
   await page
-    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="review_today"]')
+    .locator(
+      '#nutrition-react-root .nutrition-action-card[data-nc-action="review_today"]'
+    )
     .click();
-  await expect(page.locator('#nutrition-react-root .nutrition-msg-coach')).toHaveCount(2);
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-msg-coach')
+  ).toHaveCount(2);
 
   expect(capturedSystems[0]).toContain(
     'The user just finished a training session (duration: 60 min, 4 exercises, 12500 kg total volume, RPE: 8).'
@@ -465,28 +474,30 @@ test('nutrition records request trace metrics and token usage without changing t
   });
   await openNutrition(page);
   await page
-    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .locator(
+      '#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]'
+    )
     .click();
 
   await expectNutritionCoachResponse(page, 'Next move');
 
   const trace = (await page.evaluate(
     () =>
-      (window as Window & {
-        __IRONFORGE_NUTRITION_LAST_TRACE__?: unknown;
-      }).__IRONFORGE_NUTRITION_LAST_TRACE__
-  )) as
-    | {
-        actionId?: string | null;
-        hasImage?: boolean;
-        model?: string | null;
-        parseSource?: string;
-        success?: boolean;
-        usage?: { input_tokens?: number; output_tokens?: number };
-        stages?: Record<string, number>;
-        requestPayloadChars?: number;
-      }
-    | null;
+      (
+        window as Window & {
+          __IRONFORGE_NUTRITION_LAST_TRACE__?: unknown;
+        }
+      ).__IRONFORGE_NUTRITION_LAST_TRACE__
+  )) as {
+    actionId?: string | null;
+    hasImage?: boolean;
+    model?: string | null;
+    parseSource?: string;
+    success?: boolean;
+    usage?: { input_tokens?: number; output_tokens?: number };
+    stages?: Record<string, number>;
+    requestPayloadChars?: number;
+  } | null;
 
   expect(trace).toMatchObject({
     actionId: 'plan_today',
@@ -528,18 +539,20 @@ test('nutrition falls back to plain text when Claude returns malformed JSON and 
   });
   await openNutrition(page);
   await page
-    .locator('#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]')
+    .locator(
+      '#nutrition-react-root .nutrition-action-card[data-nc-action="plan_today"]'
+    )
     .click();
 
   await expect(page.locator('#nutrition-react-root')).toContainText(
     'Good quick meal. Add vegetables later.'
   );
-  await expect(page.locator('#nutrition-react-root .nutrition-macro-card')).toContainText(
-    '31g'
-  );
-  await expect(page.locator('#nutrition-react-root .nutrition-today-card')).toContainText(
-    '410'
-  );
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-macro-card')
+  ).toContainText('31g');
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).toContainText('410');
 });
 
 test('nutrition action card submits immediately on tap without send button', async ({
@@ -571,7 +584,10 @@ test('nutrition action card submits immediately on tap without send button', asy
   await openNutrition(page);
 
   // Tap action card directly — no send button click needed
-  await page.locator('#nutrition-react-root .nutrition-action-card').first().click();
+  await page
+    .locator('#nutrition-react-root .nutrition-action-card')
+    .first()
+    .click();
 
   await expectNutritionCoachResponse(page, 'Here is your meal plan.');
   expect(requestCount).toBe(1);
@@ -590,7 +606,8 @@ test('nutrition correction row appears inline after photo analysis and sends typ
       typeof content === 'string'
         ? content
         : Array.isArray(content)
-          ? (content.find((c: { type: string }) => c.type === 'text')?.text ?? '')
+          ? (content.find((c: { type: string }) => c.type === 'text')?.text ??
+            '')
           : '';
     await route.fulfill({
       status: 200,
@@ -638,7 +655,9 @@ test('nutrition correction row appears inline after photo analysis and sends typ
   await expect(page.locator('#nutrition-text-input')).toBeVisible();
 
   // Type the correction and send
-  await page.locator('#nutrition-text-input').fill('Actually that was 2 portions');
+  await page
+    .locator('#nutrition-text-input')
+    .fill('Actually that was 2 portions');
   await page.locator('.nc-correction-send').click();
 
   await expectNutritionCoachResponse(page, 'Updated — noted.');
@@ -683,11 +702,14 @@ test('nutrition correction input stays visible when the viewport shrinks after f
 
   await expect
     .poll(
-        () =>
-          page.evaluate(() => {
+      () =>
+        page.evaluate(() => {
           const input = document.getElementById('nutrition-text-input');
           const sheet = document.querySelector('.nc-correction-sheet');
-          if (!(input instanceof HTMLElement) || !(sheet instanceof HTMLElement)) {
+          if (
+            !(input instanceof HTMLElement) ||
+            !(sheet instanceof HTMLElement)
+          ) {
             return {
               inputVisibleInViewport: false,
               sheetVisibleInViewport: false,

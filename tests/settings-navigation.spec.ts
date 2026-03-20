@@ -55,7 +55,9 @@ test('program advanced setup sheet stays scrollable', async ({ page }) => {
   expect(result).not.toBeNull();
   expect(result?.overflowY).toBe('auto');
   expect(result?.touchAction).toContain('pan-y');
-  expect((result?.scrollHeight || 0) > (result?.clientHeight || 0)).toBeTruthy();
+  expect(
+    (result?.scrollHeight || 0) > (result?.clientHeight || 0)
+  ).toBeTruthy();
 });
 
 test('forge advanced setup keeps only advanced controls', async ({ page }) => {
@@ -69,11 +71,14 @@ test('forge advanced setup keeps only advanced controls', async ({ page }) => {
     openProgramSetupSheet();
     return {
       hasMainLiftInput: !!document.getElementById('forge-advanced-main-tm-0'),
-      hasBackWeightInput: !!document.getElementById('forge-advanced-back-weight'),
+      hasBackWeightInput: !!document.getElementById(
+        'forge-advanced-back-weight'
+      ),
       hasAuxInput: !!document.getElementById('forge-advanced-aux-tm-0'),
       hasModeSelect: !!document.getElementById('prog-mode'),
       sheetText:
-        document.getElementById('program-settings-container')?.textContent || '',
+        document.getElementById('program-settings-container')?.textContent ||
+        '',
     };
   });
 
@@ -84,7 +89,9 @@ test('forge advanced setup keeps only advanced controls', async ({ page }) => {
   expect(result?.sheetText).toContain('Program Basics');
 });
 
-test('mobile forge program setup keeps the save action above the bottom nav', async ({ page }) => {
+test('mobile forge program setup keeps the save action above the bottom nav', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openAppShell(page);
 

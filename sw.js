@@ -2,10 +2,7 @@ const CACHE = 'ironforge-v46';
 
 // Only cache local assets — Google Fonts URLs can fail offline and would
 // break the entire SW install. Fonts are cached on first successful fetch.
-const PRE_CACHE = [
-  '/ironforge/',
-  '/ironforge/index.html',
-];
+const PRE_CACHE = ['/ironforge/', '/ironforge/index.html'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRE_CACHE)));
@@ -52,7 +49,9 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() =>
-          caches.match(event.request).then((cached) => cached || caches.match('/ironforge/index.html'))
+          caches
+            .match(event.request)
+            .then((cached) => cached || caches.match('/ironforge/index.html'))
         )
     );
     return;

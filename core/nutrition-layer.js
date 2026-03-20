@@ -80,9 +80,12 @@
     _clearNutritionSessionContext();
     _sessionContext = next;
     _sessionContextExpiresAt = Date.now() + 30 * 60 * 1000;
-    _sessionContextTimeoutId = setTimeout(function () {
-      _clearNutritionSessionContext();
-    }, 30 * 60 * 1000);
+    _sessionContextTimeoutId = setTimeout(
+      function () {
+        _clearNutritionSessionContext();
+      },
+      30 * 60 * 1000
+    );
     notifyNutritionIsland();
   }
 
@@ -127,9 +130,15 @@
       hasImage: !!(payload && payload.imageDataUrl),
       input: {
         displayTextChars: String((payload && payload.displayText) || '').length,
-        promptChars: String((payload && (payload.promptText || payload.displayText)) || '').length,
-        imageDataUrlChars: payload && payload.imageDataUrl ? String(payload.imageDataUrl).length : 0,
-        originalImageBytes: payload && payload.imageFileSize ? payload.imageFileSize : null,
+        promptChars: String(
+          (payload && (payload.promptText || payload.displayText)) || ''
+        ).length,
+        imageDataUrlChars:
+          payload && payload.imageDataUrl
+            ? String(payload.imageDataUrl).length
+            : 0,
+        originalImageBytes:
+          payload && payload.imageFileSize ? payload.imageFileSize : null,
       },
       stages: {},
       model: null,
@@ -222,8 +231,12 @@
         },
         selectedActionId: _selectedActionId,
         actions: NUTRITION_ACTIONS.map(_getNutritionActionSnapshot),
-        contextBanner: hasApiKey ? _getNutritionContextBannerSnapshot(targets) : null,
-        todayCard: hasApiKey ? _getNutritionTodayCardSnapshot(tracked, targets) : null,
+        contextBanner: hasApiKey
+          ? _getNutritionContextBannerSnapshot(targets)
+          : null,
+        todayCard: hasApiKey
+          ? _getNutritionTodayCardSnapshot(tracked, targets)
+          : null,
         messagesState: !hasApiKey
           ? 'setup'
           : !_history.length
@@ -253,13 +266,19 @@
       calories: {
         value: Math.round(totals.calories),
         target: targets.calories,
-        percent: Math.min(100, Math.round((totals.calories / targets.calories) * 100))
+        percent: Math.min(
+          100,
+          Math.round((totals.calories / targets.calories) * 100)
+        ),
       },
       protein: {
         value: Math.round(totals.protein),
         target: targets.protein,
-        percent: Math.min(100, Math.round((totals.protein / targets.protein) * 100))
-      }
+        percent: Math.min(
+          100,
+          Math.round((totals.protein / targets.protein) * 100)
+        ),
+      },
     };
   }
 
@@ -405,7 +424,9 @@
     if (!Array.isArray(rawTags)) return [];
     return rawTags
       .map(function (tag) {
-        return String(tag || '').trim().slice(0, 40);
+        return String(tag || '')
+          .trim()
+          .slice(0, 40);
       })
       .filter(Boolean)
       .slice(0, 6);
@@ -511,13 +532,16 @@
 
   function _getAssistantMessageMacros(msg) {
     if (!msg || msg.role !== 'assistant' || msg.isError) return null;
-    return _getStructuredMessageMacros(msg.structured) || _extractMacros(msg.text);
+    return (
+      _getStructuredMessageMacros(msg.structured) || _extractMacros(msg.text)
+    );
   }
 
   function _getTodayTrackedMacroTotals() {
     _ensureTodayHistoryLoaded();
     // Memoize the current day's scan so snapshot/card/prompt builders reuse the same totals.
-    var cacheKey = _activeHistoryDate + '|' + _historyVersion + '|' + _history.length;
+    var cacheKey =
+      _activeHistoryDate + '|' + _historyVersion + '|' + _history.length;
     if (_todayTotalsCacheKey === cacheKey && _todayTotalsCacheValue) {
       return _todayTotalsCacheValue;
     }
@@ -569,7 +593,10 @@
         value: Math.round(totals.calories),
         target: targets ? targets.calories : null,
         progress: targets
-          ? Math.min(100, Math.round((totals.calories / targets.calories) * 100))
+          ? Math.min(
+              100,
+              Math.round((totals.calories / targets.calories) * 100)
+            )
           : 0,
       },
       protein: {
@@ -673,10 +700,7 @@
     if (val) {
       if (!_looksLikeAnthropicApiKey(val)) {
         showToast(
-          tr(
-            'settings.claude_api_key.invalid',
-            'Enter a valid Claude API key'
-          ),
+          tr('settings.claude_api_key.invalid', 'Enter a valid Claude API key'),
           'var(--orange)'
         );
         return false;
@@ -817,7 +841,10 @@
             maxPx: maxPx,
             quality: quality,
           };
-          trace.stages.compressMs = Math.max(0, Math.round(_nowMs() - startedAt));
+          trace.stages.compressMs = Math.max(
+            0,
+            Math.round(_nowMs() - startedAt)
+          );
         }
         resolve(output);
       };
@@ -829,7 +856,10 @@
             maxPx: maxPx,
             quality: quality,
           };
-          trace.stages.compressMs = Math.max(0, Math.round(_nowMs() - startedAt));
+          trace.stages.compressMs = Math.max(
+            0,
+            Math.round(_nowMs() - startedAt)
+          );
         }
         resolve(dataUrl); // fall back to original
       };
@@ -905,7 +935,9 @@
       lines.push(
         'Next scheduled sport: ' +
           nextSportDay +
-          (daysUntilNext === 1 ? ' (tomorrow)' : ' (in ' + daysUntilNext + ' days)')
+          (daysUntilNext === 1
+            ? ' (tomorrow)'
+            : ' (in ' + daysUntilNext + ' days)')
       );
     }
 
@@ -941,11 +973,11 @@
       var prefs =
         typeof normalizeTrainingPreferences === 'function'
           ? normalizeTrainingPreferences(profile || {})
-          : ((profile && profile.preferences) || {});
+          : (profile && profile.preferences) || {};
       var coaching =
         typeof normalizeCoachingProfile === 'function'
           ? normalizeCoachingProfile(profile || {})
-          : ((profile && profile.coaching) || {});
+          : (profile && profile.coaching) || {};
       var planningContext =
         typeof buildPlanningContext === 'function'
           ? buildPlanningContext({})
@@ -1332,7 +1364,10 @@
 
     if (trace) {
       trace.requestPayloadChars = requestBody.length;
-      trace.stages.requestBuildMs = Math.max(0, Math.round(_nowMs() - trace.startedAt));
+      trace.stages.requestBuildMs = Math.max(
+        0,
+        Math.round(_nowMs() - trace.startedAt)
+      );
     }
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1362,10 +1397,7 @@
       }
       if (resp.status >= 500) {
         throw new Error(
-          tr(
-            'nutrition.error.server',
-            'Claude API is temporarily unavailable.'
-          )
+          tr('nutrition.error.server', 'Claude API is temporarily unavailable.')
         );
       }
       const errData = await resp.json().catch(function () {
@@ -1395,7 +1427,9 @@
         // Include image only if it's the most recent user message with an image
         // (for history context we send text only)
         const text =
-          msg.promptText || msg.text || (msg.imageDataUrl ? '[food photo]' : '');
+          msg.promptText ||
+          msg.text ||
+          (msg.imageDataUrl ? '[food photo]' : '');
         return { role: 'user', content: text };
       }
       return { role: 'assistant', content: msg.text || '' };
@@ -1483,15 +1517,25 @@
     if (_loading) return;
     _ensureTodayHistoryLoaded();
     // Capture one trace per request so we can measure internals without changing the success path.
-    var trace = payload && payload.trace ? payload.trace : _createNutritionTrace(payload);
-    trace.actionId = payload && payload.actionId ? payload.actionId : trace.actionId || null;
+    var trace =
+      payload && payload.trace ? payload.trace : _createNutritionTrace(payload);
+    trace.actionId =
+      payload && payload.actionId ? payload.actionId : trace.actionId || null;
     trace.hasImage = !!(payload && payload.imageDataUrl);
     trace.input = trace.input || {};
     trace.stages = trace.stages || {};
-    trace.input.displayTextChars = String((payload && payload.displayText) || '').length;
-    trace.input.promptChars = String((payload && (payload.promptText || payload.displayText)) || '').length;
-    trace.input.imageDataUrlChars = payload && payload.imageDataUrl ? String(payload.imageDataUrl).length : 0;
-    trace.input.originalImageBytes = payload && payload.imageFileSize ? payload.imageFileSize : trace.input.originalImageBytes || null;
+    trace.input.displayTextChars = String(
+      (payload && payload.displayText) || ''
+    ).length;
+    trace.input.promptChars = String(
+      (payload && (payload.promptText || payload.displayText)) || ''
+    ).length;
+    trace.input.imageDataUrlChars =
+      payload && payload.imageDataUrl ? String(payload.imageDataUrl).length : 0;
+    trace.input.originalImageBytes =
+      payload && payload.imageFileSize
+        ? payload.imageFileSize
+        : trace.input.originalImageBytes || null;
 
     // Offline check
     if (!navigator.onLine) {
@@ -1580,10 +1624,7 @@
       _streaming = false;
       var parseStartedAt = _nowMs();
       var structured = _parseStructuredNutritionResponse(rawText, trace);
-      trace.stages.parseMs = Math.max(
-        0,
-        Math.round(_nowMs() - parseStartedAt)
-      );
+      trace.stages.parseMs = Math.max(0, Math.round(_nowMs() - parseStartedAt));
       var assistantEntry = {
         id: Date.now() + '-a',
         role: 'assistant',
@@ -1597,10 +1638,12 @@
       if (structured) {
         assistantEntry.structured = structured;
         assistantEntry.rawText = String(rawText || '');
-        trace.parseSource = trace.parseSource === 'none' ? 'structured' : trace.parseSource;
+        trace.parseSource =
+          trace.parseSource === 'none' ? 'structured' : trace.parseSource;
       } else if (rawText) {
         assistantEntry.rawText = String(rawText);
-        trace.parseSource = trace.parseSource === 'none' ? 'plain_text' : trace.parseSource;
+        trace.parseSource =
+          trace.parseSource === 'none' ? 'plain_text' : trace.parseSource;
       }
       if (!assistantEntry.text) {
         assistantEntry.text = tr(
@@ -1631,10 +1674,12 @@
         );
       } else {
         // Specific errors (auth, rate limit, server) already have translated messages
-        errorText = errorMessage || tr(
-          'nutrition.error.api',
-          'Something went wrong. Check your API key and try again.'
-        );
+        errorText =
+          errorMessage ||
+          tr(
+            'nutrition.error.api',
+            'Something went wrong. Check your API key and try again.'
+          );
       }
       _history.push({
         id: Date.now() + '-a',
@@ -1688,7 +1733,6 @@
         behavior: instant ? 'auto' : 'smooth',
       });
   }
-
 
   // Lightweight markdown renderer for coach responses.
   // Handles: ## headings, **bold**, `code`, bullet/numbered lists, paragraphs.
@@ -1981,7 +2025,9 @@
           var actionLabel = msg.text || '';
           return (
             '<div class="nutrition-msg-action-tag">' +
-            '<span>' + escapeHtml(actionLabel) + '</span>' +
+            '<span>' +
+            escapeHtml(actionLabel) +
+            '</span>' +
             '</div>'
           );
         }
@@ -2239,16 +2285,32 @@
     // Compact macro row
     var macroRow =
       '<div class="nc-today-macros">' +
-      '<div class="nc-today-macro nc-macro-pro"><strong>' + Math.round(totals.protein) + 'g</strong> ' + tr('nutrition.macro.protein', 'P') + '</div>' +
-      '<div class="nc-today-macro nc-macro-carb"><strong>' + Math.round(totals.carbs) + 'g</strong> ' + tr('nutrition.macro.carbs', 'C') + '</div>' +
-      '<div class="nc-today-macro nc-macro-fat"><strong>' + Math.round(totals.fat) + 'g</strong> ' + tr('nutrition.macro.fat', 'F') + '</div>' +
+      '<div class="nc-today-macro nc-macro-pro"><strong>' +
+      Math.round(totals.protein) +
+      'g</strong> ' +
+      tr('nutrition.macro.protein', 'P') +
+      '</div>' +
+      '<div class="nc-today-macro nc-macro-carb"><strong>' +
+      Math.round(totals.carbs) +
+      'g</strong> ' +
+      tr('nutrition.macro.carbs', 'C') +
+      '</div>' +
+      '<div class="nc-today-macro nc-macro-fat"><strong>' +
+      Math.round(totals.fat) +
+      'g</strong> ' +
+      tr('nutrition.macro.fat', 'F') +
+      '</div>' +
       '</div>';
 
     return (
       '<div class="nutrition-today-card">' +
       '<div class="nc-today-header">' +
-      '<div class="nc-today-label">' + tr('nutrition.today.label', 'Today') + '</div>' +
-      '<div class="nc-today-cal"><strong>' + calStr + '</strong></div>' +
+      '<div class="nc-today-label">' +
+      tr('nutrition.today.label', 'Today') +
+      '</div>' +
+      '<div class="nc-today-cal"><strong>' +
+      calStr +
+      '</strong></div>' +
       '</div>' +
       calBar +
       proBar +
@@ -2256,7 +2318,6 @@
       '</div>'
     );
   }
-
 
   // ─── Retry last message ───────────────────────────────────────────────
 
@@ -2297,27 +2358,31 @@
 
     const reader = new FileReader();
     reader.onload = function (e) {
-      _compressImage(e.target.result, 1024, 0.82, trace).then(function (compressed) {
-        // Auto-send photo analysis — no extra tap needed
-        sendNutritionMessage({
-          actionId: 'analyze_photo',
-          displayText: tr('nutrition.action.analyze_photo', 'Analyze this food photo'),
-          promptText: [
-            'Primary task: Analyze this food photo.',
-            'Analyze the attached food photo, estimate macros when possible, and explain how this meal fits my goals today.',
-            'Response format: Estimate macros first, then 1-2 sentences of coaching. End with remaining calories and protein for today.',
-            'A food photo is attached.',
-          ].join('\n\n'),
-          imageDataUrl: compressed,
-          imageFileSize: file.size,
-          trace: trace,
-        });
-      });
+      _compressImage(e.target.result, 1024, 0.82, trace).then(
+        function (compressed) {
+          // Auto-send photo analysis — no extra tap needed
+          sendNutritionMessage({
+            actionId: 'analyze_photo',
+            displayText: tr(
+              'nutrition.action.analyze_photo',
+              'Analyze this food photo'
+            ),
+            promptText: [
+              'Primary task: Analyze this food photo.',
+              'Analyze the attached food photo, estimate macros when possible, and explain how this meal fits my goals today.',
+              'Response format: Estimate macros first, then 1-2 sentences of coaching. End with remaining calories and protein for today.',
+              'A food photo is attached.',
+            ].join('\n\n'),
+            imageDataUrl: compressed,
+            imageFileSize: file.size,
+            trace: trace,
+          });
+        }
+      );
     };
     reader.readAsDataURL(file);
     event.target.value = ''; // allow re-selecting same file
   }
-
 
   // ─── Submit ───────────────────────────────────────────────────────────────────
 

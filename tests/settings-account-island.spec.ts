@@ -83,7 +83,9 @@ test('settings account island keeps the danger-zone confirmation flow working', 
   });
 
   expect(
-    await page.evaluate(() => getSettingsAccountReactSnapshot().values.dangerOpen)
+    await page.evaluate(
+      () => getSettingsAccountReactSnapshot().values.dangerOpen
+    )
   ).toBe(true);
   expect(
     await page.evaluate(

@@ -20,7 +20,9 @@ export async function bootstrapAppShell(page: Page) {
   await page.waitForFunction(
     () => typeof window.getCanonicalProgramId === 'function'
   );
-  await page.waitForFunction(() => typeof window.initNutritionPage === 'function');
+  await page.waitForFunction(
+    () => typeof window.initNutritionPage === 'function'
+  );
 
   await page.evaluate(() => {
     const suppressLoginUi = () => {
