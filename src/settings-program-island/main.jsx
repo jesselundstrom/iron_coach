@@ -1,5 +1,5 @@
 import React from 'react';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const SETTINGS_PROGRAM_EVENT =
   window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_EVENT__ ||
@@ -291,10 +291,4 @@ function SettingsProgramIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'settings-program-react-root',
-  legacyShellId: 'settings-program-legacy-shell',
-  mountedFlag: '__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__',
-  eventName: SETTINGS_PROGRAM_EVENT,
-  Component: SettingsProgramIsland,
-});
+export { SettingsProgramIsland };

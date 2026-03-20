@@ -8812,15 +8812,14 @@ body.login-active::before {
   display: none;
 }
 .content.nutrition-active #page-container-react-root {
-  display: flex;
-  flex: 1;
-  min-height: 0;
+  display: none;
 }
 .app.nutrition-active .bottom-nav {
   background: rgba(10, 11, 15, 0.9);
   border-top-color: rgba(255, 181, 94, 0.12);
 }
 .content.nutrition-active #page-nutrition.active {
+  display: flex;
   flex: 1;
   height: 100%;
   min-height: 0;

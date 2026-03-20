@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const LOG_ACTIVE_EVENT =
   window.__IRONFORGE_LOG_ACTIVE_ISLAND_EVENT__ ||
@@ -501,10 +501,4 @@ function LogActiveIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'log-active-react-root',
-  legacyShellId: 'log-active-legacy-shell',
-  mountedFlag: '__IRONFORGE_LOG_ACTIVE_ISLAND_MOUNTED__',
-  eventName: LOG_ACTIVE_EVENT,
-  Component: LogActiveIsland,
-});
+export { LogActiveIsland };

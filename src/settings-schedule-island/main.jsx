@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const SETTINGS_SCHEDULE_EVENT =
   window.__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_EVENT__ ||
@@ -173,10 +173,4 @@ function SettingsScheduleIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'settings-schedule-react-root',
-  legacyShellId: 'settings-schedule-legacy-shell',
-  mountedFlag: '__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_MOUNTED__',
-  eventName: SETTINGS_SCHEDULE_EVENT,
-  Component: SettingsScheduleIsland,
-});
+export { SettingsScheduleIsland };

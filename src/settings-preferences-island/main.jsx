@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const SETTINGS_PREFERENCES_EVENT =
   window.__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_EVENT__ ||
@@ -285,10 +285,4 @@ function SettingsPreferencesIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'settings-preferences-react-root',
-  legacyShellId: 'settings-preferences-legacy-shell',
-  mountedFlag: '__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_MOUNTED__',
-  eventName: SETTINGS_PREFERENCES_EVENT,
-  Component: SettingsPreferencesIsland,
-});
+export { SettingsPreferencesIsland };

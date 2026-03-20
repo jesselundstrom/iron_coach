@@ -1,4 +1,4 @@
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const LOG_START_EVENT =
   window.__IRONFORGE_LOG_START_ISLAND_EVENT__ ||
@@ -290,10 +290,4 @@ function LogStartIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'log-start-react-root',
-  legacyShellId: 'log-start-legacy-shell',
-  mountedFlag: '__IRONFORGE_LOG_START_ISLAND_MOUNTED__',
-  eventName: LOG_START_EVENT,
-  Component: LogStartIsland,
-});
+export { LogStartIsland };

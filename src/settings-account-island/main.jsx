@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const SETTINGS_ACCOUNT_EVENT =
   window.__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_EVENT__ ||
@@ -213,10 +213,4 @@ function SettingsAccountIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'settings-account-react-root',
-  legacyShellId: 'settings-account-legacy-shell',
-  mountedFlag: '__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_MOUNTED__',
-  eventName: SETTINGS_ACCOUNT_EVENT,
-  Component: SettingsAccountIsland,
-});
+export { SettingsAccountIsland };

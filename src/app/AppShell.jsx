@@ -1,9 +1,19 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { Component, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { APP_PAGES } from './constants.ts';
 import { useRuntimeStore } from './store/runtime-store.ts';
 import { t } from '../core/i18n.js';
 import OnboardingFlow from './OnboardingFlow.jsx';
+import { DashboardIsland } from '../dashboard-island/main.jsx';
+import { HistoryIsland } from '../history-island/main.jsx';
+import { NutritionIsland } from '../nutrition-island/main.jsx';
+import { LogStartIsland } from '../log-start-island/main.jsx';
+import { LogActiveIsland } from '../log-active-island/main.jsx';
+import { SettingsBodyIsland } from '../settings-body-island/main.jsx';
+import { SettingsAccountIsland } from '../settings-account-island/main.jsx';
+import { SettingsPreferencesIsland } from '../settings-preferences-island/main.jsx';
+import { SettingsProgramIsland } from '../settings-program-island/main.jsx';
+import { SettingsScheduleIsland } from '../settings-schedule-island/main.jsx';
 
 const PAGE_META = [
   { id: 'dashboard', labelKey: 'nav.dashboard', fallbackLabel: 'Dashboard' },
@@ -12,16 +22,6 @@ const PAGE_META = [
   { id: 'settings', labelKey: 'nav.settings', fallbackLabel: 'Settings' },
   { id: 'nutrition', labelKey: 'nav.nutrition', fallbackLabel: 'Nutrition' },
 ];
-
-const pageSources = collectPageSources();
-
-function collectPageSources() {
-  return PAGE_META.reduce((acc, page) => {
-    const node = document.getElementById(`page-${page.id}`);
-    if (node) acc[page.id] = node;
-    return acc;
-  }, {});
-}
 
 const NAV_ICONS = {
   dashboard: (
@@ -62,37 +62,44 @@ const NAV_ICONS = {
   ),
 };
 
+// Error boundary for individual island portals — prevents one island crash from
+// taking down the entire React tree (all islands share one root now).
+class IslandErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('[Ironforge] Island render error:', error, info);
+  }
+
+  render() {
+    if (this.state.error) return null;
+    return this.props.children;
+  }
+}
+
+// PageHost manages the active class on existing #page-X divs in the HTML.
+// ui-shell.js owns the primary class toggle; this keeps React store in sync.
 function PageHost({ name, active }) {
-  const hostRef = useRef(null);
-
   useEffect(() => {
-    const host = hostRef.current;
-    const source = pageSources[name];
-    if (!host || !source || host.dataset.pageMounted === 'true') return;
-
-    while (source.firstChild) {
-      host.appendChild(source.firstChild);
-    }
-
-    host.dataset.pageMounted = 'true';
-    if (source.isConnected) source.remove();
-  }, [name]);
-
-  return (
-    <div
-      ref={hostRef}
-      className={`page${active ? ' active' : ''}`}
-      id={`page-${name}`}
-      data-page-shell={name}
-    />
-  );
+    const node = document.getElementById(`page-${name}`);
+    if (!node) return;
+    node.classList.toggle('active', active);
+    node.dataset.pageShell = name;
+  }, [name, active]);
+  return null;
 }
 
 export default function AppShell() {
   const activePage = useRuntimeStore((state) => state.ui.activePage);
   const confirm = useRuntimeStore((state) => state.ui.confirm);
   const languageVersion = useRuntimeStore((state) => state.ui.languageVersion);
-  const pageContainerMount = document.getElementById('page-container-react-root');
   const previousPageRef = useRef(activePage);
 
   const navItems = useMemo(
@@ -103,6 +110,59 @@ export default function AppShell() {
       })),
     [languageVersion]
   );
+
+  useLayoutEffect(() => {
+    // Set island mounted flags synchronously (previously set by mountIsland() at module load time)
+    const flags = [
+      '__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__',
+      '__IRONFORGE_HISTORY_ISLAND_MOUNTED__',
+      '__IRONFORGE_NUTRITION_ISLAND_MOUNTED__',
+      '__IRONFORGE_LOG_START_ISLAND_MOUNTED__',
+      '__IRONFORGE_LOG_ACTIVE_ISLAND_MOUNTED__',
+      '__IRONFORGE_SETTINGS_BODY_ISLAND_MOUNTED__',
+      '__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_MOUNTED__',
+      '__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_MOUNTED__',
+      '__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__',
+      '__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_MOUNTED__',
+    ];
+    flags.forEach((flag) => { window[flag] = true; });
+
+    // Dispatch initial snapshot events so islands render with data
+    const events = [
+      '__IRONFORGE_DASHBOARD_ISLAND_EVENT__',
+      '__IRONFORGE_HISTORY_ISLAND_EVENT__',
+      '__IRONFORGE_NUTRITION_ISLAND_EVENT__',
+      '__IRONFORGE_LOG_START_ISLAND_EVENT__',
+      '__IRONFORGE_LOG_ACTIVE_ISLAND_EVENT__',
+      '__IRONFORGE_SETTINGS_BODY_ISLAND_EVENT__',
+      '__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_EVENT__',
+      '__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_EVENT__',
+      '__IRONFORGE_SETTINGS_PROGRAM_ISLAND_EVENT__',
+      '__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_EVENT__',
+    ];
+    events.forEach((key) => {
+      const eventName = window[key];
+      if (eventName) window.dispatchEvent(new CustomEvent(eventName));
+    });
+
+    // Remove any remaining legacy shell divs (previously cleaned up by mountIsland())
+    const legacyShells = [
+      'dashboard-legacy-shell', 'history-legacy-shell', 'nutrition-legacy-shell',
+      'log-start-legacy-shell', 'log-active-legacy-shell',
+      'settings-body-legacy-shell', 'settings-account-legacy-shell',
+      'settings-preferences-legacy-shell', 'settings-program-legacy-shell',
+      'settings-schedule-legacy-shell',
+    ];
+    legacyShells.forEach((id) => document.getElementById(id)?.remove());
+
+    // Handle nutrition init if nutrition page is active at mount time
+    requestAnimationFrame(() => {
+      const page = document.getElementById('page-nutrition');
+      if (page?.classList.contains('active') && typeof window.initNutritionPage === 'function') {
+        window.initNutritionPage();
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!confirm?.open) return;
@@ -133,16 +193,40 @@ export default function AppShell() {
 
   return (
     <>
-      {pageContainerMount
-        ? createPortal(
-            <>
-              {APP_PAGES.map((name) => (
-                <PageHost key={name} name={name} active={activePage === name} />
-              ))}
-            </>,
-            pageContainerMount
-          )
-        : null}
+      {/* Sync active class on existing #page-X HTML divs from React store */}
+      {APP_PAGES.map((name) => (
+        <PageHost key={name} name={name} active={activePage === name} />
+      ))}
+      {/* Island portals — each wrapped in an error boundary so a single island
+          crash cannot unmount the entire React tree (toast, modals, nav). */}
+      {(() => {
+        const portals = [];
+        const add = (id, IslandComponent) => {
+          const node = document.getElementById(id);
+          if (node) {
+            portals.push(
+              createPortal(
+                <IslandErrorBoundary key={id}>
+                  <IslandComponent />
+                </IslandErrorBoundary>,
+                node,
+                id
+              )
+            );
+          }
+        };
+        add('dashboard-react-root', DashboardIsland);
+        add('history-react-root', HistoryIsland);
+        add('nutrition-react-root', NutritionIsland);
+        add('log-start-react-root', LogStartIsland);
+        add('log-active-react-root', LogActiveIsland);
+        add('settings-body-react-root', SettingsBodyIsland);
+        add('settings-account-react-root', SettingsAccountIsland);
+        add('settings-preferences-react-root', SettingsPreferencesIsland);
+        add('settings-program-react-root', SettingsProgramIsland);
+        add('settings-schedule-react-root', SettingsScheduleIsland);
+        return portals;
+      })()}
       <div className="toast" id="toast" />
       <div className="modal-overlay" id="name-modal">
         <div className="modal-sheet catalog-sheet">

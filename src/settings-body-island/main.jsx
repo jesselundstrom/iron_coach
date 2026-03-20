@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const SETTINGS_BODY_EVENT =
   window.__IRONFORGE_SETTINGS_BODY_ISLAND_EVENT__ ||
@@ -207,10 +207,4 @@ function SettingsBodyIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'settings-body-react-root',
-  legacyShellId: 'settings-body-legacy-shell',
-  mountedFlag: '__IRONFORGE_SETTINGS_BODY_ISLAND_MOUNTED__',
-  eventName: SETTINGS_BODY_EVENT,
-  Component: SettingsBodyIsland,
-});
+export { SettingsBodyIsland };

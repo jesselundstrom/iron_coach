@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../core/i18n.js';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const NUTRITION_EVENT =
   window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ ||
@@ -749,22 +749,4 @@ function NutritionIsland() {
   );
 }
 
-const mounted = mountIsland({
-  mountId: 'nutrition-react-root',
-  legacyShellId: 'nutrition-legacy-shell',
-  mountedFlag: '__IRONFORGE_NUTRITION_ISLAND_MOUNTED__',
-  eventName: NUTRITION_EVENT,
-  Component: NutritionIsland,
-});
-
-if (mounted) {
-  requestAnimationFrame(() => {
-    const page = document.getElementById('page-nutrition');
-    if (
-      page?.classList.contains('active') &&
-      typeof window.initNutritionPage === 'function'
-    ) {
-      window.initNutritionPage();
-    }
-  });
-}
+export { NutritionIsland };

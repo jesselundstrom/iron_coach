@@ -1,4 +1,4 @@
-const CACHE = 'ironforge-v43';
+const CACHE = 'ironforge-v45';
 
 // Only cache local assets — Google Fonts URLs can fail offline and would
 // break the entire SW install. Fonts are cached on first successful fetch.
@@ -59,21 +59,26 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Network-first for app code avoids serving stale JS/CSS after local changes or deploys.
+  // The cache.put is awaited inside respondWith so it completes before the response
+  // is released — this prevents a race where the page goes offline before async
+  // caching finishes. ignoreSearch handles Vite dev-mode ?t= / ?v= query params
+  // that differ between the cached URL and the incoming request URL.
   if (isCodeAsset || isBundledAsset) {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
+        .then(async (response) => {
           if (
             response &&
             response.status === 200 &&
             response.type !== 'opaque'
           ) {
             const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+            const cache = await caches.open(CACHE);
+            await cache.put(event.request, copy);
           }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => caches.match(event.request, { ignoreSearch: true }))
     );
     return;
   }

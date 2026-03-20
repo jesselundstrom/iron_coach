@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { mountIsland, useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const HISTORY_EVENT =
   window.__IRONFORGE_HISTORY_ISLAND_EVENT__ || 'ironforge:history-updated';
@@ -456,10 +456,4 @@ function HistoryIsland() {
   );
 }
 
-mountIsland({
-  mountId: 'history-react-root',
-  legacyShellId: 'history-legacy-shell',
-  mountedFlag: '__IRONFORGE_HISTORY_ISLAND_MOUNTED__',
-  eventName: HISTORY_EVENT,
-  Component: HistoryIsland,
-});
+export { HistoryIsland };
