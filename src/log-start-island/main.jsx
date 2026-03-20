@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const LOG_START_EVENT =
@@ -23,6 +24,9 @@ const initialSnapshot = {
     focusPanel: null,
     decisionCard: null,
     warningCard: null,
+    sessionCharacter: null,
+    preSessionNote: null,
+    energyAssessment: null,
     sportReadiness: null,
   },
 };
@@ -39,7 +43,7 @@ function DecisionCard({ card }) {
   return (
     <div className="workout-today-section">
       <div className="workout-today-section-label">{card.kicker}</div>
-      <div className="workout-decision-card workout-decision-card-actionable">
+      <div className="workout-decision-card workout-decision-card-summary">
         <div className="workout-decision-kicker">{card.kicker}</div>
         <div className="workout-decision-title">{card.title}</div>
         <div className="workout-decision-copy">{card.copy}</div>
@@ -52,21 +56,6 @@ function DecisionCard({ card }) {
             ))}
           </div>
         ) : null}
-        <div className="workout-decision-options">
-          {card.options.map((option) => (
-            <button
-              className={`workout-decision-option${
-                option.active ? ' is-active' : ''
-              }`}
-              type="button"
-              key={option.value}
-              onClick={() => window.setPendingSessionMode?.(option.value)}
-            >
-              <div className="workout-decision-option-title">{option.title}</div>
-              <div className="workout-decision-option-copy">{option.copy}</div>
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -150,10 +139,10 @@ function WarningCard({ card }) {
   );
 }
 
-function SportReadiness({ sportReadiness }) {
+function SportReadiness({ sportReadiness, embedded = false }) {
   if (!sportReadiness) return null;
   return (
-    <div className="sport-readiness-inline">
+    <div className={`sport-readiness-inline${embedded ? ' is-embedded' : ''}`}>
       <div className="sport-readiness-inline-header">
         <div className="sport-readiness-inline-title">{sportReadiness.title}</div>
         <div className="sport-readiness-inline-sub">{sportReadiness.subtitle}</div>
@@ -201,6 +190,118 @@ function SportReadiness({ sportReadiness }) {
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SessionCharacterBadge({ character }) {
+  if (!character) return null;
+  const label = character.labelKey && window.I18N?.t
+    ? window.I18N.t(character.labelKey, character.labelParams, character.labelFallback)
+    : character.labelFallback;
+  return (
+    <div className="session-character-row">
+      <span className={`session-character-badge session-character-badge-${character.tone}`}>
+        <span className="session-character-icon">{character.icon}</span>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function PreSessionNote({ note }) {
+  if (!note) return null;
+  return <div className="pre-session-note">{note}</div>;
+}
+
+function EnergyAssessment({ assessment }) {
+  if (!assessment) return null;
+  return (
+    <div className="energy-assessment is-embedded">
+      <div className="energy-assessment-label">{assessment.title}</div>
+      <div className="energy-assessment-options">
+        {assessment.options.map((opt) => (
+          <button
+            type="button"
+            className={`energy-assessment-btn energy-assessment-btn-${opt.tone}${
+              opt.active ? ' active' : ''
+            }`}
+            key={opt.value}
+            onClick={() => window.setPendingEnergyLevel?.(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SessionSetupCard({ assessment, sportReadiness, decisionCard }) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const activeMode = decisionCard?.options?.find((option) => option.active);
+  const setupKicker =
+    window.I18N?.t?.('workout.setup.kicker', null, 'Session setup') ||
+    'Session setup';
+  const advancedLabel =
+    window.I18N?.t?.(
+      'workout.setup.advanced_toggle',
+      { mode: activeMode?.title || 'Auto' },
+      'Fine-tune: {mode}'
+    ) || `Fine-tune: ${activeMode?.title || 'Auto'}`;
+  const advancedHint =
+    window.I18N?.t?.(
+      'workout.setup.advanced_hint',
+      null,
+      'Use this only if you want to override the usual recommendation.'
+    ) || 'Use this only if you want to override the usual recommendation.';
+
+  if (!assessment && !sportReadiness && !decisionCard?.options?.length) return null;
+
+  return (
+    <div className="workout-today-section">
+      <div className="workout-today-section-label">{setupKicker}</div>
+      <div className="workout-setup-card">
+        {assessment ? <EnergyAssessment assessment={assessment} /> : null}
+        {sportReadiness ? (
+          <SportReadiness sportReadiness={sportReadiness} embedded />
+        ) : null}
+        {decisionCard?.options?.length ? (
+          <div className="workout-setup-advanced-wrap">
+            <button
+              className={`workout-setup-advanced-toggle${
+                advancedOpen ? ' is-open' : ''
+              }`}
+              type="button"
+              onClick={() => setAdvancedOpen((open) => !open)}
+              aria-expanded={advancedOpen ? 'true' : 'false'}
+            >
+              <span>{advancedLabel}</span>
+              <span className="workout-setup-advanced-chevron" aria-hidden="true">
+                {advancedOpen ? '−' : '+'}
+              </span>
+            </button>
+            <div className="workout-setup-advanced-hint">{advancedHint}</div>
+            {advancedOpen ? (
+              <div className="workout-decision-options workout-decision-options-embedded">
+                {decisionCard.options.map((option) => (
+                  <button
+                    className={`workout-decision-option${
+                      option.active ? ' is-active' : ''
+                    }`}
+                    type="button"
+                    key={option.value}
+                    onClick={() => window.setPendingSessionMode?.(option.value)}
+                  >
+                    <div className="workout-decision-option-title">{option.title}</div>
+                    <div className="workout-decision-option-copy">{option.copy}</div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -256,6 +357,8 @@ function LogStartIsland() {
             </button>
           ))}
         </div>
+        <SessionCharacterBadge character={snapshot.values.sessionCharacter} />
+        <PreSessionNote note={snapshot.values.preSessionNote} />
         <div id="program-warning-panel">
           <DecisionCard card={snapshot.values.decisionCard} />
           <WarningCard
@@ -275,7 +378,11 @@ function LogStartIsland() {
         <div id="program-today-panel">
           <FocusCard panel={snapshot.values.focusPanel} />
         </div>
-        <SportReadiness sportReadiness={snapshot.values.sportReadiness} />
+        <SessionSetupCard
+          assessment={snapshot.values.energyAssessment}
+          sportReadiness={snapshot.values.sportReadiness}
+          decisionCard={snapshot.values.decisionCard}
+        />
         <div className="workout-start-footer">
           <button
             className="btn btn-primary cta-btn workout-start-cta"

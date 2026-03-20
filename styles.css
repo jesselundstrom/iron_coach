@@ -3072,6 +3072,9 @@ select optgroup {
   border: 1px solid var(--border);
   background: linear-gradient(180deg, var(--surface), var(--surface2));
 }
+.workout-decision-card-summary {
+  margin-top: 0;
+}
 .workout-decision-kicker {
   font-size: 10px;
   letter-spacing: 1px;
@@ -3149,6 +3152,56 @@ select optgroup {
   font-size: 11px;
   line-height: 1.45;
   color: var(--muted);
+}
+.workout-setup-card {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    var(--surface);
+}
+.workout-setup-advanced-wrap {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.workout-setup-advanced-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.workout-setup-advanced-toggle.is-open {
+  border-color: rgba(74, 143, 232, 0.26);
+  background: rgba(74, 143, 232, 0.08);
+}
+.workout-setup-advanced-chevron {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+}
+.workout-setup-advanced-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.workout-decision-options-embedded {
+  margin-top: 0;
 }
 .active-session-plan-card {
   margin-bottom: 14px;
@@ -3810,6 +3863,74 @@ select optgroup {
   border: 1px solid var(--border);
   color: var(--text);
 }
+/* ── Session character badge ──────────────────────────── */
+.session-character-row{padding:0;margin-top:14px;margin-bottom:2px}
+.session-character-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--muted);animation:pageSectionFadeUp .24s ease both;animation-delay:.06s}
+.session-character-icon{font-size:14px;line-height:1}
+.session-character-badge-heavy{color:var(--orange);border-color:rgba(245,130,31,.25);background:rgba(245,130,31,.08)}
+.session-character-badge-volume{color:var(--blue);border-color:rgba(74,143,232,.25);background:rgba(74,143,232,.08)}
+.session-character-badge-deload{color:var(--green);border-color:rgba(76,175,121,.25);background:rgba(76,175,121,.08)}
+.session-character-badge-amrap{color:var(--gold);border-color:rgba(245,200,66,.25);background:rgba(245,200,66,.08)}
+.session-character-badge-test{color:var(--purple);border-color:rgba(139,123,214,.25);background:rgba(139,123,214,.08)}
+.session-character-badge-normal{color:var(--muted)}
+
+/* ── Pre-session coaching note ────────────────────────── */
+.pre-session-note{padding:6px 2px 0;font-size:13px;line-height:1.5;color:var(--muted);font-style:italic;animation:pageSectionFadeUp .24s ease both;animation-delay:.08s}
+.energy-assessment{
+  padding:14px 0 4px;
+  animation:pageSectionFadeUp .24s ease both;
+  animation-delay:.1s;
+}
+.energy-assessment.is-embedded{
+  padding:0;
+  animation:none;
+}
+.energy-assessment-label{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+  margin-bottom:10px;
+}
+.energy-assessment-options{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.energy-assessment-btn{
+  min-height:48px;
+  border-radius:14px;
+  border:1.5px solid var(--border);
+  background:var(--surface2);
+  color:var(--text);
+  font-size:13px;
+  font-weight:600;
+  transition:all .15s ease;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:8px 6px;
+}
+.energy-assessment-btn:active{transform:scale(.97)}
+.energy-assessment-btn-caution.active{
+  border-color:rgba(245,130,31,.4);
+  background:rgba(245,130,31,.1);
+  color:var(--orange);
+}
+.energy-assessment-btn-neutral.active{
+  border-color:rgba(74,143,232,.35);
+  background:rgba(74,143,232,.08);
+  color:var(--blue);
+}
+.energy-assessment-btn-positive.active{
+  border-color:rgba(76,175,121,.4);
+  background:rgba(76,175,121,.1);
+  color:var(--green);
+}
 .program-day-badge {
   display: inline-flex;
   align-items: center;
@@ -4082,6 +4203,12 @@ select optgroup {
     rgba(255, 255, 255, 0.018)
   );
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sport-readiness-inline.is-embedded {
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 .sport-readiness-inline-header {
   margin-bottom: 10px;
@@ -4868,6 +4995,34 @@ select optgroup {
   line-height: 1.55;
   font-style: italic;
   white-space: pre-wrap;
+}
+/* ── TM adjustment pills ─────────────────────────────── */
+.hist-tm-adjustments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0 2px;
+}
+.hist-tm-adjust {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.hist-tm-adjust-up {
+  color: var(--green);
+  background: rgba(76, 175, 121, 0.1);
+  border: 1px solid rgba(76, 175, 121, 0.2);
+}
+.hist-tm-adjust-down {
+  color: var(--red);
+  background: rgba(224, 82, 82, 0.1);
+  border: 1px solid rgba(224, 82, 82, 0.2);
 }
 .hist-exercise-row {
   display: flex;

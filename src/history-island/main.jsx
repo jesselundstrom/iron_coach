@@ -164,6 +164,18 @@ function WorkoutCard({ card, labels, style }) {
           <blockquote className="hist-session-notes">{card.sessionNotes}</blockquote>
         </div>
       ) : null}
+      {card.tmAdjustments?.length ? (
+        <div className="hist-tm-adjustments">
+          {card.tmAdjustments.map((adj) => (
+            <span
+              className={`hist-tm-adjust hist-tm-adjust-${adj.direction === 'up' ? 'up' : 'down'}`}
+              key={adj.lift}
+            >
+              {adj.lift} {adj.direction === 'up' ? '\u2191' : '\u2193'} {adj.newTM} kg
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="hist-card-footer">
         <span className="hist-footer-stat">{labels.volume} <span className="hist-footer-val">{volStr}</span></span>
         <span className="hist-footer-stat">{labels.exercises} <span className="hist-footer-val">{card.exerciseCount}</span></span>
@@ -499,34 +511,26 @@ function HistoryIsland() {
         ) : (
           <>
             <StatsRangeSelector range={snapshot.stats.range} />
-            <div
-              className="card stats-chart-card"
-              id="stats-volume-wrap"
-              style={{ display: snapshot.stats.volume.visible ? 'block' : 'none' }}
-            >
-              <VolumeChart data={snapshot.stats.volume} />
-            </div>
-            <div
-              className="card stats-chart-card"
-              id="stats-strength-wrap"
-              style={{ display: snapshot.stats.strength.visible ? 'block' : 'none' }}
-            >
-              <LineChart data={snapshot.stats.strength} />
-            </div>
-            <div
-              className="card stats-chart-card"
-              id="stats-e1rm-wrap"
-              style={{ display: snapshot.stats.e1rm.visible ? 'block' : 'none' }}
-            >
-              <LineChart data={snapshot.stats.e1rm} />
-            </div>
-            <div
-              className="card stats-chart-card"
-              id="stats-tm-wrap"
-              style={{ display: snapshot.stats.tmHistory.visible ? 'block' : 'none' }}
-            >
-              <LineChart data={snapshot.stats.tmHistory} />
-            </div>
+            {snapshot.stats.volume.visible ? (
+              <div className="card stats-chart-card" id="stats-volume-wrap">
+                <VolumeChart data={snapshot.stats.volume} />
+              </div>
+            ) : null}
+            {snapshot.stats.strength.visible ? (
+              <div className="card stats-chart-card" id="stats-strength-wrap">
+                <LineChart data={snapshot.stats.strength} />
+              </div>
+            ) : null}
+            {snapshot.stats.e1rm.visible ? (
+              <div className="card stats-chart-card" id="stats-e1rm-wrap">
+                <LineChart data={snapshot.stats.e1rm} />
+              </div>
+            ) : null}
+            {snapshot.stats.tmHistory.visible ? (
+              <div className="card stats-chart-card" id="stats-tm-wrap">
+                <LineChart data={snapshot.stats.tmHistory} />
+              </div>
+            ) : null}
             <Milestones data={snapshot.stats.milestones} labels={snapshot.labels} />
           </>
         )}

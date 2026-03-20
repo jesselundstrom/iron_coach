@@ -22,6 +22,8 @@ test('log start island renders from the legacy bridge and still starts a workout
   await expect(
     page.locator('#log-start-react-root #program-day-options .program-day-option').first()
   ).toBeVisible();
+  await expect(page.locator('#log-start-react-root .workout-setup-card')).toBeVisible();
+  await expect(page.locator('#log-start-react-root .workout-decision-options')).toHaveCount(0);
 
   await page.evaluate(() => {
     window.eval('startWorkout()');

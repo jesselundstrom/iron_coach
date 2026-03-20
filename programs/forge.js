@@ -337,6 +337,7 @@ const FORGE_PROGRAM={
     const dayNum=parseInt(selectedOption)||1;
     const week=state.week||1,freq=getForgeDaysPerWeek(),rounding=state.rounding||2.5,mode=state.mode||'sets';
     const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const energyBoost=context?.energyBoost===true;
     const programDeload=FORGE_INTERNAL.deloadWeeks.includes(week);
     const prescriptionWeek=effectiveSessionMode==='normal'&&programDeload?Math.max(1,week-1):week;
     const lifts=state.lifts;
@@ -346,10 +347,11 @@ const FORGE_PROGRAM={
     dayExercises.forEach(ex=>{
       const rx=FORGE_INTERNAL.getPrescription(ex.tm,prescriptionWeek,ex.isAux,rounding,mode);
       let auxSlotIdx=-1;if(ex.isAux)auxSlotIdx=lifts.aux.findIndex(a=>a.name===ex.name);
+      const extraSet=energyBoost&&!ex.isAux&&!isDeload?1:0;
       let sets;
-      if(mode==='rtf'&&!isDeload){sets=Array.from({length:rx.normalSets},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));sets.push({weight:rx.weight,reps:'AMRAP',done:false,rpe:null,isAmrap:true,repOutTarget:rx.repOutTarget});}
-      else if(mode==='rir'&&!isDeload){sets=Array.from({length:rx.fixedSets},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));}
-      else{const count=isDeload?5:FORGE_INTERNAL.setHigh;sets=Array.from({length:count},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));}
+      if(mode==='rtf'&&!isDeload){sets=Array.from({length:rx.normalSets+extraSet},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));sets.push({weight:rx.weight,reps:'AMRAP',done:false,rpe:null,isAmrap:true,repOutTarget:rx.repOutTarget});}
+      else if(mode==='rir'&&!isDeload){sets=Array.from({length:rx.fixedSets+extraSet},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));}
+      else{const count=isDeload?5:FORGE_INTERNAL.setHigh+extraSet;sets=Array.from({length:count},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));}
       exercises.push({id:Date.now()+Math.random(),name:ex.name,note:rx.note||'',isAux:ex.isAux,tm:ex.tm,auxSlotIdx,prescribedWeight:rx.weight,prescribedReps:rx.reps,rirCutoff:rx.rir,isDeload:rx.isDeload,repOutTarget:rx.repOutTarget||0,sets});
     });
     const backEx=state.backExercise||'Barbell Rows',backWt=state.backWeight||0;
@@ -385,6 +387,37 @@ const FORGE_PROGRAM={
     else if(mode==='rir')modeDesc=trForge('program.forge.blockinfo.rir','5 sets of '+reps+'. Note reps left in tank on last set.',{reps});
     if(state.skipPeakBlock&&week===14)modeDesc+=trForge('program.forge.blockinfo.skip_peak',' Peak block skipped — program restarts from Hypertrophy after this deload.');
     return{name:getForgeBlockName(FORGE_INTERNAL.blockNames[week]||''),weekLabel:trForge('program.forge.week_label','Week {week}',{week}),pct,isDeload,totalWeeks:state.skipPeakBlock?14:21,mode,modeName:getForgeModeName(mode),modeDesc,reps,rir};
+  },
+
+  getSessionCharacter(selectedOption,state){
+    const week=state.week||1;
+    const pct=Math.round((FORGE_INTERNAL.mainIntensity[week]||0)*100);
+    if(FORGE_INTERNAL.deloadWeeks.includes(week)){
+      return{tone:'deload',icon:'🌊',labelKey:'program.forge.character.deload',labelFallback:trForge('program.forge.character.deload','Deload — lighter loads, recovery focus'),labelParams:{}};
+    }
+    const block=FORGE_INTERNAL.blockNames[week]||'';
+    if(block==='Peaking'||pct>=85){
+      return{tone:'heavy',icon:'🔥',labelKey:'program.forge.character.heavy',labelFallback:trForge('program.forge.character.heavy','Heavy — top sets at {pct}% TM',{pct}),labelParams:{pct}};
+    }
+    if(block==='Strength'){
+      return{tone:'heavy',icon:'💪',labelKey:'program.forge.character.strength',labelFallback:trForge('program.forge.character.strength','Strength — {pct}% TM, controlled volume',{pct}),labelParams:{pct}};
+    }
+    return{tone:'volume',icon:'📈',labelKey:'program.forge.character.volume',labelFallback:trForge('program.forge.character.volume','Hypertrophy — {pct}% TM, build volume',{pct}),labelParams:{pct}};
+  },
+
+  getPreSessionNote(selectedOption,state){
+    const week=state.week||1;
+    const mode=state.mode||'sets';
+    const totalWeeks=state.skipPeakBlock?14:21;
+    const block=getForgeBlockName(FORGE_INTERNAL.blockNames[week]||'');
+    let modeHint='';
+    if(mode==='sets')modeHint=trForge('program.forge.note.sets_hint','Stop sets when form breaks down.');
+    else if(mode==='rtf')modeHint=trForge('program.forge.note.rtf_hint','Push the last set for max reps.');
+    else if(mode==='rir')modeHint=trForge('program.forge.note.rir_hint','Note reps left in tank on the last set.');
+    if(FORGE_INTERNAL.deloadWeeks.includes(week)){
+      return trForge('program.forge.note.deload','Week {week} of {total} — deload. Light and easy, let recovery happen.',{week,total:totalWeeks});
+    }
+    return trForge('program.forge.note.default','Week {week} of {total} — {block}. {hint}',{week,total:totalWeeks,block,hint:modeHint});
   },
 
   adjustAfterSession(exercises,state){

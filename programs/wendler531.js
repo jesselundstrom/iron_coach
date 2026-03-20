@@ -328,6 +328,7 @@ const WENDLER_531 = {
     const lifts    = state.lifts.main;
     const requestedSessionMode=context?.sessionMode||'auto';
     const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const energyBoost=context?.energyBoost===true;
     const suppressProgramDeload=effectiveSessionMode==='normal'&&(W531.weekScheme[week] || W531.weekScheme[1])?.isDeload&&!state.testWeekPending;
     const schemeWeek=suppressProgramDeload?Math.max(1,week-1):week;
     const scheme   = W531.weekScheme[schemeWeek] || W531.weekScheme[1];
@@ -366,6 +367,16 @@ const WENDLER_531 = {
           const isLast = si === scheme.pcts.length - 1;
           return { weight, reps, done:false, rpe:null, isLastHeavySet: isLast && !isDeload };
         });
+        if (energyBoost && !isDeload) {
+          sets.push({
+            weight: W531.rnd(lift.tm * 0.7, rounding),
+            reps: 5,
+            done: false,
+            rpe: null,
+            isLastHeavySet: false,
+            isEnergyBoostSet: true
+          });
+        }
         const pctStr = scheme.pcts.map(p => Math.round(p*100)+'%').join('/');
         const repStr = sets.map(s => s.reps).join('/');
         if (isDeload)
@@ -477,6 +488,43 @@ const WENDLER_531 = {
       totalWeeks: null,
       stalledCount: Object.keys(state.stalledLifts||{}).length
     };
+  },
+
+  getSessionCharacter(selectedOption,state){
+    const week=normalizeW531Week(state.week);
+    const scheme=W531.weekScheme[week]||W531.weekScheme[1];
+    const isTest=week===4&&!!state.testWeekPending;
+    const pct=Math.round((scheme.pcts[2]||0.85)*100);
+    if(isTest){
+      return{tone:'test',icon:'🔬',labelKey:'program.w531.character.test',labelFallback:trW531('program.w531.character.test','TM Test — validate your training maxes'),labelParams:{}};
+    }
+    if(scheme.isDeload){
+      return{tone:'deload',icon:'🌊',labelKey:'program.w531.character.deload',labelFallback:trW531('program.w531.character.deload','Deload — light recovery week'),labelParams:{}};
+    }
+    if(week===3){
+      return{tone:'amrap',icon:'🎯',labelKey:'program.w531.character.amrap',labelFallback:trW531('program.w531.character.amrap','1+ Week — push AMRAP on last set at {pct}%',{pct}),labelParams:{pct}};
+    }
+    if(week===2){
+      return{tone:'heavy',icon:'🔥',labelKey:'program.w531.character.heavy',labelFallback:trW531('program.w531.character.heavy','3s Week — working sets at {pct}% TM',{pct}),labelParams:{pct}};
+    }
+    return{tone:'volume',icon:'📈',labelKey:'program.w531.character.volume',labelFallback:trW531('program.w531.character.volume','5s Week — moderate volume at {pct}% TM',{pct}),labelParams:{pct}};
+  },
+
+  getPreSessionNote(selectedOption,state){
+    const week=normalizeW531Week(state.week);
+    const cycle=state.cycle||1;
+    const isTest=week===4&&!!state.testWeekPending;
+    const schemeName=getW531SchemeName(week);
+    if(isTest){
+      return trW531('program.w531.note.test','Cycle {cycle}, TM Test — push for max reps to validate training maxes.',{cycle});
+    }
+    if((W531.weekScheme[week]||{}).isDeload){
+      return trW531('program.w531.note.deload','Cycle {cycle}, Deload — easy sets, focus on recovery.',{cycle});
+    }
+    if(week===3){
+      return trW531('program.w531.note.amrap','Cycle {cycle}, {scheme} — push for max reps on every AMRAP set.',{cycle,scheme:schemeName});
+    }
+    return trW531('program.w531.note.default','Cycle {cycle}, {scheme} — complete all prescribed sets cleanly.',{cycle,scheme:schemeName});
   },
 
   // ─── Adjust After Session ─────────────────────────────────────────────────

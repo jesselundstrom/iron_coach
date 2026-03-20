@@ -33,6 +33,12 @@ const HISTORY_MAIN_LIFTS = [
     color: 'var(--purple)',
   },
 ];
+const HISTORY_EXACT_LIFT_NAME_MAP = {
+  squat: new Set(['squat', 'back squat', 'barbell back squat']),
+  bench: new Set(['bench press', 'bench']),
+  deadlift: new Set(['deadlift']),
+  ohp: new Set(['ohp', 'overhead press', 'overhead press (ohp)']),
+};
 
 function hasHistoryIslandMount() {
   return !!document.getElementById('history-react-root');
@@ -99,17 +105,25 @@ function histDisplayName(input) {
   return String(input || '');
 }
 
+function histCanonicalExerciseName(name) {
+  const raw = String(name || '').trim();
+  if (!raw) return '';
+  if (typeof window.resolveExerciseSelection === 'function') {
+    const resolved = window.resolveExerciseSelection(raw);
+    return String(resolved?.name || raw)
+      .trim()
+      .toLowerCase();
+  }
+  return raw.toLowerCase();
+}
+
 function histNormalizeLiftKey(name) {
-  const value = String(name || '').toLowerCase();
-  if (value.includes('bench')) return 'bench';
-  if (value.includes('deadlift')) return 'deadlift';
-  if (
-    value.includes('overhead press') ||
-    value === 'ohp' ||
-    value.includes('ohp')
-  )
-    return 'ohp';
-  if (value.includes('squat')) return 'squat';
+  const value = histCanonicalExerciseName(name);
+  if (!value) return '';
+  if (HISTORY_EXACT_LIFT_NAME_MAP.bench.has(value)) return 'bench';
+  if (HISTORY_EXACT_LIFT_NAME_MAP.deadlift.has(value)) return 'deadlift';
+  if (HISTORY_EXACT_LIFT_NAME_MAP.ohp.has(value)) return 'ohp';
+  if (HISTORY_EXACT_LIFT_NAME_MAP.squat.has(value)) return 'squat';
   return '';
 }
 
@@ -1168,25 +1182,22 @@ function buildHistoryStatsMarkup() {
     {
       label: trHist('history.stats.lift.squat', 'Squat'),
       color: 'var(--orange)',
-      pts: _statsLiftProgress((n) => n === 'Squat', NWEEKS),
+      pts: _statsLiftE1rm('squat', NWEEKS),
     },
     {
       label: trHist('history.stats.lift.bench', 'Bench'),
       color: 'var(--blue)',
-      pts: _statsLiftProgress((n) => n === 'Bench Press', NWEEKS),
+      pts: _statsLiftE1rm('bench', NWEEKS),
     },
     {
       label: trHist('history.stats.lift.deadlift', 'Deadlift'),
       color: 'var(--gold)',
-      pts: _statsLiftProgress((n) => n === 'Deadlift', NWEEKS),
+      pts: _statsLiftE1rm('deadlift', NWEEKS),
     },
     {
       label: trHist('history.stats.lift.ohp', 'OH Press'),
       color: 'var(--purple)',
-      pts: _statsLiftProgress(
-        (n) => n === 'OHP' || n === 'Overhead Press (OHP)',
-        NWEEKS
-      ),
+      pts: _statsLiftE1rm('ohp', NWEEKS),
     },
   ];
   const svg = _svgLiftLines(lifts, NWEEKS);
@@ -1201,7 +1212,7 @@ function buildHistoryStatsMarkup() {
         .join('')
     : '';
   const strengthHtml = strengthVisible
-    ? `<div class="stats-chart-title">${trHist('history.stats.strength', 'Strength Progress')}</div>${svg}<div class="stats-chart-legend">${legend}</div>`
+    ? `<div class="stats-chart-title">${trHist('history.stats.e1rm', 'Estimated 1RM')}</div>${svg}<div class="stats-chart-legend">${legend}</div>`
     : '';
 
   return {
@@ -1471,6 +1482,7 @@ function _buildStructuredCard(w, isPR, recovery) {
     rpe: w.rpe || null,
     exercises,
     sessionNotes: w.sessionNotes || null,
+    tmAdjustments: w.tmAdjustments || null,
     deleteTitle: histDeleteTitle(w),
   };
 }
@@ -1606,7 +1618,7 @@ function _buildStructuredStats() {
       title: trHist('history.stats.strength', 'Strength Progress'),
       lifts,
       nWeeks: nWeeks || 16,
-      visible: lifts.some((l) => l.pts.length >= 1),
+      visible: false,
     },
     e1rm: {
       title: trHist('history.stats.e1rm', 'Estimated 1RM'),

@@ -443,6 +443,14 @@ function getLogStartReactSnapshot() {
               : '',
           }
         : null,
+      energyAssessment: {
+        title: i18nText('workout.energy.title', 'How do you feel?'),
+        options: [
+          {value: 'low', label: i18nText('workout.energy.low', 'Low energy'), tone: 'caution', active: pendingEnergyLevel === 'low'},
+          {value: 'normal', label: i18nText('workout.energy.normal', 'Normal'), tone: 'neutral', active: pendingEnergyLevel === 'normal'},
+          {value: 'strong', label: i18nText('workout.energy.strong', 'Feeling strong'), tone: 'positive', active: pendingEnergyLevel === 'strong'},
+        ],
+      },
     },
   };
 }
@@ -894,11 +902,27 @@ function uniqueList(items) {
   return [...new Set((items || []).filter(Boolean))];
 }
 
+function normalizeEnergyLevel(value) {
+  return value === 'low' || value === 'strong' ? value : 'normal';
+}
+
 let pendingSportReadinessCallback = null;
 let pendingSportReadinessLevel = 'none';
 let pendingSportReadinessTiming = 'none';
 let pendingSportReadinessTimingTouched = false;
 let pendingSessionMode = 'auto';
+let pendingEnergyLevel = 'normal';
+window.setPendingEnergyLevel = function(value) {
+  pendingEnergyLevel = normalizeEnergyLevel(value);
+  if (typeof setPendingSessionMode === 'function') {
+    if (pendingEnergyLevel === 'low')
+      setPendingSessionMode('light', { preserveEnergySync: true });
+    else if (pendingEnergyLevel === 'strong')
+      setPendingSessionMode('normal', { preserveEnergySync: true });
+    else setPendingSessionMode('auto', { preserveEnergySync: true });
+  }
+  notifyLogStartIsland();
+};
 let workoutStartSnapshotCache = null;
 let collapsedExerciseCardState = {};
 let activeGuideExerciseKey = null;
@@ -1453,6 +1477,7 @@ function getWorkoutStartDecisionBundle(input) {
   const next = input || {};
   const prog = next.prog || getActiveProgram();
   const state = next.state || getActiveProgramState();
+  const energyLevel = normalizeEnergyLevel(next.energyLevel || pendingEnergyLevel);
   const sportContext =
     'sportContext' in next
       ? next.sportContext
@@ -1480,7 +1505,9 @@ function getWorkoutStartDecisionBundle(input) {
     trainingDecision,
     planningContext
   );
-  const selectedSessionMode = syncPendingSessionMode(recommendedSessionMode);
+  let selectedSessionMode = syncPendingSessionMode(recommendedSessionMode);
+  if (energyLevel === 'low') selectedSessionMode = 'light';
+  else if (energyLevel === 'strong') selectedSessionMode = 'normal';
   const effectiveSessionMode = resolveEffectiveSessionMode(
     selectedSessionMode,
     recommendedSessionMode
@@ -1497,6 +1524,7 @@ function getWorkoutStartDecisionBundle(input) {
     recommendedSessionMode,
     selectedSessionMode,
     effectiveSessionMode,
+    energyLevel,
     sportAwareLowerBody,
     effectiveDecision,
     sportContext,
@@ -1506,6 +1534,9 @@ function getWorkoutStartDecisionBundle(input) {
 function getProgramSessionBuildContext(input) {
   const next = input || {};
   const bundle = next.sessionModeBundle || {};
+  const energyLevel = normalizeEnergyLevel(
+    next.energyLevel || bundle.energyLevel || pendingEnergyLevel
+  );
   const selectedSessionMode = normalizeSessionMode(
     next.selectedSessionMode || bundle.selectedSessionMode || 'auto'
   );
@@ -1517,6 +1548,8 @@ function getProgramSessionBuildContext(input) {
   );
   return {
     preview: !!next.preview,
+    energyLevel,
+    energyBoost: energyLevel === 'strong',
     sessionMode: selectedSessionMode,
     effectiveSessionMode: effectiveSessionMode === 'light' ? 'light' : 'normal',
     sportAwareLowerBody:
@@ -1542,8 +1575,11 @@ function getProgramSessionStateForBuild(prog, state, buildContext) {
   };
 }
 
-function setPendingSessionMode(mode) {
+function setPendingSessionMode(mode, options) {
   pendingSessionMode = normalizeSessionMode(mode);
+  if (!options?.preserveEnergySync) {
+    pendingEnergyLevel = pendingSessionMode === 'light' ? 'low' : 'normal';
+  }
   if (typeof updateProgramDisplay === 'function') updateProgramDisplay();
 }
 
@@ -1657,6 +1693,9 @@ function getWorkoutStartSnapshotSignature(input) {
     selectedSessionMode:
       next.decisionBundle?.selectedSessionMode || pendingSessionMode || 'auto',
     effectiveSessionMode: next.decisionBundle?.effectiveSessionMode || 'normal',
+    energyLevel:
+      next.decisionBundle?.energyLevel ||
+      normalizeEnergyLevel(pendingEnergyLevel),
     preferences: {
       warmupSetsEnabled: !!prefs.warmupSetsEnabled,
       goal: prefs.goal || '',
@@ -4590,12 +4629,15 @@ function buildCoachNote(
   advancedState,
   workout
 ) {
+  let note = '';
+
   // PR rule — name up to 2 exercises max
   const prs = workout?.rewardState?.detectedPrs || [];
   if (prs.length > 0) {
     const names = [...new Set(prs.map((p) => p.exerciseName))].slice(0, 2);
     const label = names.join(' & ');
-    return prs.length === 1
+    note =
+      prs.length === 1
       ? i18nText(
           'workout.coach_note.pr_single',
           'New PR on {exercise}! Keep going.',
@@ -4608,38 +4650,14 @@ function buildCoachNote(
         );
   }
 
-  // TM increase rule — compare per-lift TMs for programs that use lifts.main
-  const beforeLifts = stateBeforeSession?.lifts?.main || [];
-  const afterLifts = advancedState?.lifts?.main || [];
-  if (beforeLifts.length > 0 && afterLifts.length > 0) {
-    const increased = [];
-    afterLifts.forEach((lift, i) => {
-      const before = beforeLifts[i];
-      if (before && lift.name === before.name && lift.tm > before.tm) {
-        increased.push({
-          name: lift.name,
-          delta: Math.round((lift.tm - before.tm) * 10) / 10,
-          tm: lift.tm,
-        });
-      }
-    });
-    if (increased.length > 0) {
-      const lift = increased[0];
-      return i18nText(
-        'workout.coach_note.tm_increase',
-        'Strength up: {lift} +{delta}kg → now {tm}kg',
-        { lift: lift.name, delta: lift.delta, tm: lift.tm }
-      );
-    }
-  }
-
   // Week advance rule
   if (
+    !note &&
     advancedState?.week !== undefined &&
     stateBeforeSession?.week !== undefined &&
     advancedState.week !== stateBeforeSession.week
   ) {
-    return i18nText(
+    note = i18nText(
       'workout.coach_note.week_advance',
       'Week {week} starts now. Build on it.',
       { week: advancedState.week }
@@ -4648,11 +4666,12 @@ function buildCoachNote(
 
   // Cycle advance rule
   if (
+    !note &&
     advancedState?.cycle !== undefined &&
     stateBeforeSession?.cycle !== undefined &&
     advancedState.cycle !== stateBeforeSession.cycle
   ) {
-    return i18nText(
+    note = i18nText(
       'workout.coach_note.cycle_advance',
       'Cycle {cycle} starts — new progression block.',
       { cycle: advancedState.cycle }
@@ -4666,23 +4685,83 @@ function buildCoachNote(
   const rpe = summaryData.rpe || 0;
 
   // High RPE + incomplete sets rule
-  if (rpe >= 9 && completionRate < 0.9) {
-    return i18nText(
+  if (!note && rpe >= 9 && completionRate < 0.9) {
+    note = i18nText(
       'workout.coach_note.tough_session',
       'Tough session — rest well and come back strong.'
     );
   }
 
   // Low completion rule (< 70% sets done)
-  if (completionRate < 0.7) {
-    return i18nText(
+  if (!note && completionRate < 0.7) {
+    note = i18nText(
       'workout.coach_note.partial_session',
       'Partial session logged. Any training counts — consistency wins.'
     );
   }
 
   // Clean completion fallback
-  return i18nText('workout.coach_note.clean', 'All sets done. Solid work.');
+  if (!note)
+    note = i18nText('workout.coach_note.clean', 'All sets done. Solid work.');
+
+  const tmSummary = buildTmAdjustmentCoachSummary(summaryData.tmAdjustments);
+  return tmSummary ? `${note} ${tmSummary}` : note;
+}
+
+function formatWorkoutWeight(value) {
+  const rounded = Math.round((Number(value) || 0) * 100) / 100;
+  if (!Number.isFinite(rounded)) return '0';
+  return String(rounded)
+    .replace(/\.00$/, '')
+    .replace(/(\.\d)0$/, '$1');
+}
+
+function buildTmAdjustmentCoachSummary(adjustments) {
+  const items = Array.isArray(adjustments) ? adjustments.slice(0, 2) : [];
+  if (!items.length) return '';
+  return items
+    .map((adj) =>
+      i18nText(
+        adj.direction === 'up'
+          ? 'workout.coach_note.tm_adjustment_up'
+          : 'workout.coach_note.tm_adjustment_down',
+        adj.direction === 'up'
+          ? '{lift} TM ↑ {tm} kg (+{delta})'
+          : '{lift} TM ↓ {tm} kg (-{delta})',
+        {
+          lift: adj.lift,
+          tm: formatWorkoutWeight(adj.newTM),
+          delta: formatWorkoutWeight(Math.abs(adj.delta)),
+        }
+      )
+    )
+    .join(' · ');
+}
+
+function buildTmAdjustmentToast(adjustments) {
+  const items = Array.isArray(adjustments) ? adjustments : [];
+  if (!items.length) return '';
+  if (items.length === 1) {
+    const adj = items[0];
+    return i18nText(
+      'workout.tm_updated_single',
+      '{lift} TM updated: {old} → {next} kg',
+      {
+        lift: adj.lift,
+        old: formatWorkoutWeight(adj.oldTM),
+        next: formatWorkoutWeight(adj.newTM),
+      }
+    );
+  }
+  const changes = items
+    .map(
+      (adj) =>
+        `${adj.lift} ${adj.direction === 'up' ? '\u2191' : '\u2193'} ${formatWorkoutWeight(adj.newTM)} kg`
+    )
+    .join(', ');
+  return i18nText('workout.tm_updated_multi', 'TMs updated: {changes}', {
+    changes,
+  });
 }
 
 function buildSessionSummaryStats(summaryData) {
@@ -5345,7 +5424,13 @@ async function finishWorkout() {
     prCount: sessionPrCount,
     programLabel: activeWorkout.programLabel || '',
     coachNote: buildCoachNote(
-      { completedSets, totalSets, rpe: sessionRPE, prCount: sessionPrCount },
+      {
+        completedSets,
+        totalSets,
+        rpe: sessionRPE,
+        prCount: sessionPrCount,
+        tmAdjustments,
+      },
       stateBeforeSession,
       advancedState,
       activeWorkout
@@ -5382,6 +5467,13 @@ async function finishWorkout() {
     savedWorkout.durationSignal
   )
     await saveWorkouts();
+  const tmAdjustmentToast = buildTmAdjustmentToast(savedWorkout.tmAdjustments);
+  if (tmAdjustmentToast) {
+    setTimeout(
+      () => showToast(tmAdjustmentToast, 'var(--blue)'),
+      600
+    );
+  }
   if (summaryResult?.goToNutrition) {
     if (typeof window.setNutritionSessionContext === 'function') {
       window.setNutritionSessionContext(summaryData);

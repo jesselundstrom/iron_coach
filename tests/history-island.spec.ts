@@ -171,11 +171,79 @@ test('history stats show range controls, extra charts, and milestones for progre
   await page.evaluate(() => (window as any).switchHistoryTab?.('stats'));
 
   await expect(page.locator('.stats-range-btn')).toHaveCount(3);
-  await expect(page.locator('#stats-strength-wrap')).toContainText(/Strength Progress|Voimakehitys/i);
   await expect(page.locator('#stats-e1rm-wrap')).toContainText(/Estimated 1RM|Arvioitu 1RM/i);
   await expect(page.locator('#stats-tm-wrap')).toContainText(/Training Max Trend|Treenimaksimin trendi/i);
+  await expect(page.locator('#stats-strength-wrap')).toHaveCount(0);
   await expect(page.locator('.stats-milestone-badge')).toHaveCount(2);
 
   await page.click('.stats-range-btn[data-range="all"]');
   await expect(page.locator('.stats-range-btn.active')).toContainText(/All|Kaikki/i);
+});
+
+test('history stats keep front squat and sumo deadlift out of the main lift trend lines', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    window.eval(`
+      workouts = [
+        {
+          id: 401,
+          date: '2026-02-01T09:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 1,
+          programMeta: { week: 1 },
+          programLabel: 'Forge Day 1',
+          exercises: [
+            { name: 'Front Squat', sets: [{ weight: 90, reps: 5, done: true }] },
+            { name: 'Bench Press', sets: [{ weight: 80, reps: 5, done: true }] }
+          ]
+        },
+        {
+          id: 402,
+          date: '2026-02-08T09:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 2,
+          programMeta: { week: 2 },
+          programLabel: 'Forge Day 2',
+          exercises: [
+            { name: 'Sumo Deadlift', sets: [{ weight: 140, reps: 5, done: true }] },
+            { name: 'OHP', sets: [{ weight: 50, reps: 5, done: true }] }
+          ]
+        },
+        {
+          id: 403,
+          date: '2026-02-15T09:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 3,
+          programMeta: { week: 3 },
+          programLabel: 'Forge Day 3',
+          exercises: [
+            { name: 'Squat', sets: [{ weight: 100, reps: 5, done: true }] },
+            { name: 'Deadlift', sets: [{ weight: 160, reps: 5, done: true }] }
+          ]
+        }
+      ];
+      renderHistory();
+      showPage('history', document.querySelectorAll('.nav-btn')[2]);
+    `);
+    window.switchHistoryTab?.('stats');
+  });
+
+  const liftCounts = await page.evaluate(() => {
+    const snapshot = window.getHistoryReactSnapshot();
+    const counts = Object.fromEntries(
+      snapshot.stats.e1rm.lifts.map((lift) => [lift.key, lift.pts.length])
+    );
+    return counts;
+  });
+
+  expect(liftCounts.squat).toBe(1);
+  expect(liftCounts.deadlift).toBe(1);
+  expect(liftCounts.bench).toBe(1);
+  expect(liftCounts.ohp).toBe(1);
 });

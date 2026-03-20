@@ -654,6 +654,123 @@ function getProgramFrequencyNoticeHTML(programId, profileLike) {
   `;
 }
 
+function normalizeEstimateExerciseName(input) {
+  const raw = String(
+    typeof input === 'object' ? input?.name || '' : input || ''
+  ).trim();
+  if (!raw) return '';
+  if (typeof window.resolveExerciseSelection === 'function') {
+    const resolved = window.resolveExerciseSelection(raw);
+    return String(resolved?.name || raw).trim().toLowerCase();
+  }
+  return raw.toLowerCase();
+}
+
+function parseEstimateRepCount(value) {
+  if (typeof parseLoggedRepCount === 'function') {
+    const parsed = parseLoggedRepCount(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const raw = parseFloat(String(value ?? '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(raw) ? raw : 0;
+}
+
+function formatEstimatedWeight(value) {
+  const rounded = Math.round((Number(value) || 0) * 100) / 100;
+  if (!Number.isFinite(rounded)) return '0';
+  return String(rounded)
+    .replace(/\.00$/, '')
+    .replace(/(\.\d)0$/, '$1');
+}
+
+function roundEstimatedWeight(value, increment) {
+  const step = Number(increment) > 0 ? Number(increment) : 2.5;
+  return Math.round(value / step) * step;
+}
+
+function getProgramEstimateTargets(targetProgramId) {
+  const canonicalId = getCanonicalProgramRef(targetProgramId);
+  const prog = PROGRAMS[canonicalId];
+  const initialState = prog?.getInitialState ? prog.getInitialState() : {};
+  const rounding = initialState?.rounding || 2.5;
+  if (Array.isArray(initialState?.lifts?.main)) {
+    return initialState.lifts.main.map((lift) => ({
+      key: lift.name,
+      label: lift.name,
+      rounding,
+    }));
+  }
+  if (initialState?.lifts && typeof initialState.lifts === 'object') {
+    return Object.keys(initialState.lifts).map((key) => ({
+      key,
+      label:
+        prog?._names?.[key] ||
+        key.charAt(0).toUpperCase() + key.slice(1),
+      rounding,
+    }));
+  }
+  return [];
+}
+
+function estimateTMsFromHistory(targetProgramId, workouts, profile) {
+  void profile;
+  const targets = getProgramEstimateTargets(targetProgramId);
+  if (!targets.length) return {};
+  const now = Date.now();
+  const lookbackMs = 60 * 864e5;
+  const recentWorkouts = (Array.isArray(workouts) ? workouts : []).filter(
+    (workout) =>
+      workout &&
+      workout.type !== 'sport' &&
+      workout.type !== 'hockey' &&
+      Array.isArray(workout.exercises) &&
+      now - new Date(workout.date).getTime() <= lookbackMs
+  );
+  const estimates = {};
+
+  targets.forEach((target) => {
+    const targetName = normalizeEstimateExerciseName(target.label || target.key);
+    if (!targetName) return;
+    const matchedSessions = new Set();
+    let bestWeight = 0;
+    let bestReps = 0;
+
+    recentWorkouts.forEach((workout, workoutIndex) => {
+      const workoutTag = String(
+        workout.id || `${workout.date || ''}:${workoutIndex}`
+      );
+      workout.exercises.forEach((exercise) => {
+        if (normalizeEstimateExerciseName(exercise) !== targetName) return;
+        let matchedInWorkout = false;
+        (Array.isArray(exercise?.sets) ? exercise.sets : []).forEach((set) => {
+          if (!set?.done || set?.isWarmup) return;
+          const weight = Number(set.weight);
+          const reps = parseEstimateRepCount(set.reps);
+          if (!Number.isFinite(weight) || weight <= 0 || reps <= 0) return;
+          matchedInWorkout = true;
+          if (
+            weight > bestWeight ||
+            (weight === bestWeight && reps > bestReps)
+          ) {
+            bestWeight = weight;
+            bestReps = reps;
+          }
+        });
+        if (matchedInWorkout) matchedSessions.add(workoutTag);
+      });
+    });
+
+    if (matchedSessions.size < 2 || bestWeight <= 0 || bestReps <= 0) return;
+    const estimatedOneRepMax = bestWeight * (1 + bestReps / 30);
+    const cappedTrainingMax = Math.min(bestWeight, estimatedOneRepMax * 0.85);
+    const rounded = roundEstimatedWeight(cappedTrainingMax, target.rounding);
+    const finalValue = Math.min(bestWeight, rounded);
+    if (finalValue > 0) estimates[target.key] = finalValue;
+  });
+
+  return Object.keys(estimates).length >= 2 ? estimates : {};
+}
+
 function switchProgram(id) {
   const canonicalId = getCanonicalProgramRef(id);
   if (canonicalId === getActiveProgramId()) return;
@@ -670,8 +787,37 @@ function switchProgram(id) {
     () => {
       profile.activeProgram = canonicalId;
       if (!profile.programs) profile.programs = {};
-      if (!profile.programs[canonicalId])
+      let estimatedLoads = [];
+      if (!profile.programs[canonicalId]) {
         profile.programs[canonicalId] = prog.getInitialState();
+        const estimates = estimateTMsFromHistory(canonicalId, workouts, profile);
+        const nextState = profile.programs[canonicalId];
+        if (Object.keys(estimates).length) {
+          if (Array.isArray(nextState?.lifts?.main)) {
+            nextState.lifts.main.forEach((lift) => {
+              if (estimates[lift.name] !== undefined) lift.tm = estimates[lift.name];
+            });
+            estimatedLoads = nextState.lifts.main
+              .filter((lift) => estimates[lift.name] !== undefined)
+              .map((lift) => ({
+                lift: lift.name,
+                value: estimates[lift.name],
+              }));
+          } else if (nextState?.lifts && typeof nextState.lifts === 'object') {
+            Object.keys(nextState.lifts).forEach((key) => {
+              if (estimates[key] !== undefined) nextState.lifts[key].weight = estimates[key];
+            });
+            estimatedLoads = Object.keys(nextState.lifts)
+              .filter((key) => estimates[key] !== undefined)
+              .map((key) => ({
+                lift:
+                  prog._names?.[key] ||
+                  key.charAt(0).toUpperCase() + key.slice(1),
+                value: estimates[key],
+              }));
+          }
+        }
+      }
       applyProgramDateCatchUp(canonicalId);
       saveProfileData({
         docKeys: [PROFILE_CORE_DOC_KEY, programDocKey(canonicalId)],
@@ -682,6 +828,23 @@ function switchProgram(id) {
         trProg('program.switched', 'Switched to {name}', { name: progName }),
         'var(--purple)'
       );
+      if (estimatedLoads.length) {
+        const changes = estimatedLoads
+          .map((item) => `${item.lift} ${formatEstimatedWeight(item.value)} kg`)
+          .join(', ');
+        setTimeout(
+          () =>
+            showToast(
+              trProg(
+                'program.switch_estimated_loads',
+                'Starting loads estimated from your recent training: {changes}. Adjust in Settings if needed.',
+                { changes }
+              ),
+              'var(--blue)'
+            ),
+          500
+        );
+      }
     }
   );
 }

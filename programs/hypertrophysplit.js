@@ -390,6 +390,7 @@ const HS_PROGRAM={
     const week=state.week||1;
     const rounding=state.rounding||2.5;
     const effectiveSessionMode=context?.effectiveSessionMode==='light'?'light':'normal';
+    const energyBoost=context?.energyBoost===true;
     const programDeload=WEEKS[week].deload;
     const buildWeek=effectiveSessionMode==='normal'&&programDeload?Math.max(1,week-1):week;
     const isDeload=effectiveSessionMode==='light'&&programDeload;
@@ -400,13 +401,14 @@ const HS_PROGRAM={
         // Compound exercise
         const lift=state.lifts[slot.liftKey]||{tm:LIFT_DEFAULTS[slot.liftKey]||50,name:LIFT_NAMES[slot.liftKey]||slot.liftKey};
         const rx=getPrescription(lift.tm,buildWeek,slot.isT2,rounding);
-        const sets=Array.from({length:rx.sets},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));
+        const setCount=rx.sets+(energyBoost&&!slot.isT2&&!isDeload?1:0);
+        const sets=Array.from({length:setCount},()=>({weight:rx.weight,reps:rx.reps,done:false,rpe:null}));
         const tierLabel=slot.isT2?'T2':'T1';
         exercises.push({
           id:Date.now()+Math.random(),
           name:lift.name||LIFT_NAMES[slot.liftKey],
           liftKey:slot.liftKey,
-          note:rx.weight+'kg × '+rx.sets+'×'+rx.reps+(isDeload?' — '+tr('program.hs.deload_easy','easy'):''),
+          note:rx.weight+'kg × '+setCount+'×'+rx.reps+(isDeload?' — '+tr('program.hs.deload_easy','easy'):''),
           isAux:slot.isT2,
           isAccessory:false,
           tm:lift.tm,
@@ -472,6 +474,33 @@ const HS_PROGRAM={
         ?tr('program.hs.blockinfo.deload','Light week — reduced volume and intensity for recovery.')
         :tr('program.hs.blockinfo.normal','T1: {sets}×{reps} @{pct}% TM · T2 lighter · Accessories {accSets}×12-15',{sets,reps,pct,accSets:3})
     };
+  },
+
+  getSessionCharacter(selectedOption,state){
+    const week=normalizeHSWeek(state.week);
+    const w=WEEKS[week]||WEEKS[1];
+    const pct=Math.round((w.t1||0.65)*100);
+    if(w.deload){
+      return{tone:'deload',icon:'🌊',labelKey:'program.hs.character.deload',labelFallback:tr('program.hs.character.deload','Deload — reduced volume, recovery focus'),labelParams:{}};
+    }
+    if(w.block==='Push'||pct>=78){
+      return{tone:'heavy',icon:'🔥',labelKey:'program.hs.character.heavy',labelFallback:tr('program.hs.character.heavy','Push — T1 at {pct}% TM',{pct}),labelParams:{pct}};
+    }
+    if(w.block==='Build'){
+      return{tone:'volume',icon:'💪',labelKey:'program.hs.character.build',labelFallback:tr('program.hs.character.build','Build — T1 at {pct}% TM, growing volume',{pct}),labelParams:{pct}};
+    }
+    return{tone:'volume',icon:'📈',labelKey:'program.hs.character.ramp',labelFallback:tr('program.hs.character.ramp','Ramp-up — T1 at {pct}% TM, moderate start',{pct}),labelParams:{pct}};
+  },
+
+  getPreSessionNote(selectedOption,state){
+    const week=normalizeHSWeek(state.week);
+    const cycle=state.cycle||1;
+    const w=WEEKS[week]||WEEKS[1];
+    const block=w.block||'Training';
+    if(w.deload){
+      return tr('program.hs.note.deload','Cycle {cycle}, Week {week} — deload. Lighter loads, let your body recover.',{cycle,week});
+    }
+    return tr('program.hs.note.default','Cycle {cycle}, Week {week} of {total} — {block} phase. Stay consistent with prescribed volume.',{cycle,week,total:CYCLE_LENGTH,block});
   },
 
   /* ── TM adjustment after session ─────────────────────────────────── */

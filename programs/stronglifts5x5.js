@@ -152,6 +152,16 @@ const STRONGLIFTS_5X5={
     return{name:trSL('program.sl.linear_progression','Linear Progression'),weekLabel:trSL('common.session','Session')+' '+(state.sessionCount||0),pct:null,isDeload:false,totalWeeks:null};
   },
 
+  getSessionCharacter(selectedOption,state){
+    return{tone:'normal',icon:'🏋️',labelKey:'program.sl.character.normal',labelFallback:trSL('program.sl.character.normal','Linear 5×5 — add weight on success'),labelParams:{}};
+  },
+
+  getPreSessionNote(selectedOption,state){
+    const count=(state.sessionCount||0)+1;
+    const next=state.nextWorkout||'A';
+    return trSL('program.sl.note.default','Session {count} · Workout {next}. Add weight if all 5×5 completed last time.',{count,next});
+  },
+
   // adjustAfterSession: updates lift weights based on session performance.
   // Called BEFORE advanceState so state.nextWorkout still reflects the workout just done.
   adjustAfterSession(exercises,state,programOption){

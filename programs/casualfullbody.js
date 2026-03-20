@@ -189,6 +189,25 @@ const CASUAL_FULL_BODY = {
         sets:        Array.from({ length: 3 }, () => ({ weight: '', reps: 12, done: false, rpe: null }))
       });
     });
+    if (context?.energyBoost) {
+      const bonusName = pickOne(
+        ACCESSORY_POOL.filter(name => !accessories.includes(name)),
+        lastUsed
+      );
+      if (bonusName) {
+        exercises.push({
+          id:          Date.now() + Math.random(),
+          name:        bonusName,
+          note:        trCFB('program.cfb.note_accessory','Accessory · 3 sets × 8-12 reps'),
+          isAux:       true,
+          isAccessory: true,
+          tm:          0,
+          auxSlotIdx:  5,
+          slotId:      'accessory',
+          sets:        Array.from({ length: 3 }, () => ({ weight: '', reps: 12, done: false, rpe: null }))
+        });
+      }
+    }
 
     return exercises;
   },
@@ -212,6 +231,17 @@ const CASUAL_FULL_BODY = {
       isDeload:   false,
       totalWeeks: null
     };
+  },
+
+  getSessionCharacter(selectedOption,state){
+    return{tone:'normal',icon:'🏋️',labelKey:'program.cfb.character.normal',labelFallback:trCFB('program.cfb.character.normal','Full body — varied exercises'),labelParams:{}};
+  },
+
+  getPreSessionNote(selectedOption,state){
+    const count=(state.sessionCount||0)+1;
+    const streak=state.currentStreak||0;
+    const streakNote=streak>=2?' · '+trCFB('program.cfb.week_streak_long','{count}-week streak',{count:streak}):'';
+    return trCFB('program.cfb.note.default','Session {count}. Focus on effort and form.',{count})+streakNote;
   },
 
   // ─── Adjust After Session ─────────────────────────────────────────────────
