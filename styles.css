@@ -10035,19 +10035,22 @@ body.login-active::before {
   border-color: rgba(255, 181, 94, 0.2);
   color: rgba(255, 211, 139, 0.85);
 }
-/* -- Correction bottom-sheet portal (rendered on document.body, not inside .nutrition-active) -- */
-.nc-correction-overlay {
+/* -- Nutrition bottom-sheet portals (rendered on document.body) -- */
+.nc-correction-overlay,
+.nc-photo-picker-overlay {
   position: fixed;
   inset: 0;
   z-index: 9000;
   pointer-events: auto;
 }
-.nc-correction-backdrop {
+.nc-correction-backdrop,
+.nc-photo-picker-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
 }
-.nc-correction-sheet {
+.nc-correction-sheet,
+.nc-photo-picker-sheet {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -10067,13 +10070,15 @@ body.login-active::before {
   will-change: transform;
 }
 /* These live inside the portal on document.body — no .content.nutrition-active scope */
-.nc-correction-header {
+.nc-correction-header,
+.nc-photo-picker-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
 }
-.nc-correction-close {
+.nc-correction-close,
+.nc-photo-picker-close {
   display: flex;
   align-items: center;
   padding: 4px;
@@ -10083,14 +10088,23 @@ body.login-active::before {
   cursor: pointer;
   touch-action: manipulation;
 }
-.nc-correction-close svg {
+.nc-correction-close svg,
+.nc-photo-picker-close svg {
   width: 16px;
   height: 16px;
 }
-.nc-correction-close:hover {
+.nc-correction-close:hover,
+.nc-photo-picker-close:hover {
   color: rgba(255, 244, 228, 0.65);
 }
 .nc-correction-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 139, 0.7);
+}
+.nc-photo-picker-label {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -10145,9 +10159,51 @@ body.login-active::before {
   opacity: 0.35;
   cursor: default;
 }
+.nc-photo-picker-options {
+  display: grid;
+  gap: 8px;
+}
+.nc-photo-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 244, 228, 0.92);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    border-color 0.14s,
+    background 0.14s,
+    transform 0.1s;
+}
+.nc-photo-picker-option .nc-action-icon {
+  width: 18px;
+  height: 18px;
+  color: rgba(255, 181, 94, 0.72);
+  flex-shrink: 0;
+}
+.nc-photo-picker-option:hover {
+  border-color: rgba(255, 181, 94, 0.2);
+  background: rgba(255, 181, 94, 0.08);
+}
+.nc-photo-picker-option:active {
+  transform: scale(0.98);
+}
 /* Photo CTA — full-width primary action above the text action row */
 .content.nutrition-active .nc-photo-cta {
   display: flex;
+  appearance: none;
+  -webkit-appearance: none;
   align-items: center;
   justify-content: center;
   gap: 10px;

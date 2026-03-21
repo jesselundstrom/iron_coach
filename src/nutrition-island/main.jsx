@@ -550,16 +550,19 @@ function LoadingRow({ loading }) {
   );
 }
 
-// Correction trigger — renders a small button in the message list.
-// Tapping it opens a bottom sheet portal that tracks the iOS visual viewport
-// so the sheet stays above the software keyboard.
-function CorrectionRow() {
-  const [open, setOpen] = useState(false);
+function NutritionTextSheet({
+  open,
+  onClose,
+  onSend,
+  title,
+  placeholder,
+  inputId,
+  sendAriaLabel,
+}) {
   const [text, setText] = useState('');
   const inputRef = useRef(null);
   const sheetRef = useRef(null);
 
-  // Track visualViewport so the sheet lifts above the iOS keyboard.
   useEffect(() => {
     if (!open) return undefined;
 
@@ -567,7 +570,6 @@ function CorrectionRow() {
     function reposition() {
       const sheet = sheetRef.current;
       if (!sheet || !viewport) return;
-      // Distance the keyboard has pushed the visible bottom up.
       const keyboardOffset =
         window.innerHeight - viewport.height - viewport.offsetTop;
       sheet.style.transform = `translateY(-${Math.max(0, keyboardOffset)}px)`;
@@ -579,7 +581,6 @@ function CorrectionRow() {
     }
     reposition();
 
-    // Focus textarea after paint.
     const raf = requestAnimationFrame(() => inputRef.current?.focus());
 
     return () => {
@@ -594,15 +595,86 @@ function CorrectionRow() {
   function handleSend() {
     const trimmed = text.trim();
     if (!trimmed) return;
-    window.submitNutritionTextMessage?.(trimmed);
+    onSend?.(trimmed);
     setText('');
-    setOpen(false);
+    onClose?.();
   }
 
   function handleClose() {
-    setOpen(false);
     setText('');
+    onClose?.();
   }
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="nc-correction-overlay">
+      <div className="nc-correction-backdrop" onClick={handleClose} />
+      <div className="nc-correction-sheet" ref={sheetRef}>
+        <div className="nc-correction-header">
+          <div className="nc-correction-label">{title}</div>
+          <button
+            className="nc-correction-close"
+            type="button"
+            onClick={handleClose}
+            aria-label={t('common.cancel', 'Cancel')}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className="nc-correction-inputs">
+          <textarea
+            className="nc-correction-input"
+            id={inputId}
+            ref={inputRef}
+            rows={2}
+            placeholder={placeholder}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+          />
+          <button
+            className="nc-correction-send"
+            type="button"
+            onClick={handleSend}
+            disabled={!text.trim()}
+            aria-label={sendAriaLabel}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// Correction trigger — renders a small button in the message list.
+// Tapping it opens a bottom sheet portal that tracks the iOS visual viewport
+// so the sheet stays above the software keyboard.
+function CorrectionRow() {
+  const [open, setOpen] = useState(false);
 
   return (
     <>
@@ -624,73 +696,21 @@ function CorrectionRow() {
           {t('nutrition.correction.label', 'Correct the food analysis')}
         </span>
       </button>
-      {open &&
-        createPortal(
-          <div className="nc-correction-overlay">
-            <div className="nc-correction-backdrop" onClick={handleClose} />
-            <div className="nc-correction-sheet" ref={sheetRef}>
-              <div className="nc-correction-header">
-                <div className="nc-correction-label">
-                  {t('nutrition.correction.label', 'Correct the food analysis')}
-                </div>
-                <button
-                  className="nc-correction-close"
-                  type="button"
-                  onClick={handleClose}
-                  aria-label="Cancel"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div className="nc-correction-inputs">
-                <textarea
-                  className="nc-correction-input"
-                  id="nutrition-text-input"
-                  ref={inputRef}
-                  rows={2}
-                  placeholder={t(
-                    'nutrition.correction.placeholder',
-                    'e.g. That was 2 portions, not 1...'
-                  )}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                />
-                <button
-                  className="nc-correction-send"
-                  type="button"
-                  onClick={handleSend}
-                  disabled={!text.trim()}
-                  aria-label="Send correction"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
+      <NutritionTextSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        onSend={(trimmed) => window.submitNutritionTextMessage?.(trimmed)}
+        title={t('nutrition.correction.label', 'Correct the food analysis')}
+        placeholder={t(
+          'nutrition.correction.placeholder',
+          'e.g. That was 2 portions, not 1...'
         )}
+        inputId="nutrition-text-input"
+        sendAriaLabel={t(
+          'nutrition.correction.send_aria',
+          'Send correction'
+        )}
+      />
     </>
   );
 }
@@ -751,25 +771,101 @@ const ACTION_ICONS = {
       <polyline points="21 15 16 10 5 21" />
     </svg>
   ),
+  camera: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="nc-action-icon"
+    >
+      <path d="M4 8h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V9a1 1 0 0 1 1-1z" />
+      <circle cx="12" cy="13" r="3.25" />
+    </svg>
+  ),
+  library: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="nc-action-icon"
+    >
+      <rect x="3" y="4" width="14" height="14" rx="2" ry="2" />
+      <path d="M7 13l2.5-2.5L13 14" />
+      <circle cx="11" cy="9" r="1.2" />
+      <path d="M17 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2" />
+    </svg>
+  ),
+  text: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="nc-action-icon"
+    >
+      <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 3v-3H6a2 2 0 0 1-2-2z" />
+      <line x1="8" y1="9" x2="16" y2="9" />
+      <line x1="8" y1="13" x2="13" y2="13" />
+    </svg>
+  ),
 };
 
 function Composer({ snapshot }) {
   const hidden = !snapshot.values.hasApiKey;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [textEntryOpen, setTextEntryOpen] = useState(false);
+  const cameraInputRef = useRef(null);
+  const libraryInputRef = useRef(null);
+
+  function openPicker() {
+    setPickerOpen(true);
+  }
+
+  function closePicker() {
+    setPickerOpen(false);
+  }
+
+  function triggerPhotoInput(inputRef) {
+    inputRef.current?.click();
+    setPickerOpen(false);
+  }
+
+  function openTextEntry() {
+    setPickerOpen(false);
+    setTextEntryOpen(true);
+  }
 
   return (
     <div className={`nutrition-composer${hidden ? ' nc-hidden' : ''}`}>
-      <label className="nc-photo-cta" htmlFor="nutrition-photo-input">
+      <button
+        className="nc-photo-cta"
+        type="button"
+        onClick={openPicker}
+        aria-haspopup="dialog"
+        aria-expanded={pickerOpen}
+      >
         {ACTION_ICONS.photo}
         <span>{t('nutrition.photo.cta', 'Snap your meal')}</span>
-        <input
-          type="file"
-          id="nutrition-photo-input"
-          accept="image/*"
-          capture="environment"
-          onChange={(event) => window.handleNutritionPhoto?.(event)}
-          className="file-input-hidden"
-        />
-      </label>
+      </button>
+      <input
+        ref={cameraInputRef}
+        type="file"
+        id="nutrition-photo-camera-input"
+        accept="image/*"
+        capture="environment"
+        onChange={(event) => window.handleNutritionPhoto?.(event)}
+        className="file-input-hidden"
+      />
+      <input
+        ref={libraryInputRef}
+        type="file"
+        id="nutrition-photo-library-input"
+        accept="image/*"
+        onChange={(event) => window.handleNutritionPhoto?.(event)}
+        className="file-input-hidden"
+      />
       <div className="nutrition-action-grid" id="nutrition-action-grid">
         {snapshot.values.actions.map((action) => (
           <button
@@ -784,6 +880,82 @@ function Composer({ snapshot }) {
           </button>
         ))}
       </div>
+      {pickerOpen
+        ? createPortal(
+            <div className="nc-photo-picker-overlay">
+              <div className="nc-photo-picker-backdrop" onClick={closePicker} />
+              <div className="nc-photo-picker-sheet">
+                <div className="nc-photo-picker-header">
+                  <div className="nc-photo-picker-label">
+                    {t('nutrition.photo.menu.title', 'Add your meal')}
+                  </div>
+                  <button
+                    className="nc-photo-picker-close"
+                    type="button"
+                    onClick={closePicker}
+                    aria-label={t('common.cancel', 'Cancel')}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="nc-photo-picker-options">
+                  <button
+                    className="nc-photo-picker-option"
+                    type="button"
+                    onClick={() => triggerPhotoInput(cameraInputRef)}
+                  >
+                    {ACTION_ICONS.camera}
+                    <span>
+                      {t('nutrition.photo.menu.camera', 'Picture food')}
+                    </span>
+                  </button>
+                  <button
+                    className="nc-photo-picker-option"
+                    type="button"
+                    onClick={() => triggerPhotoInput(libraryInputRef)}
+                  >
+                    {ACTION_ICONS.library}
+                    <span>
+                      {t(
+                        'nutrition.photo.menu.library',
+                        'Use photo from library'
+                      )}
+                    </span>
+                  </button>
+                  <button
+                    className="nc-photo-picker-option"
+                    type="button"
+                    onClick={openTextEntry}
+                  >
+                    {ACTION_ICONS.text}
+                    <span>{t('nutrition.food_entry.label', 'Type the food')}</span>
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+      <NutritionTextSheet
+        open={textEntryOpen}
+        onClose={() => setTextEntryOpen(false)}
+        onSend={(trimmed) => window.submitNutritionTextMessage?.(trimmed)}
+        title={t('nutrition.food_entry.label', 'Type the food')}
+        placeholder={t(
+          'nutrition.food_entry.placeholder',
+          'e.g. Chicken rice bowl with a yogurt on the side'
+        )}
+        inputId="nutrition-food-text-input"
+        sendAriaLabel={t('nutrition.food_entry.send_aria', 'Send meal')}
+      />
     </div>
   );
 }

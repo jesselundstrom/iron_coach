@@ -4,6 +4,11 @@ import { openAppShell, reloadAppShell } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnS6jQAAAAASUVORK5CYII=',
+  'base64'
+);
+
 function buildAnthropicSseResponse(
   text: string,
   usage?: { input_tokens: number; output_tokens: number }
@@ -99,6 +104,11 @@ async function expectNutritionCoachResponse(
   await expect(page.locator('#nutrition-react-root')).toContainText(text, {
     timeout,
   });
+}
+
+async function openMealEntryPicker(page: Page) {
+  await page.locator('#nutrition-react-root .nc-photo-cta').click();
+  await expect(page.locator('.nc-photo-picker-sheet')).toBeVisible();
 }
 
 test('nutrition island renders the setup card when no API key is present', async ({
@@ -591,6 +601,202 @@ test('nutrition action card submits immediately on tap without send button', asy
 
   await expectNutritionCoachResponse(page, 'Here is your meal plan.');
   expect(requestCount).toBe(1);
+});
+
+test('nutrition meal entry picker opens from the composer CTA and shows all options', async ({
+  page,
+}) => {
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+  await openNutrition(page);
+
+  await openMealEntryPicker(page);
+
+  await expect(page.locator('.nc-photo-picker-sheet')).toContainText(
+    'Picture food'
+  );
+  await expect(page.locator('.nc-photo-picker-sheet')).toContainText(
+    'Use photo from library'
+  );
+  await expect(page.locator('.nc-photo-picker-sheet')).toContainText(
+    'Type the food'
+  );
+});
+
+test('nutrition meal entry camera option opens the camera input and sends the photo flow', async ({
+  page,
+}) => {
+  let capturedInputId = '';
+  let hasImagePart = false;
+
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    const body = route.request().postDataJSON();
+    const lastMsg = body?.messages?.[body.messages.length - 1];
+    const content = Array.isArray(lastMsg?.content) ? lastMsg.content : [];
+    hasImagePart = content.some((part: { type?: string }) => part?.type === 'image');
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: buildAnthropicSseResponse(
+        JSON.stringify({
+          display_markdown: 'Photo logged from camera.',
+          estimated_macros: {
+            calories: 420,
+            protein_g: 28,
+            carbs_g: 31,
+            fat_g: 15,
+          },
+          remaining_today: {
+            calories: 1580,
+            protein_g: 132,
+          },
+          tags: [],
+        })
+      ),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+  await openNutrition(page);
+
+  await openMealEntryPicker(page);
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Picture food' }).click();
+  const chooser = await chooserPromise;
+  capturedInputId = await chooser
+    .element()
+    .evaluate((el) => (el instanceof HTMLElement ? el.id : ''));
+  await chooser.setFiles({
+    name: 'camera-meal.png',
+    mimeType: 'image/png',
+    buffer: TINY_PNG,
+  });
+
+  await expectNutritionCoachResponse(page, 'Photo logged from camera.');
+  expect(capturedInputId).toBe('nutrition-photo-camera-input');
+  expect(hasImagePart).toBe(true);
+});
+
+test('nutrition meal entry library option opens the library input and sends the same photo flow', async ({
+  page,
+}) => {
+  let capturedInputId = '';
+  let hasImagePart = false;
+
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    const body = route.request().postDataJSON();
+    const lastMsg = body?.messages?.[body.messages.length - 1];
+    const content = Array.isArray(lastMsg?.content) ? lastMsg.content : [];
+    hasImagePart = content.some((part: { type?: string }) => part?.type === 'image');
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: buildAnthropicSseResponse(
+        JSON.stringify({
+          display_markdown: 'Photo logged from library.',
+          estimated_macros: {
+            calories: 390,
+            protein_g: 24,
+            carbs_g: 42,
+            fat_g: 10,
+          },
+          remaining_today: {
+            calories: 1610,
+            protein_g: 136,
+          },
+          tags: [],
+        })
+      ),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+  await openNutrition(page);
+
+  await openMealEntryPicker(page);
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Use photo from library' }).click();
+  const chooser = await chooserPromise;
+  capturedInputId = await chooser
+    .element()
+    .evaluate((el) => (el instanceof HTMLElement ? el.id : ''));
+  await chooser.setFiles({
+    name: 'library-meal.png',
+    mimeType: 'image/png',
+    buffer: TINY_PNG,
+  });
+
+  await expectNutritionCoachResponse(page, 'Photo logged from library.');
+  expect(capturedInputId).toBe('nutrition-photo-library-input');
+  expect(hasImagePart).toBe(true);
+});
+
+test('nutrition meal entry text option opens the shared sheet and sends typed food', async ({
+  page,
+}) => {
+  let capturedUserText = '';
+
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    const body = route.request().postDataJSON();
+    const lastMsg = body?.messages?.[body.messages.length - 1];
+    const content = lastMsg?.content;
+    capturedUserText =
+      typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? (content.find((c: { type: string }) => c.type === 'text')?.text ??
+            '')
+          : '';
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: buildAnthropicSseResponse(
+        JSON.stringify({
+          display_markdown: 'Typed meal logged.',
+          estimated_macros: {
+            calories: 510,
+            protein_g: 36,
+            carbs_g: 48,
+            fat_g: 18,
+          },
+          remaining_today: {
+            calories: 1490,
+            protein_g: 124,
+          },
+          tags: [],
+        })
+      ),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await page.evaluate(() => {
+    localStorage.setItem('ic_nutrition_key', 'sk-ant-test-key');
+  });
+  await openNutrition(page);
+
+  await openMealEntryPicker(page);
+  await page.getByRole('button', { name: 'Type the food' }).click();
+  await expect(page.locator('#nutrition-food-text-input')).toBeVisible();
+  await page
+    .locator('#nutrition-food-text-input')
+    .fill('Chicken rice bowl and a protein yogurt');
+  await page.locator('.nc-correction-send').click();
+
+  await expectNutritionCoachResponse(page, 'Typed meal logged.');
+  expect(capturedUserText).toContain('Chicken rice bowl and a protein yogurt');
 });
 
 test('nutrition correction row appears inline after photo analysis and sends typed correction', async ({

@@ -141,6 +141,9 @@ declare global {
     getCanonicalProgramId: (programId?: string | null) => string | null;
     initNutritionPage: () => void;
     clearNutritionHistory: () => void;
+    handleNutritionPhoto: (event: Event) => void;
+    submitNutritionTextMessage: (text: string) => void;
+    setSelectedNutritionAction: (actionId: string) => void;
     setNutritionSessionContext: (ctx?: {
       duration?: number;
       exerciseCount?: number;
@@ -152,6 +155,7 @@ declare global {
       nextValue?: string,
       options?: { clear?: boolean }
     ) => boolean | void;
+    retryLastNutritionMessage: () => void;
     saveLanguageSetting: (language?: string) => void;
     initSettings: () => void;
     showSettingsTab: (name: string, el?: Element | null) => void;

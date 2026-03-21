@@ -1584,8 +1584,16 @@ function daysSince(dateStr) {
       'settings.claude_api_key.cleared': 'API key removed',
       'nutrition.correction.label': 'Correct the food analysis',
       'nutrition.correction.placeholder': 'e.g. That was 2 portions, not 1...',
+      'nutrition.correction.send_aria': 'Send correction',
       'nutrition.photo.label': 'Add photo',
       'nutrition.photo.cta': 'Snap your meal',
+      'nutrition.photo.menu.title': 'Add your meal',
+      'nutrition.photo.menu.camera': 'Picture food',
+      'nutrition.photo.menu.library': 'Use photo from library',
+      'nutrition.food_entry.label': 'Type the food',
+      'nutrition.food_entry.placeholder':
+        'e.g. Chicken rice bowl with a yogurt on the side',
+      'nutrition.food_entry.send_aria': 'Send meal',
 
       /* ── Session character badge & pre-session note ───────────────── */
       'program.forge.character.deload':
@@ -3215,6 +3223,14 @@ function daysSince(dateStr) {
       'nutrition.correction.placeholder': 'esim. Se oli 2 annosta, ei 1...',
       'nutrition.photo.label': 'Lisää kuva',
       'nutrition.photo.cta': 'Kuvaa ateriasi',
+      'nutrition.correction.send_aria': 'Lähetä korjaus',
+      'nutrition.photo.menu.title': 'Lisää ateria',
+      'nutrition.photo.menu.camera': 'Kuvaa ruoka',
+      'nutrition.photo.menu.library': 'Valitse kuva kirjastosta',
+      'nutrition.food_entry.label': 'Kirjoita ruoka',
+      'nutrition.food_entry.placeholder':
+        'esim. Kana-riisikulho ja jogurtti kylkeen',
+      'nutrition.food_entry.send_aria': 'Lähetä ateria',
 
       /* ── Session character badge & pre-session note ───────────────── */
       'program.forge.character.deload':
