@@ -44,7 +44,12 @@ export async function bootstrapAppShell(page: Page) {
   });
 
   await page.evaluate(async () => {
-    await window.loadData({
+    const loadData = window.loadData;
+    if (typeof loadData !== 'function') {
+      throw new Error('loadData is not available on window');
+    }
+
+    await loadData({
       allowCloudSync: false,
       userId: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user',
     });

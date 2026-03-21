@@ -98,7 +98,12 @@ test('history stats show range controls, extra charts, and milestones for progre
 
   await page.evaluate(() => {
     const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
-    const makeState = (bench, squat, deadlift, ohp) => ({
+    const makeState = (
+      bench: number,
+      squat: number,
+      deadlift: number,
+      ohp: number
+    ) => ({
       ...forgeState,
       lifts: {
         ...forgeState.lifts,
