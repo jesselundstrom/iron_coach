@@ -29,11 +29,11 @@
   // Rep range
   const BONUS_REPS = 10;
 
-  // Duration presets: exercise count + sets per exercise
+  // Duration presets: more exercises for longer durations, sets stay at 3
   var DURATION_PRESETS = {
-    quick:    { maxExercises: 3, sets: 2, reps: BONUS_REPS },
+    quick:    { maxExercises: 3, sets: BONUS_SETS, reps: BONUS_REPS },
     standard: { maxExercises: 5, sets: BONUS_SETS, reps: BONUS_REPS },
-    full:     { maxExercises: 7, sets: 4, reps: BONUS_REPS },
+    full:     { maxExercises: 8, sets: BONUS_SETS, reps: BONUS_REPS },
   };
 
   function i18nText(key, fallback, params) {
