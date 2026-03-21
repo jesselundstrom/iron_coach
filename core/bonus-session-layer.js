@@ -174,7 +174,9 @@
       });
     }
 
-    gaps.forEach(function (gap) {
+    // Pick exercises from gap groups in multiple passes so longer durations
+    // add a second (or third) exercise per group rather than stopping early.
+    function pickFromGap(gap) {
       if (exercises.length >= maxExercises) return;
       if (
         !window.EXERCISE_LIBRARY ||
@@ -192,19 +194,14 @@
         return !pickedNames.has(c.name);
       }).map(function (c) {
         var score = 0;
-        // Strongly prefer isolation/accessory category exercises for bonus work
         if (c.category === 'isolation') score += 30;
-        // Prefer exercises not already done this week
         if (!analysis.exercisesUsed.has(c.name)) score += 20;
-        // Prefer movement patterns not already covered this week
         var moveTags = c.movementTags || [];
         var hasNewMovement = moveTags.some(function (t) {
           return !weekMovementTags.has(t) && !pickedMovements.has(t);
         });
         if (hasNewMovement) score += 15;
-        // Prefer single-joint over compound for gap-fill
         if (moveTags.indexOf('isolation') >= 0) score += 10;
-        // Small popularity tiebreaker
         score += Math.min(10, (c.popularity || 0) / 10);
         return { record: c, score: score };
       }).sort(function (a, b) {
@@ -241,7 +238,18 @@
           return { weight: '', reps: BONUS_REPS, done: false, rpe: null };
         }),
       });
-    });
+    }
+
+    // First pass: one exercise per gap group
+    gaps.forEach(pickFromGap);
+
+    // Additional passes: cycle back through gaps picking more exercises
+    // until we hit maxExercises (most undertrained groups get extras first)
+    while (exercises.length < maxExercises) {
+      var before = exercises.length;
+      gaps.forEach(pickFromGap);
+      if (exercises.length === before) break; // no more candidates available
+    }
 
     // Ensure a core exercise if core gap exists and not already included
     var hasCoreGap =
