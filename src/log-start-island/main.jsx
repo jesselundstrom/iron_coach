@@ -363,8 +363,30 @@ function SessionSetupCard({
   );
 }
 
-function BonusSessionCard({ bonus, onSelect, selected }) {
+function BonusDurationChooser({ options, selected, onChange }) {
+  if (!options?.length) return null;
+  return (
+    <div className="bonus-duration-chooser">
+      {options.map((opt) => (
+        <button
+          type="button"
+          className={`bonus-duration-btn${opt.value === selected ? ' active' : ''}`}
+          key={opt.value}
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange(opt.value);
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BonusSessionCard({ bonus, onSelect, selected, duration, onDurationChange }) {
   if (!bonus?.available) return null;
+  const preview = selected ? bonus.previews?.[duration] : null;
   return (
     <div className="workout-today-section">
       <div className="workout-today-section-label">{bonus.kicker}</div>
@@ -396,25 +418,38 @@ function BonusSessionCard({ bonus, onSelect, selected }) {
           <div className="workout-session-brief">
             <div className="workout-session-brief-note">{bonus.subtitle}</div>
           </div>
-          {selected && bonus.preview?.rows?.length
-            ? bonus.preview.rows.map((row) => (
-                <div className="workout-session-row" key={row.id}>
-                  <div className="workout-session-row-index">{row.index}</div>
-                  <div className="workout-session-row-main">{row.name}</div>
-                  <div className="workout-session-row-meta">
-                    <div className="workout-session-row-pattern">
-                      {row.pattern}
+          {selected ? (
+            <>
+              <BonusDurationChooser
+                options={bonus.durationOptions}
+                selected={duration}
+                onChange={onDurationChange}
+              />
+              {preview?.rows?.length
+                ? preview.rows.map((row) => (
+                    <div className="workout-session-row" key={row.id}>
+                      <div className="workout-session-row-index">
+                        {row.index}
+                      </div>
+                      <div className="workout-session-row-main">
+                        {row.name}
+                      </div>
+                      <div className="workout-session-row-meta">
+                        <div className="workout-session-row-pattern">
+                          {row.pattern}
+                        </div>
+                      </div>
+                      <div
+                        className="workout-session-row-chevron"
+                        aria-hidden="true"
+                      >
+                        &gt;
+                      </div>
                     </div>
-                  </div>
-                  <div
-                    className="workout-session-row-chevron"
-                    aria-hidden="true"
-                  >
-                    &gt;
-                  </div>
-                </div>
-              ))
-            : null}
+                  ))
+                : null}
+            </>
+          ) : null}
         </div>
       </div>
     </div>
@@ -431,6 +466,7 @@ function LogStartIsland() {
     snapshot.values.options.length > 0 &&
     snapshot.values.options.every((o) => o.done);
   const [bonusSelected, setBonusSelected] = useState(false);
+  const [bonusDuration, setBonusDuration] = useState('standard');
   const autoSelectedRef = useRef(false);
 
   useEffect(() => {
@@ -484,6 +520,12 @@ function LogStartIsland() {
           value={bonusSelected ? 'bonus' : snapshot.values.selectedOption}
           readOnly
         />
+        <input
+          type="hidden"
+          id="bonus-duration-select"
+          value={bonusDuration}
+          readOnly
+        />
         <div id="program-day-options" className="program-day-options">
           {snapshot.values.options.map((option) => (
             <button
@@ -519,6 +561,8 @@ function LogStartIsland() {
             bonus={bonus}
             onSelect={selectBonus}
             selected={bonusSelected}
+            duration={bonusDuration}
+            onDurationChange={setBonusDuration}
           />
         ) : null}
 

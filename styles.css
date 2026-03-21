@@ -4329,6 +4329,38 @@ select optgroup {
   border-color: rgba(76, 175, 121, 0.45);
   box-shadow: 0 0 0 1px rgba(76, 175, 121, 0.18);
 }
+.bonus-duration-chooser {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.bonus-duration-btn {
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px 4px;
+  transition: all 0.15s ease;
+  font-family: 'Barlow Condensed', sans-serif;
+}
+.bonus-duration-btn:active {
+  transform: scale(0.97);
+}
+.bonus-duration-btn.active {
+  border-color: rgba(76, 175, 121, 0.4);
+  background: rgba(76, 175, 121, 0.1);
+  color: var(--green);
+}
 
 /* ── History bonus badge ───────────────────────────── */
 .hist-bonus-badge {

@@ -29,6 +29,13 @@
   // Rep range
   const BONUS_REPS = 10;
 
+  // Duration presets: exercise count + sets per exercise
+  var DURATION_PRESETS = {
+    quick:    { maxExercises: 3, sets: 2, reps: BONUS_REPS },
+    standard: { maxExercises: 5, sets: BONUS_SETS, reps: BONUS_REPS },
+    full:     { maxExercises: 7, sets: 4, reps: BONUS_REPS },
+  };
+
   function i18nText(key, fallback, params) {
     if (window.I18N && I18N.t) return I18N.t(key, params, fallback);
     return fallback;
@@ -112,7 +119,8 @@
 
   // ── Gap identification ─────────────────────────────────────────────
 
-  function identifyMuscleGaps(weekMuscleLoad) {
+  function identifyMuscleGaps(weekMuscleLoad, maxGroups) {
+    var cap = maxGroups || MAX_GAP_GROUPS;
     var ranked = BONUS_DISPLAY_GROUPS.map(function (group) {
       return { group: group, load: weekMuscleLoad[group] || 0 };
     }).sort(function (a, b) {
@@ -130,12 +138,12 @@
       gaps = ranked.slice(0, MIN_EXERCISES);
     }
 
-    return gaps.slice(0, MAX_GAP_GROUPS);
+    return gaps.slice(0, cap);
   }
 
   // ── Session builder ────────────────────────────────────────────────
 
-  function buildBonusSession(prog, state, workouts, schedule) {
+  function buildBonusSession(prog, state, workouts, schedule, duration) {
     // Allow program-specific override
     if (typeof prog.buildBonusSession === 'function') {
       try {
@@ -144,8 +152,12 @@
       } catch (_e) {}
     }
 
+    var preset = DURATION_PRESETS[duration] || DURATION_PRESETS.standard;
+    var setsPerExercise = preset.sets;
+    var maxExercises = preset.maxExercises;
+
     var analysis = getWeekMuscleLoad(workouts, prog.id);
-    var gaps = identifyMuscleGaps(analysis.muscleLoad);
+    var gaps = identifyMuscleGaps(analysis.muscleLoad, maxExercises);
 
     var exercises = [];
     var pickedNames = new Set();
@@ -163,6 +175,7 @@
     }
 
     gaps.forEach(function (gap) {
+      if (exercises.length >= maxExercises) return;
       if (
         !window.EXERCISE_LIBRARY ||
         !EXERCISE_LIBRARY.searchExercises
@@ -215,7 +228,7 @@
         note:
           groupLabel +
           ' \u00b7 ' +
-          BONUS_SETS +
+          setsPerExercise +
           '\u00d7' +
           BONUS_REPS +
           '-12',
@@ -224,7 +237,7 @@
         isBonus: true,
         tm: 0,
         auxSlotIdx: -1,
-        sets: Array.from({ length: BONUS_SETS }, function () {
+        sets: Array.from({ length: setsPerExercise }, function () {
           return { weight: '', reps: BONUS_REPS, done: false, rpe: null };
         }),
       });
@@ -242,7 +255,7 @@
           (meta.displayMuscleGroups || []).indexOf('core') >= 0
         );
       });
-    if (hasCoreGap && exercises.length < 6) {
+    if (hasCoreGap && exercises.length < maxExercises) {
       var coreCandidates =
         window.EXERCISE_LIBRARY &&
         EXERCISE_LIBRARY.searchExercises('', {
@@ -262,7 +275,7 @@
             note:
               i18nText('muscle.core', 'Core') +
               ' \u00b7 ' +
-              BONUS_SETS +
+              setsPerExercise +
               '\u00d7' +
               BONUS_REPS +
               '-12',
@@ -271,7 +284,7 @@
             isBonus: true,
             tm: 0,
             auxSlotIdx: -1,
-            sets: Array.from({ length: BONUS_SETS }, function () {
+            sets: Array.from({ length: setsPerExercise }, function () {
               return { weight: '', reps: BONUS_REPS, done: false, rpe: null };
             }),
           });
@@ -284,10 +297,29 @@
 
   // ── Snapshot for React island ──────────────────────────────────────
 
+  function _buildPreviewForDuration(prog, state, workouts, schedule, duration) {
+    var preset = DURATION_PRESETS[duration] || DURATION_PRESETS.standard;
+    var exercises = buildBonusSession(prog, state, workouts, schedule, duration);
+    return {
+      rows: exercises.map(function (ex, idx) {
+        return {
+          id: ex.id,
+          index: idx + 1,
+          name:
+            window.EXERCISE_LIBRARY &&
+            EXERCISE_LIBRARY.getDisplayName
+              ? EXERCISE_LIBRARY.getDisplayName(ex.name)
+              : ex.name,
+          pattern: preset.sets + ' \u00d7 ' + BONUS_REPS + '-12',
+          weight: '',
+        };
+      }),
+    };
+  }
+
   function getBonusSessionSnapshot(prog, state, workouts, schedule) {
     var analysis = getWeekMuscleLoad(workouts, prog.id);
     var gaps = identifyMuscleGaps(analysis.muscleLoad);
-    var exercises = buildBonusSession(prog, state, workouts, schedule);
     var targetGroups = gaps.map(function (g) {
       return i18nText(
         'muscle.' + g.group,
@@ -308,25 +340,15 @@
         'Start Bonus Workout'
       ),
       targetGroups: targetGroups,
-      preview: {
-        headerTitle: i18nText(
-          'workout.bonus.preview_title',
-          'Bonus Session'
-        ),
-        chips: targetGroups.slice(0, 3),
-        rows: exercises.map(function (ex, idx) {
-          return {
-            id: ex.id,
-            index: idx + 1,
-            name:
-              window.EXERCISE_LIBRARY &&
-              EXERCISE_LIBRARY.getDisplayName
-                ? EXERCISE_LIBRARY.getDisplayName(ex.name)
-                : ex.name,
-            pattern: BONUS_SETS + ' \u00d7 ' + BONUS_REPS + '-12',
-            weight: '',
-          };
-        }),
+      durationOptions: [
+        { value: 'quick', label: i18nText('workout.bonus.duration.quick', '~20 min'), time: '20' },
+        { value: 'standard', label: i18nText('workout.bonus.duration.standard', '~35 min'), time: '35' },
+        { value: 'full', label: i18nText('workout.bonus.duration.full', '~50 min'), time: '50' },
+      ],
+      previews: {
+        quick: _buildPreviewForDuration(prog, state, workouts, schedule, 'quick'),
+        standard: _buildPreviewForDuration(prog, state, workouts, schedule, 'standard'),
+        full: _buildPreviewForDuration(prog, state, workouts, schedule, 'full'),
       },
     };
   }
@@ -339,5 +361,6 @@
     getBonusSessionSnapshot: getBonusSessionSnapshot,
     getWeekMuscleLoad: getWeekMuscleLoad,
     identifyMuscleGaps: identifyMuscleGaps,
+    DURATION_PRESETS: DURATION_PRESETS,
   };
 })();

@@ -3208,8 +3208,9 @@ function beginWorkoutStart(sportContext) {
 
   // ── Bonus workout branch ──────────────────────────────────────
   if (selectedOption === 'bonus' && window.BONUS_SESSION) {
+    const bonusDuration = document.getElementById('bonus-duration-select')?.value || 'standard';
     const bonusExercises = BONUS_SESSION.buildBonusSession(
-      prog, state, workouts, schedule
+      prog, state, workouts, schedule, bonusDuration
     );
     const bonusLabel = i18nText('workout.bonus.label', 'Bonus Workout');
     activeWorkout = {
