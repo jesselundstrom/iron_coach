@@ -559,6 +559,21 @@
       ) {
         continue;
       }
+      // If the next user message is a correction and there is a subsequent
+      // assistant response, this meal was superseded — skip its macros to
+      // avoid double-counting.
+      var nextUser = _history[i + 1];
+      var nextAssistant = _history[i + 2];
+      if (
+        nextUser &&
+        nextUser.role === 'user' &&
+        nextUser.isCorrection &&
+        nextAssistant &&
+        nextAssistant.role === 'assistant' &&
+        !nextAssistant.isError
+      ) {
+        continue;
+      }
       var macros = _getAssistantMessageMacros(msg);
       if (!macros) continue;
       mealCount++;
@@ -1574,6 +1589,7 @@
       imageDataUrl: payload.imageDataUrl || null,
       actionId: payload.actionId || null,
       imageFileSize: payload.imageFileSize || null,
+      isCorrection: !!payload.isCorrection,
       timestamp: Date.now(),
     };
     _history.push(userEntry);
@@ -2395,7 +2411,7 @@
     sendNutritionMessage(_buildActionRequest(action, null));
   }
 
-  function submitNutritionTextMessage(text) {
+  function submitNutritionTextMessage(text, isCorrection) {
     var trimmed = (text || '').trim();
     if (!trimmed) return;
     _ensureTodayHistoryLoaded();
@@ -2404,6 +2420,7 @@
       displayText: trimmed,
       promptText: trimmed,
       imageDataUrl: null,
+      isCorrection: !!isCorrection,
     });
   }
 
