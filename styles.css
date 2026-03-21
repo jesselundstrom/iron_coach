@@ -4313,6 +4313,39 @@ select optgroup {
 .workout-start-cta {
   box-shadow: 0 8px 32px rgba(245, 130, 31, 0.35);
 }
+.workout-start-cta.bonus-cta {
+  background: linear-gradient(180deg, #56c484, #4caf79);
+  box-shadow: 0 8px 32px rgba(76, 175, 121, 0.3);
+}
+
+/* ── Bonus session card (extends workout-session-card) ── */
+.bonus-session-card {
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.bonus-session-card:active,
+.bonus-session-card.is-selected {
+  border-color: rgba(76, 175, 121, 0.45);
+  box-shadow: 0 0 0 1px rgba(76, 175, 121, 0.18);
+}
+
+/* ── History bonus badge ───────────────────────────── */
+.hist-bonus-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 100px;
+  background: rgba(76, 175, 121, 0.15);
+  color: var(--green);
+  margin-left: 6px;
+  vertical-align: middle;
+  font-family: 'Barlow Condensed', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .program-basics-note {
   font-size: 12px;
   line-height: 1.55;

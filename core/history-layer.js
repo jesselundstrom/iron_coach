@@ -543,6 +543,9 @@ function histRenderCard(w, isPR, recovery, options) {
   const prBadge = isPR
     ? ` <span class="hist-pr-badge">${escapeHtml(trHist('history.pr_badge', 'NEW PR'))}</span>`
     : '';
+  const bonusBadge = w.isBonus
+    ? ` <span class="hist-bonus-badge">${escapeHtml(trHist('history.bonus_badge', 'Bonus'))}</span>`
+    : '';
 
   // Exercise rows
   const completedExercises = (w.exercises || []).filter((ex) =>
@@ -578,7 +581,7 @@ function histRenderCard(w, isPR, recovery, options) {
       <div class="hist-card-left">
         <span class="hist-lift-icon">${liftIcon}</span>
         <div class="hist-card-copy">
-          <div class="hist-card-title">${escapeHtml(cardTitle)}${prBadge}${recovBadge}${durationBadge}</div>
+          <div class="hist-card-title">${escapeHtml(cardTitle)}${bonusBadge}${prBadge}${recovBadge}${durationBadge}</div>
           <div class="hist-card-date">${escapeHtml(cardSub)}</div>
         </div>
       </div>
@@ -1474,6 +1477,7 @@ function _buildStructuredCard(w, isPR, recovery) {
     title: cardTitle,
     sub: cardSub,
     isPR,
+    isBonus: w.isBonus === true,
     recovery: recovery != null ? recovery : null,
     recoveryStyle: rs,
     duration: mins,
@@ -1650,6 +1654,7 @@ function getHistoryReactSnapshot() {
       session: trHist('dashboard.session_left', 'session', { count: 1 }),
       delete: trHist('common.delete', 'Delete'),
       prBadge: trHist('history.pr_badge', 'NEW PR'),
+      bonusBadge: trHist('history.bonus_badge', 'Bonus'),
       volume: trHist('history.card.volume', 'Volume'),
       exercises: trHist('history.card.exercises', 'Exercises'),
       notes: trHist('history.card.notes', 'Notes'),

@@ -451,6 +451,11 @@ function getLogStartReactSnapshot() {
           {value: 'strong', label: i18nText('workout.energy.strong', 'Feeling strong'), tone: 'positive', active: pendingEnergyLevel === 'strong'},
         ],
       },
+      bonusSession:
+        window.BONUS_SESSION &&
+        BONUS_SESSION.isBonusSessionAvailable(prog, state, workouts, schedule)
+          ? BONUS_SESSION.getBonusSessionSnapshot(prog, state, workouts, schedule)
+          : null,
     },
   };
 }
@@ -3200,6 +3205,63 @@ function beginWorkoutStart(sportContext) {
   const prog = getActiveProgram();
   const state = getActiveProgramState();
   let selectedOption = document.getElementById('program-day-select')?.value;
+
+  // ── Bonus workout branch ──────────────────────────────────────
+  if (selectedOption === 'bonus' && window.BONUS_SESSION) {
+    const bonusExercises = BONUS_SESSION.buildBonusSession(
+      prog, state, workouts, schedule
+    );
+    const bonusLabel = i18nText('workout.bonus.label', 'Bonus Workout');
+    activeWorkout = {
+      program: prog.id,
+      type: prog.id,
+      isBonus: true,
+      programOption: 'bonus',
+      programDayNum: 0,
+      programLabel: bonusLabel,
+      sportContext: sportContext || undefined,
+      runnerState: {
+        mode: 'train',
+        adjustments: [],
+        selectedSessionMode: 'normal',
+        effectiveSessionMode: 'normal',
+      },
+      sessionDescription: i18nText(
+        'workout.bonus.subtitle',
+        'Extra session for undertrained areas'
+      ),
+      rewardState: buildWorkoutRewardState(),
+      exercises: ensureWorkoutExerciseUiKeys(bonusExercises),
+      startTime: Date.now(),
+    };
+    ensureWorkoutCommentaryRecord(activeWorkout);
+    resetActiveWorkoutUIState();
+    persistCurrentWorkoutDraft();
+    updateProgramDisplay();
+    document.getElementById('workout-not-started').style.display = 'none';
+    document.getElementById('workout-active').style.display = 'block';
+    document.getElementById('active-session-title').textContent = bonusLabel;
+    const descEl = document.getElementById('active-session-description');
+    if (descEl) {
+      descEl.textContent = activeWorkout.sessionDescription;
+      descEl.style.display = '';
+    }
+    restDuration =
+      parseInt(document.getElementById('rest-duration')?.value) ||
+      profile.defaultRest ||
+      120;
+    startWorkoutTimer();
+    if (!isLogActiveIslandActive()) renderExercises();
+    showToast(
+      i18nText('workout.bonus.toast_started', 'Bonus workout started!'),
+      'var(--purple)'
+    );
+    notifyLogStartIsland();
+    notifyLogActiveIsland();
+    notifyDashboardIsland();
+    return;
+  }
+
   const decisionBundle = getWorkoutStartDecisionBundle({
     prog,
     state,
@@ -5296,6 +5358,7 @@ async function finishWorkout() {
             activeWorkout.runnerState.sportAwareLowerBody === true,
         }
       : undefined,
+    isBonus: activeWorkout.isBonus || false,
     prCount: sessionPrCount,
     programStateBefore: stateBeforeSession,
     programStateUsedForBuild: cloneJson(progressionSourceState),
@@ -5311,7 +5374,11 @@ async function finishWorkout() {
   let advancedState = state;
   let programHookFailed = false;
   let tmAdjustments = [];
-  try {
+
+  // Bonus workouts do not adjust TMs or advance program state
+  if (activeWorkout.isBonus) {
+    savedWorkout.programStateAfter = JSON.parse(JSON.stringify(state));
+  } else try {
     // Adjust program state (TMs, weights, failures, etc.)
     // Strip warm-up sets so program progression logic only sees working sets
     const exercisesForProgression =
@@ -5338,7 +5405,8 @@ async function finishWorkout() {
     const sessionsThisWeek = workouts.filter(
       (w) =>
         (w.program === prog.id || (!w.program && w.type === prog.id)) &&
-        new Date(w.date) >= sow
+        new Date(w.date) >= sow &&
+        !w.isBonus
     ).length;
 
     // Advance program state (week, cycle, A/B, etc.)
@@ -5422,6 +5490,7 @@ async function finishWorkout() {
     tonnage,
     rpe: sessionRPE,
     prCount: sessionPrCount,
+    isBonus: activeWorkout.isBonus || false,
     programLabel: activeWorkout.programLabel || '',
     coachNote: buildCoachNote(
       {

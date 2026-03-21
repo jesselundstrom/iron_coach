@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useIslandSnapshot } from '../island-runtime/index.jsx';
 
 const LOG_START_EVENT =
@@ -363,11 +363,95 @@ function SessionSetupCard({
   );
 }
 
+function BonusSessionCard({ bonus, onSelect, selected }) {
+  if (!bonus?.available) return null;
+  return (
+    <div className="workout-today-section">
+      <div className="workout-today-section-label">{bonus.kicker}</div>
+      <div
+        className={`workout-session-card bonus-session-card${selected ? ' is-selected' : ''}`}
+        onClick={onSelect}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+      >
+        <div className="workout-session-card-head">
+          <div className="workout-session-card-title">{bonus.label}</div>
+          {bonus.targetGroups?.length ? (
+            <div className="workout-session-card-chips">
+              {bonus.targetGroups.slice(0, 3).map((group) => (
+                <span className="workout-session-chip" key={group}>
+                  {group}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className="workout-session-card-body">
+          <div className="workout-session-brief">
+            <div className="workout-session-brief-note">{bonus.subtitle}</div>
+          </div>
+          {selected && bonus.preview?.rows?.length
+            ? bonus.preview.rows.map((row) => (
+                <div className="workout-session-row" key={row.id}>
+                  <div className="workout-session-row-index">{row.index}</div>
+                  <div className="workout-session-row-main">{row.name}</div>
+                  <div className="workout-session-row-meta">
+                    <div className="workout-session-row-pattern">
+                      {row.pattern}
+                    </div>
+                  </div>
+                  <div
+                    className="workout-session-row-chevron"
+                    aria-hidden="true"
+                  >
+                    &gt;
+                  </div>
+                </div>
+              ))
+            : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LogStartIsland() {
   const snapshot = useIslandSnapshot(
     [LOG_START_EVENT, LANGUAGE_EVENT],
     getSnapshot
   );
+  const bonus = snapshot.values.bonusSession;
+  const allDone =
+    snapshot.values.options.length > 0 &&
+    snapshot.values.options.every((o) => o.done);
+  const [bonusSelected, setBonusSelected] = useState(false);
+  const autoSelectedRef = useRef(false);
+
+  useEffect(() => {
+    if (allDone && bonus?.available && !autoSelectedRef.current) {
+      autoSelectedRef.current = true;
+      setBonusSelected(true);
+      const daySelect = document.getElementById('program-day-select');
+      if (daySelect) daySelect.value = 'bonus';
+    }
+  }, [allDone, bonus?.available]);
+
+  function selectBonus() {
+    setBonusSelected(true);
+    const daySelect = document.getElementById('program-day-select');
+    if (daySelect) daySelect.value = 'bonus';
+  }
+
+  function selectDay(value) {
+    setBonusSelected(false);
+    window.setProgramDayOption?.(value);
+  }
 
   return (
     <div
@@ -397,18 +481,20 @@ function LogStartIsland() {
         <input
           type="hidden"
           id="program-day-select"
-          value={snapshot.values.selectedOption}
+          value={bonusSelected ? 'bonus' : snapshot.values.selectedOption}
           readOnly
         />
         <div id="program-day-options" className="program-day-options">
           {snapshot.values.options.map((option) => (
             <button
               type="button"
-              className={`program-day-option${option.selected ? ' active' : ''}${
-                option.done ? ' done' : ''
-              }${option.upcoming ? ' upcoming' : ''}`}
+              className={`program-day-option${
+                !bonusSelected && option.selected ? ' active' : ''
+              }${option.done ? ' done' : ''}${
+                option.upcoming ? ' upcoming' : ''
+              }`}
               key={option.value}
-              onClick={() => window.setProgramDayOption?.(option.value)}
+              onClick={() => selectDay(option.value)}
             >
               <div className="program-day-option-day">
                 {snapshot.labels.day}
@@ -427,37 +513,55 @@ function LogStartIsland() {
             </button>
           ))}
         </div>
-        <SessionSetupCard
-          assessment={snapshot.values.energyAssessment}
-          sportReadiness={snapshot.values.sportReadiness}
-          decisionCard={snapshot.values.decisionCard}
-          warningCard={
-            snapshot.values.warningCard
-              ? {
-                  ...snapshot.values.warningCard,
-                  kicker: snapshot.labels.warningTitle,
-                }
-              : null
-          }
-        />
-        <div id="program-session-preview">
-          <PreviewCard
-            preview={snapshot.values.preview}
-            context={{
-              focusCopy: snapshot.values.focusPanel?.copy,
-              note: snapshot.values.preSessionNote,
-              tags: snapshot.values.focusPanel?.tags || [],
-            }}
+
+        {bonus?.available ? (
+          <BonusSessionCard
+            bonus={bonus}
+            onSelect={selectBonus}
+            selected={bonusSelected}
           />
-        </div>
+        ) : null}
+
+        {!bonusSelected ? (
+          <>
+            <SessionSetupCard
+              assessment={snapshot.values.energyAssessment}
+              sportReadiness={snapshot.values.sportReadiness}
+              decisionCard={snapshot.values.decisionCard}
+              warningCard={
+                snapshot.values.warningCard
+                  ? {
+                      ...snapshot.values.warningCard,
+                      kicker: snapshot.labels.warningTitle,
+                    }
+                  : null
+              }
+            />
+            <div id="program-session-preview">
+              <PreviewCard
+                preview={snapshot.values.preview}
+                context={{
+                  focusCopy: snapshot.values.focusPanel?.copy,
+                  note: snapshot.values.preSessionNote,
+                  tags: snapshot.values.focusPanel?.tags || [],
+                }}
+              />
+            </div>
+          </>
+        ) : null}
+
         <div id="program-warning-panel" hidden />
         <div className="workout-start-footer">
           <button
-            className="btn btn-primary cta-btn workout-start-cta"
+            className={`btn btn-primary cta-btn workout-start-cta${
+              bonusSelected ? ' bonus-cta' : ''
+            }`}
             type="button"
             onClick={() => window.startWorkout?.()}
           >
-            {snapshot.labels.startWorkout}
+            {bonusSelected
+              ? bonus?.startLabel || snapshot.labels.startWorkout
+              : snapshot.labels.startWorkout}
           </button>
         </div>
       </div>

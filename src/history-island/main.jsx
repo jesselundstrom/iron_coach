@@ -125,6 +125,7 @@ function WorkoutCard({ card, labels, style }) {
           <div className="hist-card-copy">
             <div className="hist-card-title">
               {card.title}
+              {card.isBonus && <span className="hist-bonus-badge">{labels.bonusBadge || 'Bonus'}</span>}
               {card.isPR && <span className="hist-pr-badge">{labels.prBadge}</span>}
               {card.recoveryStyle && (
                 <span
