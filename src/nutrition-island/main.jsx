@@ -699,7 +699,7 @@ function CorrectionRow() {
       <NutritionTextSheet
         open={open}
         onClose={() => setOpen(false)}
-        onSend={(trimmed) => window.submitNutritionTextMessage?.(trimmed)}
+        onSend={(trimmed) => window.submitNutritionTextMessage?.(trimmed, true)}
         title={t('nutrition.correction.label', 'Correct the food analysis')}
         placeholder={t(
           'nutrition.correction.placeholder',
