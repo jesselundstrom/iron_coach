@@ -286,37 +286,120 @@ function CoachSection({ section }) {
   );
 }
 
+function AdherenceGauge({ value, tone }) {
+  const pct = Math.max(0, Math.min(100, parseInt(value, 10) || 0));
+  const radius = 40;
+  const stroke = 5;
+  const center = 48;
+  const startAngle = 135;
+  const sweepRange = 270;
+  const circumference = (sweepRange / 360) * 2 * Math.PI * radius;
+  const filled = (pct / 100) * circumference;
+
+  const toneColors = {
+    positive: { stroke: '#4caf79', glow: 'rgba(76,175,121,0.35)' },
+    caution: { stroke: '#f59e0b', glow: 'rgba(245,158,11,0.35)' },
+    neutral: { stroke: '#4a8fe8', glow: 'rgba(74,143,232,0.3)' },
+  };
+  const colors = toneColors[tone] || toneColors.neutral;
+
+  const polarToCartesian = (cx, cy, r, deg) => {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  };
+  const describeArc = (cx, cy, r, start, end) => {
+    const s = polarToCartesian(cx, cy, r, start);
+    const e = polarToCartesian(cx, cy, r, end);
+    const large = end - start > 180 ? 1 : 0;
+    return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
+  };
+  const trackPath = describeArc(center, center, radius, startAngle, startAngle + sweepRange);
+
+  return (
+    <div className="stats-gauge">
+      <svg viewBox="0 0 96 96" className="stats-gauge-svg" aria-hidden="true">
+        <defs>
+          <filter id="gauge-glow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <path
+          d={trackPath}
+          fill="none"
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+        />
+        <path
+          d={trackPath}
+          fill="none"
+          stroke={colors.stroke}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference}`}
+          strokeDashoffset={circumference - filled}
+          filter="url(#gauge-glow)"
+          className="stats-gauge-fill"
+        />
+      </svg>
+      <div className="stats-gauge-value">{value}</div>
+    </div>
+  );
+}
+
 function StatsSection({ section }) {
   return (
     <section className="dashboard-plan-section dashboard-plan-section-stats">
       <div className="dashboard-plan-section-label">{section.label}</div>
       <article className="dashboard-plan-card dashboard-plan-stats-card">
-        <div className="dashboard-plan-card-head">{section.head}</div>
-        <div className="dashboard-plan-stats-grid">
-          {section.stats.map((stat, index) => (
-            <div
-              key={`${stat.label}-${index}`}
-              className={`dashboard-plan-stat${index < section.stats.length - 1 ? ' has-divider' : ''}`}
-            >
-              <div className={`dashboard-plan-stat-value is-${stat.color}`}>
-                {stat.value}
+        <div className="dashboard-plan-card-head dashboard-plan-card-head-stats">
+          {section.head}
+        </div>
+        <div className={`stats-hero is-${section.primaryMetric.tone}`}>
+          <AdherenceGauge
+            value={section.primaryMetric.value}
+            tone={section.primaryMetric.tone}
+          />
+          <div className="stats-hero-copy">
+            <div className="stats-hero-label">{section.primaryMetric.label}</div>
+            <RichText className="stats-hero-sublabel" text={section.primaryMetric.sublabel} />
+          </div>
+        </div>
+        <div className={`dashboard-plan-summary dashboard-plan-summary-${section.summary.tone}`}>
+          <div className="dashboard-plan-summary-title">{section.summary.title}</div>
+          <div className="dashboard-plan-summary-body">{section.summary.body}</div>
+        </div>
+        {section.supportingMetrics?.length ? (
+          <div className="dashboard-plan-supporting-grid">
+            {section.supportingMetrics.map((metric, index) => (
+              <div
+                key={`${metric.label}-${index}`}
+                className={`dashboard-plan-support-chip is-${metric.tone}`}
+              >
+                <span className="dashboard-plan-support-chip-value">{metric.value}</span>
+                <span className="dashboard-plan-support-chip-label">{metric.label}</span>
               </div>
-              <div className="dashboard-plan-stat-label">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-        <div className="dashboard-plan-insight-list">
-          {section.insights.map((item, index) => (
-            <div
-              key={`${item.tone}-${index}`}
-              className={`dashboard-plan-insight-row is-${item.tone}${
-                index === section.insights.length - 1 ? ' is-last' : ''
-              }`}
-            >
-              <RichText className="dashboard-plan-insight-text" text={item.text} />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : null}
+        {section.insights?.length ? (
+          <div className="dashboard-plan-insight-list">
+            {section.insights.map((item, index) => (
+              <div
+                key={`${item.tone}-${index}`}
+                className={`dashboard-plan-insight-row is-${item.tone}${
+                  index === section.insights.length - 1 ? ' is-last' : ''
+                }`}
+              >
+                <RichText className="dashboard-plan-insight-text" text={item.text} />
+              </div>
+            ))}
+          </div>
+        ) : null}
       </article>
     </section>
   );
