@@ -537,8 +537,16 @@
       next.rawText = String(next.rawText || '');
     }
     var structured = _normalizeStructuredNutritionResponse(next.structured);
+    if (!structured && next.role === 'assistant') {
+      structured =
+        _parseStructuredNutritionResponse(next.text) ||
+        _parseStructuredNutritionResponse(next.rawText);
+    }
     if (structured) next.structured = structured;
     else delete next.structured;
+    if (structured && structured.display_markdown) {
+      next.text = structured.display_markdown;
+    }
     return next;
   }
 
@@ -688,7 +696,8 @@
     return {
       id: msg.id || 'nutrition-coach-' + idx,
       kind: 'coach',
-      text: msg.text || '',
+      text:
+        (msg.structured && msg.structured.display_markdown) || msg.text || '',
       isError: msg.isError === true,
       isStreaming: isStreaming,
       macros: macros,
