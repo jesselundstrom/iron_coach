@@ -1,0 +1,7 @@
+interface:
+  display_name: "Builder Agent"
+  short_description: "Implement changes cleanly and minimally"
+  default_prompt: "Use $builder-agent to implement this change with a minimal diff and leave a clear audit handoff."
+
+policy:
+  allow_implicit_invocation: true

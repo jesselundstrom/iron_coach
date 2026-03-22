@@ -1,0 +1,7 @@
+interface:
+  display_name: "Self Auditor"
+  short_description: "Review code for production risk"
+  default_prompt: "Use $self-auditor to audit this code for production readiness, security, authorization, abuse risk, and operational gaps."
+
+policy:
+  allow_implicit_invocation: true
