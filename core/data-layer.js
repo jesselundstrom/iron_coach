@@ -705,6 +705,11 @@ function normalizeTrainingPreferences(profileLike) {
     : defaults.sessionMinutes;
   next.sportReadinessCheckEnabled = next.sportReadinessCheckEnabled === true;
   next.warmupSetsEnabled = next.warmupSetsEnabled === true;
+  if (next.detailedView === true || next.detailedView === false) {
+    next.detailedView = next.detailedView;
+  } else {
+    delete next.detailedView;
+  }
   next.notes = String(next.notes || '')
     .trim()
     .slice(0, 500);
@@ -909,6 +914,22 @@ function normalizeCoachingProfile(profileLike) {
   next.onboardingCompleted = next.onboardingCompleted === true;
   profileLike.coaching = next;
   return next;
+}
+
+/**
+ * Returns true when the UI should show a simplified, less jargon-heavy view.
+ * Driven by onboarding answers (guidanceMode + experienceLevel) with an
+ * explicit override via profile.preferences.detailedView.
+ */
+function isSimpleMode(profileLike) {
+  if (!profileLike || typeof profileLike !== 'object') return false;
+  const prefs = profileLike.preferences || {};
+  if (prefs.detailedView === true) return false;
+  if (prefs.detailedView === false) return true;
+  const coaching = profileLike.coaching || {};
+  const mode = coaching.guidanceMode || 'balanced';
+  const level = coaching.experienceLevel || 'returning';
+  return mode === 'guided' || (mode === 'balanced' && level === 'beginner');
 }
 
 function getTrainingGoalLabel(goal) {

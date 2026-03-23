@@ -110,6 +110,9 @@ function daysSince(dateStr) {
       'dashboard.muscular': 'Muscular',
       'dashboard.nervous': 'Nervous',
       'dashboard.overall': 'Overall',
+      'dashboard.recovery.simple_good': "You're well recovered",
+      'dashboard.recovery.simple_moderate': 'Moderate — listen to your body',
+      'dashboard.recovery.simple_low': 'Take it easy today',
       'dashboard.log_to_see': 'Log workouts to see data',
       'dashboard.maxes': 'Maxes',
       'dashboard.fully_recovered': 'Fully Recovered',
@@ -140,6 +143,7 @@ function daysSince(dateStr) {
       'dashboard.feeling_fresh': 'feeling fresh, push it',
       'dashboard.moderate_effort': 'moderate effort',
       'dashboard.start_session': 'Start Session',
+      'dashboard.simple.start': 'Start Your Workout',
       'dashboard.header_sub':
         '{program} - {block} - {week} - Recovery {recovery}%',
       'dashboard.plan.deload':
@@ -609,6 +613,9 @@ function daysSince(dateStr) {
       'settings.preferences.notes': 'Notes, limitations, preferences',
       'settings.preferences.notes_placeholder':
         'e.g. Avoid high-impact jumps, prefer barbell compounds, 60 min cap',
+      'settings.preferences.detailed_view': 'Show detailed metrics',
+      'settings.preferences.detailed_view_help':
+        'Show advanced stats like individual fatigue gauges and training maxes on the dashboard.',
       'settings.preferences.restart_onboarding': 'Run Guided Setup Again',
       'settings.preferences.restart_onboarding_active':
         'Finish or discard the active workout before reopening guided setup.',
@@ -647,6 +654,8 @@ function daysSince(dateStr) {
       'workout.training_session': 'Training Session',
       'workout.start_session': 'Start a Session',
       'workout.training_day': 'Training Day',
+      'workout.simple.your_workout': 'Your Workout',
+      'workout.simple.start': 'Start Workout',
       'workout.day': 'Day',
       'workout.start_workout': 'Start Workout',
       'workout.today.kicker': "Today's focus",
@@ -851,6 +860,7 @@ function daysSince(dateStr) {
       'program.setup_saved': 'Program setup saved!',
       'program.active': 'Active',
       'program.recommended': 'Recommended',
+      'program.simple.next': 'Next',
       'program.done': 'Done',
       'program.future': 'Upcoming',
       'program.leg_heavy': 'Leg-heavy',
@@ -956,6 +966,11 @@ function daysSince(dateStr) {
       'rpe.set': 'Set',
       'rpe.session_title': 'How hard was this session?',
       'rpe.session_prompt': 'Rate overall session effort (6 = easy, 10 = max)',
+      'rpe.desc.6': 'Could keep going easily',
+      'rpe.desc.7': 'Comfortable effort',
+      'rpe.desc.8': 'Challenging but controlled',
+      'rpe.desc.9': 'Maybe 1 rep left',
+      'rpe.desc.10': 'Nothing left',
       'settings.program_setup_suffix': 'Setup',
       'workout.log_extra_confirm': 'Log an extra {sport} session for today?',
       'workout.swap_back': 'Swap back exercise',
@@ -1750,6 +1765,9 @@ function daysSince(dateStr) {
       'dashboard.muscular': 'Lihaksisto',
       'dashboard.nervous': 'Hermosto',
       'dashboard.overall': 'Yhteensä',
+      'dashboard.recovery.simple_good': 'Olet palautunut hyvin',
+      'dashboard.recovery.simple_moderate': 'Kohtalainen — kuuntele kehoasi',
+      'dashboard.recovery.simple_low': 'Ota tänään rauhallisesti',
       'dashboard.log_to_see': 'Kirjaa treenejä, niin data tulee näkyviin',
       'dashboard.maxes': 'Maksimit',
       'dashboard.fully_recovered': 'Palautunut hyvin',
@@ -1781,6 +1799,7 @@ function daysSince(dateStr) {
       'dashboard.feeling_fresh': 'olo on tuore, anna mennä',
       'dashboard.moderate_effort': 'ota maltilla',
       'dashboard.start_session': 'Aloita treeni',
+      'dashboard.simple.start': 'Aloita treeni',
       'dashboard.header_sub':
         '{program} - {block} - {week} - Palautuminen {recovery}%',
       'dashboard.plan.deload':
@@ -2255,6 +2274,9 @@ function daysSince(dateStr) {
       'settings.preferences.notes': 'Muistiinpanot, rajoitteet ja mieltymykset',
       'settings.preferences.notes_placeholder':
         'esim. Vältä korkeita hyppyjä, suosi levytankoliikkeitä, 60 min maksimi',
+      'settings.preferences.detailed_view': 'Näytä tarkat mittarit',
+      'settings.preferences.detailed_view_help':
+        'Näytä edistyneet tilastot, kuten yksittäiset väsymysmittarit ja treenimaksimit etusivulla.',
       'settings.preferences.restart_onboarding':
         'Aja ohjattu aloitus uudelleen',
       'settings.preferences.restart_onboarding_active':
@@ -2296,6 +2318,8 @@ function daysSince(dateStr) {
       'workout.unscheduled_sport_session': 'Aikatauluttamaton urheilutreeni',
       'workout.start_session': 'Aloita treeni',
       'workout.training_day': 'Treenipäivä',
+      'workout.simple.your_workout': 'Treenisi',
+      'workout.simple.start': 'Aloita treeni',
       'workout.day': 'Päivä',
       'workout.start_workout': 'Aloita treeni',
       'workout.today.kicker': 'Tänään painota',
@@ -2505,6 +2529,7 @@ function daysSince(dateStr) {
       'program.switch_estimated_loads':
         'Aloituskuormat arvioitiin viimeaikaisesta treenistäsi: {changes}. Voit säätää niitä asetuksissa.',
       'program.recommended': 'Suositeltu',
+      'program.simple.next': 'Seuraava',
       'program.done': 'Tehty',
       'program.leg_heavy': 'Jalkapainotteinen',
       'program.recommend_reason.title': 'Miksi juuri tämä treeni',
@@ -2612,6 +2637,11 @@ function daysSince(dateStr) {
       'rpe.session_title': 'Kuinka raskaalta tämä treeni tuntui?',
       'rpe.session_prompt':
         'Arvioi treenin rasittavuus (6 = kevyt, 10 = maksimi)',
+      'rpe.desc.6': 'Jaksaisi jatkaa helposti',
+      'rpe.desc.7': 'Mukava ponnistus',
+      'rpe.desc.8': 'Haastava mutta hallinnassa',
+      'rpe.desc.9': 'Ehkä 1 toisto jäljellä',
+      'rpe.desc.10': 'Ei mitään jäljellä',
       'settings.program_setup_suffix': 'Asetukset',
       'workout.log_extra_confirm':
         'Kirjataanko ylimääräinen {sport}-treeni tänne päivälle?',

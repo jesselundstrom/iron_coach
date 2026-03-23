@@ -47,8 +47,11 @@ function getLogStartPreviewSnapshot(prog, selectedOption, snapshot) {
   if (!selectedOption || !snapshot) return null;
   const previewState = snapshot.buildState || {};
   const session = Array.isArray(snapshot.exercises) ? snapshot.exercises : [];
-  const chips =
-    typeof getProgramPreviewHeaderChips === 'function'
+  const simple =
+    typeof isSimpleMode === 'function' && isSimpleMode(profile);
+  const chips = simple
+    ? []
+    : typeof getProgramPreviewHeaderChips === 'function'
       ? getProgramPreviewHeaderChips(prog, previewState, session)
       : [];
   const title =
@@ -59,9 +62,11 @@ function getLogStartPreviewSnapshot(prog, selectedOption, snapshot) {
     typeof getProgramOptionDayNumber === 'function'
       ? getProgramOptionDayNumber(selectedOption)
       : '';
-  const headerTitle = dayNumber
-    ? `${i18nText('workout.day', 'Day')} ${dayNumber}`
-    : title || i18nText('workout.training_day', 'Training Day');
+  const headerTitle = simple
+    ? i18nText('workout.simple.your_workout', 'Your Workout')
+    : dayNumber
+      ? `${i18nText('workout.day', 'Day')} ${dayNumber}`
+      : title || i18nText('workout.training_day', 'Training Day');
   const rows = session.map((exercise, index) => {
     const meta =
       typeof getProgramPreviewExerciseMeta === 'function'
@@ -322,16 +327,21 @@ function getLogStartReactSnapshot() {
     isTodayRegularSportDay();
   const timingTone = sportLoadLevel === 'heavy' ? 'warning' : 'info';
   const quickLogMeta = getSportQuickLogMeta();
+  const simple =
+    typeof isSimpleMode === 'function' && isSimpleMode(profile);
   return {
     labels: {
       trainingSession: i18nText('workout.training_session', 'Training Session'),
-      startWorkout: i18nText('workout.start_workout', 'Start Workout'),
+      startWorkout: simple
+        ? i18nText('workout.simple.start', 'Start Workout')
+        : i18nText('workout.start_workout', 'Start Workout'),
       day: i18nText('workout.day', 'Day'),
       warningTitle: i18nText('workout.warning.title', 'Training warning'),
       quickLogTitle: i18nText('workout.log_extra_sport', 'Log Extra Sport'),
       quickLogSubtitle: quickLogMeta.subtitle,
     },
     values: {
+      simpleMode: simple,
       visible: !shell || shell.style.display !== 'none',
       quickLog: {
         icon: quickLogMeta.icon,
@@ -352,8 +362,12 @@ function getLogStartReactSnapshot() {
           status: o.done
             ? i18nText('program.done', 'Done')
             : o.isRecommended
-              ? i18nText('program.recommended', 'Recommended')
-              : i18nText('program.future', 'Upcoming'),
+              ? simple
+                ? i18nText('program.simple.next', 'Next')
+                : i18nText('program.recommended', 'Recommended')
+              : simple
+                ? ''
+                : i18nText('program.future', 'Upcoming'),
           statusIcon: o.done ? 'OK' : o.isRecommended ? '*' : '',
           selected: isSelected,
           done: o.done === true,
@@ -361,8 +375,8 @@ function getLogStartReactSnapshot() {
         };
       }),
       preview: getLogStartPreviewSnapshot(prog, selectedOption, startSnapshot),
-      focusPanel: panels.focus,
-      decisionCard: panels.decisionCard,
+      focusPanel: simple ? null : panels.focus,
+      decisionCard: simple ? null : panels.decisionCard,
       warningCard: panels.warning,
       sportReadiness: prefs.sportReadinessCheckEnabled
         ? {
@@ -443,7 +457,7 @@ function getLogStartReactSnapshot() {
               : '',
           }
         : null,
-      energyAssessment: {
+      energyAssessment: simple ? null : {
         title: i18nText('workout.energy.title', 'How do you feel?'),
         options: [
           {value: 'low', label: i18nText('workout.energy.low', 'Low energy'), tone: 'caution', active: pendingEnergyLevel === 'low'},

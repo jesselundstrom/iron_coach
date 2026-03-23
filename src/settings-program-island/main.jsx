@@ -273,20 +273,22 @@ function SettingsProgramIsland() {
         </div>
       </details>
 
-      <button
-        className="settings-panel settings-panel-static program-advanced-card"
-        id="program-advanced-panel"
-        type="button"
-        onClick={() => window.openProgramSetupSheet?.()}
-      >
-        <div className="settings-panel-summary settings-panel-summary-static">
-          <div>
-            <div className="settings-panel-title">{snapshot.labels.advancedTitle}</div>
-            <div className="settings-panel-sub">{snapshot.labels.advancedHelp}</div>
+      {!snapshot.values.simpleMode ? (
+        <button
+          className="settings-panel settings-panel-static program-advanced-card"
+          id="program-advanced-panel"
+          type="button"
+          onClick={() => window.openProgramSetupSheet?.()}
+        >
+          <div className="settings-panel-summary settings-panel-summary-static">
+            <div>
+              <div className="settings-panel-title">{snapshot.labels.advancedTitle}</div>
+              <div className="settings-panel-sub">{snapshot.labels.advancedHelp}</div>
+            </div>
+            <div className="program-advanced-chevron">&#8250;</div>
           </div>
-          <div className="program-advanced-chevron">&#8250;</div>
-        </div>
-      </button>
+        </button>
+      ) : null}
     </>
   );
 }

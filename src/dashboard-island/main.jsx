@@ -504,27 +504,34 @@ function RecoveryCard({ recovery }) {
             {recovery.overallValue}%
           </div>
         </div>
-        {recovery.rows.map((row) => (
-          <div key={row.id} className="fatigue-row">
-            <div className="fatigue-label">{row.label}</div>
-            <div className="fatigue-bar-wrap">
-              <div
-                className="fatigue-fill"
-                id={`f-${row.id}`}
-                style={{
-                  width: `${row.value}%`,
-                  '--bar-start': row.gradient.start,
-                  '--bar-mid': row.gradient.mid,
-                  '--bar-end': row.gradient.end,
-                  '--bar-glow': row.gradient.glow,
-                }}
-              />
-            </div>
-            <div className="fatigue-value" id={`f-${row.id}-val`}>
-              {row.value}%
-            </div>
+        {recovery.simpleSummary ? (
+          <div className="dashboard-recovery-simple-summary">
+            {recovery.simpleSummary}
           </div>
-        ))}
+        ) : null}
+        {recovery.rows.length > 0
+          ? recovery.rows.map((row) => (
+              <div key={row.id} className="fatigue-row">
+                <div className="fatigue-label">{row.label}</div>
+                <div className="fatigue-bar-wrap">
+                  <div
+                    className="fatigue-fill"
+                    id={`f-${row.id}`}
+                    style={{
+                      width: `${row.value}%`,
+                      '--bar-start': row.gradient.start,
+                      '--bar-mid': row.gradient.mid,
+                      '--bar-end': row.gradient.end,
+                      '--bar-glow': row.gradient.glow,
+                    }}
+                  />
+                </div>
+                <div className="fatigue-value" id={`f-${row.id}-val`}>
+                  {row.value}%
+                </div>
+              </div>
+            ))
+          : null}
       </div>
     </div>
   );
@@ -736,12 +743,14 @@ function DashboardIsland() {
         </div>
       ) : null}
 
-      <div className="dashboard-section dashboard-section-maxes dashboard-animate dashboard-delay-6">
-        <TrainingMaxes
-          title={snapshot.trainingMaxesTitle || snapshot.labels.maxes}
-          items={snapshot.trainingMaxes}
-        />
-      </div>
+      {!snapshot.simpleMode ? (
+        <div className="dashboard-section dashboard-section-maxes dashboard-animate dashboard-delay-6">
+          <TrainingMaxes
+            title={snapshot.trainingMaxesTitle || snapshot.labels.maxes}
+            items={snapshot.trainingMaxes}
+          />
+        </div>
+      ) : null}
     </>
   );
 }

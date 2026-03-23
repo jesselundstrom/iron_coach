@@ -2077,24 +2077,45 @@ function getDashboardRecoverySnapshot(fatigue) {
   const muscularRecovery = 100 - fatigue.muscular;
   const cnsRecovery = 100 - fatigue.cns;
   const overallRecovery = 100 - fatigue.overall;
+  const simple =
+    typeof isSimpleMode === 'function' && isSimpleMode(profile);
+  const simpleSummary = simple
+    ? overallRecovery > 70
+      ? trDash(
+          'dashboard.recovery.simple_good',
+          "You're well recovered"
+        )
+      : overallRecovery > 40
+        ? trDash(
+            'dashboard.recovery.simple_moderate',
+            'Moderate — listen to your body'
+          )
+        : trDash(
+            'dashboard.recovery.simple_low',
+            'Take it easy today'
+          )
+    : null;
   return {
     overallLabel: trDash('dashboard.overall', 'Yhteensä'),
     overallValue: overallRecovery,
     badge: getDashboardRecoveryBadgeData(overallRecovery),
-    rows: [
-      {
-        id: 'muscular',
-        label: trDash('dashboard.muscular', 'Lihaksisto'),
-        value: muscularRecovery,
-        gradient: getRecoveryGradient(muscularRecovery),
-      },
-      {
-        id: 'cns',
-        label: trDash('dashboard.nervous', 'Hermosto'),
-        value: cnsRecovery,
-        gradient: getRecoveryGradient(cnsRecovery),
-      },
-    ],
+    simpleSummary,
+    rows: simple
+      ? []
+      : [
+          {
+            id: 'muscular',
+            label: trDash('dashboard.muscular', 'Lihaksisto'),
+            value: muscularRecovery,
+            gradient: getRecoveryGradient(muscularRecovery),
+          },
+          {
+            id: 'cns',
+            label: trDash('dashboard.nervous', 'Hermosto'),
+            value: cnsRecovery,
+            gradient: getRecoveryGradient(cnsRecovery),
+          },
+        ],
   };
 }
 
@@ -2367,13 +2388,29 @@ function buildDashboardPlanStructuredSnapshot(prog, ps, fatigue) {
     sportName
   );
   return {
-    headerSub: [
-      window.I18N && I18N.t
-        ? I18N.t('program.' + prog.id + '.name', null, prog.name || 'Treeni')
-        : prog.name || 'Treeni',
-      blockInfo.name || '',
-      blockInfo.weekLabel || '',
-    ]
+    headerSub: (
+      typeof isSimpleMode === 'function' && isSimpleMode(profile)
+        ? [
+            window.I18N && I18N.t
+              ? I18N.t(
+                  'program.' + prog.id + '.name',
+                  null,
+                  prog.name || 'Treeni'
+                )
+              : prog.name || 'Treeni',
+          ]
+        : [
+            window.I18N && I18N.t
+              ? I18N.t(
+                  'program.' + prog.id + '.name',
+                  null,
+                  prog.name || 'Treeni'
+                )
+              : prog.name || 'Treeni',
+            blockInfo.name || '',
+            blockInfo.weekLabel || '',
+          ]
+    )
       .filter(Boolean)
       .join(' · '),
     hero: {
@@ -2383,7 +2420,10 @@ function buildDashboardPlanStructuredSnapshot(prog, ps, fatigue) {
       cta: shouldShowStart
         ? {
             type: 'button',
-            label: trDash('dashboard.start_session', 'Aloita sessio'),
+            label:
+              typeof isSimpleMode === 'function' && isSimpleMode(profile)
+                ? trDash('dashboard.simple.start', 'Start Your Workout')
+                : trDash('dashboard.start_session', 'Aloita sessio'),
             action: 'goToLog',
           }
         : todaySummary.hasLift
@@ -2412,24 +2452,33 @@ function buildDashboardPlanStructuredSnapshot(prog, ps, fatigue) {
           ? { ...completionMessage, tone: 'positive' }
           : null,
       },
-      {
-        id: 'stats',
-        label: trDash('workout.today.block_stats', 'Trendit'),
-        head: trDash('workout.today.last_30_days', 'Viimeiset 30 päivää'),
-        summary,
-        primaryMetric,
-        supportingMetrics,
-        insights,
-      },
-      {
-        id: 'muscle',
-        label: trDash(
-          'dashboard.muscle_load.recent',
-          'Viimeaikainen lihaskuorma'
-        ),
-        head: trDash('workout.today.recovery_status', 'Palautumistilanne'),
-        body: getDashboardMuscleBodyData(getDashboardMuscleLoadLookbackDays()),
-      },
+      ...(typeof isSimpleMode === 'function' && isSimpleMode(profile)
+        ? []
+        : [
+            {
+              id: 'stats',
+              label: trDash('workout.today.block_stats', 'Trendit'),
+              head: trDash('workout.today.last_30_days', 'Viimeiset 30 päivää'),
+              summary,
+              primaryMetric,
+              supportingMetrics,
+              insights,
+            },
+            {
+              id: 'muscle',
+              label: trDash(
+                'dashboard.muscle_load.recent',
+                'Viimeaikainen lihaskuorma'
+              ),
+              head: trDash(
+                'workout.today.recovery_status',
+                'Palautumistilanne'
+              ),
+              body: getDashboardMuscleBodyData(
+                getDashboardMuscleLoadLookbackDays()
+              ),
+            },
+          ]),
     ],
   };
 }
@@ -2466,7 +2515,10 @@ function getDashboardNutritionData() {
 function buildDashboardReactSnapshotInternal(prog, ps, fatigue, tmData) {
   const week = getDashboardWeekStructuredSnapshot();
   const plan = buildDashboardPlanStructuredSnapshot(prog, ps, fatigue);
+  const simple =
+    typeof isSimpleMode === 'function' && isSimpleMode(profile);
   return {
+    simpleMode: simple,
     labels: getDashboardLabels(),
     hero: plan.hero,
     week,

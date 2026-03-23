@@ -46,6 +46,9 @@ function getSnapshot() {
       sportCheckTitle: 'Pre-workout sport check-in',
       sportCheckHelp:
         'Ask about sport load around today before recommending the session.',
+      detailedViewTitle: 'Show detailed metrics',
+      detailedViewHelp:
+        'Show advanced stats like individual fatigue gauges and training maxes on the dashboard.',
       sessionSection: 'Session Settings',
       restLabel: 'Default Rest Timer',
       off: 'Off',
@@ -62,6 +65,7 @@ function getSnapshot() {
       equipmentAccess: 'full_gym',
       warmupSetsEnabled: true,
       sportReadinessCheckEnabled: true,
+      detailedView: false,
       defaultRest: '120',
       notes: '',
     },
@@ -76,6 +80,7 @@ function getFormValues(snapshot) {
     equipmentAccess: snapshot.values.equipmentAccess ?? 'full_gym',
     warmupSetsEnabled: snapshot.values.warmupSetsEnabled === true,
     sportReadinessCheckEnabled: snapshot.values.sportReadinessCheckEnabled === true,
+    detailedView: snapshot.values.detailedView === true,
     defaultRest: snapshot.values.defaultRest ?? '120',
     notes: snapshot.values.notes ?? '',
   };
@@ -232,6 +237,30 @@ function SettingsPreferencesIsland() {
 
           <div className="settings-subsection">
             <div className="settings-subsection-title">{labels.sessionSection}</div>
+
+            <label className="toggle-row" htmlFor="training-detailed-view" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+              <div>
+                <div className="toggle-row-title">{labels.detailedViewTitle || 'Show detailed metrics'}</div>
+                <div className="toggle-row-sub">{labels.detailedViewHelp || 'Show advanced stats like individual fatigue gauges and training maxes on the dashboard.'}</div>
+              </div>
+              <div className="toggle-switch">
+                <input
+                  type="checkbox"
+                  id="training-detailed-view"
+                  checked={formValues.detailedView}
+                  onChange={(event) => {
+                    updateField('detailedView', event.target.checked);
+                    window.saveTrainingPreferences?.({
+                      detailedViewOverride: event.target.checked,
+                    });
+                  }}
+                />
+                <span className="toggle-track">
+                  <span className="toggle-thumb"></span>
+                </span>
+              </div>
+            </label>
+
             <div
               className="settings-panel-inline-row"
               style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}

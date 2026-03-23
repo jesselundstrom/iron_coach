@@ -3443,6 +3443,17 @@ select optgroup {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.rpe-btn .rpe-desc {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.2;
+  opacity: 0.7;
+}
+.rpe-btn.selected .rpe-desc {
+  opacity: 1;
+  color: var(--purple);
+}
 .rpe-btn.selected {
   border-color: var(--purple);
   background: rgba(167, 139, 250, 0.15);
@@ -7995,6 +8006,12 @@ body.login-active::before {
 }
 .dashboard-recovery-summary-copy:empty {
   display: none;
+}
+.dashboard-recovery-simple-summary {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 .dashboard-recovery-summary-badge {
   display: inline-flex;

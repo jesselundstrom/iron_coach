@@ -282,6 +282,13 @@ const RPE_FEELS = {
   9: 'Very Hard',
   10: 'Max',
 };
+const RPE_DESCS = {
+  6: ['rpe.desc.6', 'Could keep going easily'],
+  7: ['rpe.desc.7', 'Comfortable effort'],
+  8: ['rpe.desc.8', 'Challenging but controlled'],
+  9: ['rpe.desc.9', 'Maybe 1 rep left'],
+  10: ['rpe.desc.10', 'Nothing left'],
+};
 function logWarn(context, error) {
   console.warn('[Ironforge]', context, error);
 }
@@ -692,7 +699,8 @@ function showRPEPicker(exName, setNum, cb) {
   [6, 7, 8, 9, 10].forEach((v) => {
     const btn = document.createElement('div');
     btn.className = 'rpe-btn';
-    btn.innerHTML = `<div class="rpe-num">${v}</div><div class="rpe-feel">${RPE_FEELS[v] || ''}</div>`;
+    const desc = RPE_DESCS[v] ? tr(RPE_DESCS[v][0], RPE_DESCS[v][1]) : '';
+    btn.innerHTML = `<div class="rpe-num">${v}</div><div class="rpe-feel">${RPE_FEELS[v] || ''}</div><div class="rpe-desc">${desc}</div>`;
     btn.onclick = () => {
       document
         .querySelectorAll('.rpe-btn')
@@ -1154,6 +1162,8 @@ function getSettingsProgramReactSnapshot() {
     },
     values: {
       programId: prog.id,
+      simpleMode:
+        typeof isSimpleMode === 'function' && isSimpleMode(profile),
       basicsVisible: basics.visible,
       basicsSummary: basics.summary,
       basicsTree: basics.tree,
@@ -1279,6 +1289,14 @@ function getSettingsPreferencesReactSnapshot() {
         'settings.preferences.sport_check_help',
         'Ask about sport load around today before recommending the session.'
       ),
+      detailedViewTitle: tr(
+        'settings.preferences.detailed_view',
+        'Show detailed metrics'
+      ),
+      detailedViewHelp: tr(
+        'settings.preferences.detailed_view_help',
+        'Show advanced stats like individual fatigue gauges and training maxes on the dashboard.'
+      ),
       sessionSection: tr(
         'settings.preferences.section.session',
         'Session Settings'
@@ -1306,6 +1324,12 @@ function getSettingsPreferencesReactSnapshot() {
       equipmentAccess: prefs.equipmentAccess,
       warmupSetsEnabled: prefs.warmupSetsEnabled === true,
       sportReadinessCheckEnabled: prefs.sportReadinessCheckEnabled === true,
+      detailedView:
+        typeof prefs.detailedView === 'boolean'
+          ? prefs.detailedView
+          : !(
+              typeof isSimpleMode === 'function' && isSimpleMode(profile)
+            ),
       defaultRest: String(profile.defaultRest || 120),
       notes: prefs.notes || '',
     },
@@ -1655,6 +1679,7 @@ async function completeOnboarding(draft) {
       trainingDaysPerWeek: parseInt(d.trainingDaysPerWeek, 10) || 3,
       sessionMinutes: parseInt(d.sessionMinutes, 10) || 60,
       equipmentAccess: d.equipmentAccess,
+      detailedView: undefined,
     },
   });
   const nextCoaching = normalizeCoachingProfile({
@@ -1897,7 +1922,8 @@ function saveBodyMetrics() {
   notifySettingsBodyIsland();
   showToast(tr('settings.body.saved', 'Saved'), 'var(--green)');
 }
-function saveTrainingPreferences() {
+function saveTrainingPreferences(options) {
+  const opts = options || {};
   const prefs = normalizeTrainingPreferences(profile);
   const goal = document.getElementById('training-goal')?.value || prefs.goal;
   const trainingDaysPerWeek =
@@ -1913,6 +1939,12 @@ function saveTrainingPreferences() {
     document.getElementById('training-sport-check')?.checked === true;
   const warmupSetsEnabled =
     document.getElementById('training-warmup-sets')?.checked === true;
+  const detailedView = Object.prototype.hasOwnProperty.call(
+    opts,
+    'detailedViewOverride'
+  )
+    ? opts.detailedViewOverride === true
+    : prefs.detailedView;
   const notes =
     document.getElementById('training-preferences-notes')?.value || '';
   profile.preferences = normalizeTrainingPreferences({
@@ -1925,6 +1957,7 @@ function saveTrainingPreferences() {
       equipmentAccess,
       sportReadinessCheckEnabled,
       warmupSetsEnabled,
+      detailedView,
       notes,
     },
   });
