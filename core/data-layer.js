@@ -119,7 +119,7 @@ function clearLocalDataCache(options) {
 function resetRuntimeState() {
   workouts = [];
   schedule = {
-    sportName: getDefaultSportName(),
+    sportName: '',
     sportDays: [],
     sportIntensity: 'hard',
     sportLegsHeavy: true,
@@ -1326,10 +1326,7 @@ function normalizeScheduleState(scheduleLike) {
   if (isLegacyDefaultSportName(scheduleLike.sportName))
     scheduleLike.sportName = getDefaultSportName();
   scheduleLike.sportName =
-    sanitizeWorkoutTextValue(
-      scheduleLike.sportName || getDefaultSportName(),
-      60
-    ) || getDefaultSportName();
+    sanitizeWorkoutTextValue(scheduleLike.sportName || '', 60) || '';
   scheduleLike.sportDays = Array.isArray(scheduleLike.sportDays)
     ? [
         ...new Set(

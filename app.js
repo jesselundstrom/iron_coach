@@ -25,7 +25,7 @@ let currentUser = null;
 // STATE (persisted via localStorage)
 let workouts = [];
 let schedule = {
-  sportName: getDefaultSportName(),
+  sportName: '',
   sportDays: [],
   sportIntensity: 'hard',
   sportLegsHeavy: true,
@@ -82,13 +82,24 @@ function isLegacyDefaultSportName(name) {
     .trim()
     .toLowerCase();
   return (
-    raw === '' ||
     raw === 'hockey' ||
     raw === 'jääkiekko' ||
     raw === 'cardio' ||
     raw === 'sport' ||
     raw === 'urheilu' ||
     raw === 'kestävyys'
+  );
+}
+
+function getScheduleSportNameValue(scheduleLike) {
+  if (!scheduleLike || typeof scheduleLike !== 'object') return '';
+  return String(scheduleLike.sportName || '').trim();
+}
+
+function getScheduleStatusName(scheduleLike) {
+  return (
+    getScheduleSportNameValue(scheduleLike) ||
+    tr('settings.status.generic_sport', 'Sport / cardio')
   );
 }
 
@@ -872,7 +883,7 @@ function notifySettingsScheduleIsland() {
 }
 function getSettingsScheduleStatusText() {
   const sep = ' · ';
-  const name = schedule.sportName || getDefaultSportName();
+  const name = getScheduleStatusName(schedule);
   const intensity = schedule.sportIntensity || 'hard';
   const intensityLabel = tr(
     'settings.intensity.' + intensity,
@@ -893,10 +904,10 @@ function getSettingsScheduleReactSnapshot() {
   return {
     labels: {
       statusBar: getSettingsScheduleStatusText(),
-      title: tr('settings.sport_load.title', 'Sport Load'),
+      title: tr('settings.sport_load.title', 'My Sport'),
       subtitle: tr(
         'settings.sport_load.subtitle',
-        'Set up your regular sport so the planner can steer sessions around it.'
+        'Set the sport or cardio that most affects your training week.'
       ),
       activitySection: tr('settings.sport_load.section.activity', 'Sport'),
       activitySectionSub: tr(
@@ -925,7 +936,7 @@ function getSettingsScheduleReactSnapshot() {
       regularSportDays: tr('settings.regular_sport_days', 'Regular Sport Days'),
     },
     values: {
-      sportName: schedule.sportName || getDefaultSportName(),
+      sportName: getScheduleSportNameValue(schedule),
       sportIntensity: intensity,
       sportLegsHeavy: schedule.sportLegsHeavy !== false,
       sportDays: [...(schedule.sportDays || [])],
@@ -1472,7 +1483,7 @@ function renderSportStatusBar() {
     if (isSettingsScheduleIslandActive()) notifySettingsScheduleIsland();
     return;
   }
-  const name = schedule.sportName || getDefaultSportName();
+  const name = getScheduleStatusName(schedule);
   const intensity = schedule.sportIntensity || 'hard';
   const intensityLabel = tr(
     'settings.intensity.' + intensity,
@@ -1748,7 +1759,7 @@ function initSettings() {
   refreshDayNames();
   {
     const inp = document.getElementById('sport-name');
-    if (inp) inp.value = schedule.sportName || getDefaultSportName();
+    if (inp) inp.value = getScheduleSportNameValue(schedule);
   }
   {
     const btns = document.querySelectorAll('#sport-intensity-btns button');
@@ -1989,8 +2000,7 @@ function _showAutoSaveToast(msg, color) {
 function saveSchedule(nextValues) {
   if (nextValues && typeof nextValues === 'object') {
     if ('sportName' in nextValues)
-      schedule.sportName =
-        String(nextValues.sportName || '').trim() || getDefaultSportName();
+      schedule.sportName = String(nextValues.sportName || '').trim();
     if ('sportLegsHeavy' in nextValues)
       schedule.sportLegsHeavy = nextValues.sportLegsHeavy !== false;
     if ('sportIntensity' in nextValues)
@@ -2001,11 +2011,11 @@ function saveSchedule(nextValues) {
         : [];
   } else {
     const nameInp = document.getElementById('sport-name');
-    if (nameInp)
-      schedule.sportName = nameInp.value.trim() || getDefaultSportName();
+    if (nameInp) schedule.sportName = nameInp.value.trim();
     const cb = document.getElementById('sport-legs-heavy');
     if (cb) schedule.sportLegsHeavy = cb.checked;
   }
+  if (typeof normalizeScheduleState === 'function') normalizeScheduleState(schedule);
   if (!activeWorkout) resetNotStartedView();
   saveScheduleData();
   if (isSettingsScheduleIslandActive()) notifySettingsScheduleIsland();
@@ -2200,7 +2210,7 @@ async function clearAllData() {
   }
   workouts = [];
   schedule = {
-    sportName: getDefaultSportName(),
+    sportName: '',
     sportDays: [],
     sportIntensity: 'hard',
     sportLegsHeavy: true,

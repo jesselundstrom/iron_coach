@@ -241,6 +241,34 @@ test('saveSchedule marks only the schedule document as dirty', async ({ page }) 
   expect(dirtyDocKeys).toEqual(['schedule']);
 });
 
+test('blank schedule sport name survives normalization instead of reverting to the locale default', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(() => {
+    return window.eval(`
+      (() => {
+        const nextSchedule = {
+          sportName: '',
+          sportDays: [1, '3', 3, 9],
+          sportIntensity: 'moderate',
+          sportLegsHeavy: false
+        };
+        normalizeScheduleState(nextSchedule);
+        return nextSchedule;
+      })()
+    `);
+  });
+
+  expect(result).toEqual({
+    sportName: '',
+    sportDays: [1, 3],
+    sportIntensity: 'moderate',
+    sportLegsHeavy: false,
+  });
+});
+
 test('remote profile document normalizes malformed body metrics before applying them', async ({
   page,
 }) => {

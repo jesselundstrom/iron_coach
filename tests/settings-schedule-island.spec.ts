@@ -75,6 +75,34 @@ test('settings schedule island autosaves sport name before blur', async ({ page 
     .toBe('Padel');
 });
 
+test('settings schedule island keeps sport name empty when the field is cleared', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    schedule = {
+      sportName: 'Kestävyys',
+      sportDays: [2, 4],
+      sportIntensity: 'hard',
+      sportLegsHeavy: true,
+    };
+    initSettings();
+    window.showPage('settings', document.querySelectorAll('.nav-btn')[3]);
+    showSettingsTab('schedule');
+  });
+
+  const sportNameInput = page.locator('#settings-schedule-react-root #sport-name');
+  await sportNameInput.fill('');
+  await sportNameInput.blur();
+
+  await expect
+    .poll(() => page.evaluate(() => schedule.sportName), { timeout: 15000 })
+    .toBe('');
+  await expect(sportNameInput).toHaveValue('');
+  await expect(page.locator('#sport-status-bar')).toContainText(/sport \/ cardio/i);
+});
+
 test('settings schedule island refreshes translated labels after language changes', async ({
   page,
 }) => {

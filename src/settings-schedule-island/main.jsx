@@ -14,9 +14,8 @@ function getSnapshot() {
   return {
     labels: {
       statusBar: '',
-      title: 'Sport Load',
-      subtitle:
-        'Set up your regular sport so the planner can steer sessions around it.',
+      title: 'My Sport',
+      subtitle: 'Set the sport or cardio that most affects your training week.',
       activitySection: 'Sport',
       activitySectionSub:
         'Name the recurring sport or cardio that affects your training week.',

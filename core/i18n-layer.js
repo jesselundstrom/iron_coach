@@ -548,9 +548,9 @@ function daysSince(dateStr) {
       'settings.tabs.app_data': 'App & Data',
       'settings.tabs.app': 'App',
       'settings.sport_card': 'Sport / Cardio',
-      'settings.sport_load.title': 'Sport Load',
+      'settings.sport_load.title': 'My Sport',
       'settings.sport_load.subtitle':
-        'Set up your regular sport so the planner can steer sessions around it.',
+        'Set the sport or cardio that most affects your training week.',
       'settings.sport_load.section.activity': 'Sport',
       'settings.sport_load.section.activity_sub':
         'Name the recurring sport or cardio that affects your training week.',
@@ -562,6 +562,7 @@ function daysSince(dateStr) {
         'Use a quick check-in on training day to steer session selection around sport load.',
       'settings.activity_name': 'Activity name',
       'settings.activity_placeholder': 'e.g. Hockey, Soccer, Running',
+      'settings.status.generic_sport': 'Sport / cardio',
       'settings.intensity': 'Intensity',
       'settings.intensity.easy': 'Easy',
       'settings.intensity.moderate': 'Moderate',
@@ -2193,9 +2194,9 @@ function daysSince(dateStr) {
       'settings.tabs.app_data': 'Sovellus & data',
       'settings.tabs.app': 'Sovellus',
       'settings.sport_card': 'Urheilu / Cardio',
-      'settings.sport_load.title': 'Lajikuorma',
+      'settings.sport_load.title': 'Lajini',
       'settings.sport_load.subtitle':
-        'Aseta säännöllinen lajisi niin, että planneri osaa ohjata salitreeniä sen ympärillä.',
+        'Aseta laji tai cardio, joka vaikuttaa eniten treeniviikkoosi.',
       'settings.sport_load.section.activity': 'Laji',
       'settings.sport_load.section.activity_sub':
         'Nimeä toistuva laji tai cardio, joka vaikuttaa treeniviikkoosi.',
@@ -2207,6 +2208,7 @@ function daysSince(dateStr) {
         'Käytä nopeaa check-inia treenipäivänä, jotta treenin valinta reagoi lajikuormaan.',
       'settings.activity_name': 'Lajin nimi',
       'settings.activity_placeholder': 'esim. Jääkiekko, jalkapallo, juoksu',
+      'settings.status.generic_sport': 'Laji / cardio',
       'settings.intensity': 'Intensiteetti',
       'settings.intensity.easy': 'Kevyt',
       'settings.intensity.moderate': 'Kohtalainen',

@@ -328,3 +328,30 @@ test('settings account import normalizes malformed body metrics before persistin
       reloadBlocked: true,
     });
 });
+
+test('clearAllData resets the schedule sport name to blank and keeps it blank after reload', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(async () => {
+    schedule = {
+      sportName: 'Padel',
+      sportDays: [1, 3],
+      sportIntensity: 'moderate',
+      sportLegsHeavy: true,
+    };
+    await saveScheduleData({ push: false });
+    await clearAllData();
+  });
+
+  await expect
+    .poll(() => page.evaluate(() => schedule.sportName), { timeout: 15000 })
+    .toBe('');
+
+  await reloadAppShell(page);
+
+  await expect
+    .poll(() => page.evaluate(() => schedule.sportName), { timeout: 15000 })
+    .toBe('');
+});
