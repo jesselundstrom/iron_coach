@@ -100,6 +100,7 @@ export default function AppShell() {
   const activePage = useRuntimeStore((state) => state.ui.activePage);
   const confirm = useRuntimeStore((state) => state.ui.confirm);
   const languageVersion = useRuntimeStore((state) => state.ui.languageVersion);
+  const session = useRuntimeStore((state) => state.session);
   const previousPageRef = useRef(activePage);
 
   const navItems = useMemo(
@@ -170,6 +171,28 @@ export default function AppShell() {
       document.getElementById('confirm-ok')?.focus()
     );
   }, [confirm?.open]);
+
+  useEffect(() => {
+    if (!session.summaryOpen || !session.summaryPrompt?.seed) return;
+    window.requestAnimationFrame(() => {
+      const modal = document.getElementById('summary-modal');
+      if (modal) {
+        modal.classList.toggle(
+          'reduced-motion',
+          window.prefersReducedMotionUI?.() === true
+        );
+      }
+      window.startSessionSummaryCelebration?.(
+        modal,
+        session.summaryPrompt?.summaryData || null
+      );
+      const notesField = document.getElementById('summary-notes-textarea');
+      if (notesField instanceof HTMLTextAreaElement) {
+        notesField.style.height = 'auto';
+        notesField.style.height = `${Math.min(notesField.scrollHeight, 168)}px`;
+      }
+    });
+  }, [session.summaryOpen, session.summaryPrompt?.seed]);
 
   useEffect(() => {
     const contentScroller = document.querySelector('.content');
@@ -323,20 +346,34 @@ export default function AppShell() {
           </div>
         </div>
       </div>
-      <div className="modal-overlay" id="rpe-modal">
+      <div
+        className={`modal-overlay${session.rpeOpen ? ' active' : ''}`}
+        id="rpe-modal"
+      >
         <div className="modal-sheet">
           <div className="modal-handle" />
-          <div className="modal-title" data-i18n="rpe.session_title">
-            How hard was this session?
+          <div className="modal-title" id="rpe-modal-title">
+            {session.rpePrompt?.title || 'How hard was this session?'}
           </div>
-          <div
-            className="modal-sub"
-            id="rpe-modal-sub"
-            data-i18n="rpe.session_prompt"
-          >
-            Rate overall effort (6 = easy, 10 = max)
+          <div className="modal-sub" id="rpe-modal-sub">
+            {session.rpePrompt?.subtitle || 'Rate overall effort (6 = easy, 10 = max)'}
           </div>
-          <div className="rpe-grid" id="rpe-grid" />
+          <div className="rpe-grid" id="rpe-grid">
+            {(session.rpePrompt?.options || []).map((option) => (
+              <button
+                key={option.value}
+                className="rpe-btn"
+                type="button"
+                onClick={() => {
+                  window.setTimeout(() => window.selectRPE?.(option.value), 200);
+                }}
+              >
+                <div className="rpe-num">{option.value}</div>
+                <div className="rpe-feel">{option.feel}</div>
+                <div className="rpe-desc">{option.description}</div>
+              </button>
+            ))}
+          </div>
           <div
             className="rpe-skip"
             role="button"
@@ -354,29 +391,133 @@ export default function AppShell() {
           </div>
         </div>
       </div>
-      <div className="modal-overlay" id="summary-modal">
+      <div
+        className={`modal-overlay${session.summaryOpen ? ' active' : ''}`}
+        id="summary-modal"
+      >
         <div className="modal-sheet summary-sheet">
           <div className="modal-handle" />
-          <div id="summary-modal-content" className="summary-modal-content" />
+          <div id="summary-modal-content" className="summary-modal-content">
+            {session.summaryPrompt ? (
+              <div className="summary-celebration">
+                <canvas className="summary-burst-canvas" aria-hidden="true" />
+                <div className="summary-forge-glow" aria-hidden="true" />
+                <div className="summary-shell">
+                  <div className="summary-kicker">
+                    {session.summaryPrompt.kicker}
+                  </div>
+                  <div className="summary-title">
+                    {session.summaryPrompt.title}
+                  </div>
+                  <div className="summary-program">
+                    {session.summaryPrompt.programLabel}
+                  </div>
+                  <div className="summary-stats">
+                    {session.summaryPrompt.stats.map((stat, index) => (
+                      <div
+                        key={stat.key}
+                        className={`summary-stat summary-stat-${stat.key}`}
+                        style={{ '--summary-stat-delay': `${index * 100}ms` }}
+                      >
+                        <div
+                          className={`summary-stat-value ${stat.accent}`.trim()}
+                          data-stat-key={stat.key}
+                          data-stat-value="0"
+                        >
+                          {stat.initialText}
+                        </div>
+                        <div className="summary-stat-label">{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {session.summaryPrompt.coachNote ? (
+                    <div className="summary-coach-note">
+                      {session.summaryPrompt.coachNote}
+                    </div>
+                  ) : null}
+                  <div className="summary-notes-shell">
+                    <label
+                      className="summary-notes-label"
+                      htmlFor="summary-notes-textarea"
+                    >
+                      {session.summaryPrompt.notesLabel}
+                    </label>
+                    <textarea
+                      id="summary-notes-textarea"
+                      className="summary-notes-textarea"
+                      placeholder={session.summaryPrompt.notesPlaceholder}
+                      maxLength={500}
+                      rows={3}
+                      value={session.summaryPrompt.notes || ''}
+                      onInput={(event) => {
+                        const nextValue = event.currentTarget.value;
+                        event.currentTarget.style.height = 'auto';
+                        event.currentTarget.style.height = `${Math.min(
+                          event.currentTarget.scrollHeight,
+                          168
+                        )}px`;
+                        window.updateSummaryNotes?.(nextValue);
+                      }}
+                    />
+                  </div>
+                  <div className="summary-feedback">
+                    <div className="summary-feedback-label">
+                      {session.summaryPrompt.feedbackLabel}
+                    </div>
+                    <div className="summary-feedback-options">
+                      {session.summaryPrompt.feedbackOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          className={`summary-feedback-btn${
+                            session.summaryPrompt.feedback === option.value
+                              ? ' is-active'
+                              : ''
+                          }`}
+                          type="button"
+                          data-feedback={option.value}
+                          onClick={() =>
+                            window.setSummaryFeedback?.(option.value)
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {session.summaryPrompt.canLogNutrition ? (
+                    <button
+                      className="btn btn-ghost summary-nutrition-action"
+                      type="button"
+                      onClick={() => window.closeSummaryModal?.(true)}
+                    >
+                      {session.summaryPrompt.nutritionLabel}
+                    </button>
+                  ) : null}
+                  <button
+                    className="btn btn-primary summary-action"
+                    type="button"
+                    onClick={() => window.closeSummaryModal?.()}
+                  >
+                    {session.summaryPrompt.doneLabel}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
-      <div className="modal-overlay" id="sport-check-modal">
+      <div
+        className={`modal-overlay${session.sportCheckOpen ? ' active' : ''}`}
+        id="sport-check-modal"
+      >
         <div className="modal-sheet">
           <div className="modal-handle" />
-          <div
-            className="modal-title"
-            id="sport-check-title"
-            data-i18n="workout.sport_check.title"
-          >
-            Sport check-in
+          <div className="modal-title" id="sport-check-title">
+            {session.sportCheckPrompt?.title || 'Sport check-in'}
           </div>
-          <div
-            className="modal-sub"
-            id="sport-check-sub"
-            data-i18n="workout.sport_check.sub"
-          >
-            Have you had a leg-heavy sport session yesterday, or do you have one
-            tomorrow?
+          <div className="modal-sub" id="sport-check-sub">
+            {session.sportCheckPrompt?.subtitle ||
+              'Have you had a leg-heavy sport session yesterday, or do you have one tomorrow?'}
           </div>
           <div className="sport-check-grid">
             <button

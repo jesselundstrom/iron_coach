@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const LOG_START_EVENT =
-  window.__IRONFORGE_LOG_START_ISLAND_EVENT__ || 'ironforge:log-start-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 const initialSnapshot = {
   labels: {
@@ -29,13 +25,6 @@ const initialSnapshot = {
     sportReadiness: null,
   },
 };
-
-function getSnapshot() {
-  if (typeof window.getLogStartReactSnapshot === 'function') {
-    return window.getLogStartReactSnapshot() || initialSnapshot;
-  }
-  return initialSnapshot;
-}
 
 function PreviewCard({ preview, context }) {
   if (!preview) return null;
@@ -457,36 +446,49 @@ function BonusSessionCard({ bonus, onSelect, selected, duration, onDurationChang
 }
 
 function LogStartIsland() {
-  const snapshot = useIslandSnapshot(
-    [LOG_START_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.log.startSnapshot) || initialSnapshot;
   const bonus = snapshot.values.bonusSession;
   const allDone =
     snapshot.values.options.length > 0 &&
     snapshot.values.options.every((o) => o.done);
   const [bonusSelected, setBonusSelected] = useState(false);
-  const [bonusDuration, setBonusDuration] = useState('standard');
+  const [bonusDuration, setBonusDuration] = useState(() =>
+    window.getSelectedBonusDuration?.() || 'standard'
+  );
   const autoSelectedRef = useRef(false);
 
   useEffect(() => {
     if (allDone && bonus?.available && !autoSelectedRef.current) {
       autoSelectedRef.current = true;
       setBonusSelected(true);
-      const daySelect = document.getElementById('program-day-select');
-      if (daySelect) daySelect.value = 'bonus';
+      window.setSelectedWorkoutStartOption?.('bonus');
     }
   }, [allDone, bonus?.available]);
 
+  useEffect(() => {
+    const selectedOption = snapshot.values.selectedOption || '';
+    setBonusSelected(selectedOption === 'bonus');
+  }, [snapshot.values.selectedOption]);
+
+  useEffect(() => {
+    const selectedDuration = window.getSelectedBonusDuration?.() || 'standard';
+    setBonusDuration(selectedDuration);
+  }, [snapshot.values.selectedOption, bonus?.available]);
+
   function selectBonus() {
     setBonusSelected(true);
-    const daySelect = document.getElementById('program-day-select');
-    if (daySelect) daySelect.value = 'bonus';
+    window.setSelectedWorkoutStartOption?.('bonus');
   }
 
   function selectDay(value) {
     setBonusSelected(false);
     window.setProgramDayOption?.(value);
+  }
+
+  function changeBonusDuration(value) {
+    setBonusDuration(value);
+    window.setSelectedBonusDuration?.(value);
   }
 
   return (
@@ -514,18 +516,6 @@ function LogStartIsland() {
 
       <div className="workout-start-shell">
         <div id="program-week-display" hidden />
-        <input
-          type="hidden"
-          id="program-day-select"
-          value={bonusSelected ? 'bonus' : snapshot.values.selectedOption}
-          readOnly
-        />
-        <input
-          type="hidden"
-          id="bonus-duration-select"
-          value={bonusDuration}
-          readOnly
-        />
         <div id="program-day-options" className="program-day-options">
           {snapshot.values.options.map((option) => (
             <button
@@ -562,7 +552,7 @@ function LogStartIsland() {
             onSelect={selectBonus}
             selected={bonusSelected}
             duration={bonusDuration}
-            onDurationChange={setBonusDuration}
+            onDurationChange={changeBonusDuration}
           />
         ) : null}
 

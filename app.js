@@ -46,6 +46,7 @@ let restInterval = null,
   restEndsAt = 0,
   restHideTimeout = null;
 let pendingRPECallback = null;
+let pendingRPEPromptState = null;
 let exerciseIndex = {};
 let _appViewportSyncTimeout = null;
 let _appViewportBurstTimeouts = [];
@@ -71,6 +72,31 @@ function getIronforgeState() {
   };
 }
 window.getIronforgeState = getIronforgeState;
+
+function notifyRpeOverlayShell() {
+  const eventName =
+    window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
+  window.dispatchEvent(new CustomEvent(eventName));
+}
+
+function getWorkoutOverlaySnapshot() {
+  return {
+    rpePrompt:
+      pendingRPEPromptState && typeof pendingRPEPromptState === 'object'
+        ? { ...pendingRPEPromptState }
+        : null,
+    summaryPrompt:
+      typeof window.getSessionSummaryPromptSnapshot === 'function'
+        ? window.getSessionSummaryPromptSnapshot()
+        : null,
+    sportCheckPrompt:
+      typeof window.getSportCheckPromptSnapshot === 'function'
+        ? window.getSportCheckPromptSnapshot()
+        : null,
+  };
+}
+
+window.getWorkoutOverlaySnapshot = getWorkoutOverlaySnapshot;
 
 function getDefaultSportName() {
   const locale = window.I18N && I18N.getLanguage ? I18N.getLanguage() : 'en';
@@ -575,9 +601,23 @@ function getSportRecentHours() {
 // Data/auth lifecycle functions moved to core/data-layer.js.
 
 // REST TIMER
-function updateRestDuration() {
-  restDuration =
-    parseInt(document.getElementById('rest-duration').value, 10) || 0;
+function getSelectedRestDuration() {
+  const inputValue = parseInt(
+    document.getElementById('rest-duration')?.value,
+    10
+  );
+  if (Number.isFinite(inputValue)) return inputValue;
+  return parseInt(restDuration, 10) || profile.defaultRest || 120;
+}
+
+function updateRestDuration(nextValue) {
+  const parsedValue =
+    nextValue !== undefined && nextValue !== null
+      ? parseInt(nextValue, 10)
+      : getSelectedRestDuration();
+  restDuration = Number.isFinite(parsedValue) ? parsedValue : 0;
+  const restSelect = document.getElementById('rest-duration');
+  if (restSelect) restSelect.value = String(restDuration);
   if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
     persistActiveWorkoutDraft();
   if (
@@ -586,6 +626,7 @@ function updateRestDuration() {
   )
     notifyLogActiveIsland();
 }
+window.getSelectedRestDuration = getSelectedRestDuration;
 function clearRestInterval() {
   if (restInterval) {
     clearInterval(restInterval);
@@ -687,38 +728,35 @@ function playBeep() {
 // RPE MODAL
 function showRPEPicker(exName, setNum, cb) {
   pendingRPECallback = cb;
-  document.getElementById('rpe-modal-sub').textContent =
-    setNum < 0
-      ? tr(
-          'rpe.session_prompt',
-          'Rate overall session effort (6 = easy, 10 = max)'
-        )
-      : exName + ' - ' + tr('rpe.set', 'Set') + ' ' + (setNum + 1);
-  const grid = document.getElementById('rpe-grid');
-  grid.innerHTML = '';
-  [6, 7, 8, 9, 10].forEach((v) => {
-    const btn = document.createElement('div');
-    btn.className = 'rpe-btn';
-    const desc = RPE_DESCS[v] ? tr(RPE_DESCS[v][0], RPE_DESCS[v][1]) : '';
-    btn.innerHTML = `<div class="rpe-num">${v}</div><div class="rpe-feel">${RPE_FEELS[v] || ''}</div><div class="rpe-desc">${desc}</div>`;
-    btn.onclick = () => {
-      document
-        .querySelectorAll('.rpe-btn')
-        .forEach((b) => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      setTimeout(() => selectRPE(v), 200);
-    };
-    grid.appendChild(btn);
-  });
-  document.getElementById('rpe-modal').classList.add('active');
+  pendingRPEPromptState = {
+    open: true,
+    title: tr('rpe.session_title', 'How hard was this session?'),
+    subtitle:
+      setNum < 0
+        ? tr(
+            'rpe.session_prompt',
+            'Rate overall session effort (6 = easy, 10 = max)'
+          )
+        : exName + ' - ' + tr('rpe.set', 'Set') + ' ' + (setNum + 1),
+    options: [6, 7, 8, 9, 10].map((value) => ({
+      value,
+      feel: RPE_FEELS[value] || '',
+      description: RPE_DESCS[value]
+        ? tr(RPE_DESCS[value][0], RPE_DESCS[value][1])
+        : '',
+    })),
+  };
+  notifyRpeOverlayShell();
 }
 function selectRPE(val) {
-  document.getElementById('rpe-modal').classList.remove('active');
+  pendingRPEPromptState = null;
+  notifyRpeOverlayShell();
   if (pendingRPECallback) pendingRPECallback(val);
   pendingRPECallback = null;
 }
 function skipRPE() {
-  document.getElementById('rpe-modal').classList.remove('active');
+  pendingRPEPromptState = null;
+  notifyRpeOverlayShell();
   if (pendingRPECallback) pendingRPECallback(null);
   pendingRPECallback = null;
 }

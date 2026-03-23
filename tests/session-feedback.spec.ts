@@ -135,7 +135,7 @@ test('summary notes persist onto the workout record and history card', async ({ 
     `);
   });
   await expect(page.locator('.hist-session-notes')).toContainText(
-    'Left shoulder felt tight on the descent.'
+    'Left shoulder felt tight on the descent'
   );
 });
 

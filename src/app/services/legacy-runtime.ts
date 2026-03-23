@@ -2,7 +2,11 @@ import { startTransition } from 'react';
 import {
   type AppPage,
   type ConfirmSnapshot,
+  type LegacyIslandSnapshot,
+  type RpePromptSnapshot,
   type SessionSnapshot,
+  type SportCheckPromptSnapshot,
+  type SummaryPromptSnapshot,
   isAppPage,
 } from '../constants';
 import { useRuntimeStore } from '../store/runtime-store';
@@ -45,14 +49,69 @@ function getConfirmSnapshot(): ConfirmSnapshot {
   };
 }
 
+function getLegacyIslandSnapshot(
+  getterName: 'getLogStartReactSnapshot' | 'getLogActiveReactSnapshot'
+): LegacyIslandSnapshot | null {
+  const getter = (window as unknown as Record<string, unknown>)[getterName];
+  if (typeof getter !== 'function') return null;
+  const snapshot = getter();
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  return {
+    labels:
+      snapshot.labels && typeof snapshot.labels === 'object'
+        ? snapshot.labels
+        : {},
+    values:
+      snapshot.values && typeof snapshot.values === 'object'
+        ? snapshot.values
+        : {},
+  };
+}
+
+function getWorkoutOverlaySnapshot(): {
+  rpePrompt: RpePromptSnapshot | null;
+  summaryPrompt: SummaryPromptSnapshot | null;
+  sportCheckPrompt: SportCheckPromptSnapshot | null;
+} {
+  const getter = (window as Window & {
+    getWorkoutOverlaySnapshot?: () => {
+      rpePrompt?: RpePromptSnapshot | null;
+      summaryPrompt?: SummaryPromptSnapshot | null;
+      sportCheckPrompt?: SportCheckPromptSnapshot | null;
+    };
+  }).getWorkoutOverlaySnapshot;
+  if (typeof getter === 'function') {
+    const snapshot = getter();
+    return {
+      rpePrompt:
+        snapshot?.rpePrompt && typeof snapshot.rpePrompt === 'object'
+          ? snapshot.rpePrompt
+          : null,
+      summaryPrompt:
+        snapshot?.summaryPrompt && typeof snapshot.summaryPrompt === 'object'
+          ? snapshot.summaryPrompt
+          : null,
+      sportCheckPrompt:
+        snapshot?.sportCheckPrompt &&
+        typeof snapshot.sportCheckPrompt === 'object'
+          ? snapshot.sportCheckPrompt
+          : null,
+    };
+  }
+  return {
+    rpePrompt: null,
+    summaryPrompt: null,
+    sportCheckPrompt: null,
+  };
+}
+
 function getSessionSnapshot(): SessionSnapshot {
   const state =
     typeof window.getIronforgeState === 'function'
       ? window.getIronforgeState()
       : null;
-  const readOpen = (id: string) =>
-    document.getElementById(id)?.classList.contains('active') === true;
   const restBar = document.getElementById('rest-timer-bar');
+  const overlays = getWorkoutOverlaySnapshot();
 
   return {
     activeWorkout: state?.activeWorkout ?? null,
@@ -62,9 +121,12 @@ function getSessionSnapshot(): SessionSnapshot {
     restTotal: Number(state?.restTotal || 0),
     currentUser: state?.currentUser ?? null,
     restBarActive: restBar?.classList.contains('active') === true,
-    rpeOpen: readOpen('rpe-modal'),
-    summaryOpen: readOpen('summary-modal'),
-    sportCheckOpen: readOpen('sport-check-modal'),
+    rpeOpen: overlays.rpePrompt?.open === true,
+    rpePrompt: overlays.rpePrompt,
+    summaryOpen: overlays.summaryPrompt?.open === true,
+    summaryPrompt: overlays.summaryPrompt,
+    sportCheckOpen: overlays.sportCheckPrompt?.open === true,
+    sportCheckPrompt: overlays.sportCheckPrompt,
   };
 }
 
@@ -73,12 +135,10 @@ export function syncRuntimeStoreFromLegacy() {
   store.setActivePage(getActivePageSnapshot());
   store.setConfirmSnapshot(getConfirmSnapshot());
   store.syncSessionSnapshot(getSessionSnapshot());
-}
-
-function syncWithTransition() {
-  startTransition(() => {
-    syncRuntimeStoreFromLegacy();
-  });
+  store.setLogStartSnapshot(getLegacyIslandSnapshot('getLogStartReactSnapshot'));
+  store.setLogActiveSnapshot(
+    getLegacyIslandSnapshot('getLogActiveReactSnapshot')
+  );
 }
 
 function updateSessionPolling() {
@@ -106,16 +166,17 @@ export function startLegacyRuntimeBridge() {
   updateSessionPolling();
 
   const onAppShell = () => {
-    syncWithTransition();
+    syncRuntimeStoreFromLegacy();
     updateSessionPolling();
   };
   const onLanguage = () => {
     startTransition(() => {
+      syncRuntimeStoreFromLegacy();
       useRuntimeStore.getState().bumpLanguageVersion();
     });
   };
   const onSession = () => {
-    syncWithTransition();
+    syncRuntimeStoreFromLegacy();
     updateSessionPolling();
   };
 

@@ -278,7 +278,9 @@ function getLogStartReactSnapshot() {
     ? applyPreferenceRecommendation(prog, rawOptions, state, sportContext)
     : [];
   const previousSelectedOption =
-    document.getElementById('program-day-select')?.value || '';
+    typeof getSelectedWorkoutStartOption === 'function'
+      ? getSelectedWorkoutStartOption()
+      : '';
   const recommended = options.find((o) => o.isRecommended) || options[0];
   const hasMatch =
     previousSelectedOption &&
@@ -294,8 +296,9 @@ function getLogStartReactSnapshot() {
       : recommended) ||
     recommended ||
     null;
-  const daySelect = document.getElementById('program-day-select');
-  if (daySelect) daySelect.value = selectedValue;
+  if (typeof setSelectedWorkoutStartOption === 'function') {
+    setSelectedWorkoutStartOption(selectedValue);
+  }
   const startSnapshot =
     prog && selectedOption?.value !== undefined
       ? getWorkoutStartSnapshot({
@@ -479,6 +482,12 @@ window.getLogStartReactSnapshot = getLogStartReactSnapshot;
 window.notifyLogStartIsland = notifyLogStartIsland;
 
 const LOG_ACTIVE_ISLAND_EVENT = 'ironforge:log-active-updated';
+let logActiveUiSignalToken = 0;
+let pendingLogActiveUiSignals = {
+  focusTarget: null,
+  setSignal: null,
+  collapseSignal: null,
+};
 
 function hasLogActiveIslandMount() {
   return !!document.getElementById('log-active-react-root');
@@ -491,6 +500,97 @@ function isLogActiveIslandActive() {
 function notifyLogActiveIsland() {
   if (!hasLogActiveIslandMount()) return;
   window.dispatchEvent(new CustomEvent(LOG_ACTIVE_ISLAND_EVENT));
+}
+
+function nextLogActiveUiSignalToken() {
+  logActiveUiSignalToken += 1;
+  return logActiveUiSignalToken;
+}
+
+function queueLogActiveFocusTarget(inputId) {
+  if (!inputId) return null;
+  pendingLogActiveUiSignals = {
+    ...pendingLogActiveUiSignals,
+    focusTarget: {
+      token: nextLogActiveUiSignalToken(),
+      inputId: String(inputId),
+    },
+  };
+  return pendingLogActiveUiSignals.focusTarget;
+}
+
+function clearLogActiveFocusTarget(token) {
+  if (
+    pendingLogActiveUiSignals.focusTarget &&
+    pendingLogActiveUiSignals.focusTarget.token === token
+  ) {
+    pendingLogActiveUiSignals = {
+      ...pendingLogActiveUiSignals,
+      focusTarget: null,
+    };
+  }
+}
+
+function queueLogActiveSetSignal(exerciseUiKey, setIndex, prEvent) {
+  pendingLogActiveUiSignals = {
+    ...pendingLogActiveUiSignals,
+    setSignal: {
+      token: nextLogActiveUiSignalToken(),
+      exerciseUiKey,
+      setIndex,
+      isPr: !!prEvent,
+    },
+  };
+  return pendingLogActiveUiSignals.setSignal;
+}
+
+function clearLogActiveSetSignal(token) {
+  if (
+    pendingLogActiveUiSignals.setSignal &&
+    pendingLogActiveUiSignals.setSignal.token === token
+  ) {
+    pendingLogActiveUiSignals = {
+      ...pendingLogActiveUiSignals,
+      setSignal: null,
+    };
+  }
+}
+
+function queueLogActiveCollapseSignal(exerciseUiKey) {
+  pendingLogActiveUiSignals = {
+    ...pendingLogActiveUiSignals,
+    collapseSignal: {
+      token: nextLogActiveUiSignalToken(),
+      exerciseUiKey,
+    },
+  };
+  return pendingLogActiveUiSignals.collapseSignal;
+}
+
+function clearLogActiveCollapseSignal(token) {
+  if (
+    pendingLogActiveUiSignals.collapseSignal &&
+    pendingLogActiveUiSignals.collapseSignal.token === token
+  ) {
+    pendingLogActiveUiSignals = {
+      ...pendingLogActiveUiSignals,
+      collapseSignal: null,
+    };
+  }
+}
+
+function getLogActiveUiSignalsSnapshot() {
+  return {
+    focusTarget: pendingLogActiveUiSignals.focusTarget
+      ? { ...pendingLogActiveUiSignals.focusTarget }
+      : null,
+    setSignal: pendingLogActiveUiSignals.setSignal
+      ? { ...pendingLogActiveUiSignals.setSignal }
+      : null,
+    collapseSignal: pendingLogActiveUiSignals.collapseSignal
+      ? { ...pendingLogActiveUiSignals.collapseSignal }
+      : null,
+  };
 }
 
 function getLogActiveTimerText() {
@@ -612,6 +712,10 @@ function getLogActiveReactSnapshot() {
   const title =
     activeWorkout?.programLabel || i18nText('common.session', 'Session');
   const sessionDescription = activeWorkout?.sessionDescription || '';
+  const selectedRestDuration =
+    typeof getSelectedRestDuration === 'function'
+      ? getSelectedRestDuration()
+      : restDuration || profile.defaultRest || 120;
   return {
     labels: {
       addExercise: i18nText('workout.add_exercise', 'Add Exercise'),
@@ -673,9 +777,10 @@ function getLogActiveReactSnapshot() {
         seed: activeWorkout?.startTime || 0,
       },
       rest: {
-        duration: String(restDuration || profile.defaultRest || 120),
+        duration: String(selectedRestDuration),
       },
       planPanel: getLogActivePlanPanelSnapshot(),
+      ui: getLogActiveUiSignalsSnapshot(),
       exercises: (activeWorkout?.exercises || []).map(
         (exercise, exerciseIndex) =>
           getLogActiveExerciseSnapshot(exercise, exerciseIndex)
@@ -688,6 +793,9 @@ window.__IRONFORGE_LOG_ACTIVE_ISLAND_EVENT__ = LOG_ACTIVE_ISLAND_EVENT;
 window.getLogActiveReactSnapshot = getLogActiveReactSnapshot;
 window.getLogActiveTimerText = getLogActiveTimerText;
 window.notifyLogActiveIsland = notifyLogActiveIsland;
+window.clearLogActiveFocusTarget = clearLogActiveFocusTarget;
+window.clearLogActiveSetSignal = clearLogActiveSetSignal;
+window.clearLogActiveCollapseSignal = clearLogActiveCollapseSignal;
 
 function persistCurrentWorkoutDraft() {
   if (typeof persistActiveWorkoutDraft === 'function')
@@ -767,35 +875,42 @@ function resumeActiveWorkoutUI(options) {
   if (!activeWorkout) return false;
   ensureActiveWorkoutExerciseUiKeys();
   updateProgramDisplay();
+  const isReactActive = isLogActiveIslandActive();
   const notStarted = document.getElementById('workout-not-started');
   const active = document.getElementById('workout-active');
   if (notStarted) notStarted.style.display = 'none';
   if (active) active.style.display = 'block';
-  const titleEl = document.getElementById('active-session-title');
-  if (titleEl)
-    titleEl.textContent =
-      activeWorkout.programLabel || i18nText('common.session', 'Session');
-  const descEl = document.getElementById('active-session-description');
-  if (descEl) {
-    const prefix = i18nText('session.description', 'Session focus');
-    const sessionDescription = activeWorkout.sessionDescription || '';
-    descEl.textContent = sessionDescription
-      ? prefix + ': ' + sessionDescription
-      : '';
-    descEl.style.display = sessionDescription ? '' : 'none';
+  if (!isReactActive) {
+    const titleEl = document.getElementById('active-session-title');
+    if (titleEl)
+      titleEl.textContent =
+        activeWorkout.programLabel || i18nText('common.session', 'Session');
+    const descEl = document.getElementById('active-session-description');
+    if (descEl) {
+      const prefix = i18nText('session.description', 'Session focus');
+      const sessionDescription = activeWorkout.sessionDescription || '';
+      descEl.textContent = sessionDescription
+        ? prefix + ': ' + sessionDescription
+        : '';
+      descEl.style.display = sessionDescription ? '' : 'none';
+    }
   }
   const restSelect = document.getElementById('rest-duration');
   if (restSelect)
-    restSelect.value = String(restDuration || profile.defaultRest || 120);
+    restSelect.value = String(
+      typeof getSelectedRestDuration === 'function'
+        ? getSelectedRestDuration()
+        : restDuration || profile.defaultRest || 120
+    );
   renderWorkoutTimer();
-  if (!isLogActiveIslandActive()) renderExercises();
+  if (!isReactActive) renderExercises();
   if (restEndsAt) {
     document.getElementById('rest-timer-bar')?.classList.add('active');
     syncRestTimer();
   } else {
     document.getElementById('rest-timer-bar')?.classList.remove('active');
   }
-  if (isLogActiveIslandActive()) notifyLogActiveIsland();
+  if (isReactActive) notifyLogActiveIsland();
   if (isLogStartIslandActive()) notifyLogStartIsland();
   if (options?.toast) {
     showToast(
@@ -815,7 +930,9 @@ function resetNotStartedView() {
   const prefs = normalizeTrainingPreferences(profile);
   const state = getActiveProgramState();
   const previousSelectedOption =
-    document.getElementById('program-day-select')?.value || '';
+    typeof getSelectedWorkoutStartOption === 'function'
+      ? getSelectedWorkoutStartOption()
+      : '';
   if (prefs.sportReadinessCheckEnabled && !pendingSportReadinessLevel)
     pendingSportReadinessLevel = 'none';
   const decisionBundle = getWorkoutStartDecisionBundle({
@@ -872,6 +989,7 @@ function resetNotStartedView() {
     <div class="workout-start-shell">
       <div id="program-week-display" hidden></div>
       <input type="hidden" id="program-day-select" value="${escapeHtml(previousSelectedOption)}">
+      <input type="hidden" id="bonus-duration-select" value="${escapeHtml(typeof getSelectedBonusDuration === 'function' ? getSelectedBonusDuration() : 'standard')}">
       <div id="program-day-options" class="program-day-options"></div>
       <div id="program-warning-panel"></div>
       <div id="program-session-preview"></div>
@@ -881,6 +999,7 @@ function resetNotStartedView() {
         <button class="btn btn-primary cta-btn workout-start-cta" onclick="startWorkout()">${i18nText('workout.start_workout', 'Start Workout')}</button>
       </div>
       </div>`;
+  syncWorkoutStartSelectionInputs();
   updateSportReadinessChoiceUI();
   updateProgramDisplay();
   if (isLogStartIslandActive()) notifyLogStartIsland();
@@ -926,9 +1045,13 @@ function normalizeEnergyLevel(value) {
 }
 
 let pendingSportReadinessCallback = null;
+let pendingSportCheckPromptState = null;
+let pendingSummaryPromptState = null;
 let pendingSportReadinessLevel = 'none';
 let pendingSportReadinessTiming = 'none';
 let pendingSportReadinessTimingTouched = false;
+let pendingWorkoutStartOption = '';
+let pendingBonusDuration = 'standard';
 let pendingSessionMode = 'auto';
 let pendingEnergyLevel = 'normal';
 window.setPendingEnergyLevel = function(value) {
@@ -942,6 +1065,91 @@ window.setPendingEnergyLevel = function(value) {
   }
   notifyLogStartIsland();
 };
+
+function syncWorkoutStartSelectionInputs() {
+  const optionInput = document.getElementById('program-day-select');
+  if (optionInput) optionInput.value = String(pendingWorkoutStartOption || '');
+  const bonusInput = document.getElementById('bonus-duration-select');
+  if (bonusInput) bonusInput.value = String(pendingBonusDuration || 'standard');
+}
+
+function getSelectedWorkoutStartOption() {
+  const inputValue = document.getElementById('program-day-select')?.value;
+  if (inputValue) {
+    pendingWorkoutStartOption = String(inputValue);
+    return pendingWorkoutStartOption;
+  }
+  return String(pendingWorkoutStartOption || '');
+}
+
+function setSelectedWorkoutStartOption(value) {
+  pendingWorkoutStartOption = String(value || '');
+  syncWorkoutStartSelectionInputs();
+}
+
+function getSelectedBonusDuration() {
+  const inputValue = document.getElementById('bonus-duration-select')?.value;
+  if (inputValue) {
+    pendingBonusDuration = String(inputValue);
+    return pendingBonusDuration;
+  }
+  return String(pendingBonusDuration || 'standard');
+}
+
+function setSelectedBonusDuration(value) {
+  pendingBonusDuration = String(value || 'standard');
+  syncWorkoutStartSelectionInputs();
+  if (isLogStartIslandActive() && !activeWorkout) notifyLogStartIsland();
+}
+
+function notifySportCheckOverlayShell() {
+  const eventName =
+    window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
+  window.dispatchEvent(new CustomEvent(eventName));
+}
+
+function notifySummaryOverlayShell() {
+  const eventName =
+    window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
+  window.dispatchEvent(new CustomEvent(eventName));
+}
+
+function getSportCheckPromptSnapshot() {
+  return pendingSportCheckPromptState
+    ? { ...pendingSportCheckPromptState }
+    : null;
+}
+
+function getSessionSummaryPromptSnapshot() {
+  return pendingSummaryPromptState
+    ? {
+        ...pendingSummaryPromptState,
+        stats: Array.isArray(pendingSummaryPromptState.stats)
+          ? pendingSummaryPromptState.stats.map((stat) => ({ ...stat }))
+          : [],
+        feedbackOptions: Array.isArray(
+          pendingSummaryPromptState.feedbackOptions
+        )
+          ? pendingSummaryPromptState.feedbackOptions.map((option) => ({
+              ...option,
+            }))
+          : [],
+        summaryData:
+          pendingSummaryPromptState.summaryData &&
+          typeof pendingSummaryPromptState.summaryData === 'object'
+            ? { ...pendingSummaryPromptState.summaryData }
+            : null,
+      }
+    : null;
+}
+
+window.getSelectedWorkoutStartOption = getSelectedWorkoutStartOption;
+window.setSelectedWorkoutStartOption = setSelectedWorkoutStartOption;
+window.getSelectedBonusDuration = getSelectedBonusDuration;
+window.setSelectedBonusDuration = setSelectedBonusDuration;
+window.getSportCheckPromptSnapshot = getSportCheckPromptSnapshot;
+window.getSessionSummaryPromptSnapshot = getSessionSummaryPromptSnapshot;
+
 let workoutStartSnapshotCache = null;
 let collapsedExerciseCardState = {};
 let activeGuideExerciseKey = null;
@@ -1612,24 +1820,21 @@ function showSportReadinessCheck(callback) {
     (schedule?.sportName || getDefaultSportName()).trim() ||
       getDefaultSportName()
   );
-  const titleEl = document.getElementById('sport-check-title');
-  const subEl = document.getElementById('sport-check-sub');
-  if (titleEl)
-    titleEl.textContent = i18nText(
-      'workout.sport_check.title',
-      'Sport check-in'
-    );
-  if (subEl)
-    subEl.textContent = i18nText(
+  pendingSportCheckPromptState = {
+    open: true,
+    title: i18nText('workout.sport_check.title', 'Sport check-in'),
+    subtitle: i18nText(
       'workout.sport_check.sub',
       'Have you had a leg-heavy {sport} session yesterday, or do you have one tomorrow?',
       { sport: sportLabel.toLowerCase() }
-    );
-  document.getElementById('sport-check-modal')?.classList.add('active');
+    ),
+  };
+  notifySportCheckOverlayShell();
 }
 
 function selectSportReadiness(signal) {
-  document.getElementById('sport-check-modal')?.classList.remove('active');
+  pendingSportCheckPromptState = null;
+  notifySportCheckOverlayShell();
   setPendingSportReadiness(signal);
   const cb = pendingSportReadinessCallback;
   pendingSportReadinessCallback = null;
@@ -1637,7 +1842,8 @@ function selectSportReadiness(signal) {
 }
 
 function cancelSportReadinessCheck() {
-  document.getElementById('sport-check-modal')?.classList.remove('active');
+  pendingSportCheckPromptState = null;
+  notifySportCheckOverlayShell();
   pendingSportReadinessCallback = null;
 }
 
@@ -2198,6 +2404,10 @@ function getRunnerPlanSummary(activeLike) {
 }
 
 function renderActiveWorkoutPlanPanel() {
+  if (isLogActiveIslandActive()) {
+    notifyLogActiveIsland();
+    return;
+  }
   const container = document.getElementById('active-session-plan');
   if (!container) return;
   if (!activeWorkout) {
@@ -3065,6 +3275,11 @@ function renderExercises() {
 }
 
 function updateExerciseCard(uiKey) {
+  if (isLogActiveIslandActive()) {
+    notifyLogActiveIsland();
+    refreshExerciseGuideModal();
+    return getExerciseCardElement(uiKey);
+  }
   const exercise = getExerciseByUiKey(uiKey);
   const container = getExercisesContainer();
   if (!exercise || !container) return null;
@@ -3082,6 +3297,11 @@ function updateExerciseCard(uiKey) {
 }
 
 function appendExerciseCard(exercise) {
+  if (isLogActiveIslandActive()) {
+    notifyLogActiveIsland();
+    refreshExerciseGuideModal();
+    return getExerciseCardElement(ensureExerciseUiKey(exercise));
+  }
   const container = getExercisesContainer();
   if (!container) return null;
   const card = createExerciseCardElement(
@@ -3095,6 +3315,11 @@ function appendExerciseCard(exercise) {
 }
 
 function insertExerciseCard(exerciseIndex, exercise) {
+  if (isLogActiveIslandActive()) {
+    notifyLogActiveIsland();
+    refreshExerciseGuideModal();
+    return getExerciseCardElement(ensureExerciseUiKey(exercise));
+  }
   const container = getExercisesContainer();
   if (!container) return null;
   const card = createExerciseCardElement(exercise, exerciseIndex);
@@ -3106,6 +3331,11 @@ function insertExerciseCard(exerciseIndex, exercise) {
 }
 
 function removeExerciseCard(uiKey) {
+  if (isLogActiveIslandActive()) {
+    if (activeGuideExerciseKey === uiKey) closeExerciseGuide();
+    notifyLogActiveIsland();
+    return;
+  }
   const card = getExerciseCardElement(uiKey);
   if (card) card.remove();
   syncExerciseCardIndexes();
@@ -3218,11 +3448,17 @@ function startWorkout() {
 function beginWorkoutStart(sportContext) {
   const prog = getActiveProgram();
   const state = getActiveProgramState();
-  let selectedOption = document.getElementById('program-day-select')?.value;
+  let selectedOption =
+    typeof getSelectedWorkoutStartOption === 'function'
+      ? getSelectedWorkoutStartOption()
+      : '';
 
   // ── Bonus workout branch ──────────────────────────────────────
   if (selectedOption === 'bonus' && window.BONUS_SESSION) {
-    const bonusDuration = document.getElementById('bonus-duration-select')?.value || 'standard';
+    const bonusDuration =
+      typeof getSelectedBonusDuration === 'function'
+        ? getSelectedBonusDuration()
+        : 'standard';
     const bonusExercises = BONUS_SESSION.buildBonusSession(
       prog, state, workouts, schedule, bonusDuration
     );
@@ -3253,20 +3489,23 @@ function beginWorkoutStart(sportContext) {
     resetActiveWorkoutUIState();
     persistCurrentWorkoutDraft();
     updateProgramDisplay();
+    const isReactActive = isLogActiveIslandActive();
     document.getElementById('workout-not-started').style.display = 'none';
     document.getElementById('workout-active').style.display = 'block';
-    document.getElementById('active-session-title').textContent = bonusLabel;
-    const descEl = document.getElementById('active-session-description');
-    if (descEl) {
-      descEl.textContent = activeWorkout.sessionDescription;
-      descEl.style.display = '';
+    if (!isReactActive) {
+      document.getElementById('active-session-title').textContent = bonusLabel;
+      const descEl = document.getElementById('active-session-description');
+      if (descEl) {
+        descEl.textContent = activeWorkout.sessionDescription;
+        descEl.style.display = '';
+      }
     }
     restDuration =
-      parseInt(document.getElementById('rest-duration')?.value) ||
-      profile.defaultRest ||
-      120;
+      typeof getSelectedRestDuration === 'function'
+        ? getSelectedRestDuration()
+        : restDuration || profile.defaultRest || 120;
     startWorkoutTimer();
-    if (!isLogActiveIslandActive()) renderExercises();
+    if (!isReactActive) renderExercises();
     showToast(
       i18nText('workout.bonus.toast_started', 'Bonus workout started!'),
       'var(--purple)'
@@ -3357,24 +3596,27 @@ function beginWorkoutStart(sportContext) {
   resetActiveWorkoutUIState();
   persistCurrentWorkoutDraft();
 
+  const isReactActive = isLogActiveIslandActive();
   updateProgramDisplay();
   document.getElementById('workout-not-started').style.display = 'none';
   document.getElementById('workout-active').style.display = 'block';
-  document.getElementById('active-session-title').textContent = label;
-  const descEl = document.getElementById('active-session-description');
-  if (descEl) {
-    const prefix = i18nText('session.description', 'Session focus');
-    descEl.textContent = sessionDescription
-      ? prefix + ': ' + sessionDescription
-      : '';
-    descEl.style.display = sessionDescription ? '' : 'none';
+  if (!isReactActive) {
+    document.getElementById('active-session-title').textContent = label;
+    const descEl = document.getElementById('active-session-description');
+    if (descEl) {
+      const prefix = i18nText('session.description', 'Session focus');
+      descEl.textContent = sessionDescription
+        ? prefix + ': ' + sessionDescription
+        : '';
+      descEl.style.display = sessionDescription ? '' : 'none';
+    }
   }
   restDuration =
-    parseInt(document.getElementById('rest-duration')?.value) ||
-    profile.defaultRest ||
-    120;
+    typeof getSelectedRestDuration === 'function'
+      ? getSelectedRestDuration()
+      : restDuration || profile.defaultRest || 120;
   startWorkoutTimer();
-  if (!isLogActiveIslandActive()) renderExercises();
+  if (!isReactActive) renderExercises();
   const progName =
     window.I18N && I18N.t
       ? I18N.t('program.' + prog.id + '.name', null, prog.name || 'Training')
@@ -3523,6 +3765,7 @@ function getWorkoutElapsedSeconds() {
 
 function renderWorkoutTimer() {
   workoutSeconds = getWorkoutElapsedSeconds();
+  if (isLogActiveIslandActive()) return;
   const m = String(Math.floor(workoutSeconds / 60)).padStart(2, '0');
   const s = String(workoutSeconds % 60).padStart(2, '0');
   const timerEl = document.getElementById('active-session-timer');
@@ -4357,6 +4600,21 @@ function updateSet(ei, si, f, v) {
   }
   persistCurrentWorkoutDraft();
   const exerciseUiKey = ensureExerciseUiKey(exercise);
+  if (isLogActiveIslandActive()) {
+    if (f === 'weight' && !set.isWarmup) {
+      for (
+        let nextIndex = si + 1;
+        nextIndex < exercise.sets.length;
+        nextIndex++
+      ) {
+        const nextSet = exercise.sets[nextIndex];
+        if (nextSet.done || nextSet.isWarmup) continue;
+        nextSet.weight = sanitizedValue;
+      }
+    }
+    notifyLogActiveIsland();
+    return;
+  }
   if (f !== 'weight') {
     if (shouldRefreshDoneSet) {
       updateExerciseCard(exerciseUiKey);
@@ -4380,13 +4638,11 @@ function updateSet(ei, si, f, v) {
   }
 }
 
-function findNextEditableSetInput(exerciseUiKey, setIndex, field) {
+function findNextEditableSetInputId(exerciseUiKey, setIndex, field) {
   const exerciseIndex = getExerciseIndexByUiKey(exerciseUiKey);
   if (exerciseIndex < 0) return null;
   if (field === 'weight') {
-    return document.getElementById(
-      getSetInputId(exerciseUiKey, setIndex, 'reps')
-    );
+    return getSetInputId(exerciseUiKey, setIndex, 'reps');
   }
   for (
     let nextSetIndex = setIndex + 1;
@@ -4396,10 +4652,7 @@ function findNextEditableSetInput(exerciseUiKey, setIndex, field) {
   ) {
     const nextSet = activeWorkout.exercises[exerciseIndex].sets[nextSetIndex];
     if (nextSet?.isWarmup) continue;
-    const input = document.getElementById(
-      getSetInputId(exerciseUiKey, nextSetIndex, 'weight')
-    );
-    if (input) return input;
+    return getSetInputId(exerciseUiKey, nextSetIndex, 'weight');
   }
   for (
     let nextExerciseIndex = exerciseIndex + 1;
@@ -4410,10 +4663,11 @@ function findNextEditableSetInput(exerciseUiKey, setIndex, field) {
     const firstWorkIndex =
       nextExercise?.sets?.findIndex((set) => !set.isWarmup) ?? -1;
     if (firstWorkIndex < 0) continue;
-    const input = document.getElementById(
-      getSetInputId(ensureExerciseUiKey(nextExercise), firstWorkIndex, 'weight')
+    return getSetInputId(
+      ensureExerciseUiKey(nextExercise),
+      firstWorkIndex,
+      'weight'
     );
-    if (input) return input;
   }
   return null;
 }
@@ -4424,7 +4678,14 @@ function handleSetInputKey(event, exerciseUiKey, setIndex, field) {
   const exerciseIndex = getExerciseIndexByUiKey(exerciseUiKey);
   if (exerciseIndex < 0) return;
   updateSet(exerciseIndex, setIndex, field, event.target.value);
-  const nextInput = findNextEditableSetInput(exerciseUiKey, setIndex, field);
+  const nextInputId = findNextEditableSetInputId(exerciseUiKey, setIndex, field);
+  if (!nextInputId) return;
+  if (isLogActiveIslandActive()) {
+    queueLogActiveFocusTarget(nextInputId);
+    notifyLogActiveIsland();
+    return;
+  }
+  const nextInput = document.getElementById(nextInputId);
   if (nextInput) nextInput.focus();
 }
 
@@ -4472,43 +4733,68 @@ function toggleSet(ei, si) {
   const set = exercise?.sets?.[si];
   if (!exercise || !set) return;
   const exerciseUiKey = ensureExerciseUiKey(exercise);
+  const isReactActive = isLogActiveIslandActive();
   if (!set.done) {
     set.done = true;
     const prEvent = detectSetPr(exercise, set, si);
     tryHaptic(40);
-    const row = getExerciseCardElement(exerciseUiKey)?.querySelector(
-      getSetRowSelector(si)
-    );
-    const check = row?.querySelector('.set-check');
-    if (row) row.classList.add('is-done', 'set-done-anim');
-    if (check) {
-      check.classList.add('done', 'set-done-anim');
-      check.addEventListener(
-        'animationend',
-        () => check.classList.remove('set-done-anim'),
-        { once: true }
-      );
-      spawnForgeEmbers(check);
-    }
-    if (row) {
-      row.addEventListener(
-        'animationend',
-        () => row.classList.remove('set-done-anim'),
-        { once: true }
-      );
-    }
-    if (prEvent && row && check) {
-      window.setTimeout(() => playSetPrCelebration(row, check, prEvent), 500);
-    }
-    if (isExerciseComplete(exercise)) {
-      setExerciseCardCollapsed(exercise, true);
-      const card = getExerciseCardElement(exerciseUiKey);
-      if (card) {
-        // Delay the collapse animation so the last set's forge strike plays first
-        window.setTimeout(
-          () => runForgeSealCollapse(card, exerciseUiKey),
-          prEvent ? 950 : 500
+    if (isReactActive) {
+      queueLogActiveSetSignal(exerciseUiKey, si, prEvent);
+      if (prEvent) {
+        showToast(
+          i18nText('workout.pr_toast', 'New PR! {name} {weight}kg x {reps}', {
+            name: prEvent.exerciseName,
+            weight: formatWorkoutWeight(prEvent.weight),
+            reps: prEvent.reps,
+          }),
+          'var(--yellow)'
         );
+      }
+      if (isExerciseComplete(exercise)) {
+        window.setTimeout(() => {
+          const currentExercise = getExerciseByUiKey(exerciseUiKey);
+          if (!currentExercise || !isExerciseComplete(currentExercise)) return;
+          setExerciseCardCollapsed(currentExercise, true);
+          queueLogActiveCollapseSignal(exerciseUiKey);
+          notifyLogActiveIsland();
+        }, prEvent ? 950 : 500);
+      }
+      notifyLogActiveIsland();
+    } else {
+      const row = getExerciseCardElement(exerciseUiKey)?.querySelector(
+        getSetRowSelector(si)
+      );
+      const check = row?.querySelector('.set-check');
+      if (row) row.classList.add('is-done', 'set-done-anim');
+      if (check) {
+        check.classList.add('done', 'set-done-anim');
+        check.addEventListener(
+          'animationend',
+          () => check.classList.remove('set-done-anim'),
+          { once: true }
+        );
+        spawnForgeEmbers(check);
+      }
+      if (row) {
+        row.addEventListener(
+          'animationend',
+          () => row.classList.remove('set-done-anim'),
+          { once: true }
+        );
+      }
+      if (prEvent && row && check) {
+        window.setTimeout(() => playSetPrCelebration(row, check, prEvent), 500);
+      }
+      if (isExerciseComplete(exercise)) {
+        setExerciseCardCollapsed(exercise, true);
+        const card = getExerciseCardElement(exerciseUiKey);
+        if (card) {
+          // Delay the collapse animation so the last set's forge strike plays first
+          window.setTimeout(
+            () => runForgeSealCollapse(card, exerciseUiKey),
+            prEvent ? 950 : 500
+          );
+        }
       }
     }
     startRestTimer();
@@ -4552,13 +4838,13 @@ function addSet(ei) {
     rpe: null,
   });
   persistCurrentWorkoutDraft();
+  const newSetIndex = exercise.sets.length - 1;
+  const newInputId = getSetInputId(exerciseUiKey, newSetIndex, 'weight');
+  if (isLogActiveIslandActive()) queueLogActiveFocusTarget(newInputId);
   updateExerciseCard(exerciseUiKey);
   renderActiveWorkoutPlanPanel();
-  const newSetIndex = exercise.sets.length - 1;
-  const weightInput = document.getElementById(
-    getSetInputId(exerciseUiKey, newSetIndex, 'weight')
-  );
-  if (weightInput) weightInput.focus();
+  const weightInput = document.getElementById(newInputId);
+  if (weightInput && !isLogActiveIslandActive()) weightInput.focus();
 }
 
 function removeEx(ei) {
@@ -4883,19 +5169,6 @@ function buildSessionSummaryStats(summaryData) {
   ];
 }
 
-function renderSessionSummaryStatMarkup(stats) {
-  return stats
-    .map(
-      (stat, index) => `
-    <div class="summary-stat summary-stat-${stat.key}" style="--summary-stat-delay:${index * 100}ms">
-      <div class="summary-stat-value ${stat.accent || ''}" data-stat-key="${stat.key}" data-stat-value="0">${escapeHtml(stat.formatter(0))}</div>
-      <div class="summary-stat-label">${escapeHtml(stat.label)}</div>
-    </div>
-  `
-    )
-    .join('');
-}
-
 function animateSessionSummaryStats(modal, stats) {
   const runInstant = prefersReducedMotionUI();
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -4953,80 +5226,81 @@ function startSessionSummaryCelebration(modal, summaryData) {
   }
   animateSessionSummaryStats(modal, buildSessionSummaryStats(summaryData));
 }
+window.startSessionSummaryCelebration = startSessionSummaryCelebration;
 
 function showSessionSummary(summaryData) {
   return new Promise((resolve) => {
     const stats = buildSessionSummaryStats(summaryData);
-    const content = document.getElementById('summary-modal-content');
-    const modal = document.getElementById('summary-modal');
     const canLogNutrition =
       typeof window.isNutritionCoachAvailable === 'function'
         ? window.isNutritionCoachAvailable()
         : !!currentUser;
-    if (!content || !modal) {
-      resolve({ feedback: null, notes: '', goToNutrition: false });
-      return;
-    }
-    content.innerHTML = `
-      <div class="summary-celebration">
-        <canvas class="summary-burst-canvas" aria-hidden="true"></canvas>
-        <div class="summary-forge-glow" aria-hidden="true"></div>
-        <div class="summary-shell">
-          <div class="summary-kicker">${escapeHtml(i18nText('workout.session_complete', 'Session Complete'))}</div>
-          <div class="summary-title">SESSION FORGED</div>
-          <div class="summary-program">${escapeHtml(summaryData.programLabel || '')}</div>
-          <div class="summary-stats">
-            ${renderSessionSummaryStatMarkup(stats)}
-          </div>
-          ${summaryData.coachNote ? `<div class="summary-coach-note">${escapeHtml(summaryData.coachNote)}</div>` : ''}
-          <div class="summary-notes-shell">
-            <label class="summary-notes-label" for="summary-notes-textarea">${escapeHtml(i18nText('workout.summary.notes_label', 'Session notes'))}</label>
-            <textarea
-              id="summary-notes-textarea"
-              class="summary-notes-textarea"
-              placeholder="${escapeHtml(i18nText('workout.summary.notes_placeholder', 'Any notes about this session?'))}"
-              maxlength="500"
-              rows="3"
-              oninput="autoResizeSummaryNotes(this)"
-            ></textarea>
-          </div>
-          <div class="summary-feedback">
-            <div class="summary-feedback-label">${escapeHtml(i18nText('workout.summary.feedback_label', 'How did it feel?'))}</div>
-            <div class="summary-feedback-options">
-              <button class="summary-feedback-btn" type="button" data-feedback="too_hard" onclick="setSummaryFeedback('too_hard')">${escapeHtml(i18nText('workout.summary.feedback_too_hard', 'Too hard'))}</button>
-              <button class="summary-feedback-btn" type="button" data-feedback="good" onclick="setSummaryFeedback('good')">${escapeHtml(i18nText('workout.summary.feedback_good', 'Good'))}</button>
-              <button class="summary-feedback-btn" type="button" data-feedback="too_easy" onclick="setSummaryFeedback('too_easy')">${escapeHtml(i18nText('workout.summary.feedback_too_easy', 'Too easy'))}</button>
-            </div>
-          </div>
-          ${canLogNutrition ? `<button class="btn btn-ghost summary-nutrition-action" type="button" onclick="closeSummaryModal(true)">${escapeHtml(i18nText('workout.summary.log_post_workout_meal', 'Log post-workout meal'))}</button>` : ''}
-          <button class="btn btn-primary summary-action" type="button" onclick="closeSummaryModal()">${escapeHtml(i18nText('common.done', 'Done'))}</button>
-        </div>
-      </div>`;
-    modal.classList.add('active');
-    modal.classList.toggle('reduced-motion', prefersReducedMotionUI());
-    const notesField = content.querySelector('#summary-notes-textarea');
-    if (notesField) autoResizeSummaryNotes(notesField);
-    requestAnimationFrame(() =>
-      startSessionSummaryCelebration(modal, summaryData)
-    );
+    pendingSummaryPromptState = {
+      open: true,
+      seed: Date.now(),
+      kicker: i18nText('workout.session_complete', 'Session Complete'),
+      title: 'SESSION FORGED',
+      programLabel: summaryData.programLabel || '',
+      coachNote: summaryData.coachNote || '',
+      notesLabel: i18nText('workout.summary.notes_label', 'Session notes'),
+      notesPlaceholder: i18nText(
+        'workout.summary.notes_placeholder',
+        'Any notes about this session?'
+      ),
+      feedbackLabel: i18nText(
+        'workout.summary.feedback_label',
+        'How did it feel?'
+      ),
+      feedbackOptions: [
+        {
+          value: 'too_hard',
+          label: i18nText('workout.summary.feedback_too_hard', 'Too hard'),
+        },
+        {
+          value: 'good',
+          label: i18nText('workout.summary.feedback_good', 'Good'),
+        },
+        {
+          value: 'too_easy',
+          label: i18nText('workout.summary.feedback_too_easy', 'Too easy'),
+        },
+      ],
+      nutritionLabel: i18nText(
+        'workout.summary.log_post_workout_meal',
+        'Log post-workout meal'
+      ),
+      doneLabel: i18nText('common.done', 'Done'),
+      notes: '',
+      feedback: null,
+      canLogNutrition,
+      stats: stats.map((stat) => ({
+        key: stat.key,
+        accent: stat.accent || '',
+        label: stat.label,
+        initialText: stat.formatter(0),
+      })),
+      summaryData: { ...summaryData },
+    };
+    notifySummaryOverlayShell();
     window._summaryResolve = resolve;
   });
-}
-function autoResizeSummaryNotes(textarea) {
-  if (!textarea) return;
-  textarea.style.height = 'auto';
-  textarea.style.height = Math.min(textarea.scrollHeight, 168) + 'px';
 }
 function closeSummaryModal(goToNutrition) {
   const modal = document.getElementById('summary-modal');
   modal?.classList.remove('active', 'reduced-motion');
   if (typeof window._summaryCleanup === 'function') window._summaryCleanup();
   window._summaryCleanup = null;
-  const feedback = window._summaryFeedbackValue || null;
-  const notesField = document.getElementById('summary-notes-textarea');
-  const notes = String(notesField?.value || '')
+  const feedback =
+    pendingSummaryPromptState?.feedback || window._summaryFeedbackValue || null;
+  const notes = String(
+    pendingSummaryPromptState?.notes ||
+      document.getElementById('summary-notes-textarea')?.value ||
+      ''
+  )
     .trim()
     .slice(0, 500);
+  pendingSummaryPromptState = null;
+  notifySummaryOverlayShell();
   window._summaryFeedbackValue = null;
   if (window._summaryResolve) {
     window._summaryResolve({
@@ -5039,11 +5313,31 @@ function closeSummaryModal(goToNutrition) {
 }
 function setSummaryFeedback(value) {
   window._summaryFeedbackValue = value;
+  if (pendingSummaryPromptState) {
+    pendingSummaryPromptState = {
+      ...pendingSummaryPromptState,
+      feedback: value,
+    };
+    notifySummaryOverlayShell();
+    if (typeof tryHaptic === 'function') tryHaptic([20]);
+    return;
+  }
   document.querySelectorAll('.summary-feedback-btn').forEach((btn) => {
     btn.classList.toggle('is-active', btn.dataset.feedback === value);
   });
   if (typeof tryHaptic === 'function') tryHaptic([20]);
 }
+
+function updateSummaryNotes(value) {
+  if (!pendingSummaryPromptState) return;
+  pendingSummaryPromptState = {
+    ...pendingSummaryPromptState,
+    notes: String(value || '').slice(0, 500),
+  };
+  notifySummaryOverlayShell();
+}
+
+window.updateSummaryNotes = updateSummaryNotes;
 
 function applyQuickWorkoutAdjustment(mode) {
   if (mode === 'shorten') {

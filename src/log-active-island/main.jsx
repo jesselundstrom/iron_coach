@@ -1,64 +1,57 @@
-import { useEffect, useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
-const LOG_ACTIVE_EVENT =
-  window.__IRONFORGE_LOG_ACTIVE_ISLAND_EVENT__ ||
-  'ironforge:log-active-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
-
-function getSnapshot() {
-  if (typeof window.getLogActiveReactSnapshot === 'function') {
-    const snapshot = window.getLogActiveReactSnapshot();
-    if (snapshot) return snapshot;
-  }
-
-  return {
-    labels: {
-      addExercise: 'Add Exercise',
-      restTimer: 'Rest timer',
-      finishSession: 'Finish Session',
-      cancelSession: 'Discard Workout',
-      cancelConfirmTitle: 'Discard Workout',
-      cancelConfirmMessage:
-        "Discard this in-progress workout? Sets won't be saved.",
-      lastBest: 'Last best: {weight}kg',
-      aux: 'AUX',
-      back: 'BACK',
-      swap: 'Swap',
-      swapBack: 'Swap back exercise',
-      addSet: '+ Set',
-      removeExercise: 'Remove exercise',
-      collapse: 'Minimize',
-      movementGuide: 'Movement Guide',
-      weightPlaceholder: 'kg',
-      repsPlaceholder: 'reps',
-      repsHit: 'reps hit',
-      prBadge: 'NEW PR',
-      shorten: 'Shorten',
-      lighten: 'Go lighter',
-      undoAdjustment: 'Undo adjustment',
-      restOptions: [
-        { value: '60', label: '1 min' },
-        { value: '90', label: '90s' },
-        { value: '120', label: '2 min' },
-        { value: '180', label: '3 min' },
-        { value: '240', label: '4 min' },
-        { value: '300', label: '5 min' },
-        { value: '0', label: 'Off' },
-      ],
+const initialSnapshot = {
+  labels: {
+    addExercise: 'Add Exercise',
+    restTimer: 'Rest timer',
+    finishSession: 'Finish Session',
+    cancelSession: 'Discard Workout',
+    cancelConfirmTitle: 'Discard Workout',
+    cancelConfirmMessage:
+      "Discard this in-progress workout? Sets won't be saved.",
+    lastBest: 'Last best: {weight}kg',
+    aux: 'AUX',
+    back: 'BACK',
+    swap: 'Swap',
+    swapBack: 'Swap back exercise',
+    addSet: '+ Set',
+    removeExercise: 'Remove exercise',
+    collapse: 'Minimize',
+    movementGuide: 'Movement Guide',
+    weightPlaceholder: 'kg',
+    repsPlaceholder: 'reps',
+    repsHit: 'reps hit',
+    prBadge: 'NEW PR',
+    shorten: 'Shorten',
+    lighten: 'Go lighter',
+    undoAdjustment: 'Undo adjustment',
+    restOptions: [
+      { value: '60', label: '1 min' },
+      { value: '90', label: '90s' },
+      { value: '120', label: '2 min' },
+      { value: '180', label: '3 min' },
+      { value: '240', label: '4 min' },
+      { value: '300', label: '5 min' },
+      { value: '0', label: 'Off' },
+    ],
+  },
+  values: {
+    visible: false,
+    title: 'Session',
+    description: '',
+    descriptionVisible: false,
+    timer: { text: '00:00', seed: 0 },
+    rest: { duration: '120' },
+    planPanel: null,
+    ui: {
+      focusTarget: null,
+      setSignal: null,
+      collapseSignal: null,
     },
-    values: {
-      visible: false,
-      title: 'Session',
-      description: '',
-      descriptionVisible: false,
-      timer: { text: '00:00', seed: 0 },
-      rest: { duration: '120' },
-      planPanel: null,
-      exercises: [],
-    },
-  };
-}
+    exercises: [],
+  },
+};
 
 function invokeLegacy(name, ...args) {
   const fn = window[name];
@@ -71,30 +64,6 @@ function formatTemplate(template, params) {
     (value, [key, next]) => value.replace(`{${key}}`, String(next)),
     String(template || '')
   );
-}
-
-function ActiveWorkoutTimer({ initialText, timerSeed, visible }) {
-  const [timerText, setTimerText] = useState(initialText || '00:00');
-
-  useEffect(() => {
-    setTimerText(initialText || '00:00');
-  }, [initialText, timerSeed, visible]);
-
-  useEffect(() => {
-    if (!visible) return undefined;
-
-    const tick = () => {
-      if (typeof window.getLogActiveTimerText === 'function') {
-        setTimerText(window.getLogActiveTimerText());
-      }
-    };
-
-    tick();
-    const timerId = window.setInterval(tick, 1000);
-    return () => window.clearInterval(timerId);
-  }, [visible, timerSeed]);
-
-  return <>{timerText}</>;
 }
 
 function PlanBanner({ labels, planPanel }) {
@@ -190,11 +159,20 @@ function PlanBanner({ labels, planPanel }) {
   );
 }
 
-function ExerciseCard({ exercise, labels }) {
+function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
+  const isSetSignalFor = (setIndex) =>
+    setSignal &&
+    setSignal.exerciseUiKey === exercise.uiKey &&
+    setSignal.setIndex === setIndex;
+  const isCollapseSignal =
+    collapseSignal && collapseSignal.exerciseUiKey === exercise.uiKey;
+
   if (exercise.isCollapsed) {
     return (
       <div
-        className="exercise-block exercise-block-complete is-collapsed"
+        className={`exercise-block exercise-block-complete is-collapsed${
+          isCollapseSignal ? ' seal-enter' : ''
+        }`}
         data-ui-key={exercise.uiKey}
         data-exercise-index={exercise.exerciseIndex}
       >
@@ -336,7 +314,11 @@ function ExerciseCard({ exercise, labels }) {
             key={set.index}
             className={`set-row${set.isWarmup ? ' set-warmup' : ''}${
               set.done ? ' is-done' : ''
-            }${set.isAmrap ? ' set-amrap' : ''}${set.isPr ? ' has-pr' : ''}`}
+            }${set.isAmrap ? ' set-amrap' : ''}${set.isPr ? ' has-pr' : ''}${
+              isSetSignalFor(set.index) && setSignal.isPr
+                ? ' set-pr-celebration'
+                : ''
+            }${isSetSignalFor(set.index) ? ' set-done-anim' : ''}`}
             data-set-index={set.index}
           >
             <span
@@ -415,7 +397,13 @@ function ExerciseCard({ exercise, labels }) {
             />
             <div className={`set-action-cell${set.isPr ? ' has-pr' : ''}`}>
               <button
-                className={`set-check ${set.done ? 'done' : ''}${set.isPr ? ' set-check-pr' : ''}`}
+                className={`set-check ${set.done ? 'done' : ''}${
+                  set.isPr ? ' set-check-pr' : ''
+                }${isSetSignalFor(set.index) ? ' set-done-anim' : ''}${
+                  isSetSignalFor(set.index) && setSignal.isPr
+                    ? ' set-pr-highlight'
+                    : ''
+                }`}
                 type="button"
                 data-action="toggle-set"
                 data-set-index={set.index}
@@ -450,10 +438,50 @@ function ExerciseCard({ exercise, labels }) {
 }
 
 function LogActiveIsland() {
-  const snapshot = useIslandSnapshot(
-    [LOG_ACTIVE_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.log.activeSnapshot) || initialSnapshot;
+  const [setSignal, setSetSignal] = useState(null);
+  const [collapseSignal, setCollapseSignal] = useState(null);
+
+  useLayoutEffect(() => {
+    const focusTarget = snapshot.values.ui?.focusTarget;
+    if (!focusTarget?.token || !focusTarget.inputId) return;
+    const input = document.getElementById(focusTarget.inputId);
+    if (!(input instanceof HTMLInputElement)) return;
+    input.focus();
+    input.select?.();
+    window.clearLogActiveFocusTarget?.(focusTarget.token);
+  }, [snapshot.values.ui?.focusTarget?.token, snapshot.values.ui?.focusTarget?.inputId]);
+
+  useEffect(() => {
+    const nextSignal = snapshot.values.ui?.setSignal;
+    if (!nextSignal?.token) return undefined;
+    setSetSignal(nextSignal);
+    window.clearLogActiveSetSignal?.(nextSignal.token);
+    const timeoutId = window.setTimeout(
+      () =>
+        setSetSignal((current) =>
+          current?.token === nextSignal.token ? null : current
+        ),
+      nextSignal.isPr ? 950 : 500
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [snapshot.values.ui?.setSignal?.token]);
+
+  useEffect(() => {
+    const nextSignal = snapshot.values.ui?.collapseSignal;
+    if (!nextSignal?.token) return undefined;
+    setCollapseSignal(nextSignal);
+    window.clearLogActiveCollapseSignal?.(nextSignal.token);
+    const timeoutId = window.setTimeout(
+      () =>
+        setCollapseSignal((current) =>
+          current?.token === nextSignal.token ? null : current
+        ),
+      400
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [snapshot.values.ui?.collapseSignal?.token]);
 
   return (
     <div
@@ -475,11 +503,7 @@ function LogActiveIsland() {
             {snapshot.values.description}
           </div>
           <div className="active-session-timer" id="active-session-timer">
-            <ActiveWorkoutTimer
-              initialText={snapshot.values.timer.text}
-              timerSeed={snapshot.values.timer.seed}
-              visible={snapshot.values.visible}
-            />
+            {snapshot.values.timer?.text || '00:00'}
           </div>
         </div>
         <button
@@ -514,32 +538,13 @@ function LogActiveIsland() {
                 type="button"
                 className={`rest-timer-pill${isActive ? ' is-active' : ''}`}
                 aria-pressed={isActive}
-                onClick={() => {
-                  const sel = document.getElementById('rest-duration');
-                  if (sel) sel.value = option.value;
-                  window.updateRestDuration?.();
-                }}
+                onClick={() => window.updateRestDuration?.(option.value)}
               >
                 {option.label}
               </button>
             );
           })}
         </div>
-        {/* Hidden select keeps the app.js updateRestDuration() DOM contract intact */}
-        <select
-          id="rest-duration"
-          className="rest-timer-hidden-select"
-          value={String(snapshot.values.rest.duration)}
-          onChange={() => window.updateRestDuration?.()}
-          aria-hidden="true"
-          tabIndex={-1}
-        >
-          {snapshot.labels.restOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div id="exercises-container">
@@ -548,6 +553,8 @@ function LogActiveIsland() {
             key={exercise.uiKey}
             exercise={exercise}
             labels={snapshot.labels}
+            setSignal={setSignal}
+            collapseSignal={collapseSignal}
           />
         ))}
       </div>

@@ -80,7 +80,9 @@ Status values:
 | --- | --- | --- | --- | --- |
 | page activation side effects | `core/ui-shell.js` | route effects + services | `in_progress` | side effects are invoked by the routed app |
 | rest timer DOM updates | `app.js` | session service + React UI | `in_progress` | timer text/arc/classes no longer updated imperatively |
-| RPE modal DOM population | `app.js` | session service + React state | `in_progress` | prompt options render from React state |
+| RPE modal DOM population | `app.js` | session service + React state | `done` | prompt options render from React state |
+| workout summary modal DOM population | `core/workout-layer.js` | session service + React state | `done` | summary content no longer renders through imperative HTML injection |
+| sport check modal DOM population | `core/workout-layer.js` | session service + React state | `done` | sport check prompt no longer mutates modal text/classes directly |
 | exercise catalog DOM writes | `core/workout-layer.js` | React overlay + service | `legacy` | catalog UI stops writing raw HTML |
 | nutrition page init/render | `core/nutrition-layer.js` | React route + nutrition service | `legacy` | route no longer depends on `initNutritionPage()` |
 | settings tab DOM toggling | `app.js` | React route state | `legacy` | tabs render from React state only |
@@ -91,6 +93,7 @@ Status values:
 - [x] Add shared React runtime dependencies for router + Zustand.
 - [x] Introduce a top-level app entry with store/service foundations.
 - [x] Collapse app shell and onboarding into the shared app entry.
+- [x] Finish Phase 1 of the log cutover: the active workout surface renders through React, rest selection no longer relies on hidden React inputs, workout overlays render through the app shell, and React owns active-workout focus/animation feedback when mounted.
 - [ ] Replace shell snapshot consumption with direct store-backed route/page state.
 - [ ] Extract workout session ownership away from globals and DOM writes.
 - [ ] Collapse remaining island entries into routed React pages.

@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import type { AppPage, ConfirmSnapshot, SessionSnapshot } from '../constants';
+import type {
+  AppPage,
+  ConfirmSnapshot,
+  LegacyIslandSnapshot,
+  SessionSnapshot,
+} from '../constants';
 
 type RuntimeStore = {
   ui: {
@@ -8,9 +13,15 @@ type RuntimeStore = {
     languageVersion: number;
   };
   session: SessionSnapshot;
+  log: {
+    startSnapshot: LegacyIslandSnapshot | null;
+    activeSnapshot: LegacyIslandSnapshot | null;
+  };
   setActivePage: (page: AppPage) => void;
   setConfirmSnapshot: (confirm: ConfirmSnapshot) => void;
   syncSessionSnapshot: (session: SessionSnapshot) => void;
+  setLogStartSnapshot: (snapshot: LegacyIslandSnapshot | null) => void;
+  setLogActiveSnapshot: (snapshot: LegacyIslandSnapshot | null) => void;
   bumpLanguageVersion: () => void;
 };
 
@@ -31,8 +42,11 @@ const defaultSession: SessionSnapshot = {
   currentUser: null,
   restBarActive: false,
   rpeOpen: false,
+  rpePrompt: null,
   summaryOpen: false,
+  summaryPrompt: null,
   sportCheckOpen: false,
+  sportCheckPrompt: null,
 };
 
 export const useRuntimeStore = create<RuntimeStore>((set) => ({
@@ -42,6 +56,10 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
     languageVersion: 0,
   },
   session: defaultSession,
+  log: {
+    startSnapshot: null,
+    activeSnapshot: null,
+  },
   setActivePage: (page) =>
     set((state) => ({
       ui: {
@@ -57,6 +75,20 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
       },
     })),
   syncSessionSnapshot: (session) => set(() => ({ session })),
+  setLogStartSnapshot: (startSnapshot) =>
+    set((state) => ({
+      log: {
+        ...state.log,
+        startSnapshot,
+      },
+    })),
+  setLogActiveSnapshot: (activeSnapshot) =>
+    set((state) => ({
+      log: {
+        ...state.log,
+        activeSnapshot,
+      },
+    })),
   bumpLanguageVersion: () =>
     set((state) => ({
       ui: {

@@ -16,6 +16,56 @@ export type ConfirmSnapshot = {
   cancelLabel: string;
 };
 
+export type LegacyIslandSnapshot = {
+  labels: Record<string, unknown>;
+  values: Record<string, unknown>;
+};
+
+export type RpePromptSnapshot = {
+  open: boolean;
+  title: string;
+  subtitle: string;
+  options: Array<{
+    value: number;
+    feel: string;
+    description: string;
+  }>;
+};
+
+export type SportCheckPromptSnapshot = {
+  open: boolean;
+  title: string;
+  subtitle: string;
+};
+
+export type SummaryPromptSnapshot = {
+  open: boolean;
+  seed: number;
+  kicker: string;
+  title: string;
+  programLabel: string;
+  coachNote: string;
+  notesLabel: string;
+  notesPlaceholder: string;
+  feedbackLabel: string;
+  feedbackOptions: Array<{
+    value: string;
+    label: string;
+  }>;
+  nutritionLabel: string;
+  doneLabel: string;
+  notes: string;
+  feedback: string | null;
+  canLogNutrition: boolean;
+  stats: Array<{
+    key: string;
+    accent: string;
+    label: string;
+    initialText: string;
+  }>;
+  summaryData: Record<string, unknown> | null;
+};
+
 export type SessionSnapshot = {
   activeWorkout: unknown;
   restDuration: number;
@@ -25,8 +75,11 @@ export type SessionSnapshot = {
   currentUser: unknown;
   restBarActive: boolean;
   rpeOpen: boolean;
+  rpePrompt: RpePromptSnapshot | null;
   summaryOpen: boolean;
+  summaryPrompt: SummaryPromptSnapshot | null;
   sportCheckOpen: boolean;
+  sportCheckPrompt: SportCheckPromptSnapshot | null;
 };
 
 export function isAppPage(value: unknown): value is AppPage {

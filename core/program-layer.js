@@ -975,8 +975,12 @@ function cleanProgramOptionLabel(label) {
 }
 
 function setProgramDayOption(value) {
-  const input = document.getElementById('program-day-select');
-  if (input) input.value = String(value || '');
+  if (typeof setSelectedWorkoutStartOption === 'function') {
+    setSelectedWorkoutStartOption(value);
+  } else {
+    const input = document.getElementById('program-day-select');
+    if (input) input.value = String(value || '');
+  }
   updateProgramDisplay();
 }
 
@@ -1230,10 +1234,11 @@ function renderProgramTodayPanels(
 function updateProgramDisplay() {
   const prog = getActiveProgram(),
     state = getActiveProgramState();
-  const ds = document.getElementById('program-day-select');
-  if (!ds) return;
   const optionWrap = document.getElementById('program-day-options');
-  const prevVal = ds.value;
+  const prevVal =
+    typeof getSelectedWorkoutStartOption === 'function'
+      ? getSelectedWorkoutStartOption()
+      : document.getElementById('program-day-select')?.value || '';
   const rawOptions = prog.getSessionOptions
     ? prog.getSessionOptions(state, workouts, schedule)
     : [];
@@ -1260,7 +1265,12 @@ function updateProgramDisplay() {
     (hasMatch ? options.find((o) => o.value === prevVal) : recommended) ||
     recommended ||
     null;
-  ds.value = selectedValue;
+  if (typeof setSelectedWorkoutStartOption === 'function') {
+    setSelectedWorkoutStartOption(selectedValue);
+  } else {
+    const ds = document.getElementById('program-day-select');
+    if (ds) ds.value = selectedValue;
+  }
   if (
     typeof isLogStartIslandActive === 'function' &&
     isLogStartIslandActive() &&
