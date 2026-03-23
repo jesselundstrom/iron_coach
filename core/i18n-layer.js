@@ -3250,7 +3250,7 @@ function daysSince(dateStr) {
       'nutrition.correction.label': 'Korjaa ruoka-analyysi',
       'nutrition.correction.placeholder': 'esim. Se oli 2 annosta, ei 1...',
       'nutrition.photo.label': 'Lisää kuva',
-      'nutrition.photo.cta': 'Kuvaa ateriasi',
+      'nutrition.photo.cta': 'Kirjaa ateriasi',
       'nutrition.correction.send_aria': 'Lähetä korjaus',
       'nutrition.photo.menu.title': 'Lisää ateria',
       'nutrition.photo.menu.camera': 'Kuvaa ruoka',

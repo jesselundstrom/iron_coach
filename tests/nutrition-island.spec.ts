@@ -143,9 +143,10 @@ test('nutrition island renders today session, guided actions, and can clear the 
   await seedNutritionHistory(page, [
     {
       role: 'user',
-      text: 'Review today so far',
-      promptText: 'Primary task: Review today so far',
-      actionId: 'review_today',
+      text: 'Analyze this food photo',
+      promptText: 'Primary task: Analyze this food photo.',
+      actionId: 'analyze_photo',
+      imageDataUrl: 'data:image/png;base64,abc123',
       timestamp: Date.now() - 60_000,
     },
     {
@@ -157,10 +158,10 @@ test('nutrition island renders today session, guided actions, and can clear the 
   ]);
   await openNutrition(page);
 
-  await expect(page.locator('#nutrition-react-root')).toContainText(
-    /review today so far/i
-  );
   await expect(page.locator('#nutrition-react-root')).toContainText(/protein/i);
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-msg-photo-tag')
+  ).toBeVisible();
   await expect(
     page.locator('#nutrition-react-root .nutrition-context-banner')
   ).toBeVisible();
@@ -184,6 +185,62 @@ test('nutrition island renders today session, guided actions, and can clear the 
   ).toHaveCount(0);
 });
 
+test('nutrition today totals count logged photo meals but ignore suggestion-only replies', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await seedNutritionHistory(page, [
+    {
+      role: 'user',
+      text: 'What should I eat next?',
+      promptText: 'Primary task: What should I eat next?',
+      actionId: 'next_meal',
+      timestamp: Date.now() - 120_000,
+    },
+    {
+      role: 'assistant',
+      text: 'Protein: 20g\nCarbs: 30g\nFat: 10g\nCalories: 300',
+      timestamp: Date.now() - 110_000,
+      model: 'claude-haiku-4-5-20251001',
+    },
+    {
+      role: 'user',
+      text: 'Analyze this food photo',
+      promptText: 'Primary task: Analyze this food photo.',
+      actionId: 'analyze_photo',
+      imageDataUrl: 'data:image/png;base64,abc123',
+      timestamp: Date.now() - 60_000,
+    },
+    {
+      role: 'assistant',
+      text: 'Protein: 40g\nCarbs: 55g\nFat: 18g\nCalories: 520',
+      timestamp: Date.now() - 30_000,
+      model: 'claude-haiku-4-5-20251001',
+    },
+  ]);
+  await openNutrition(page);
+
+  await expect(page.locator('#nutrition-react-root')).toContainText(
+    /what should i eat next/i
+  );
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-msg-coach')
+  ).toHaveCount(2);
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).toContainText('520');
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).toContainText('40g');
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).not.toContainText('820');
+  await expect(
+    page.locator('#nutrition-react-root .nutrition-today-card')
+  ).not.toContainText('60g');
+});
+
 test("nutrition ignores yesterday's history and starts fresh for today", async ({
   page,
 }) => {
@@ -198,6 +255,22 @@ test("nutrition ignores yesterday's history and starts fresh for today", async (
   await expect(page.locator('#nutrition-react-root')).toContainText(
     /daily nutrition coach|p\u00e4ivitt\u00e4inen ravintocoachisi/i
   );
+});
+
+test('nutrition uses the updated Finnish meal logging label', async ({
+  page,
+}) => {
+  await openAppShell(page);
+  await page.evaluate(() => {
+    window.I18N?.setLanguage?.('fi', { persist: false });
+  });
+
+  await clearTodayNutrition(page);
+  await openNutrition(page);
+
+  await expect(
+    page.locator('#nutrition-react-root .nc-photo-cta')
+  ).toContainText('Kirjaa ateriasi');
 });
 
 test('nutrition logout clears local nutrition data and leaves the signed-out setup state', async ({
@@ -437,7 +510,7 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   ).toContainText('640');
   await expect(
     page.locator('#nutrition-react-root .nutrition-today-card')
-  ).toContainText('42g');
+  ).toHaveCount(0);
   expect(capturedTrainingContext).toContain('Daily coaching snapshot:');
   expect(capturedTrainingContext).toContain('"guidance_mode":"guided"');
   expect(capturedTrainingContext).toContain('"in_season":true');
@@ -464,7 +537,7 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   );
   await expect(
     page.locator('#nutrition-react-root .nutrition-today-card')
-  ).toContainText('42g');
+  ).toHaveCount(0);
 });
 
 test('nutrition consumes post-workout session context on the first send only', async ({
@@ -714,7 +787,7 @@ test('nutrition falls back to plain text when Claude returns malformed JSON and 
   ).toContainText('31g');
   await expect(
     page.locator('#nutrition-react-root .nutrition-today-card')
-  ).toContainText('410');
+  ).toHaveCount(0);
 });
 
 test('nutrition action card submits immediately on tap without send button', async ({

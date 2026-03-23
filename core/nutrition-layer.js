@@ -592,6 +592,24 @@
     );
   }
 
+  function _findTrackedMealAnchorIndex(assistantIndex) {
+    if (typeof assistantIndex !== 'number' || assistantIndex < 1) return -1;
+    for (var i = assistantIndex - 1; i >= 0; i--) {
+      var entry = _history[i];
+      if (!entry) continue;
+      if (entry.role === 'assistant') continue;
+      if (entry.imageDataUrl) return i;
+      if (entry.isCorrection) continue;
+      return -1;
+    }
+    return -1;
+  }
+
+  function _shouldCountAssistantMessageTowardsToday(msg, idx) {
+    if (!msg || msg.role !== 'assistant' || msg.isError) return false;
+    return _findTrackedMealAnchorIndex(idx) !== -1;
+  }
+
   function _getTodayTrackedMacroTotals() {
     _ensureTodayHistoryLoaded();
     // Memoize the current day's scan so snapshot/card/prompt builders reuse the same totals.
@@ -612,6 +630,9 @@
         !msg.timestamp ||
         msg.timestamp < ts
       ) {
+        continue;
+      }
+      if (!_shouldCountAssistantMessageTowardsToday(msg, i)) {
         continue;
       }
       // If the next user message is a correction and there is a subsequent
