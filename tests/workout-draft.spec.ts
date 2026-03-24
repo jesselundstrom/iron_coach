@@ -76,6 +76,6 @@ test('discarding a workout clears the persisted draft', async ({ page }) => {
   await page.getByRole('button', { name: /discard workout/i }).click({ force: true });
   await confirmModal(page);
 
-  await expect(page.locator('#workout-not-started')).toBeVisible();
+  await expect(page.getByRole('button', { name: /start workout/i })).toBeVisible();
   expect(await page.evaluate(() => window.eval('getActiveWorkoutDraftCache()'))).toBeNull();
 });

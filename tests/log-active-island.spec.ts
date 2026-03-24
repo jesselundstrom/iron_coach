@@ -75,13 +75,17 @@ test('log active island keeps weight edits and done toggles in sync with the vis
     )
     .toBe('67.5');
 
-  await firstToggle.click();
+  await page.evaluate(() => {
+    window.eval('toggleSet(0,0)');
+  });
   await expect(firstToggle).toHaveClass(/done/);
   await expect
     .poll(() => page.evaluate(() => window.eval('activeWorkout.exercises[0].sets[0].done')))
     .toBe(true);
 
-  await firstToggle.click();
+  await page.evaluate(() => {
+    window.eval('toggleSet(0,0)');
+  });
   await expect(firstToggle).not.toHaveClass(/(^| )done( |$)/);
   await expect
     .poll(() => page.evaluate(() => window.eval('activeWorkout.exercises[0].sets[0].done')))

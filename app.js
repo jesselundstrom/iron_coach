@@ -44,7 +44,8 @@ let restInterval = null,
   restTotal = 0,
   restDuration = 120,
   restEndsAt = 0,
-  restHideTimeout = null;
+  restHideTimeout = null,
+  restBarActive = false;
 let pendingRPECallback = null;
 let pendingRPEPromptState = null;
 let exerciseIndex = {};
@@ -77,10 +78,23 @@ function getRuntimeBridge() {
   return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
 }
 
+function isStoreBackedSettingsSurfaceActive() {
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setActiveSettingsTab === 'function';
+}
+
+function setRestBarActiveState(nextActive) {
+  restBarActive = nextActive === true;
+  document
+    .getElementById('rest-timer-bar')
+    ?.classList.toggle('active', restBarActive);
+}
+
+window.setRestBarActiveState = setRestBarActiveState;
+
 function syncWorkoutSessionBridge() {
   const bridge = getRuntimeBridge();
   if (!bridge || typeof bridge.setWorkoutSessionState !== 'function') return;
-  const restBar = document.getElementById('rest-timer-bar');
   bridge.setWorkoutSessionState({
     activeWorkout,
     restDuration: Number(restDuration || 0),
@@ -88,7 +102,7 @@ function syncWorkoutSessionBridge() {
     restSecondsLeft: Number(restSecondsLeft || 0),
     restTotal: Number(restTotal || 0),
     currentUser,
-    restBarActive: restBar?.classList.contains('active') === true,
+    restBarActive: restBarActive === true,
     rpeOpen: pendingRPEPromptState?.open === true,
     rpePrompt:
       pendingRPEPromptState && typeof pendingRPEPromptState === 'object'
@@ -696,7 +710,7 @@ function startRestTimer() {
   clearRestHideTimer();
   restTotal = restDuration;
   restEndsAt = Date.now() + restDuration * 1000;
-  document.getElementById('rest-timer-bar').classList.add('active');
+  setRestBarActiveState(true);
   syncRestTimer();
   if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
     persistActiveWorkoutDraft();
@@ -729,7 +743,7 @@ function restDone() {
     persistActiveWorkoutDraft();
   restHideTimeout = setTimeout(
     () => {
-      document.getElementById('rest-timer-bar').classList.remove('active');
+      setRestBarActiveState(false);
       syncWorkoutSessionBridge();
     },
     3000
@@ -741,7 +755,7 @@ function skipRest() {
   clearRestHideTimer();
   restEndsAt = 0;
   restSecondsLeft = 0;
-  document.getElementById('rest-timer-bar').classList.remove('active');
+  setRestBarActiveState(false);
   if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
     persistActiveWorkoutDraft();
   syncWorkoutSessionBridge();
@@ -842,19 +856,30 @@ function setSportIntensity(val, el) {
 let _settingsTab = 'schedule';
 let settingsAccountUiState = { dangerOpen: false, dangerInput: '' };
 function showSettingsTab(name, el) {
-  _settingsTab = name;
+  const nextTab = ['schedule', 'preferences', 'program', 'account', 'body'].includes(
+    name
+  )
+    ? name
+    : 'schedule';
+  _settingsTab = nextTab;
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setActiveSettingsTab === 'function') {
+    bridge.setActiveSettingsTab(nextTab);
+    return;
+  }
   ['schedule', 'preferences', 'program', 'account', 'body'].forEach((t) => {
     const d = document.getElementById('settings-tab-' + t);
-    if (d) d.style.display = t === name ? '' : 'none';
+    if (d) d.style.display = t === nextTab ? '' : 'none';
   });
   document.querySelectorAll('#settings-tabs .tab').forEach((tab) => {
-    const isActive = tab.dataset.settingsTab === name;
+    const isActive = tab.dataset.settingsTab === nextTab;
     tab.classList.toggle('active', isActive);
     tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
   });
 }
 function isSettingsAccountIslandActive() {
-  return window.__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setSettingsAccountView === 'function';
 }
 function notifySettingsAccountIsland() {
   const bridge = getRuntimeBridge();
@@ -957,7 +982,8 @@ function buildSettingsAccountView() {
   };
 }
 function isSettingsScheduleIslandActive() {
-  return window.__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setSettingsScheduleView === 'function';
 }
 function notifySettingsScheduleIsland() {
   const bridge = getRuntimeBridge();
@@ -1032,7 +1058,8 @@ function buildSettingsScheduleView() {
   };
 }
 function isSettingsProgramIslandActive() {
-  return window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setSettingsProgramView === 'function';
 }
 function notifySettingsProgramIsland() {
   const bridge = getRuntimeBridge();
@@ -1244,7 +1271,8 @@ function buildSettingsProgramView() {
   };
 }
 function isSettingsPreferencesIslandActive() {
-  return window.__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setSettingsPreferencesView === 'function';
 }
 function notifySettingsPreferencesIsland() {
   const bridge = getRuntimeBridge();
@@ -1399,7 +1427,8 @@ function buildSettingsPreferencesView() {
   };
 }
 function isSettingsBodyIslandActive() {
-  return window.__IRONFORGE_SETTINGS_BODY_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setSettingsBodyView === 'function';
 }
 function notifySettingsBodyIsland() {
   const bridge = getRuntimeBridge();
@@ -1459,6 +1488,9 @@ function buildSettingsBodyView() {
 window.syncSettingsBridge = function syncSettingsBridge() {
   const bridge = getRuntimeBridge();
   if (!bridge) return;
+  if (typeof bridge.setActiveSettingsTab === 'function') {
+    bridge.setActiveSettingsTab(_settingsTab);
+  }
   if (typeof bridge.setSettingsAccountView === 'function') {
     bridge.setSettingsAccountView(buildSettingsAccountView());
   }
@@ -1944,11 +1976,7 @@ function initSettings() {
   }
   showSettingsTab(_settingsTab);
   if (window.I18N && I18N.applyTranslations) I18N.applyTranslations(document);
-  if (isSettingsAccountIslandActive()) notifySettingsAccountIsland();
-  if (isSettingsScheduleIslandActive()) notifySettingsScheduleIsland();
-  if (isSettingsPreferencesIslandActive()) notifySettingsPreferencesIsland();
-  if (isSettingsProgramIslandActive()) notifySettingsProgramIsland();
-  if (isSettingsBodyIslandActive()) notifySettingsBodyIsland();
+  if (isStoreBackedSettingsSurfaceActive()) window.syncSettingsBridge?.();
 }
 
 // Program UI/state helpers moved to core/program-layer.js.
@@ -2384,9 +2412,9 @@ function updateLanguageDependentUI() {
   }
   if (
     document.getElementById('page-nutrition')?.classList.contains('active') &&
-    typeof window.initNutritionPage === 'function'
+    typeof window.syncNutritionBridge === 'function'
   )
-    window.initNutritionPage();
+    window.syncNutritionBridge();
   else if (
     document.getElementById('page-history')?.classList.contains('active')
   )

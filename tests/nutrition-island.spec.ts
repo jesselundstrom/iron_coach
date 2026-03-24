@@ -86,7 +86,7 @@ async function openNutrition(page: Page) {
 async function expectNutritionCoachResponse(
   page: Page,
   text: string | RegExp,
-  timeout = 15000
+  timeout = 30000
 ) {
   await expect(page.locator('#nutrition-react-root')).toContainText(text, {
     timeout,

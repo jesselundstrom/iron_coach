@@ -8,12 +8,14 @@ import {
   type LogStartView,
   type NutritionView,
   type SessionSnapshot,
+  type SettingsTab,
   type SettingsAccountView,
   type SettingsBodyView,
   type SettingsPreferencesView,
   type SettingsProgramView,
   type SettingsScheduleView,
   isAppPage,
+  isSettingsTab,
 } from '../constants';
 import { useRuntimeStore } from '../store/runtime-store';
 
@@ -23,6 +25,7 @@ const LANGUAGE_EVENT = 'ironforge:language-changed';
 
 type RuntimeBridge = {
   navigateToPage: (page: AppPage) => void;
+  setActiveSettingsTab: (tab: SettingsTab) => void;
   openConfirm: (confirm: Partial<ConfirmSnapshot>) => void;
   closeConfirm: () => void;
   showToast: (toast: {
@@ -57,6 +60,20 @@ function detectInitialActivePage(): AppPage {
   return isAppPage(pageName) ? pageName : 'dashboard';
 }
 
+function detectInitialSettingsTab(): SettingsTab {
+  const selectedTab = document.querySelector(
+    '#settings-tabs .tab[aria-selected="true"]'
+  );
+  const selectedValue = selectedTab?.getAttribute('data-settings-tab') || '';
+  if (isSettingsTab(selectedValue)) return selectedValue;
+
+  const visibleTab = Array.from(
+    document.querySelectorAll('#page-settings > div[id^="settings-tab-"]')
+  ).find((panel) => panel instanceof HTMLElement && panel.style.display !== 'none');
+  const visibleValue = visibleTab?.id?.replace(/^settings-tab-/, '') || '';
+  return isSettingsTab(visibleValue) ? visibleValue : 'schedule';
+}
+
 function createDefaultConfirm(confirm?: Partial<ConfirmSnapshot>): ConfirmSnapshot {
   return {
     open: confirm?.open !== false,
@@ -72,6 +89,10 @@ function registerRuntimeBridge(): RuntimeBridge {
     navigateToPage: (page) => {
       if (!isAppPage(page)) return;
       useRuntimeStore.getState().navigateToPage(page);
+    },
+    setActiveSettingsTab: (tab) => {
+      if (!isSettingsTab(tab)) return;
+      useRuntimeStore.getState().setActiveSettingsTab(tab);
     },
     openConfirm: (confirm) => {
       useRuntimeStore.getState().openConfirm(createDefaultConfirm(confirm));
@@ -144,6 +165,7 @@ function registerRuntimeBridge(): RuntimeBridge {
 
 export function syncRuntimeStoreFromLegacy() {
   useRuntimeStore.getState().navigateToPage(detectInitialActivePage());
+  useRuntimeStore.getState().setActiveSettingsTab(detectInitialSettingsTab());
   const runtimeWindow = window as Window & {
     syncWorkoutSessionBridge?: () => void;
     syncHistoryBridge?: () => void;

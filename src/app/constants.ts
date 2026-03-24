@@ -8,6 +8,16 @@ export const APP_PAGES = [
 
 export type AppPage = (typeof APP_PAGES)[number];
 
+export const SETTINGS_TABS = [
+  'schedule',
+  'preferences',
+  'program',
+  'account',
+  'body',
+] as const;
+
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
 export type ConfirmSnapshot = {
   open: boolean;
   title: string;
@@ -132,6 +142,12 @@ export type SessionSnapshot = {
 
 export function isAppPage(value: unknown): value is AppPage {
   return typeof value === 'string' && APP_PAGES.includes(value as AppPage);
+}
+
+export function isSettingsTab(value: unknown): value is SettingsTab {
+  return (
+    typeof value === 'string' && SETTINGS_TABS.includes(value as SettingsTab)
+  );
 }
 
 export function getPageFromHash(hash = window.location.hash): AppPage | null {

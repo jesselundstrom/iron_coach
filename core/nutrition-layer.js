@@ -207,7 +207,8 @@
   ];
 
   function isNutritionIslandActive() {
-    return window.__IRONFORGE_NUTRITION_ISLAND_MOUNTED__ === true;
+    var bridge = getRuntimeBridge();
+    return !!bridge && typeof bridge.setNutritionView === 'function';
   }
 
   function notifyNutritionIsland() {
@@ -294,6 +295,7 @@
   window.syncNutritionBridge = function syncNutritionBridge() {
     var bridge = getRuntimeBridge();
     if (bridge && typeof bridge.setNutritionView === 'function') {
+      _loadHistory();
       bridge.setNutritionView(buildNutritionView());
     }
   };
@@ -2521,16 +2523,8 @@
 
   // ─── Page init ────────────────────────────────────────────────────────────────
 
-  function initNutritionPage() {
-    _loadHistory();
-    _renderMessages();
-    _scrollToBottom();
-    notifyNutritionIsland();
-  }
-
   // ─── Expose globals ───────────────────────────────────────────────────────────
 
-  window.initNutritionPage = initNutritionPage;
   window.handleNutritionPhoto = handleNutritionPhoto;
   window.submitNutritionMessage = submitNutritionMessage;
   window.submitNutritionTextMessage = submitNutritionTextMessage;

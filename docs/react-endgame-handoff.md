@@ -17,6 +17,9 @@ Phase 2 has now started with the first ownership-transfer cutover landed:
 - The Nutrition React screen now reads store-backed nutrition view state instead of consuming `getNutritionReactSnapshot()` directly from React.
 - The retired standalone `src/app-shell/main.jsx` and `src/onboarding-island/main.jsx` boot paths are no longer part of the active runtime.
 - The legacy page snapshot getter exports and page `*-updated` bridge events for Log, History, Dashboard, Settings, and Nutrition are now deleted.
+- The old page-specific island mounted flags are now deleted. Legacy runtime code checks runtime-bridge capability instead of `__IRONFORGE_*_ISLAND_MOUNTED__`.
+- Settings tab selection is now owned by the runtime store and mirrored into the existing DOM shell by `AppShell`.
+- Nutrition page activation no longer depends on `initNutritionPage()`. Entering Nutrition now refreshes through the shared `syncNutritionBridge()` path.
 - Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
 - RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 
@@ -27,9 +30,9 @@ What is still not done:
 - The dashboard domain still computes the Dashboard page view model inside `core/dashboard-layer.js` before pushing it into the store; it is not yet a dedicated imported dashboard service.
 - Exercise catalog and guide flows still depend on imperative DOM rendering and global callbacks.
 - The rest-timer bar outside the active-workout subtree is still legacy DOM-driven.
-- Settings tab switching is still owned by legacy DOM toggling in `app.js`.
-- Nutrition init/render lifecycle still lives in `core/nutrition-layer.js`, even though the React screen now reads store-backed state.
-- Island mount flags and some legacy ownership checks still exist as compatibility surfaces and have not been deleted yet.
+- Nutrition history/request lifecycle still lives in `core/nutrition-layer.js`, even though route entry now refreshes through the shared bridge.
+- The rest timer still renders through legacy DOM outside the React workout subtree, even though session state now tracks its active state directly instead of re-reading DOM classes.
+- Global registries like `PROGRAMS` and `EXERCISE_LIBRARY` are still window-backed compatibility surfaces.
 
 ## Files That Matter Most Right Now
 
@@ -48,15 +51,14 @@ What is still not done:
 Most relevant local checks that passed:
 
 - `npm.cmd run typecheck`
-- `npm.cmd run test -- tests/settings-navigation.spec.ts tests/settings-account-island.spec.ts tests/settings-body-island.spec.ts tests/settings-preferences-island.spec.ts tests/settings-program-island.spec.ts tests/settings-schedule-island.spec.ts --workers=1`
-- `npm.cmd run test -- tests/nutrition-island.spec.ts --workers=1`
 - `npm.cmd run build`
+- `npm.cmd run test -- tests/app-shell-router.spec.ts tests/app-smoke.spec.ts tests/offline-shell.spec.ts tests/dashboard-island.spec.ts tests/history-island.spec.ts tests/log-start-island.spec.ts tests/log-active-island.spec.ts tests/workout-draft.spec.ts tests/workout-overlays.spec.ts tests/session-feedback.spec.ts tests/reward-moments.spec.ts tests/settings-navigation.spec.ts tests/settings-account-island.spec.ts tests/settings-body-island.spec.ts tests/settings-preferences-island.spec.ts tests/settings-program-island.spec.ts tests/settings-schedule-island.spec.ts tests/nutrition-island.spec.ts --workers=1`
 
 ## Recommended Next Step
 
-Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then remove the remaining mounted-flag and legacy ownership scaffolding.
+Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain and retiring the remaining window-backed registries/helpers.
 
-The goal is to keep the current workout logic intact where useful, but remove the remaining mount-flag and fallback-shell scaffolding now that visible pages no longer depend on page snapshot getters or bridge events.
+The goal is to keep the current workout logic intact where useful, but move the remaining workout/catalog/service seams behind explicit modules now that visible pages no longer depend on page snapshot getters, bridge events, mounted flags, or settings-tab DOM ownership.
 
 ## Phase 2 Plan: Workout Session Service / Store
 
@@ -153,9 +155,8 @@ These already render through React, so the next step is to stop sourcing them fr
 
 ### Phase 5. Final cleanup
 
-- remove island mount flags
-- remove bridge events
 - remove dead hybrid fallback helpers
+- replace remaining `window.PROGRAMS` / `window.EXERCISE_LIBRARY` reads where practical
 - simplify boot/runtime path
 
 ## Working Rules For The Next Conversation

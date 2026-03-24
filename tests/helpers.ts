@@ -21,7 +21,12 @@ export async function bootstrapAppShell(page: Page) {
     () => typeof window.getCanonicalProgramId === 'function'
   );
   await page.waitForFunction(
-    () => typeof window.initNutritionPage === 'function'
+    () =>
+      typeof (
+        window as Window & {
+          syncNutritionBridge?: () => void;
+        }
+      ).syncNutritionBridge === 'function'
   );
 
   await page.evaluate(() => {

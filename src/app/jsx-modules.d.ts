@@ -17,6 +17,7 @@ declare global {
     __IRONFORGE_APP_SHELL_READY__?: boolean;
     __IRONFORGE_RUNTIME_BRIDGE__?: {
       navigateToPage?: (page: string) => void;
+      setActiveSettingsTab?: (tab: string) => void;
       openConfirm?: (confirm: {
         open?: boolean;
         title?: string;
@@ -52,6 +53,7 @@ declare global {
     syncDashboardBridge?: () => void;
     syncSettingsBridge?: () => void;
     syncNutritionBridge?: () => void;
+    setRestBarActiveState?: (active: boolean) => void;
     loadData?: (options?: {
       allowCloudSync?: boolean;
       userId?: string;

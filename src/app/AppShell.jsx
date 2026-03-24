@@ -1,6 +1,6 @@
 import { Component, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { APP_PAGES } from './constants.ts';
+import { APP_PAGES, SETTINGS_TABS } from './constants.ts';
 import { useRuntimeStore } from './store/runtime-store.ts';
 import { t } from '../core/i18n.js';
 import OnboardingFlow from './OnboardingFlow.jsx';
@@ -96,8 +96,31 @@ function PageHost({ name, active }) {
   return null;
 }
 
+function SettingsTabHost({ name, active }) {
+  useEffect(() => {
+    const panel = document.getElementById(`settings-tab-${name}`);
+    if (panel) {
+      panel.style.display = active ? '' : 'none';
+      panel.dataset.settingsTabShell = name;
+    }
+
+    const tabButton = document.querySelector(
+      `#settings-tabs .tab[data-settings-tab="${name}"]`
+    );
+    if (tabButton instanceof HTMLElement) {
+      tabButton.classList.toggle('active', active);
+      tabButton.setAttribute('aria-selected', active ? 'true' : 'false');
+    }
+  }, [name, active]);
+
+  return null;
+}
+
 export default function AppShell() {
   const activePage = useRuntimeStore((state) => state.navigation.activePage);
+  const activeSettingsTab = useRuntimeStore(
+    (state) => state.navigation.activeSettingsTab
+  );
   const confirm = useRuntimeStore((state) => state.ui.confirm);
   const toast = useRuntimeStore((state) => state.ui.toast);
   const hideToast = useRuntimeStore((state) => state.hideToast);
@@ -115,23 +138,6 @@ export default function AppShell() {
   );
 
   useEffect(() => {
-    // Keep temporary mounted flags for legacy callers that still branch on React ownership.
-    const flags = [
-      '__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__',
-      '__IRONFORGE_HISTORY_ISLAND_MOUNTED__',
-      '__IRONFORGE_NUTRITION_ISLAND_MOUNTED__',
-      '__IRONFORGE_LOG_START_ISLAND_MOUNTED__',
-      '__IRONFORGE_LOG_ACTIVE_ISLAND_MOUNTED__',
-      '__IRONFORGE_SETTINGS_BODY_ISLAND_MOUNTED__',
-      '__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_MOUNTED__',
-      '__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_MOUNTED__',
-      '__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__',
-      '__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_MOUNTED__',
-    ];
-    flags.forEach((flag) => {
-      window[flag] = true;
-    });
-
     // Remove any remaining legacy shell divs from the retired standalone island mounts.
     const legacyShells = [
       'dashboard-legacy-shell', 'history-legacy-shell', 'nutrition-legacy-shell',
@@ -141,20 +147,6 @@ export default function AppShell() {
       'settings-schedule-legacy-shell',
     ];
     legacyShells.forEach((id) => document.getElementById(id)?.remove());
-
-    // Handle nutrition init if nutrition page is active at mount time
-    requestAnimationFrame(() => {
-      const page = document.getElementById('page-nutrition');
-      if (page?.classList.contains('active') && typeof window.initNutritionPage === 'function') {
-        window.initNutritionPage();
-      }
-    });
-
-    return () => {
-      flags.forEach((flag) => {
-        delete window[flag];
-      });
-    };
   }, []);
 
   useEffect(() => {
@@ -219,6 +211,13 @@ export default function AppShell() {
       {/* Sync active class on existing #page-X HTML divs from React store */}
       {APP_PAGES.map((name) => (
         <PageHost key={name} name={name} active={activePage === name} />
+      ))}
+      {SETTINGS_TABS.map((name) => (
+        <SettingsTabHost
+          key={name}
+          name={name}
+          active={activeSettingsTab === name}
+        />
       ))}
       {/* Island portals — each wrapped in an error boundary so a single island
           crash cannot unmount the entire React tree (toast, modals, nav). */}

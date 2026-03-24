@@ -8,6 +8,7 @@ import type {
   LogStartView,
   NutritionView,
   SessionSnapshot,
+  SettingsTab,
   SettingsAccountView,
   SettingsBodyView,
   SettingsPreferencesView,
@@ -19,6 +20,7 @@ import type {
 type RuntimeStore = {
   navigation: {
     activePage: AppPage;
+    activeSettingsTab: SettingsTab;
   };
   ui: {
     confirm: ConfirmSnapshot;
@@ -41,6 +43,7 @@ type RuntimeStore = {
     settingsScheduleView: SettingsScheduleView | null;
   };
   navigateToPage: (page: AppPage) => void;
+  setActiveSettingsTab: (tab: SettingsTab) => void;
   openConfirm: (confirm: ConfirmSnapshot) => void;
   closeConfirm: () => void;
   showToast: (toast: Partial<ToastSnapshot> & { message: string }) => void;
@@ -97,6 +100,7 @@ const defaultToast: ToastSnapshot = {
 export const useRuntimeStore = create<RuntimeStore>((set) => ({
   navigation: {
     activePage: 'dashboard',
+    activeSettingsTab: 'schedule',
   },
   ui: {
     confirm: defaultConfirm,
@@ -123,6 +127,13 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
       navigation: {
         ...state.navigation,
         activePage: page,
+      },
+    })),
+  setActiveSettingsTab: (tab) =>
+    set((state) => ({
+      navigation: {
+        ...state.navigation,
+        activeSettingsTab: tab,
       },
     })),
   openConfirm: (confirm) =>

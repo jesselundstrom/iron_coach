@@ -2606,7 +2606,8 @@ function updateDashboard() {
 // Initialize muscle body flip listener (event delegation, safe to call once)
 initMuscleBodyFlip();
 function isDashboardIslandActive() {
-  return window.__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setDashboardView === 'function';
 }
 function notifyDashboardIsland() {
   const bridge = getRuntimeBridge();

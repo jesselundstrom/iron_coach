@@ -39,7 +39,8 @@ function pushLogStartView() {
 }
 
 function isLogStartIslandActive() {
-  return window.__IRONFORGE_LOG_START_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setLogStartView === 'function';
 }
 
 function notifyLogStartIsland() {
@@ -493,7 +494,8 @@ function pushLogActiveView() {
 }
 
 function isLogActiveIslandActive() {
-  return window.__IRONFORGE_LOG_ACTIVE_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setLogActiveView === 'function';
 }
 
 function notifyLogActiveIsland() {
@@ -902,10 +904,10 @@ function resumeActiveWorkoutUI(options) {
   renderWorkoutTimer();
   if (!isReactActive) renderExercises();
   if (restEndsAt) {
-    document.getElementById('rest-timer-bar')?.classList.add('active');
+    window.setRestBarActiveState?.(true);
     syncRestTimer();
   } else {
-    document.getElementById('rest-timer-bar')?.classList.remove('active');
+    window.setRestBarActiveState?.(false);
   }
   if (isReactActive) notifyLogActiveIsland();
   if (isLogStartIslandActive()) notifyLogStartIsland();

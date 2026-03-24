@@ -44,7 +44,8 @@ function getRuntimeBridge() {
 }
 
 function isHistoryIslandActive() {
-  return window.__IRONFORGE_HISTORY_ISLAND_MOUNTED__ === true;
+  const bridge = getRuntimeBridge();
+  return !!bridge && typeof bridge.setHistoryView === 'function';
 }
 
 function notifyHistoryIsland() {

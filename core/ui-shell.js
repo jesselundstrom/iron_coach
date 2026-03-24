@@ -68,8 +68,11 @@ function runPageActivationSideEffects(name) {
   if (name === 'dashboard') updateDashboard();
   if (name === 'history') renderHistory();
   if (name === 'settings') initSettings();
-  if (name === 'nutrition' && typeof window.initNutritionPage === 'function') {
-    window.initNutritionPage();
+  if (
+    name === 'nutrition' &&
+    typeof window.syncNutritionBridge === 'function'
+  ) {
+    window.syncNutritionBridge();
   }
   if (name === 'log') {
     if (activeWorkout && typeof resumeActiveWorkoutUI === 'function') resumeActiveWorkoutUI({ toast: false });
