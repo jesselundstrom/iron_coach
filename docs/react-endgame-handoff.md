@@ -16,6 +16,7 @@ Phase 2 has now started with the first ownership-transfer cutover landed:
 - The Settings React screens now read store-backed settings view state instead of consuming `getSettings*ReactSnapshot()` directly from React.
 - The Nutrition React screen now reads store-backed nutrition view state instead of consuming `getNutritionReactSnapshot()` directly from React.
 - The retired standalone `src/app-shell/main.jsx` and `src/onboarding-island/main.jsx` boot paths are no longer part of the active runtime.
+- The legacy page snapshot getter exports and page `*-updated` bridge events for Log, History, Dashboard, Settings, and Nutrition are now deleted.
 - Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
 - RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 
@@ -28,7 +29,7 @@ What is still not done:
 - The rest-timer bar outside the active-workout subtree is still legacy DOM-driven.
 - Settings tab switching is still owned by legacy DOM toggling in `app.js`.
 - Nutrition init/render lifecycle still lives in `core/nutrition-layer.js`, even though the React screen now reads store-backed state.
-- Snapshot getter exports, island mount flags, and bridge events still exist as compatibility surfaces and have not been deleted yet.
+- Island mount flags and some legacy ownership checks still exist as compatibility surfaces and have not been deleted yet.
 
 ## Files That Matter Most Right Now
 
@@ -53,9 +54,9 @@ Most relevant local checks that passed:
 
 ## Recommended Next Step
 
-Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then remove the remaining compatibility bridge surfaces in shell/settings/nutrition.
+Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then remove the remaining mounted-flag and legacy ownership scaffolding.
 
-The goal is to keep the current workout logic intact where useful, but remove the remaining mount-flag/event/getter scaffolding now that every visible page reads store-backed state.
+The goal is to keep the current workout logic intact where useful, but remove the remaining mount-flag and fallback-shell scaffolding now that visible pages no longer depend on page snapshot getters or bridge events.
 
 ## Phase 2 Plan: Workout Session Service / Store
 

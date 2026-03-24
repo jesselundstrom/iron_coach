@@ -2549,7 +2549,7 @@ function getDashboardLabels() {
   };
 }
 
-function getDashboardReactSnapshot() {
+function buildDashboardView() {
   if (dashboardReactSnapshotCache) return dashboardReactSnapshotCache;
   const prog = getActiveProgram(),
     ps = getActiveProgramState();
@@ -2605,27 +2605,19 @@ function updateDashboard() {
 
 // Initialize muscle body flip listener (event delegation, safe to call once)
 initMuscleBodyFlip();
-const DASHBOARD_ISLAND_EVENT = 'ironforge:dashboard-updated';
-function hasDashboardIslandMount() {
-  return !!document.getElementById('dashboard-react-root');
-}
 function isDashboardIslandActive() {
   return window.__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__ === true;
 }
 function notifyDashboardIsland() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setDashboardView === 'function') {
-    bridge.setDashboardView(getDashboardReactSnapshot());
+    bridge.setDashboardView(buildDashboardView());
   }
-  if (!hasDashboardIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(DASHBOARD_ISLAND_EVENT));
 }
-window.__IRONFORGE_DASHBOARD_ISLAND_EVENT__ = DASHBOARD_ISLAND_EVENT;
-window.getDashboardReactSnapshot = getDashboardReactSnapshot;
 window.syncDashboardBridge = function syncDashboardBridge() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setDashboardView === 'function') {
-    bridge.setDashboardView(getDashboardReactSnapshot());
+    bridge.setDashboardView(buildDashboardView());
   }
 };
 window.buildDashboardWeekLegendMarkup = buildDashboardWeekLegendMarkup;

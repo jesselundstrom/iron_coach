@@ -853,20 +853,14 @@ function showSettingsTab(name, el) {
     tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
   });
 }
-const SETTINGS_ACCOUNT_ISLAND_EVENT = 'ironforge:settings-account-updated';
-function hasSettingsAccountIslandMount() {
-  return !!document.getElementById('settings-account-react-root');
-}
 function isSettingsAccountIslandActive() {
   return window.__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsAccountIsland() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setSettingsAccountView === 'function') {
-    bridge.setSettingsAccountView(getSettingsAccountReactSnapshot());
+    bridge.setSettingsAccountView(buildSettingsAccountView());
   }
-  if (!hasSettingsAccountIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(SETTINGS_ACCOUNT_ISLAND_EVENT));
 }
 function getAccountBackupContextText() {
   const count = workouts ? workouts.length : 0;
@@ -895,7 +889,7 @@ function isDangerDeleteConfirmed() {
       .toUpperCase() === 'DELETE'
   );
 }
-function getSettingsAccountReactSnapshot() {
+function buildSettingsAccountView() {
   const syncStatus =
     typeof getSyncStatusLabel === 'function'
       ? getSyncStatusLabel()
@@ -962,24 +956,14 @@ function getSettingsAccountReactSnapshot() {
     },
   };
 }
-window.__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_EVENT__ =
-  SETTINGS_ACCOUNT_ISLAND_EVENT;
-window.getSettingsAccountReactSnapshot = getSettingsAccountReactSnapshot;
-window.notifySettingsAccountIsland = notifySettingsAccountIsland;
-const SETTINGS_SCHEDULE_ISLAND_EVENT = 'ironforge:settings-schedule-updated';
-function hasSettingsScheduleIslandMount() {
-  return !!document.getElementById('settings-schedule-react-root');
-}
 function isSettingsScheduleIslandActive() {
   return window.__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsScheduleIsland() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setSettingsScheduleView === 'function') {
-    bridge.setSettingsScheduleView(getSettingsScheduleReactSnapshot());
+    bridge.setSettingsScheduleView(buildSettingsScheduleView());
   }
-  if (!hasSettingsScheduleIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(SETTINGS_SCHEDULE_ISLAND_EVENT));
 }
 function getSettingsScheduleStatusText() {
   const sep = ' · ';
@@ -999,7 +983,7 @@ function getSettingsScheduleStatusText() {
     : tr('settings.status.no_days', 'No days set');
   return name + sep + intensityLabel + sep + dayStr;
 }
-function getSettingsScheduleReactSnapshot() {
+function buildSettingsScheduleView() {
   const intensity = schedule.sportIntensity || 'hard';
   return {
     labels: {
@@ -1047,24 +1031,14 @@ function getSettingsScheduleReactSnapshot() {
     },
   };
 }
-window.__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_EVENT__ =
-  SETTINGS_SCHEDULE_ISLAND_EVENT;
-window.getSettingsScheduleReactSnapshot = getSettingsScheduleReactSnapshot;
-window.notifySettingsScheduleIsland = notifySettingsScheduleIsland;
-const SETTINGS_PROGRAM_ISLAND_EVENT = 'ironforge:settings-program-updated';
-function hasSettingsProgramIslandMount() {
-  return !!document.getElementById('settings-program-react-root');
-}
 function isSettingsProgramIslandActive() {
   return window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsProgramIsland() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setSettingsProgramView === 'function') {
-    bridge.setSettingsProgramView(getSettingsProgramReactSnapshot());
+    bridge.setSettingsProgramView(buildSettingsProgramView());
   }
-  if (!hasSettingsProgramIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(SETTINGS_PROGRAM_ISLAND_EVENT));
 }
 function parseInlineStyle(styleText) {
   return String(styleText || '')
@@ -1220,7 +1194,7 @@ function getProgramSwitcherSnapshotData() {
     cards,
   };
 }
-function getSettingsProgramReactSnapshot() {
+function buildSettingsProgramView() {
   const prog = getActiveProgram();
   const basics = getProgramBasicsSnapshotData();
   const switcher = getProgramSwitcherSnapshotData();
@@ -1269,27 +1243,16 @@ function getSettingsProgramReactSnapshot() {
     },
   };
 }
-window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_EVENT__ =
-  SETTINGS_PROGRAM_ISLAND_EVENT;
-window.getSettingsProgramReactSnapshot = getSettingsProgramReactSnapshot;
-window.notifySettingsProgramIsland = notifySettingsProgramIsland;
-const SETTINGS_PREFERENCES_ISLAND_EVENT =
-  'ironforge:settings-preferences-updated';
-function hasSettingsPreferencesIslandMount() {
-  return !!document.getElementById('settings-preferences-react-root');
-}
 function isSettingsPreferencesIslandActive() {
   return window.__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsPreferencesIsland() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setSettingsPreferencesView === 'function') {
-    bridge.setSettingsPreferencesView(getSettingsPreferencesReactSnapshot());
+    bridge.setSettingsPreferencesView(buildSettingsPreferencesView());
   }
-  if (!hasSettingsPreferencesIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(SETTINGS_PREFERENCES_ISLAND_EVENT));
 }
-function getSettingsPreferencesReactSnapshot() {
+function buildSettingsPreferencesView() {
   const prefs = normalizeTrainingPreferences(profile);
   return {
     labels: {
@@ -1435,27 +1398,16 @@ function getSettingsPreferencesReactSnapshot() {
     },
   };
 }
-window.__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_EVENT__ =
-  SETTINGS_PREFERENCES_ISLAND_EVENT;
-window.getSettingsPreferencesReactSnapshot =
-  getSettingsPreferencesReactSnapshot;
-window.notifySettingsPreferencesIsland = notifySettingsPreferencesIsland;
-const SETTINGS_BODY_ISLAND_EVENT = 'ironforge:settings-body-updated';
-function hasSettingsBodyIslandMount() {
-  return !!document.getElementById('settings-body-react-root');
-}
 function isSettingsBodyIslandActive() {
   return window.__IRONFORGE_SETTINGS_BODY_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsBodyIsland() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setSettingsBodyView === 'function') {
-    bridge.setSettingsBodyView(getSettingsBodyReactSnapshot());
+    bridge.setSettingsBodyView(buildSettingsBodyView());
   }
-  if (!hasSettingsBodyIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(SETTINGS_BODY_ISLAND_EVENT));
 }
-function getSettingsBodyReactSnapshot() {
+function buildSettingsBodyView() {
   const bodyMetrics = profile.bodyMetrics || {};
   return {
     labels: {
@@ -1504,25 +1456,23 @@ function getSettingsBodyReactSnapshot() {
     },
   };
 }
-window.__IRONFORGE_SETTINGS_BODY_ISLAND_EVENT__ = SETTINGS_BODY_ISLAND_EVENT;
-window.getSettingsBodyReactSnapshot = getSettingsBodyReactSnapshot;
 window.syncSettingsBridge = function syncSettingsBridge() {
   const bridge = getRuntimeBridge();
   if (!bridge) return;
   if (typeof bridge.setSettingsAccountView === 'function') {
-    bridge.setSettingsAccountView(getSettingsAccountReactSnapshot());
+    bridge.setSettingsAccountView(buildSettingsAccountView());
   }
   if (typeof bridge.setSettingsScheduleView === 'function') {
-    bridge.setSettingsScheduleView(getSettingsScheduleReactSnapshot());
+    bridge.setSettingsScheduleView(buildSettingsScheduleView());
   }
   if (typeof bridge.setSettingsProgramView === 'function') {
-    bridge.setSettingsProgramView(getSettingsProgramReactSnapshot());
+    bridge.setSettingsProgramView(buildSettingsProgramView());
   }
   if (typeof bridge.setSettingsPreferencesView === 'function') {
-    bridge.setSettingsPreferencesView(getSettingsPreferencesReactSnapshot());
+    bridge.setSettingsPreferencesView(buildSettingsPreferencesView());
   }
   if (typeof bridge.setSettingsBodyView === 'function') {
-    bridge.setSettingsBodyView(getSettingsBodyReactSnapshot());
+    bridge.setSettingsBodyView(buildSettingsBodyView());
   }
 };
 function openProgramSetupSheet() {

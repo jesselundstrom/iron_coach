@@ -36,6 +36,7 @@
 - The Dashboard route no longer reads `getDashboardReactSnapshot()` from React components. Legacy dashboard code now pushes a store-backed Dashboard view model into the shared runtime store, while readiness/fatigue/dashboard composition logic still remain legacy-backed.
 - The Settings route no longer reads `getSettings*ReactSnapshot()` from React components. Legacy settings code now pushes store-backed Settings tab view models into the shared runtime store, while tab switching, persistence, and advanced setup flows remain legacy-backed.
 - The Nutrition route no longer reads `getNutritionReactSnapshot()` from React components. Legacy nutrition code now pushes a store-backed Nutrition view model into the shared runtime store, while init/render lifecycle, day history, and request handling remain legacy-backed.
+- The old page snapshot getter exports and page `*-updated` bridge events for Log, History, Dashboard, Settings, and Nutrition are removed; remaining hybrid coordination now centers on store sync helpers plus temporary mounted-flag ownership checks.
 - Use `docs/migration-inventory.md` as the living checklist for hybrid bridge removal during the React cutover.
 - Reuse existing state objects, helpers, and DOM patterns before creating new ones.
 - Keep changes small and compatible with the current file organization.

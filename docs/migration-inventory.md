@@ -35,16 +35,16 @@ Status values:
 | `window.getIronforgeState` | `app.js` | Zustand selectors/services | `legacy` | consumers read store/services directly |
 | `window.getActivePageName` | `core/ui-shell.js` | router/store | `in_progress` | active route is derived from React state only |
 | `window.getConfirmReactSnapshot` | `core/ui-shell.js` | store | `in_progress` | confirm data is not snapshot-driven |
-| `window.getLogStartReactSnapshot` | `core/workout-layer.js` | session selectors/store actions | `in_progress` | log start route no longer depends on the getter and the helper is deleted |
-| `window.getLogActiveReactSnapshot` | `core/workout-layer.js` | session selectors/store actions | `in_progress` | log active route no longer depends on the getter and the helper is deleted |
-| `window.getSettingsAccountReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings account route reads store directly |
-| `window.getSettingsScheduleReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings schedule route reads store directly |
-| `window.getSettingsPreferencesReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings preferences route reads store directly |
-| `window.getSettingsProgramReactSnapshot` | `app.js` | settings selectors + registry service | `in_progress` | settings program route reads store directly |
-| `window.getSettingsBodyReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings body route reads store directly |
-| `window.getDashboardReactSnapshot` | `core/dashboard-layer.js` | dashboard selectors/store actions | `in_progress` | dashboard route no longer depends on the getter and the helper is deleted |
-| `window.getHistoryReactSnapshot` | `core/history-layer.js` | history selectors/store actions | `in_progress` | history route no longer depends on the getter and the helper is deleted |
-| `window.getNutritionReactSnapshot` | `core/nutrition-layer.js` | nutrition selectors | `in_progress` | nutrition route reads store directly |
+| `window.getLogStartReactSnapshot` | `core/workout-layer.js` | session selectors/store actions | `done` | log start route no longer depends on the getter and the helper is deleted |
+| `window.getLogActiveReactSnapshot` | `core/workout-layer.js` | session selectors/store actions | `done` | log active route no longer depends on the getter and the helper is deleted |
+| `window.getSettingsAccountReactSnapshot` | `app.js` | settings selectors | `done` | settings account route reads store directly |
+| `window.getSettingsScheduleReactSnapshot` | `app.js` | settings selectors | `done` | settings schedule route reads store directly |
+| `window.getSettingsPreferencesReactSnapshot` | `app.js` | settings selectors | `done` | settings preferences route reads store directly |
+| `window.getSettingsProgramReactSnapshot` | `app.js` | settings selectors + registry service | `done` | settings program route reads store directly |
+| `window.getSettingsBodyReactSnapshot` | `app.js` | settings selectors | `done` | settings body route reads store directly |
+| `window.getDashboardReactSnapshot` | `core/dashboard-layer.js` | dashboard selectors/store actions | `done` | dashboard route no longer depends on the getter and the helper is deleted |
+| `window.getHistoryReactSnapshot` | `core/history-layer.js` | history selectors/store actions | `done` | history route no longer depends on the getter and the helper is deleted |
+| `window.getNutritionReactSnapshot` | `core/nutrition-layer.js` | nutrition selectors | `done` | nutrition route reads store directly |
 | `window.getOnboardingReactSnapshot` | `app.js` | onboarding store/service | `legacy` | onboarding reads draft from store/service |
 
 ## Island Flags And Events
@@ -58,10 +58,10 @@ Status values:
 | `__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__` | dashboard island | delete | `in_progress` | dashboard route no longer mounts separately |
 | `__IRONFORGE_NUTRITION_ISLAND_MOUNTED__` | nutrition island | delete | `in_progress` | nutrition route no longer mounts separately |
 | `ironforge:app-shell-updated` | legacy shell bridge event | store actions | `in_progress` | route/store own shell state directly and no listeners need the event |
-| `ironforge:settings-*-updated` events | settings bridge | delete | `in_progress` | settings route reads store directly |
-| `ironforge:history-updated` | history bridge | delete | `in_progress` | history route reads store directly |
-| `ironforge:dashboard-updated` | dashboard bridge | delete | `in_progress` | dashboard route reads store directly |
-| `ironforge:nutrition-updated` | nutrition bridge | delete | `in_progress` | nutrition route reads store directly |
+| `ironforge:settings-*-updated` events | settings bridge | delete | `done` | settings route reads store directly |
+| `ironforge:history-updated` | history bridge | delete | `done` | history route reads store directly |
+| `ironforge:dashboard-updated` | dashboard bridge | delete | `done` | dashboard route reads store directly |
+| `ironforge:nutrition-updated` | nutrition bridge | delete | `done` | nutrition route reads store directly |
 | `ironforge:onboarding-updated` | onboarding bridge | store/service | `in_progress` | onboarding data lives in store/service |
 
 ## Direct Storage Access

@@ -1,4 +1,3 @@
-const HISTORY_ISLAND_EVENT = 'ironforge:history-updated';
 let historyTabState = 'log';
 let historyHeatmapOpen = false;
 let historyStatsRangeState = '16w';
@@ -44,10 +43,6 @@ function getRuntimeBridge() {
   return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
 }
 
-function hasHistoryIslandMount() {
-  return !!document.getElementById('history-react-root');
-}
-
 function isHistoryIslandActive() {
   return window.__IRONFORGE_HISTORY_ISLAND_MOUNTED__ === true;
 }
@@ -55,10 +50,8 @@ function isHistoryIslandActive() {
 function notifyHistoryIsland() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setHistoryView === 'function') {
-    bridge.setHistoryView(getHistoryReactSnapshot());
+    bridge.setHistoryView(buildHistoryView());
   }
-  if (!hasHistoryIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(HISTORY_ISLAND_EVENT));
 }
 
 function switchHistoryTab(tab) {
@@ -1550,7 +1543,7 @@ function _buildStructuredStats() {
   };
 }
 
-function getHistoryReactSnapshot() {
+function buildHistoryView() {
   return {
     tab: historyTabState,
     labels: {
@@ -1577,12 +1570,10 @@ function getHistoryReactSnapshot() {
   };
 }
 
-window.__IRONFORGE_HISTORY_ISLAND_EVENT__ = HISTORY_ISLAND_EVENT;
-window.getHistoryReactSnapshot = getHistoryReactSnapshot;
 window.switchHistoryStatsRange = switchHistoryStatsRange;
 window.syncHistoryBridge = function syncHistoryBridge() {
   const bridge = getRuntimeBridge();
   if (bridge && typeof bridge.setHistoryView === 'function') {
-    bridge.setHistoryView(getHistoryReactSnapshot());
+    bridge.setHistoryView(buildHistoryView());
   }
 };

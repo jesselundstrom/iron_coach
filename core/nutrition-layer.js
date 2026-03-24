@@ -176,7 +176,6 @@
     }
   }
 
-  const NUTRITION_ISLAND_EVENT = 'ironforge:nutrition-updated';
   const NUTRITION_ACTIONS = [
     {
       id: 'plan_today',
@@ -207,10 +206,6 @@
     },
   ];
 
-  function hasNutritionIslandMount() {
-    return !!document.getElementById('nutrition-react-root');
-  }
-
   function isNutritionIslandActive() {
     return window.__IRONFORGE_NUTRITION_ISLAND_MOUNTED__ === true;
   }
@@ -219,17 +214,15 @@
     _snapshotVersion++;
     var bridge = getRuntimeBridge();
     if (bridge && typeof bridge.setNutritionView === 'function') {
-      bridge.setNutritionView(getNutritionReactSnapshot());
+      bridge.setNutritionView(buildNutritionView());
     }
-    if (!hasNutritionIslandMount()) return;
-    window.dispatchEvent(new CustomEvent(NUTRITION_ISLAND_EVENT));
   }
 
   function isNutritionCoachAvailable() {
     return !!(currentUser && currentUser.id);
   }
 
-  function getNutritionReactSnapshot() {
+  function buildNutritionView() {
     _ensureTodayHistoryLoaded();
     var canUseNutrition = isNutritionCoachAvailable();
     var tracked = canUseNutrition ? _getTodayTrackedMacroTotals() : null;
@@ -298,13 +291,10 @@
     };
   }
 
-  window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ = NUTRITION_ISLAND_EVENT;
-  window.getNutritionReactSnapshot = getNutritionReactSnapshot;
-  window.notifyNutritionIsland = notifyNutritionIsland;
   window.syncNutritionBridge = function syncNutritionBridge() {
     var bridge = getRuntimeBridge();
     if (bridge && typeof bridge.setNutritionView === 'function') {
-      bridge.setNutritionView(getNutritionReactSnapshot());
+      bridge.setNutritionView(buildNutritionView());
     }
   };
   window.setSelectedNutritionAction = setSelectedNutritionAction;

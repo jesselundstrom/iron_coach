@@ -52,14 +52,14 @@ test('log start island uses explicit selection state when starting a different d
   await expect(page.locator('#page-log')).toHaveClass(/active/);
 
   const targetSelection = await page.evaluate(() => {
-    const snapshot = window.eval('getLogStartReactSnapshot()');
-    const options = Array.isArray(snapshot?.values?.options)
-      ? snapshot.values.options
-      : [];
+    const options = Array.from(
+      document.querySelectorAll('#program-day-options .program-day-option')
+    );
     const index = options[1] ? 1 : 0;
+    const target = options[index];
     return {
       index,
-      value: options[index]?.value || '',
+      value: target?.getAttribute('data-option-value') || '',
     };
   });
 

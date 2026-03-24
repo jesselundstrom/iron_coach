@@ -240,11 +240,12 @@ test('history stats keep front squat and sumo deadlift out of the main lift tren
   });
 
   const liftCounts = await page.evaluate(() => {
-    const snapshot = window.getHistoryReactSnapshot();
-    const counts = Object.fromEntries(
-      snapshot.stats.e1rm.lifts.map((lift) => [lift.key, lift.pts.length])
+    return Object.fromEntries(
+      Array.from(document.querySelectorAll('.stats-legend-item')).map((node) => [
+        node.getAttribute('data-lift-key'),
+        Number(node.getAttribute('data-point-count') || '0'),
+      ])
     );
-    return counts;
   });
 
   expect(liftCounts.squat).toBe(1);

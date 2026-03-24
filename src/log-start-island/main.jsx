@@ -527,6 +527,7 @@ function LogStartIsland() {
                 option.upcoming ? ' upcoming' : ''
               }`}
               key={option.value}
+              data-option-value={option.value}
               onClick={() => selectDay(option.value)}
             >
               <div className="program-day-option-day">

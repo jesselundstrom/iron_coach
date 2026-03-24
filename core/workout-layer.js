@@ -28,8 +28,6 @@
   return { sportName: displayName, icon, subtitle };
 }
 
-const LOG_START_ISLAND_EVENT = 'ironforge:log-start-updated';
-
 function getRuntimeBridge() {
   return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
 }
@@ -37,11 +35,7 @@ function getRuntimeBridge() {
 function pushLogStartView() {
   const bridge = getRuntimeBridge();
   if (!bridge || typeof bridge.setLogStartView !== 'function') return;
-  bridge.setLogStartView(getLogStartReactSnapshot());
-}
-
-function hasLogStartIslandMount() {
-  return !!document.getElementById('log-start-react-root');
+  bridge.setLogStartView(buildLogStartView());
 }
 
 function isLogStartIslandActive() {
@@ -50,8 +44,6 @@ function isLogStartIslandActive() {
 
 function notifyLogStartIsland() {
   pushLogStartView();
-  if (!hasLogStartIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(LOG_START_ISLAND_EVENT));
 }
 
 function getLogStartPreviewSnapshot(prog, selectedOption, snapshot) {
@@ -258,7 +250,7 @@ function getLogStartTodayPanelsSnapshot(
   };
 }
 
-function getLogStartReactSnapshot() {
+function buildLogStartView() {
   const shell = document.getElementById('workout-not-started');
   const prefs = normalizeTrainingPreferences(profile);
   const prog = getActiveProgram();
@@ -487,12 +479,6 @@ function getLogStartReactSnapshot() {
     },
   };
 }
-
-window.__IRONFORGE_LOG_START_ISLAND_EVENT__ = LOG_START_ISLAND_EVENT;
-window.getLogStartReactSnapshot = getLogStartReactSnapshot;
-window.notifyLogStartIsland = notifyLogStartIsland;
-
-const LOG_ACTIVE_ISLAND_EVENT = 'ironforge:log-active-updated';
 let logActiveUiSignalToken = 0;
 let pendingLogActiveUiSignals = {
   focusTarget: null,
@@ -503,11 +489,7 @@ let pendingLogActiveUiSignals = {
 function pushLogActiveView() {
   const bridge = getRuntimeBridge();
   if (!bridge || typeof bridge.setLogActiveView !== 'function') return;
-  bridge.setLogActiveView(getLogActiveReactSnapshot());
-}
-
-function hasLogActiveIslandMount() {
-  return !!document.getElementById('log-active-react-root');
+  bridge.setLogActiveView(buildLogActiveView());
 }
 
 function isLogActiveIslandActive() {
@@ -516,8 +498,6 @@ function isLogActiveIslandActive() {
 
 function notifyLogActiveIsland() {
   pushLogActiveView();
-  if (!hasLogActiveIslandMount()) return;
-  window.dispatchEvent(new CustomEvent(LOG_ACTIVE_ISLAND_EVENT));
 }
 
 function nextLogActiveUiSignalToken() {
@@ -728,7 +708,7 @@ function getLogActiveExerciseSnapshot(exercise, exerciseIndex) {
   };
 }
 
-function getLogActiveReactSnapshot() {
+function buildLogActiveView() {
   const shell = document.getElementById('workout-active');
   const title =
     activeWorkout?.programLabel || i18nText('common.session', 'Session');
@@ -809,11 +789,7 @@ function getLogActiveReactSnapshot() {
     },
   };
 }
-
-window.__IRONFORGE_LOG_ACTIVE_ISLAND_EVENT__ = LOG_ACTIVE_ISLAND_EVENT;
-window.getLogActiveReactSnapshot = getLogActiveReactSnapshot;
 window.getLogActiveTimerText = getLogActiveTimerText;
-window.notifyLogActiveIsland = notifyLogActiveIsland;
 window.clearLogActiveFocusTarget = clearLogActiveFocusTarget;
 window.clearLogActiveSetSignal = clearLogActiveSetSignal;
 window.clearLogActiveCollapseSignal = clearLogActiveCollapseSignal;

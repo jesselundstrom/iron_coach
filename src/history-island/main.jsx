@@ -370,7 +370,13 @@ function LineChart({ data }) {
       </svg>
       <div className="stats-chart-legend">
         {activeLegend.map((l, i) => (
-          <span key={i} className="stats-legend-item" style={{ color: l.color }}>
+          <span
+            key={i}
+            className="stats-legend-item"
+            style={{ color: l.color }}
+            data-lift-key={l.key}
+            data-point-count={String(l.pts.length)}
+          >
             <span className="stats-legend-dot" style={{ background: l.color }} />{l.label}
           </span>
         ))}

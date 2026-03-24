@@ -81,49 +81,16 @@ test('settings account island keeps the danger-zone confirmation flow working', 
     showSettingsTab('account');
   });
 
-  await page.evaluate(() => {
-    settingsAccountUiState = { dangerOpen: true, dangerInput: '' };
-    notifySettingsAccountIsland();
-  });
+  await page.locator('#danger-zone-trigger').click();
 
-  expect(
-    await page.evaluate(
-      () => getSettingsAccountReactSnapshot().values.dangerOpen
-    )
-  ).toBe(true);
-  expect(
-    await page.evaluate(
-      () => getSettingsAccountReactSnapshot().values.dangerDeleteDisabled
-    )
-  ).toBe(true);
+  await expect(page.locator('#danger-zone-confirm')).toBeVisible();
+  await expect(page.locator('#danger-zone-delete-btn')).toBeDisabled();
 
-  await page.evaluate(() => {
-    const input = document.getElementById('danger-zone-input');
-    if (!(input instanceof HTMLInputElement)) return;
-    input.value = 'DEL';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    checkDangerConfirm('DEL');
-  });
-  expect(
-    await page.evaluate(
-      () => getSettingsAccountReactSnapshot().values.dangerDeleteDisabled
-    )
-  ).toBe(true);
+  await page.locator('#danger-zone-input').fill('DEL');
+  await expect(page.locator('#danger-zone-delete-btn')).toBeDisabled();
 
-  await page.evaluate(() => {
-    const input = document.getElementById('danger-zone-input');
-    if (!(input instanceof HTMLInputElement)) return;
-    input.value = 'DELETE';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    checkDangerConfirm('DELETE');
-  });
-  expect(
-    await page.evaluate(
-      () => getSettingsAccountReactSnapshot().values.dangerDeleteDisabled
-    )
-  ).toBe(false);
+  await page.locator('#danger-zone-input').fill('DELETE');
+  await expect(page.locator('#danger-zone-delete-btn')).toBeEnabled();
 });
 
 test('settings account import keeps hostile workout labels inert after reload', async ({
