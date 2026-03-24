@@ -45,6 +45,30 @@ export type DashboardView = {
   [key: string]: unknown;
 };
 
+export type SettingsAccountView = {
+  [key: string]: unknown;
+};
+
+export type SettingsBodyView = {
+  [key: string]: unknown;
+};
+
+export type SettingsPreferencesView = {
+  [key: string]: unknown;
+};
+
+export type SettingsProgramView = {
+  [key: string]: unknown;
+};
+
+export type SettingsScheduleView = {
+  [key: string]: unknown;
+};
+
+export type NutritionView = {
+  [key: string]: unknown;
+};
+
 export type RpePromptSnapshot = {
   open: boolean;
   title: string;

@@ -16,10 +16,10 @@ Status values:
 | Confirm modal | `core/ui-shell.js` compatibility facade | React app shell/store | `in_progress` | legacy confirm snapshot helper is removed |
 | Toast host | `core/ui-shell.js` compatibility facade | React app shell/store | `in_progress` | toast state no longer written through DOM ids |
 | Onboarding mount | `app.js` + `src/onboarding-island/main.jsx` | React app entry | `in_progress` | onboarding no longer mounts through a separate entry |
-| Page islands | `src/*-island/main.jsx` | React routes/components | `legacy` | each page reads store/services directly |
+| Page islands | `src/*-island/main.jsx` | React routes/components | `in_progress` | each page reads store/services directly |
 | Workout session state | `app.js` + `core/workout-layer.js` + `core/data-layer.js` | session service + store | `in_progress` | timer/draft/RPE/finish-discard state no longer depends on globals |
-| Nutrition page state | `core/nutrition-layer.js` snapshot/event bridge | React route + services | `legacy` | nutrition route stops using `getNutritionReactSnapshot()` |
-| Settings tabs state | `app.js` snapshot/event bridge | store + React settings route | `legacy` | settings islands stop using `getSettings*ReactSnapshot()` |
+| Nutrition page state | `core/nutrition-layer.js` snapshot/event bridge | React route + services | `in_progress` | nutrition route stops using `getNutritionReactSnapshot()` |
+| Settings tabs state | `app.js` snapshot/event bridge | store + React settings route | `in_progress` | settings islands stop using `getSettings*ReactSnapshot()` |
 | History/dashboard state | `core/history-layer.js` + `core/dashboard-layer.js` snapshot/event bridge | store + route components | `in_progress` | history/dashboard islands stop using bridge snapshots and the getter exports are deleted |
 | Program registry | `window.PROGRAMS` | imported registry module | `legacy` | programs are imported instead of discovered on `window` |
 | Exercise library access | `window.EXERCISE_LIBRARY` | imported service/module | `legacy` | page/runtime code no longer reads exercise metadata via globals |
@@ -30,21 +30,21 @@ Status values:
 | Bridge point | Current owner | Target owner | Status | Delete condition |
 | --- | --- | --- | --- | --- |
 | `window.showPage` | `core/ui-shell.js` | router navigation action | `in_progress` | routes/pages stop calling it directly |
-| `window.showToast` | `core/ui-shell.js` | toast store/provider | `legacy` | toast provider owns all messages |
-| `window.showConfirm` | `core/ui-shell.js` | confirm store/provider | `legacy` | confirm provider owns modal open/close |
+| `window.showToast` | `core/ui-shell.js` | toast store/provider | `in_progress` | toast provider owns all messages |
+| `window.showConfirm` | `core/ui-shell.js` | confirm store/provider | `in_progress` | confirm provider owns modal open/close |
 | `window.getIronforgeState` | `app.js` | Zustand selectors/services | `legacy` | consumers read store/services directly |
 | `window.getActivePageName` | `core/ui-shell.js` | router/store | `in_progress` | active route is derived from React state only |
 | `window.getConfirmReactSnapshot` | `core/ui-shell.js` | store | `in_progress` | confirm data is not snapshot-driven |
 | `window.getLogStartReactSnapshot` | `core/workout-layer.js` | session selectors/store actions | `in_progress` | log start route no longer depends on the getter and the helper is deleted |
 | `window.getLogActiveReactSnapshot` | `core/workout-layer.js` | session selectors/store actions | `in_progress` | log active route no longer depends on the getter and the helper is deleted |
-| `window.getSettingsAccountReactSnapshot` | `app.js` | settings selectors | `legacy` | settings account route reads store directly |
-| `window.getSettingsScheduleReactSnapshot` | `app.js` | settings selectors | `legacy` | settings schedule route reads store directly |
-| `window.getSettingsPreferencesReactSnapshot` | `app.js` | settings selectors | `legacy` | settings preferences route reads store directly |
-| `window.getSettingsProgramReactSnapshot` | `app.js` | settings selectors + registry service | `legacy` | settings program route reads store directly |
-| `window.getSettingsBodyReactSnapshot` | `app.js` | settings selectors | `legacy` | settings body route reads store directly |
+| `window.getSettingsAccountReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings account route reads store directly |
+| `window.getSettingsScheduleReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings schedule route reads store directly |
+| `window.getSettingsPreferencesReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings preferences route reads store directly |
+| `window.getSettingsProgramReactSnapshot` | `app.js` | settings selectors + registry service | `in_progress` | settings program route reads store directly |
+| `window.getSettingsBodyReactSnapshot` | `app.js` | settings selectors | `in_progress` | settings body route reads store directly |
 | `window.getDashboardReactSnapshot` | `core/dashboard-layer.js` | dashboard selectors/store actions | `in_progress` | dashboard route no longer depends on the getter and the helper is deleted |
 | `window.getHistoryReactSnapshot` | `core/history-layer.js` | history selectors/store actions | `in_progress` | history route no longer depends on the getter and the helper is deleted |
-| `window.getNutritionReactSnapshot` | `core/nutrition-layer.js` | nutrition selectors | `legacy` | nutrition route reads store directly |
+| `window.getNutritionReactSnapshot` | `core/nutrition-layer.js` | nutrition selectors | `in_progress` | nutrition route reads store directly |
 | `window.getOnboardingReactSnapshot` | `app.js` | onboarding store/service | `legacy` | onboarding reads draft from store/service |
 
 ## Island Flags And Events
@@ -56,12 +56,12 @@ Status values:
 | `__IRONFORGE_LOG_ACTIVE_ISLAND_MOUNTED__` | log active island | delete | `legacy` | log active is part of routed app tree |
 | `__IRONFORGE_HISTORY_ISLAND_MOUNTED__` | history island | delete | `in_progress` | history route no longer mounts separately |
 | `__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__` | dashboard island | delete | `in_progress` | dashboard route no longer mounts separately |
-| `__IRONFORGE_NUTRITION_ISLAND_MOUNTED__` | nutrition island | delete | `legacy` | nutrition route no longer mounts separately |
+| `__IRONFORGE_NUTRITION_ISLAND_MOUNTED__` | nutrition island | delete | `in_progress` | nutrition route no longer mounts separately |
 | `ironforge:app-shell-updated` | legacy shell bridge event | store actions | `in_progress` | route/store own shell state directly and no listeners need the event |
-| `ironforge:settings-*-updated` events | settings bridge | delete | `legacy` | settings route reads store directly |
+| `ironforge:settings-*-updated` events | settings bridge | delete | `in_progress` | settings route reads store directly |
 | `ironforge:history-updated` | history bridge | delete | `in_progress` | history route reads store directly |
 | `ironforge:dashboard-updated` | dashboard bridge | delete | `in_progress` | dashboard route reads store directly |
-| `ironforge:nutrition-updated` | nutrition bridge | delete | `legacy` | nutrition route reads store directly |
+| `ironforge:nutrition-updated` | nutrition bridge | delete | `in_progress` | nutrition route reads store directly |
 | `ironforge:onboarding-updated` | onboarding bridge | store/service | `in_progress` | onboarding data lives in store/service |
 
 ## Direct Storage Access
@@ -84,7 +84,7 @@ Status values:
 | workout summary modal DOM population | `core/workout-layer.js` | session service + React state | `done` | summary content no longer renders through imperative HTML injection |
 | sport check modal DOM population | `core/workout-layer.js` | session service + React state | `done` | sport check prompt no longer mutates modal text/classes directly |
 | exercise catalog DOM writes | `core/workout-layer.js` | React overlay + service | `legacy` | catalog UI stops writing raw HTML |
-| nutrition page init/render | `core/nutrition-layer.js` | React route + nutrition service | `legacy` | route no longer depends on `initNutritionPage()` |
+| nutrition page init/render | `core/nutrition-layer.js` | React route + nutrition service | `in_progress` | route no longer depends on `initNutritionPage()` |
 | settings tab DOM toggling | `app.js` | React route state | `legacy` | tabs render from React state only |
 
 ## First Cutover Slice

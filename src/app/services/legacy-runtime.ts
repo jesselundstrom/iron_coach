@@ -6,7 +6,13 @@ import {
   type HistoryView,
   type LogActiveView,
   type LogStartView,
+  type NutritionView,
   type SessionSnapshot,
+  type SettingsAccountView,
+  type SettingsBodyView,
+  type SettingsPreferencesView,
+  type SettingsProgramView,
+  type SettingsScheduleView,
   isAppPage,
 } from '../constants';
 import { useRuntimeStore } from '../store/runtime-store';
@@ -33,6 +39,12 @@ type RuntimeBridge = {
   setLogActiveView: (view: LogActiveView | null) => void;
   setHistoryView: (view: HistoryView | null) => void;
   setDashboardView: (view: DashboardView | null) => void;
+  setNutritionView: (view: NutritionView | null) => void;
+  setSettingsAccountView: (view: SettingsAccountView | null) => void;
+  setSettingsBodyView: (view: SettingsBodyView | null) => void;
+  setSettingsPreferencesView: (view: SettingsPreferencesView | null) => void;
+  setSettingsProgramView: (view: SettingsProgramView | null) => void;
+  setSettingsScheduleView: (view: SettingsScheduleView | null) => void;
 };
 
 function detectInitialActivePage(): AppPage {
@@ -105,6 +117,24 @@ function registerRuntimeBridge(): RuntimeBridge {
     setDashboardView: (view) => {
       useRuntimeStore.getState().setDashboardView(view);
     },
+    setNutritionView: (view) => {
+      useRuntimeStore.getState().setNutritionView(view);
+    },
+    setSettingsAccountView: (view) => {
+      useRuntimeStore.getState().setSettingsAccountView(view);
+    },
+    setSettingsBodyView: (view) => {
+      useRuntimeStore.getState().setSettingsBodyView(view);
+    },
+    setSettingsPreferencesView: (view) => {
+      useRuntimeStore.getState().setSettingsPreferencesView(view);
+    },
+    setSettingsProgramView: (view) => {
+      useRuntimeStore.getState().setSettingsProgramView(view);
+    },
+    setSettingsScheduleView: (view) => {
+      useRuntimeStore.getState().setSettingsScheduleView(view);
+    },
   };
 
   (window as Window & { __IRONFORGE_RUNTIME_BRIDGE__?: RuntimeBridge }).__IRONFORGE_RUNTIME_BRIDGE__ =
@@ -118,6 +148,8 @@ export function syncRuntimeStoreFromLegacy() {
     syncWorkoutSessionBridge?: () => void;
     syncHistoryBridge?: () => void;
     syncDashboardBridge?: () => void;
+    syncSettingsBridge?: () => void;
+    syncNutritionBridge?: () => void;
   };
   if (typeof runtimeWindow.syncWorkoutSessionBridge === 'function') {
     runtimeWindow.syncWorkoutSessionBridge();
@@ -127,6 +159,12 @@ export function syncRuntimeStoreFromLegacy() {
   }
   if (typeof runtimeWindow.syncDashboardBridge === 'function') {
     runtimeWindow.syncDashboardBridge();
+  }
+  if (typeof runtimeWindow.syncSettingsBridge === 'function') {
+    runtimeWindow.syncSettingsBridge();
+  }
+  if (typeof runtimeWindow.syncNutritionBridge === 'function') {
+    runtimeWindow.syncNutritionBridge();
   }
 }
 
@@ -141,6 +179,8 @@ export function startLegacyRuntimeBridge() {
         syncWorkoutSessionBridge?: () => void;
         syncHistoryBridge?: () => void;
         syncDashboardBridge?: () => void;
+        syncSettingsBridge?: () => void;
+        syncNutritionBridge?: () => void;
       };
       if (typeof runtimeWindow.syncWorkoutSessionBridge === 'function') {
         runtimeWindow.syncWorkoutSessionBridge();
@@ -150,6 +190,12 @@ export function startLegacyRuntimeBridge() {
       }
       if (typeof runtimeWindow.syncDashboardBridge === 'function') {
         runtimeWindow.syncDashboardBridge();
+      }
+      if (typeof runtimeWindow.syncSettingsBridge === 'function') {
+        runtimeWindow.syncSettingsBridge();
+      }
+      if (typeof runtimeWindow.syncNutritionBridge === 'function') {
+        runtimeWindow.syncNutritionBridge();
       }
     });
   };

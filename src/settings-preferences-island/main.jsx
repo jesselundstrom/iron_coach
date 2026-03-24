@@ -1,16 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const SETTINGS_PREFERENCES_EVENT =
-  window.__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_EVENT__ ||
-  'ironforge:settings-preferences-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 function getSnapshot() {
-  if (typeof window.getSettingsPreferencesReactSnapshot === 'function') {
-    return window.getSettingsPreferencesReactSnapshot();
-  }
-
   return {
     labels: {
       statusBar: '',
@@ -87,10 +78,9 @@ function getFormValues(snapshot) {
 }
 
 function SettingsPreferencesIsland() {
-  const snapshot = useIslandSnapshot(
-    [SETTINGS_PREFERENCES_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.pages.settingsPreferencesView) ||
+    getSnapshot();
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
 
   useEffect(() => {

@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../core/i18n.js';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const NUTRITION_EVENT =
-  window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ || 'ironforge:nutrition-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 const initialSnapshot = {
   values: {
@@ -26,9 +22,6 @@ const initialSnapshot = {
 };
 
 function getSnapshot() {
-  if (typeof window.getNutritionReactSnapshot === 'function') {
-    return window.getNutritionReactSnapshot() || initialSnapshot;
-  }
   return initialSnapshot;
 }
 
@@ -947,10 +940,8 @@ function Composer({ snapshot }) {
 }
 
 function NutritionIsland() {
-  const snapshot = useIslandSnapshot(
-    [NUTRITION_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.pages.nutritionView) || getSnapshot();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {

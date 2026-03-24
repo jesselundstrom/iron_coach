@@ -1,16 +1,7 @@
 import React from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const SETTINGS_PROGRAM_EVENT =
-  window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_EVENT__ ||
-  'ironforge:settings-program-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 function getSnapshot() {
-  if (typeof window.getSettingsProgramReactSnapshot === 'function') {
-    return window.getSettingsProgramReactSnapshot();
-  }
-
   return {
     labels: {
       statusBar: '',
@@ -158,10 +149,8 @@ function ProgramSwitcher({ switcher }) {
 
 function SettingsProgramIsland() {
   const [difficultyFilter, setDifficultyFilter] = React.useState('all');
-  const snapshot = useIslandSnapshot(
-    [SETTINGS_PROGRAM_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.pages.settingsProgramView) || getSnapshot();
   const cards = snapshot.values.switcher.cards || [];
   const difficultyOptions = [
     {

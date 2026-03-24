@@ -1,16 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const SETTINGS_BODY_EVENT =
-  window.__IRONFORGE_SETTINGS_BODY_ISLAND_EVENT__ ||
-  'ironforge:settings-body-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 function getSnapshot() {
-  if (typeof window.getSettingsBodyReactSnapshot === 'function') {
-    return window.getSettingsBodyReactSnapshot();
-  }
-
   return {
     labels: {
       metricsTitle: 'Body Metrics',
@@ -64,10 +55,8 @@ function getFormValues(snapshot) {
 }
 
 function SettingsBodyIsland() {
-  const snapshot = useIslandSnapshot(
-    [SETTINGS_BODY_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.pages.settingsBodyView) || getSnapshot();
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
 
   useEffect(() => {

@@ -13,6 +13,8 @@ Phase 2 has now started with the first ownership-transfer cutover landed:
 - The log start and active workout React screens now read store-backed workout view state instead of consuming `getLogStartReactSnapshot()` / `getLogActiveReactSnapshot()` directly from React.
 - The History React screen now reads store-backed history view state instead of consuming `getHistoryReactSnapshot()` directly from React.
 - The Dashboard React screen now reads store-backed dashboard view state instead of consuming `getDashboardReactSnapshot()` directly from React.
+- The Settings React screens now read store-backed settings view state instead of consuming `getSettings*ReactSnapshot()` directly from React.
+- The Nutrition React screen now reads store-backed nutrition view state instead of consuming `getNutritionReactSnapshot()` directly from React.
 - Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
 - RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 
@@ -23,7 +25,9 @@ What is still not done:
 - The dashboard domain still computes the Dashboard page view model inside `core/dashboard-layer.js` before pushing it into the store; it is not yet a dedicated imported dashboard service.
 - Exercise catalog and guide flows still depend on imperative DOM rendering and global callbacks.
 - The rest-timer bar outside the active-workout subtree is still legacy DOM-driven.
-- Settings and Nutrition still render through separate island bridges instead of direct routed page components.
+- Settings tab switching is still owned by legacy DOM toggling in `app.js`.
+- Nutrition init/render lifecycle still lives in `core/nutrition-layer.js`, even though the React screen now reads store-backed state.
+- Snapshot getter exports, island mount flags, and bridge events still exist as compatibility surfaces and have not been deleted yet.
 
 ## Files That Matter Most Right Now
 
@@ -41,20 +45,16 @@ What is still not done:
 
 Most relevant local checks that passed:
 
-- `npm.cmd run test -- tests/log-active-island.spec.ts --workers=1`
-- `npm.cmd run test -- tests/workout-draft.spec.ts --workers=1`
-- `npm.cmd run test -- tests/log-active-island.spec.ts tests/workout-draft.spec.ts tests/workout-overlays.spec.ts tests/session-feedback.spec.ts --workers=1`
+- `npm.cmd run typecheck`
+- `npm.cmd run test -- tests/settings-navigation.spec.ts tests/settings-account-island.spec.ts tests/settings-body-island.spec.ts tests/settings-preferences-island.spec.ts tests/settings-program-island.spec.ts tests/settings-schedule-island.spec.ts --workers=1`
+- `npm.cmd run test -- tests/nutrition-island.spec.ts --workers=1`
 - `npm.cmd run build`
-
-Known non-blocking repo issue:
-
-- `npm.cmd run typecheck` still fails on pre-existing issues in `tests/settings-account-island.spec.ts`.
 
 ## Recommended Next Step
 
-Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then apply the same store-backed pattern to Settings.
+Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then remove the remaining compatibility bridge surfaces in shell/settings/nutrition.
 
-The goal is to keep the current workout logic intact where useful, but move the log route away from snapshot getters and window state.
+The goal is to keep the current workout logic intact where useful, but remove the remaining mount-flag/event/getter scaffolding now that every visible page reads store-backed state.
 
 ## Phase 2 Plan: Workout Session Service / Store
 
@@ -142,23 +142,14 @@ These already render through React, so the next step is to stop sourcing them fr
 - Rebuild exercise catalog and remaining workout modal/control flows so they no longer depend on imperative DOM rendering.
 - Remove raw HTML generation for workout-specific overlays.
 
-### Phase 4. Collapse page islands into direct routed React pages
-
-- Dashboard
-- History
-- Nutrition
-- Settings
-
-Each should move from snapshot/event bridges to direct store/service reads.
-
-### Phase 5. Replace shell/global bridges
+### Phase 4. Replace shell/global bridges
 
 - `window.showPage`
 - `window.showToast`
 - `window.showConfirm`
 - other shell-level global accessors
 
-### Phase 6. Final cleanup
+### Phase 5. Final cleanup
 
 - remove island mount flags
 - remove bridge events

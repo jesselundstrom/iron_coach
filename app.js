@@ -861,6 +861,10 @@ function isSettingsAccountIslandActive() {
   return window.__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsAccountIsland() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setSettingsAccountView === 'function') {
+    bridge.setSettingsAccountView(getSettingsAccountReactSnapshot());
+  }
   if (!hasSettingsAccountIslandMount()) return;
   window.dispatchEvent(new CustomEvent(SETTINGS_ACCOUNT_ISLAND_EVENT));
 }
@@ -970,6 +974,10 @@ function isSettingsScheduleIslandActive() {
   return window.__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsScheduleIsland() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setSettingsScheduleView === 'function') {
+    bridge.setSettingsScheduleView(getSettingsScheduleReactSnapshot());
+  }
   if (!hasSettingsScheduleIslandMount()) return;
   window.dispatchEvent(new CustomEvent(SETTINGS_SCHEDULE_ISLAND_EVENT));
 }
@@ -1051,6 +1059,10 @@ function isSettingsProgramIslandActive() {
   return window.__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsProgramIsland() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setSettingsProgramView === 'function') {
+    bridge.setSettingsProgramView(getSettingsProgramReactSnapshot());
+  }
   if (!hasSettingsProgramIslandMount()) return;
   window.dispatchEvent(new CustomEvent(SETTINGS_PROGRAM_ISLAND_EVENT));
 }
@@ -1270,6 +1282,10 @@ function isSettingsPreferencesIslandActive() {
   return window.__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsPreferencesIsland() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setSettingsPreferencesView === 'function') {
+    bridge.setSettingsPreferencesView(getSettingsPreferencesReactSnapshot());
+  }
   if (!hasSettingsPreferencesIslandMount()) return;
   window.dispatchEvent(new CustomEvent(SETTINGS_PREFERENCES_ISLAND_EVENT));
 }
@@ -1432,6 +1448,10 @@ function isSettingsBodyIslandActive() {
   return window.__IRONFORGE_SETTINGS_BODY_ISLAND_MOUNTED__ === true;
 }
 function notifySettingsBodyIsland() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setSettingsBodyView === 'function') {
+    bridge.setSettingsBodyView(getSettingsBodyReactSnapshot());
+  }
   if (!hasSettingsBodyIslandMount()) return;
   window.dispatchEvent(new CustomEvent(SETTINGS_BODY_ISLAND_EVENT));
 }
@@ -1486,6 +1506,25 @@ function getSettingsBodyReactSnapshot() {
 }
 window.__IRONFORGE_SETTINGS_BODY_ISLAND_EVENT__ = SETTINGS_BODY_ISLAND_EVENT;
 window.getSettingsBodyReactSnapshot = getSettingsBodyReactSnapshot;
+window.syncSettingsBridge = function syncSettingsBridge() {
+  const bridge = getRuntimeBridge();
+  if (!bridge) return;
+  if (typeof bridge.setSettingsAccountView === 'function') {
+    bridge.setSettingsAccountView(getSettingsAccountReactSnapshot());
+  }
+  if (typeof bridge.setSettingsScheduleView === 'function') {
+    bridge.setSettingsScheduleView(getSettingsScheduleReactSnapshot());
+  }
+  if (typeof bridge.setSettingsProgramView === 'function') {
+    bridge.setSettingsProgramView(getSettingsProgramReactSnapshot());
+  }
+  if (typeof bridge.setSettingsPreferencesView === 'function') {
+    bridge.setSettingsPreferencesView(getSettingsPreferencesReactSnapshot());
+  }
+  if (typeof bridge.setSettingsBodyView === 'function') {
+    bridge.setSettingsBodyView(getSettingsBodyReactSnapshot());
+  }
+};
 function openProgramSetupSheet() {
   const prog = getActiveProgram(),
     state = getActiveProgramState();

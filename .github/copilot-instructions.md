@@ -33,6 +33,8 @@
 - The Log route no longer reads `getLogStartReactSnapshot()` / `getLogActiveReactSnapshot()` from React components. Legacy workout code now pushes log start/active view models into the shared workout-session store surface, while workout logic and persistence still remain legacy-backed.
 - The History route no longer reads `getHistoryReactSnapshot()` from React components. Legacy history code now pushes a store-backed History view model into the shared runtime store, while history grouping/stats logic still remain legacy-backed.
 - The Dashboard route no longer reads `getDashboardReactSnapshot()` from React components. Legacy dashboard code now pushes a store-backed Dashboard view model into the shared runtime store, while readiness/fatigue/dashboard composition logic still remain legacy-backed.
+- The Settings route no longer reads `getSettings*ReactSnapshot()` from React components. Legacy settings code now pushes store-backed Settings tab view models into the shared runtime store, while tab switching, persistence, and advanced setup flows remain legacy-backed.
+- The Nutrition route no longer reads `getNutritionReactSnapshot()` from React components. Legacy nutrition code now pushes a store-backed Nutrition view model into the shared runtime store, while init/render lifecycle, day history, and request handling remain legacy-backed.
 - Use `docs/migration-inventory.md` as the living checklist for hybrid bridge removal during the React cutover.
 - Reuse existing state objects, helpers, and DOM patterns before creating new ones.
 - Keep changes small and compatible with the current file organization.

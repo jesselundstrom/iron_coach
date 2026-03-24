@@ -1,16 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const SETTINGS_SCHEDULE_EVENT =
-  window.__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_EVENT__ ||
-  'ironforge:settings-schedule-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 function getSnapshot() {
-  if (typeof window.getSettingsScheduleReactSnapshot === 'function') {
-    return window.getSettingsScheduleReactSnapshot();
-  }
-
   return {
     labels: {
       statusBar: '',
@@ -52,10 +43,8 @@ function getFormValues(snapshot) {
 }
 
 function SettingsScheduleIsland() {
-  const snapshot = useIslandSnapshot(
-    [SETTINGS_SCHEDULE_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.pages.settingsScheduleView) || getSnapshot();
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
   const sportNameSaveTimerRef = useRef(null);
   const latestSportNameRef = useRef(formValues.sportName);

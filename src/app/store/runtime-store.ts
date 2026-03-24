@@ -6,7 +6,13 @@ import type {
   HistoryView,
   LogActiveView,
   LogStartView,
+  NutritionView,
   SessionSnapshot,
+  SettingsAccountView,
+  SettingsBodyView,
+  SettingsPreferencesView,
+  SettingsProgramView,
+  SettingsScheduleView,
   ToastSnapshot,
 } from '../constants';
 
@@ -27,6 +33,12 @@ type RuntimeStore = {
   pages: {
     dashboardView: DashboardView | null;
     historyView: HistoryView | null;
+    nutritionView: NutritionView | null;
+    settingsAccountView: SettingsAccountView | null;
+    settingsBodyView: SettingsBodyView | null;
+    settingsPreferencesView: SettingsPreferencesView | null;
+    settingsProgramView: SettingsProgramView | null;
+    settingsScheduleView: SettingsScheduleView | null;
   };
   navigateToPage: (page: AppPage) => void;
   openConfirm: (confirm: ConfirmSnapshot) => void;
@@ -38,6 +50,12 @@ type RuntimeStore = {
   setLogActiveView: (view: LogActiveView | null) => void;
   setHistoryView: (view: HistoryView | null) => void;
   setDashboardView: (view: DashboardView | null) => void;
+  setNutritionView: (view: NutritionView | null) => void;
+  setSettingsAccountView: (view: SettingsAccountView | null) => void;
+  setSettingsBodyView: (view: SettingsBodyView | null) => void;
+  setSettingsPreferencesView: (view: SettingsPreferencesView | null) => void;
+  setSettingsProgramView: (view: SettingsProgramView | null) => void;
+  setSettingsScheduleView: (view: SettingsScheduleView | null) => void;
   bumpLanguageVersion: () => void;
 };
 
@@ -93,6 +111,12 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
   pages: {
     dashboardView: null,
     historyView: null,
+    nutritionView: null,
+    settingsAccountView: null,
+    settingsBodyView: null,
+    settingsPreferencesView: null,
+    settingsProgramView: null,
+    settingsScheduleView: null,
   },
   navigateToPage: (page) =>
     set((state) => ({
@@ -174,6 +198,48 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
       pages: {
         ...state.pages,
         dashboardView,
+      },
+    })),
+  setNutritionView: (nutritionView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        nutritionView,
+      },
+    })),
+  setSettingsAccountView: (settingsAccountView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        settingsAccountView,
+      },
+    })),
+  setSettingsBodyView: (settingsBodyView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        settingsBodyView,
+      },
+    })),
+  setSettingsPreferencesView: (settingsPreferencesView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        settingsPreferencesView,
+      },
+    })),
+  setSettingsProgramView: (settingsProgramView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        settingsProgramView,
+      },
+    })),
+  setSettingsScheduleView: (settingsScheduleView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        settingsScheduleView,
       },
     })),
   bumpLanguageVersion: () =>

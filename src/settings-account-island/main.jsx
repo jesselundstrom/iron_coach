@@ -1,16 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const SETTINGS_ACCOUNT_EVENT =
-  window.__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_EVENT__ ||
-  'ironforge:settings-account-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 function getSnapshot() {
-  if (typeof window.getSettingsAccountReactSnapshot === 'function') {
-    return window.getSettingsAccountReactSnapshot();
-  }
-
   return {
     labels: {
       accountSection: 'Account',
@@ -56,10 +47,8 @@ function getFormValues(snapshot) {
 }
 
 function SettingsAccountIsland() {
-  const snapshot = useIslandSnapshot(
-    [SETTINGS_ACCOUNT_EVENT, LANGUAGE_EVENT],
-    getSnapshot
-  );
+  const snapshot =
+    useRuntimeStore((state) => state.pages.settingsAccountView) || getSnapshot();
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
   const importRef = useRef(null);
 

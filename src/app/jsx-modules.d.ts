@@ -39,11 +39,19 @@ declare global {
       setLogActiveView?: (view: Record<string, unknown> | null) => void;
       setHistoryView?: (view: Record<string, unknown> | null) => void;
       setDashboardView?: (view: Record<string, unknown> | null) => void;
+      setNutritionView?: (view: Record<string, unknown> | null) => void;
+      setSettingsAccountView?: (view: Record<string, unknown> | null) => void;
+      setSettingsBodyView?: (view: Record<string, unknown> | null) => void;
+      setSettingsPreferencesView?: (view: Record<string, unknown> | null) => void;
+      setSettingsProgramView?: (view: Record<string, unknown> | null) => void;
+      setSettingsScheduleView?: (view: Record<string, unknown> | null) => void;
     };
     syncRuntimeStoreFromLegacy?: () => void;
     syncWorkoutSessionBridge?: () => void;
     syncHistoryBridge?: () => void;
     syncDashboardBridge?: () => void;
+    syncSettingsBridge?: () => void;
+    syncNutritionBridge?: () => void;
     loadData?: (options?: {
       allowCloudSync?: boolean;
       userId?: string;

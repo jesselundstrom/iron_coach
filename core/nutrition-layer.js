@@ -22,6 +22,10 @@
   const NUTRITION_MAX_TRAINING_CONTEXT_CHARS = 6000;
   const NUTRITION_MAX_TODAY_SUMMARY_CHARS = 400;
 
+  function getRuntimeBridge() {
+    return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
+  }
+
   function _nowMs() {
     return typeof performance !== 'undefined' && performance.now
       ? performance.now()
@@ -212,8 +216,12 @@
   }
 
   function notifyNutritionIsland() {
-    if (!hasNutritionIslandMount()) return;
     _snapshotVersion++;
+    var bridge = getRuntimeBridge();
+    if (bridge && typeof bridge.setNutritionView === 'function') {
+      bridge.setNutritionView(getNutritionReactSnapshot());
+    }
+    if (!hasNutritionIslandMount()) return;
     window.dispatchEvent(new CustomEvent(NUTRITION_ISLAND_EVENT));
   }
 
@@ -293,6 +301,12 @@
   window.__IRONFORGE_NUTRITION_ISLAND_EVENT__ = NUTRITION_ISLAND_EVENT;
   window.getNutritionReactSnapshot = getNutritionReactSnapshot;
   window.notifyNutritionIsland = notifyNutritionIsland;
+  window.syncNutritionBridge = function syncNutritionBridge() {
+    var bridge = getRuntimeBridge();
+    if (bridge && typeof bridge.setNutritionView === 'function') {
+      bridge.setNutritionView(getNutritionReactSnapshot());
+    }
+  };
   window.setSelectedNutritionAction = setSelectedNutritionAction;
   window.getDashboardNutritionSnapshot = getDashboardNutritionSnapshot;
 
