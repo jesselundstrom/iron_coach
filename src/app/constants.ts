@@ -16,9 +16,29 @@ export type ConfirmSnapshot = {
   cancelLabel: string;
 };
 
-export type LegacyIslandSnapshot = {
+export type ToastSnapshot = {
+  visible: boolean;
+  message: string;
+  variant: string;
+  background: string;
+  undoLabel: string;
+  durationMs: number;
+  token: number;
+  undoAction: (() => void) | null;
+};
+
+export type LogStartView = {
   labels: Record<string, unknown>;
   values: Record<string, unknown>;
+};
+
+export type LogActiveView = {
+  labels: Record<string, unknown>;
+  values: Record<string, unknown>;
+};
+
+export type HistoryView = {
+  [key: string]: unknown;
 };
 
 export type RpePromptSnapshot = {

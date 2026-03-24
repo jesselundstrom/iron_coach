@@ -18,7 +18,7 @@ function LegacyRuntimeBridge() {
 function RouteInitializer() {
   const location = useLocation();
   const navigate = useNavigate();
-  const activePage = useRuntimeStore((state) => state.ui.activePage);
+  const activePage = useRuntimeStore((state) => state.navigation.activePage);
 
   useEffect(() => {
     const routePage = getPageFromHash(`#${location.pathname}`);

@@ -30,6 +30,16 @@
 
 const LOG_START_ISLAND_EVENT = 'ironforge:log-start-updated';
 
+function getRuntimeBridge() {
+  return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
+}
+
+function pushLogStartView() {
+  const bridge = getRuntimeBridge();
+  if (!bridge || typeof bridge.setLogStartView !== 'function') return;
+  bridge.setLogStartView(getLogStartReactSnapshot());
+}
+
 function hasLogStartIslandMount() {
   return !!document.getElementById('log-start-react-root');
 }
@@ -39,6 +49,7 @@ function isLogStartIslandActive() {
 }
 
 function notifyLogStartIsland() {
+  pushLogStartView();
   if (!hasLogStartIslandMount()) return;
   window.dispatchEvent(new CustomEvent(LOG_START_ISLAND_EVENT));
 }
@@ -489,6 +500,12 @@ let pendingLogActiveUiSignals = {
   collapseSignal: null,
 };
 
+function pushLogActiveView() {
+  const bridge = getRuntimeBridge();
+  if (!bridge || typeof bridge.setLogActiveView !== 'function') return;
+  bridge.setLogActiveView(getLogActiveReactSnapshot());
+}
+
 function hasLogActiveIslandMount() {
   return !!document.getElementById('log-active-react-root');
 }
@@ -498,6 +515,7 @@ function isLogActiveIslandActive() {
 }
 
 function notifyLogActiveIsland() {
+  pushLogActiveView();
   if (!hasLogActiveIslandMount()) return;
   window.dispatchEvent(new CustomEvent(LOG_ACTIVE_ISLAND_EVENT));
 }
@@ -528,6 +546,7 @@ function clearLogActiveFocusTarget(token) {
       ...pendingLogActiveUiSignals,
       focusTarget: null,
     };
+    pushLogActiveView();
   }
 }
 
@@ -553,6 +572,7 @@ function clearLogActiveSetSignal(token) {
       ...pendingLogActiveUiSignals,
       setSignal: null,
     };
+    pushLogActiveView();
   }
 }
 
@@ -576,6 +596,7 @@ function clearLogActiveCollapseSignal(token) {
       ...pendingLogActiveUiSignals,
       collapseSignal: null,
     };
+    pushLogActiveView();
   }
 }
 
@@ -1099,19 +1120,20 @@ function getSelectedBonusDuration() {
 function setSelectedBonusDuration(value) {
   pendingBonusDuration = String(value || 'standard');
   syncWorkoutStartSelectionInputs();
+  if (!activeWorkout) pushLogStartView();
   if (isLogStartIslandActive() && !activeWorkout) notifyLogStartIsland();
 }
 
 function notifySportCheckOverlayShell() {
-  const eventName =
-    window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
-  window.dispatchEvent(new CustomEvent(eventName));
+  if (typeof window.syncWorkoutSessionBridge === 'function') {
+    window.syncWorkoutSessionBridge();
+  }
 }
 
 function notifySummaryOverlayShell() {
-  const eventName =
-    window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
-  window.dispatchEvent(new CustomEvent(eventName));
+  if (typeof window.syncWorkoutSessionBridge === 'function') {
+    window.syncWorkoutSessionBridge();
+  }
 }
 
 function getSportCheckPromptSnapshot() {
@@ -1149,6 +1171,19 @@ window.getSelectedBonusDuration = getSelectedBonusDuration;
 window.setSelectedBonusDuration = setSelectedBonusDuration;
 window.getSportCheckPromptSnapshot = getSportCheckPromptSnapshot;
 window.getSessionSummaryPromptSnapshot = getSessionSummaryPromptSnapshot;
+
+const baseWorkoutSessionBridgeSync =
+  typeof window.syncWorkoutSessionBridge === 'function'
+    ? window.syncWorkoutSessionBridge
+    : null;
+
+window.syncWorkoutSessionBridge = function syncWorkoutSessionBridge() {
+  if (typeof baseWorkoutSessionBridgeSync === 'function') {
+    baseWorkoutSessionBridgeSync();
+  }
+  pushLogStartView();
+  pushLogActiveView();
+};
 
 let workoutStartSnapshotCache = null;
 let collapsedExerciseCardState = {};

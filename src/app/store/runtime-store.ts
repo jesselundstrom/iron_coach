@@ -2,26 +2,39 @@ import { create } from 'zustand';
 import type {
   AppPage,
   ConfirmSnapshot,
-  LegacyIslandSnapshot,
+  HistoryView,
+  LogActiveView,
+  LogStartView,
   SessionSnapshot,
+  ToastSnapshot,
 } from '../constants';
 
 type RuntimeStore = {
-  ui: {
+  navigation: {
     activePage: AppPage;
+  };
+  ui: {
     confirm: ConfirmSnapshot;
+    toast: ToastSnapshot;
     languageVersion: number;
   };
-  session: SessionSnapshot;
-  log: {
-    startSnapshot: LegacyIslandSnapshot | null;
-    activeSnapshot: LegacyIslandSnapshot | null;
+  workoutSession: {
+    session: SessionSnapshot;
+    logStartView: LogStartView | null;
+    logActiveView: LogActiveView | null;
   };
-  setActivePage: (page: AppPage) => void;
-  setConfirmSnapshot: (confirm: ConfirmSnapshot) => void;
-  syncSessionSnapshot: (session: SessionSnapshot) => void;
-  setLogStartSnapshot: (snapshot: LegacyIslandSnapshot | null) => void;
-  setLogActiveSnapshot: (snapshot: LegacyIslandSnapshot | null) => void;
+  pages: {
+    historyView: HistoryView | null;
+  };
+  navigateToPage: (page: AppPage) => void;
+  openConfirm: (confirm: ConfirmSnapshot) => void;
+  closeConfirm: () => void;
+  showToast: (toast: Partial<ToastSnapshot> & { message: string }) => void;
+  hideToast: () => void;
+  syncWorkoutSession: (session: SessionSnapshot) => void;
+  setLogStartView: (view: LogStartView | null) => void;
+  setLogActiveView: (view: LogActiveView | null) => void;
+  setHistoryView: (view: HistoryView | null) => void;
   bumpLanguageVersion: () => void;
 };
 
@@ -49,44 +62,107 @@ const defaultSession: SessionSnapshot = {
   sportCheckPrompt: null,
 };
 
+const defaultToast: ToastSnapshot = {
+  visible: false,
+  message: '',
+  variant: '',
+  background: '',
+  undoLabel: 'Undo',
+  durationMs: 2800,
+  token: 0,
+  undoAction: null,
+};
+
 export const useRuntimeStore = create<RuntimeStore>((set) => ({
-  ui: {
+  navigation: {
     activePage: 'dashboard',
+  },
+  ui: {
     confirm: defaultConfirm,
+    toast: defaultToast,
     languageVersion: 0,
   },
-  session: defaultSession,
-  log: {
-    startSnapshot: null,
-    activeSnapshot: null,
+  workoutSession: {
+    session: defaultSession,
+    logStartView: null,
+    logActiveView: null,
   },
-  setActivePage: (page) =>
+  pages: {
+    historyView: null,
+  },
+  navigateToPage: (page) =>
     set((state) => ({
-      ui: {
-        ...state.ui,
+      navigation: {
+        ...state.navigation,
         activePage: page,
       },
     })),
-  setConfirmSnapshot: (confirm) =>
+  openConfirm: (confirm) =>
     set((state) => ({
       ui: {
         ...state.ui,
         confirm,
       },
     })),
-  syncSessionSnapshot: (session) => set(() => ({ session })),
-  setLogStartSnapshot: (startSnapshot) =>
+  closeConfirm: () =>
     set((state) => ({
-      log: {
-        ...state.log,
-        startSnapshot,
+      ui: {
+        ...state.ui,
+        confirm: {
+          ...state.ui.confirm,
+          open: false,
+        },
       },
     })),
-  setLogActiveSnapshot: (activeSnapshot) =>
+  showToast: (toast) =>
     set((state) => ({
-      log: {
-        ...state.log,
-        activeSnapshot,
+      ui: {
+        ...state.ui,
+        toast: {
+          ...defaultToast,
+          ...toast,
+          visible: true,
+          token: state.ui.toast.token + 1,
+        },
+      },
+    })),
+  hideToast: () =>
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        toast: {
+          ...state.ui.toast,
+          visible: false,
+          undoAction: null,
+        },
+      },
+    })),
+  syncWorkoutSession: (session) =>
+    set((state) => ({
+      workoutSession: {
+        ...state.workoutSession,
+        session,
+      },
+    })),
+  setLogStartView: (logStartView) =>
+    set((state) => ({
+      workoutSession: {
+        ...state.workoutSession,
+        logStartView,
+      },
+    })),
+  setLogActiveView: (logActiveView) =>
+    set((state) => ({
+      workoutSession: {
+        ...state.workoutSession,
+        logActiveView,
+      },
+    })),
+  setHistoryView: (historyView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        historyView,
       },
     })),
   bumpLanguageVersion: () =>

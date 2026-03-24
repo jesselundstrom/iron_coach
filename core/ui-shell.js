@@ -8,6 +8,10 @@ const APP_SHELL_PAGES = ['dashboard', 'log', 'history', 'settings', 'nutrition']
 let activePageName = detectInitialActivePage();
 let confirmState = createDefaultConfirmState();
 
+function getRuntimeBridge() {
+  return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
+}
+
 function createDefaultConfirmState() {
   return {
     open: false,
@@ -96,10 +100,10 @@ function showPage(name, btn) {
   const previousPage = activePageName;
   activePageName = nextPage;
   syncHashToPage(nextPage);
-  notifyAppShell();
   const resolvedButton = syncLegacyShellDom(nextPage, btn);
-  if (typeof window.syncRuntimeStoreFromLegacy === 'function') {
-    window.syncRuntimeStoreFromLegacy();
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.navigateToPage === 'function') {
+    bridge.navigateToPage(nextPage);
   }
   if (isAppShellActive()) {
     if (previousPage === nextPage) runPageActivationSideEffects(nextPage);
@@ -126,6 +130,19 @@ function getToastVariant(color) {
 }
 
 function showToast(msg, color, undoFn) {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.showToast === 'function') {
+    bridge.showToast({
+      message: msg || '',
+      color: color || '',
+      variant: getToastVariant(color),
+      undoLabel: tr('common.undo', 'Undo'),
+      undoAction: typeof undoFn === 'function' ? undoFn : null,
+      durationMs: typeof undoFn === 'function' ? 5000 : 2800,
+    });
+    return;
+  }
+
   const toast = document.getElementById('toast');
   if (!toast) return;
 
@@ -169,8 +186,13 @@ function showConfirm(title, msg, cb) {
     message: msg || 'Are you sure?',
   };
   confirmCallback = cb;
-  if (isAppShellActive()) {
-    notifyAppShell();
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.openConfirm === 'function') {
+    bridge.openConfirm({
+      ...confirmState,
+      confirmLabel: tr('modal.confirm.ok', 'Confirm'),
+      cancelLabel: tr('modal.confirm.cancel', 'Cancel'),
+    });
     return;
   }
   document.getElementById('confirm-title').textContent = confirmState.title;
@@ -186,7 +208,10 @@ function hideConfirmModal() {
     ...confirmState,
     open: false,
   };
-  if (isAppShellActive()) notifyAppShell();
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.closeConfirm === 'function') {
+    bridge.closeConfirm();
+  }
   const modal = document.getElementById('confirm-modal');
   if (!isAppShellActive() && modal) {
     modal.classList.remove('active');

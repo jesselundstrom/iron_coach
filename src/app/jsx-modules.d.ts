@@ -15,7 +15,33 @@ declare module './OnboardingFlow.jsx' {
 declare global {
   interface Window {
     __IRONFORGE_APP_SHELL_READY__?: boolean;
+    __IRONFORGE_RUNTIME_BRIDGE__?: {
+      navigateToPage?: (page: string) => void;
+      openConfirm?: (confirm: {
+        open?: boolean;
+        title?: string;
+        message?: string;
+        confirmLabel?: string;
+        cancelLabel?: string;
+      }) => void;
+      closeConfirm?: () => void;
+      showToast?: (toast: {
+        message: string;
+        color?: string;
+        variant?: string;
+        undoLabel?: string;
+        undoAction?: (() => void) | null;
+        durationMs?: number;
+      }) => void;
+      hideToast?: () => void;
+      setWorkoutSessionState?: (partial: Record<string, unknown>) => void;
+      setLogStartView?: (view: Record<string, unknown> | null) => void;
+      setLogActiveView?: (view: Record<string, unknown> | null) => void;
+      setHistoryView?: (view: Record<string, unknown> | null) => void;
+    };
     syncRuntimeStoreFromLegacy?: () => void;
+    syncWorkoutSessionBridge?: () => void;
+    syncHistoryBridge?: () => void;
     loadData?: (options?: {
       allowCloudSync?: boolean;
       userId?: string;

@@ -73,10 +73,48 @@ function getIronforgeState() {
 }
 window.getIronforgeState = getIronforgeState;
 
+function getRuntimeBridge() {
+  return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
+}
+
+function syncWorkoutSessionBridge() {
+  const bridge = getRuntimeBridge();
+  if (!bridge || typeof bridge.setWorkoutSessionState !== 'function') return;
+  const restBar = document.getElementById('rest-timer-bar');
+  bridge.setWorkoutSessionState({
+    activeWorkout,
+    restDuration: Number(restDuration || 0),
+    restEndsAt: Number(restEndsAt || 0),
+    restSecondsLeft: Number(restSecondsLeft || 0),
+    restTotal: Number(restTotal || 0),
+    currentUser,
+    restBarActive: restBar?.classList.contains('active') === true,
+    rpeOpen: pendingRPEPromptState?.open === true,
+    rpePrompt:
+      pendingRPEPromptState && typeof pendingRPEPromptState === 'object'
+        ? { ...pendingRPEPromptState }
+        : null,
+    summaryOpen:
+      typeof window.getSessionSummaryPromptSnapshot === 'function' &&
+      window.getSessionSummaryPromptSnapshot()?.open === true,
+    summaryPrompt:
+      typeof window.getSessionSummaryPromptSnapshot === 'function'
+        ? window.getSessionSummaryPromptSnapshot()
+        : null,
+    sportCheckOpen:
+      typeof window.getSportCheckPromptSnapshot === 'function' &&
+      window.getSportCheckPromptSnapshot()?.open === true,
+    sportCheckPrompt:
+      typeof window.getSportCheckPromptSnapshot === 'function'
+        ? window.getSportCheckPromptSnapshot()
+        : null,
+  });
+}
+
+window.syncWorkoutSessionBridge = syncWorkoutSessionBridge;
+
 function notifyRpeOverlayShell() {
-  const eventName =
-    window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
-  window.dispatchEvent(new CustomEvent(eventName));
+  syncWorkoutSessionBridge();
 }
 
 function getWorkoutOverlaySnapshot() {
@@ -625,6 +663,7 @@ function updateRestDuration(nextValue) {
     isLogActiveIslandActive()
   )
     notifyLogActiveIsland();
+  syncWorkoutSessionBridge();
 }
 window.getSelectedRestDuration = getSelectedRestDuration;
 function clearRestInterval() {
@@ -662,6 +701,7 @@ function startRestTimer() {
   if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
     persistActiveWorkoutDraft();
   restInterval = setInterval(syncRestTimer, 250);
+  syncWorkoutSessionBridge();
 }
 function updateRestDisplay() {
   const m = Math.floor(restSecondsLeft / 60),
@@ -674,6 +714,7 @@ function updateRestDisplay() {
   document
     .getElementById('timer-arc')
     .setAttribute('stroke-dashoffset', offset);
+  syncWorkoutSessionBridge();
 }
 function restDone() {
   clearRestInterval();
@@ -687,9 +728,13 @@ function restDone() {
   if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
     persistActiveWorkoutDraft();
   restHideTimeout = setTimeout(
-    () => document.getElementById('rest-timer-bar').classList.remove('active'),
+    () => {
+      document.getElementById('rest-timer-bar').classList.remove('active');
+      syncWorkoutSessionBridge();
+    },
     3000
   );
+  syncWorkoutSessionBridge();
 }
 function skipRest() {
   clearRestInterval();
@@ -699,6 +744,7 @@ function skipRest() {
   document.getElementById('rest-timer-bar').classList.remove('active');
   if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
     persistActiveWorkoutDraft();
+  syncWorkoutSessionBridge();
 }
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) syncRestTimer();

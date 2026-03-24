@@ -40,6 +40,10 @@ const HISTORY_EXACT_LIFT_NAME_MAP = {
   ohp: new Set(['ohp', 'overhead press', 'overhead press (ohp)']),
 };
 
+function getRuntimeBridge() {
+  return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
+}
+
 function hasHistoryIslandMount() {
   return !!document.getElementById('history-react-root');
 }
@@ -49,6 +53,10 @@ function isHistoryIslandActive() {
 }
 
 function notifyHistoryIsland() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setHistoryView === 'function') {
+    bridge.setHistoryView(getHistoryReactSnapshot());
+  }
   if (!hasHistoryIslandMount()) return;
   window.dispatchEvent(new CustomEvent(HISTORY_ISLAND_EVENT));
 }
@@ -1572,3 +1580,9 @@ function getHistoryReactSnapshot() {
 window.__IRONFORGE_HISTORY_ISLAND_EVENT__ = HISTORY_ISLAND_EVENT;
 window.getHistoryReactSnapshot = getHistoryReactSnapshot;
 window.switchHistoryStatsRange = switchHistoryStatsRange;
+window.syncHistoryBridge = function syncHistoryBridge() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setHistoryView === 'function') {
+    bridge.setHistoryView(getHistoryReactSnapshot());
+  }
+};

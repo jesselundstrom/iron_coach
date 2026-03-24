@@ -447,7 +447,8 @@ function BonusSessionCard({ bonus, onSelect, selected, duration, onDurationChang
 
 function LogStartIsland() {
   const snapshot =
-    useRuntimeStore((state) => state.log.startSnapshot) || initialSnapshot;
+    useRuntimeStore((state) => state.workoutSession.logStartView) ||
+    initialSnapshot;
   const bonus = snapshot.values.bonusSession;
   const allDone =
     snapshot.values.options.length > 0 &&

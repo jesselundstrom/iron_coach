@@ -97,10 +97,12 @@ function PageHost({ name, active }) {
 }
 
 export default function AppShell() {
-  const activePage = useRuntimeStore((state) => state.ui.activePage);
+  const activePage = useRuntimeStore((state) => state.navigation.activePage);
   const confirm = useRuntimeStore((state) => state.ui.confirm);
+  const toast = useRuntimeStore((state) => state.ui.toast);
+  const hideToast = useRuntimeStore((state) => state.hideToast);
   const languageVersion = useRuntimeStore((state) => state.ui.languageVersion);
-  const session = useRuntimeStore((state) => state.session);
+  const session = useRuntimeStore((state) => state.workoutSession.session);
   const previousPageRef = useRef(activePage);
 
   const navItems = useMemo(
@@ -171,6 +173,14 @@ export default function AppShell() {
       document.getElementById('confirm-ok')?.focus()
     );
   }, [confirm?.open]);
+
+  useEffect(() => {
+    if (!toast?.visible || !toast?.message) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      hideToast();
+    }, toast.durationMs || 2800);
+    return () => window.clearTimeout(timeoutId);
+  }, [toast?.visible, toast?.token, toast?.durationMs, hideToast]);
 
   useEffect(() => {
     if (!session.summaryOpen || !session.summaryPrompt?.seed) return;
@@ -250,7 +260,42 @@ export default function AppShell() {
         add('settings-schedule-react-root', SettingsScheduleIsland);
         return portals;
       })()}
-      <div className="toast" id="toast" />
+      <div
+        className={`toast${toast?.variant ? ` toast-${toast.variant}` : ''}${
+          toast?.visible ? ' show' : ''
+        }`}
+        id="toast"
+        style={{
+          ...(toast?.background ? { background: toast.background } : {}),
+          pointerEvents: toast?.undoAction ? 'auto' : 'none',
+        }}
+      >
+        <span>{toast?.message || ''}</span>
+        {toast?.undoAction ? (
+          <button
+            id="t-undo"
+            type="button"
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              padding: '2px 10px',
+              marginLeft: 6,
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: 13,
+              border: 'none',
+              color: 'inherit',
+            }}
+            onClick={() => {
+              const undoAction = toast.undoAction;
+              hideToast();
+              undoAction?.();
+            }}
+          >
+            {toast?.undoLabel || 'Undo'}
+          </button>
+        ) : null}
+      </div>
       <div className="modal-overlay" id="name-modal">
         <div className="modal-sheet catalog-sheet">
           <div className="modal-handle" />

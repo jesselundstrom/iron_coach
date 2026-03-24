@@ -1,14 +1,7 @@
 import { useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const HISTORY_EVENT =
-  window.__IRONFORGE_HISTORY_ISLAND_EVENT__ || 'ironforge:history-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 function getSnapshot() {
-  if (typeof window.getHistoryReactSnapshot === 'function') {
-    return window.getHistoryReactSnapshot();
-  }
   return {
     tab: 'log',
     labels: { log: 'Workout Log', stats: 'Stats', sessions: 'sessions', session: 'session', delete: 'Delete', prBadge: 'NEW PR', volume: 'Volume', exercises: 'Exercises', notes: 'Notes', milestoneDate: 'Unlocked {date}' },
@@ -432,7 +425,7 @@ function Milestones({ data, labels }) {
 /* ── Main ──────────────────────────────────────────────────── */
 
 function HistoryIsland() {
-  const snapshot = useIslandSnapshot([HISTORY_EVENT, LANGUAGE_EVENT], getSnapshot);
+  const snapshot = useRuntimeStore((state) => state.pages.historyView) || getSnapshot();
   const isStatsTab = snapshot.tab === 'stats';
   const hasStatsContent =
     snapshot.stats.volume.visible ||

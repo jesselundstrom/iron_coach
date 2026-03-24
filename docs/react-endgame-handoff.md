@@ -6,20 +6,22 @@ Use this file as the starting context for the next conversation.
 
 The React endgame is still the target architecture, but the migration is being done in staged cutovers.
 
-Phase 1 for the workout log is now complete enough to build on:
+Phase 2 has now started with the first ownership-transfer cutover landed:
 
-- The active workout surface is React-rendered and legacy code no longer directly mutates React-owned title, description, timer, set-row, or plan-panel DOM when the active island is mounted.
-- Rest duration no longer depends on hidden inputs inside the React active screen.
-- Log start selection no longer depends on hidden inputs inside the React start screen.
-- RPE, sport-check, and summary prompts render through the React app shell instead of imperative modal HTML/text injection.
-- Add-set focus and Enter-key progression are now handed off through React-visible focus signals instead of legacy `setTimeout(...focus())` against React-owned nodes.
+- The React shell now owns navigation, confirm state, and toast state through the Zustand runtime store instead of polling `window.getActivePageName()` / `window.getConfirmReactSnapshot()` or mirroring DOM-written toast content.
+- `core/ui-shell.js` still exposes `showPage(...)`, `showToast(...)`, and `showConfirm(...)`, but those APIs now write into React-owned store actions when the shared app shell is mounted.
+- The log start and active workout React screens now read store-backed workout view state instead of consuming `getLogStartReactSnapshot()` / `getLogActiveReactSnapshot()` directly from React.
+- The History React screen now reads store-backed history view state instead of consuming `getHistoryReactSnapshot()` directly from React.
+- Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
+- RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 
 What is still not done:
 
-- The log route still depends on legacy snapshot getters (`getLogStartReactSnapshot()` and `getLogActiveReactSnapshot()`).
-- Workout session state still lives in globals and legacy helpers instead of a dedicated session service/store.
+- The workout domain still computes React-facing log view models inside legacy helpers before pushing them into the store; it is not yet a dedicated imported session service.
+- The history domain still computes the History page view model inside `core/history-layer.js` before pushing it into the store; it is not yet a dedicated imported history service.
 - Exercise catalog and guide flows still depend on imperative DOM rendering and global callbacks.
 - The rest-timer bar outside the active-workout subtree is still legacy DOM-driven.
+- Dashboard, Settings, and Nutrition still render through separate island bridges instead of direct routed page components.
 
 ## Files That Matter Most Right Now
 
@@ -48,7 +50,7 @@ Known non-blocking repo issue:
 
 ## Recommended Next Step
 
-Start Phase 2: extract workout session ownership away from legacy globals.
+Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then apply the same store-backed pattern to Dashboard.
 
 The goal is to keep the current workout logic intact where useful, but move the log route away from snapshot getters and window state.
 
@@ -81,8 +83,8 @@ Replace log snapshot getters and island mount coordination with direct store-bac
 
 2. Move log start and active workout islands off snapshot getters.
 
-- Replace `getLogStartReactSnapshot()` and `getLogActiveReactSnapshot()` as the React data source.
-- Let the islands read direct store state instead.
+- Keep the current pushed store-backed log view path, but move the view-model building and action wiring into an explicit session service/module instead of `core/workout-layer.js` globals.
+- Delete the remaining React dependence on the exported snapshot getter helpers once no fallback callers need them.
 - Keep a thin compatibility wrapper only where non-React legacy code still needs it temporarily.
 
 3. Move timer/rest ownership into the session service.
@@ -116,7 +118,7 @@ These already render through React, so the next step is to stop sourcing them fr
 
 ### Acceptance Criteria
 
-- The log route renders from direct session selectors/store state, not from `getLogStartReactSnapshot()` / `getLogActiveReactSnapshot()`.
+- The log route continues to render from direct session selectors/store state, and the temporary snapshot getter exports can be removed without changing React behavior.
 - Starting, resuming, editing, finishing, and discarding a workout still work.
 - Draft restore/clear still work across reloads.
 - RPE / sport-check / summary prompts still work.

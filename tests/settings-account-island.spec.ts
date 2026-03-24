@@ -219,19 +219,35 @@ test('settings account import normalizes malformed body metrics before persistin
   await openAppShell(page);
 
   await page.evaluate(() => {
-    window.__importReloadBlocked = false;
-    window.__originalSetTimeoutForImportTest__ = window.setTimeout.bind(window);
-    window.setTimeout = (handler, timeout, ...args) => {
+    const runtimeWindow = window as Window & {
+      __importReloadBlocked?: boolean;
+      __originalSetTimeoutForImportTest__?: typeof window.setTimeout;
+    };
+
+    runtimeWindow.__importReloadBlocked = false;
+    runtimeWindow.__originalSetTimeoutForImportTest__ =
+      window.setTimeout.bind(window);
+    const originalSetTimeout = runtimeWindow.__originalSetTimeoutForImportTest__;
+    const patchedSetTimeout = (
+      handler: TimerHandler,
+      timeout?: number,
+      ...args: unknown[]
+    ): number => {
       if (
         timeout === 1000 &&
         typeof handler === 'function' &&
         String(handler).includes('location.reload')
       ) {
-        window.__importReloadBlocked = true;
+        runtimeWindow.__importReloadBlocked = true;
         return 0;
       }
-      return window.__originalSetTimeoutForImportTest__(handler, timeout, ...args);
+      return originalSetTimeout(
+        handler,
+        timeout,
+        ...args
+      );
     };
+    window.setTimeout = patchedSetTimeout as typeof window.setTimeout;
     initSettings();
     window.showPage('settings', document.querySelectorAll('.nav-btn')[3]);
     showSettingsTab('account');
@@ -311,7 +327,9 @@ test('settings account import normalizes malformed body metrics before persistin
       () =>
         page.evaluate(() => ({
           bodyMetrics: profile.bodyMetrics,
-          reloadBlocked: window.__importReloadBlocked === true,
+          reloadBlocked:
+            (window as Window & { __importReloadBlocked?: boolean })
+              .__importReloadBlocked === true,
         })),
       { timeout: 15000 }
     )
@@ -335,14 +353,19 @@ test('clearAllData resets the schedule sport name to blank and keeps it blank af
   await openAppShell(page);
 
   await page.evaluate(async () => {
+    const runtimeWindow = window as Window & {
+      saveScheduleData?: (options?: { push?: boolean }) => Promise<void>;
+      clearAllData?: () => Promise<void>;
+    };
+
     schedule = {
       sportName: 'Padel',
       sportDays: [1, 3],
       sportIntensity: 'moderate',
       sportLegsHeavy: true,
     };
-    await saveScheduleData({ push: false });
-    await clearAllData();
+    await runtimeWindow.saveScheduleData?.({ push: false });
+    await runtimeWindow.clearAllData?.();
   });
 
   await expect

@@ -439,7 +439,8 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
 
 function LogActiveIsland() {
   const snapshot =
-    useRuntimeStore((state) => state.log.activeSnapshot) || initialSnapshot;
+    useRuntimeStore((state) => state.workoutSession.logActiveView) ||
+    initialSnapshot;
   const [setSignal, setSetSignal] = useState(null);
   const [collapseSignal, setCollapseSignal] = useState(null);
 
