@@ -19,9 +19,12 @@ test('offline shell boots after the service worker is installed', async ({ page 
   // module fetches and their (now-awaited) cache.put operations complete.
   await page.reload({ waitUntil: 'networkidle' });
 
-  // Wait for the React app shell to be mounted (confirms main.tsx loaded and
-  // was cached by the SW while online).
-  await page.waitForFunction(() => (window as any).__IRONFORGE_APP_SHELL_MOUNTED__ === true);
+  // Wait for the React app shell root to exist before switching offline
+  // (confirms main.tsx loaded and was cached by the SW while online).
+  await page.waitForFunction(() => {
+    const shellRoot = document.getElementById('app-shell-react-root');
+    return !!shellRoot && shellRoot.children.length > 0;
+  });
 
   await page.context().setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' });

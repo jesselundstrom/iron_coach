@@ -2997,53 +2997,42 @@ function getExerciseGuide(ex) {
   return guide;
 }
 
-function renderActiveExerciseGuideModal() {
+function getExerciseGuidePromptSnapshot() {
   const exercise = activeGuideExerciseKey
     ? getExerciseByUiKey(activeGuideExerciseKey)
     : null;
   const guide = getExerciseGuide(exercise);
-  if (!exercise || !guide) return;
-  const execRows = (guide.execution || [])
-    .map((step) => `<li>${escapeHtml(step)}</li>`)
-    .join('');
-  const cueRows = (guide.cues || [])
-    .map((cue) => `<li>${escapeHtml(cue)}</li>`)
-    .join('');
+  if (!exercise || !guide) return null;
   const mediaLinks = [];
   if (guide.media?.videoUrl) {
     mediaLinks.push(
-      `<a class="exercise-guide-link" href="${escapeHtml(guide.media.videoUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(i18nText('guidance.media.video', 'Open video'))}</a>`
+      {
+        href: guide.media.videoUrl,
+        label: i18nText('guidance.media.video', 'Open video'),
+      }
     );
   }
   if (guide.media?.imageUrl) {
     mediaLinks.push(
-      `<a class="exercise-guide-link" href="${escapeHtml(guide.media.imageUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(i18nText('guidance.media.image', 'Open image'))}</a>`
+      {
+        href: guide.media.imageUrl,
+        label: i18nText('guidance.media.image', 'Open image'),
+      }
     );
   }
-  const mediaHtml = mediaLinks.length
-    ? `<div class="exercise-guide-links">${mediaLinks.join('')}</div>`
-    : '';
-  const titleEl = document.getElementById('exercise-guide-modal-title');
-  const subEl = document.getElementById('exercise-guide-modal-sub');
-  const bodyEl = document.getElementById('exercise-guide-modal-body');
-  if (titleEl) titleEl.textContent = displayExerciseName(exercise.name);
-  if (subEl) subEl.textContent = i18nText('guidance.title', 'Movement Guide');
-  if (bodyEl) {
-    bodyEl.innerHTML = `
-      <div class="exercise-guide-grid">
-        <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.setup', 'Setup'))}</div><div class="exercise-guide-text">${escapeHtml(guide.setup || '')}</div></div>
-        <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.execution', 'Execution'))}</div><ol class="exercise-guide-list">${execRows}</ol></div>
-        <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.cues', 'Key cues'))}</div><ul class="exercise-guide-list">${cueRows}</ul></div>
-        <div><div class="exercise-guide-title">${escapeHtml(i18nText('guidance.safety', 'Safety'))}</div><div class="exercise-guide-text">${escapeHtml(guide.safety || '')}</div></div>
-        ${mediaHtml}
-      </div>`;
-  }
-  document.getElementById('exercise-guide-modal')?.classList.add('active');
+  return {
+    open: true,
+    title: displayExerciseName(exercise.name),
+    subtitle: i18nText('guidance.title', 'Movement Guide'),
+    setup: guide.setup || '',
+    execution: Array.isArray(guide.execution) ? guide.execution.slice() : [],
+    cues: Array.isArray(guide.cues) ? guide.cues.slice() : [],
+    safety: guide.safety || '',
+    mediaLinks,
+  };
 }
 
 function refreshExerciseGuideModal() {
-  const modal = document.getElementById('exercise-guide-modal');
-  if (!modal?.classList.contains('active')) return;
   const exercise = activeGuideExerciseKey
     ? getExerciseByUiKey(activeGuideExerciseKey)
     : null;
@@ -3051,7 +3040,9 @@ function refreshExerciseGuideModal() {
     closeExerciseGuide();
     return;
   }
-  renderActiveExerciseGuideModal();
+  if (typeof window.syncWorkoutSessionBridge === 'function') {
+    window.syncWorkoutSessionBridge();
+  }
 }
 
 function openExerciseGuide(exerciseRef) {
@@ -3062,14 +3053,20 @@ function openExerciseGuide(exerciseRef) {
   const guide = getExerciseGuide(exercise);
   if (!exercise || !guide) return;
   activeGuideExerciseKey = ensureExerciseUiKey(exercise);
-  renderActiveExerciseGuideModal();
+  if (typeof window.syncWorkoutSessionBridge === 'function') {
+    window.syncWorkoutSessionBridge();
+  }
 }
 
 function closeExerciseGuide(event) {
   if (event && event.target !== event.currentTarget) return;
   activeGuideExerciseKey = null;
-  document.getElementById('exercise-guide-modal')?.classList.remove('active');
+  if (typeof window.syncWorkoutSessionBridge === 'function') {
+    window.syncWorkoutSessionBridge();
+  }
 }
+
+window.getExerciseGuidePromptSnapshot = getExerciseGuidePromptSnapshot;
 
 function renderExerciseGuideButton(exercise) {
   if (!getExerciseGuide(exercise)) return '';

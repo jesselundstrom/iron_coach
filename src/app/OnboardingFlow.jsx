@@ -501,11 +501,11 @@ export default function OnboardingFlow() {
   useEffect(() => {
     const onEvent = () => {
       const snapshot =
-        typeof window.getOnboardingReactSnapshot === 'function'
-          ? window.getOnboardingReactSnapshot()
+        typeof window.getOnboardingDefaultDraft === 'function'
+          ? window.getOnboardingDefaultDraft()
           : null;
-      if (snapshot?.draft) {
-        setDraft({ ...snapshot.draft });
+      if (snapshot) {
+        setDraft({ ...snapshot });
         setStep(0);
       }
     };

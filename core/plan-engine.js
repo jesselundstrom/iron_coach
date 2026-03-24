@@ -1394,7 +1394,7 @@ function buildAdaptiveSessionPlan(input){
   const effectiveSessionMode=next.effectiveSessionMode==='light'
     ? 'light'
     : (decisionImpliesLight?'light':'normal');
-  const prog=(window.PROGRAMS&&window.PROGRAMS[next.programId])||(typeof getActiveProgram==='function'?getActiveProgram():null);
+  const prog=(typeof getProgramById==='function'?getProgramById(next.programId):null)||(typeof getActiveProgram==='function'?getActiveProgram():null);
   const baseSession=clonePlanSession(next.baseSession||[]);
   let exercises=baseSession;
   const adaptationEvents=[];
@@ -1665,10 +1665,9 @@ function getInitialPlanRecommendation(input){
   const scheduleLike=clonePlanValue(next.schedule||schedule||{})||{};
   if(typeof normalizeTrainingPreferences==='function')normalizeTrainingPreferences(profileLike);
   if(typeof normalizeCoachingProfile==='function')normalizeCoachingProfile(profileLike);
-  const programIds=Object.keys(window.PROGRAMS||{}).length
-    ? Object.keys(window.PROGRAMS)
-    : ['casualfullbody','forge','stronglifts5x5','wendler531','hypertrophysplit'];
-  const programEntries=programIds.map(id=>(window.PROGRAMS&&window.PROGRAMS[id])?window.PROGRAMS[id]:{id,name:id});
+  const programEntries=(typeof getRegisteredPrograms==='function'&&getRegisteredPrograms().length
+    ? getRegisteredPrograms()
+    : ['casualfullbody','forge','stronglifts5x5','wendler531','hypertrophysplit'].map(id=>({id,name:id})));
   const ranked=programEntries
     .map(program=>({program,score:scoreProgramForOnboarding(program.id,profileLike,scheduleLike)}))
     .filter(entry=>Number.isFinite(entry.score))

@@ -53,6 +53,7 @@ declare global {
     syncDashboardBridge?: () => void;
     syncSettingsBridge?: () => void;
     syncNutritionBridge?: () => void;
+    getOnboardingDefaultDraft?: () => Record<string, unknown> | null;
     getProgramRegistry?: () => Record<string, unknown>;
     getRegisteredPrograms?: () => Array<Record<string, unknown>>;
     hasRegisteredPrograms?: () => boolean;

@@ -32,7 +32,7 @@ Status values:
 | `window.showPage` | `core/ui-shell.js` | router navigation action | `in_progress` | routes/pages stop calling it directly |
 | `window.showToast` | `core/ui-shell.js` | toast store/provider | `in_progress` | toast provider owns all messages |
 | `window.showConfirm` | `core/ui-shell.js` | confirm store/provider | `in_progress` | confirm provider owns modal open/close |
-| `window.getIronforgeState` | `app.js` | Zustand selectors/services | `legacy` | consumers read store/services directly |
+| `window.getIronforgeState` | `app.js` | Zustand selectors/services | `done` | removed in favor of direct state access/helpers |
 | `window.getActivePageName` | `core/ui-shell.js` | router/store | `in_progress` | active route is derived from React state only |
 | `window.getConfirmReactSnapshot` | `core/ui-shell.js` | store | `in_progress` | confirm data is not snapshot-driven |
 | `window.getLogStartReactSnapshot` | `core/workout-layer.js` | session selectors/store actions | `done` | log start route no longer depends on the getter and the helper is deleted |
@@ -45,19 +45,19 @@ Status values:
 | `window.getDashboardReactSnapshot` | `core/dashboard-layer.js` | dashboard selectors/store actions | `done` | dashboard route no longer depends on the getter and the helper is deleted |
 | `window.getHistoryReactSnapshot` | `core/history-layer.js` | history selectors/store actions | `done` | history route no longer depends on the getter and the helper is deleted |
 | `window.getNutritionReactSnapshot` | `core/nutrition-layer.js` | nutrition selectors | `done` | nutrition route reads store directly |
-| `window.getOnboardingReactSnapshot` | `app.js` | onboarding store/service | `legacy` | onboarding reads draft from store/service |
+| `window.getOnboardingDefaultDraft` | `app.js` | onboarding store/service | `in_progress` | onboarding reads draft from store/service without legacy window helpers |
 
 ## Island Flags And Events
 
 | Bridge point | Current owner | Target owner | Status | Delete condition |
 | --- | --- | --- | --- | --- |
-| `__IRONFORGE_APP_SHELL_MOUNTED__` | app shell mount helper | app bootstrap only | `in_progress` | no hybrid fallback behavior remains |
+| `__IRONFORGE_APP_SHELL_MOUNTED__` | app shell mount helper | app bootstrap only | `done` | replaced by runtime-ready / bridge checks |
 | `__IRONFORGE_LOG_START_ISLAND_MOUNTED__` | log start island | delete | `done` | replaced by runtime-bridge capability checks |
 | `__IRONFORGE_LOG_ACTIVE_ISLAND_MOUNTED__` | log active island | delete | `done` | replaced by runtime-bridge capability checks |
 | `__IRONFORGE_HISTORY_ISLAND_MOUNTED__` | history island | delete | `done` | replaced by runtime-bridge capability checks |
 | `__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__` | dashboard island | delete | `done` | replaced by runtime-bridge capability checks |
 | `__IRONFORGE_NUTRITION_ISLAND_MOUNTED__` | nutrition island | delete | `done` | replaced by runtime-bridge capability checks |
-| `ironforge:app-shell-updated` | legacy shell bridge event | store actions | `in_progress` | route/store own shell state directly and no listeners need the event |
+| `ironforge:app-shell-updated` | legacy shell bridge event | store actions | `done` | deleted; no active listeners remain |
 | `ironforge:settings-*-updated` events | settings bridge | delete | `done` | settings route reads store directly |
 | `ironforge:history-updated` | history bridge | delete | `done` | history route reads store directly |
 | `ironforge:dashboard-updated` | dashboard bridge | delete | `done` | dashboard route reads store directly |
@@ -83,6 +83,7 @@ Status values:
 | RPE modal DOM population | `app.js` | session service + React state | `done` | prompt options render from React state |
 | workout summary modal DOM population | `core/workout-layer.js` | session service + React state | `done` | summary content no longer renders through imperative HTML injection |
 | sport check modal DOM population | `core/workout-layer.js` | session service + React state | `done` | sport check prompt no longer mutates modal text/classes directly |
+| exercise guide modal population | `core/workout-layer.js` | session service + React state | `done` | guide content renders from React/store state instead of imperative HTML injection |
 | exercise catalog DOM writes | `core/workout-layer.js` | React overlay + service | `legacy` | catalog UI stops writing raw HTML |
 | nutrition page init/render | `core/nutrition-layer.js` | React route + nutrition service | `in_progress` | entry no longer depends on `initNutritionPage()` or page-local init globals |
 | settings tab DOM toggling | `app.js` | React route state | `done` | tabs now render from runtime state through `AppShell` |

@@ -84,6 +84,8 @@ const defaultSession: SessionSnapshot = {
   summaryPrompt: null,
   sportCheckOpen: false,
   sportCheckPrompt: null,
+  exerciseGuideOpen: false,
+  exerciseGuidePrompt: null,
 };
 
 const defaultToast: ToastSnapshot = {

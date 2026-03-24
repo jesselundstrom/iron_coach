@@ -606,7 +606,9 @@ export default function AppShell() {
         </div>
       </div>
       <div
-        className="modal-overlay"
+        className={`modal-overlay${
+          session.exerciseGuideOpen ? ' active' : ''
+        }`}
         id="exercise-guide-modal"
         onClick={(event) => window.closeExerciseGuide?.(event)}
       >
@@ -617,13 +619,66 @@ export default function AppShell() {
             id="exercise-guide-modal-title"
             data-i18n="guidance.title"
           >
-            Movement Guide
+            {session.exerciseGuidePrompt?.title || 'Movement Guide'}
           </div>
-          <div className="modal-sub" id="exercise-guide-modal-sub" />
-          <div
-            className="exercise-guide-sheet-body"
-            id="exercise-guide-modal-body"
-          />
+          <div className="modal-sub" id="exercise-guide-modal-sub">
+            {session.exerciseGuidePrompt?.subtitle || ''}
+          </div>
+          <div className="exercise-guide-sheet-body" id="exercise-guide-modal-body">
+            {session.exerciseGuidePrompt ? (
+              <div className="exercise-guide-grid">
+                <div>
+                  <div className="exercise-guide-title">{t('guidance.setup', 'Setup')}</div>
+                  <div className="exercise-guide-text">
+                    {session.exerciseGuidePrompt.setup || ''}
+                  </div>
+                </div>
+                <div>
+                  <div className="exercise-guide-title">
+                    {t('guidance.execution', 'Execution')}
+                  </div>
+                  <ol className="exercise-guide-list">
+                    {session.exerciseGuidePrompt.execution.map((step, index) => (
+                      <li key={`${step}-${index}`}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+                <div>
+                  <div className="exercise-guide-title">
+                    {t('guidance.cues', 'Key cues')}
+                  </div>
+                  <ul className="exercise-guide-list">
+                    {session.exerciseGuidePrompt.cues.map((cue, index) => (
+                      <li key={`${cue}-${index}`}>{cue}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <div className="exercise-guide-title">
+                    {t('guidance.safety', 'Safety')}
+                  </div>
+                  <div className="exercise-guide-text">
+                    {session.exerciseGuidePrompt.safety || ''}
+                  </div>
+                </div>
+                {session.exerciseGuidePrompt.mediaLinks.length ? (
+                  <div className="exercise-guide-links">
+                    {session.exerciseGuidePrompt.mediaLinks.map((link) => (
+                      <a
+                        key={link.href}
+                        className="exercise-guide-link"
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <button
             className="btn btn-ghost exercise-guide-sheet-close"
             type="button"

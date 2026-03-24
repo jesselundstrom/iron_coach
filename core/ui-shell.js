@@ -2,8 +2,6 @@ let _toastTimeout = null;
 let confirmCallback = null;
 let confirmPreviousFocus = null;
 let nameModalCallback = null;
-const APP_SHELL_EVENT =
-  window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
 const APP_SHELL_PAGES = ['dashboard', 'log', 'history', 'settings', 'nutrition'];
 let activePageName = detectInitialActivePage();
 let confirmState = createDefaultConfirmState();
@@ -80,12 +78,8 @@ function runPageActivationSideEffects(name) {
   }
 }
 
-function notifyAppShell() {
-  window.dispatchEvent(new CustomEvent(APP_SHELL_EVENT));
-}
-
 function isAppShellActive() {
-  return window.__IRONFORGE_APP_SHELL_MOUNTED__ === true;
+  return window.__IRONFORGE_APP_SHELL_READY__ === true || !!getRuntimeBridge();
 }
 
 function getConfirmReactSnapshot() {
@@ -266,7 +260,6 @@ function submitNameModal() {
   nameModalCallback = null;
 }
 
-window.__IRONFORGE_APP_SHELL_EVENT__ = APP_SHELL_EVENT;
 window.getActivePageName = () => activePageName;
 window.getConfirmReactSnapshot = getConfirmReactSnapshot;
 window.runPageActivationSideEffects = runPageActivationSideEffects;

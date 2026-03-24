@@ -1663,12 +1663,12 @@ async function loadData(options) {
   }
   // Initialize program states for all registered programs (fills in defaults for new programs)
   if (!profile.programs) profile.programs = {};
-  Object.values(PROGRAMS).forEach((prog) => {
+  (typeof getRegisteredPrograms === 'function' ? getRegisteredPrograms() : []).forEach((prog) => {
     if (!profile.programs[prog.id])
       profile.programs[prog.id] = prog.getInitialState();
   });
   // Backfill new fields for programs that carry existing state (missing keys get safe defaults)
-  Object.values(PROGRAMS).forEach((prog) => {
+  (typeof getRegisteredPrograms === 'function' ? getRegisteredPrograms() : []).forEach((prog) => {
     if (prog.migrateState && profile.programs[prog.id])
       profile.programs[prog.id] = prog.migrateState(profile.programs[prog.id]);
   });

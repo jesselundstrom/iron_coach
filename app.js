@@ -59,21 +59,6 @@ if (IS_E2E_TEST_ENV) {
   document.documentElement.classList.add('test-env');
 }
 
-function getIronforgeState() {
-  return {
-    workouts,
-    schedule,
-    profile,
-    activeWorkout,
-    restDuration,
-    restEndsAt,
-    restSecondsLeft,
-    restTotal,
-    currentUser,
-  };
-}
-window.getIronforgeState = getIronforgeState;
-
 function getRuntimeBridge() {
   return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
 }
@@ -121,6 +106,13 @@ function syncWorkoutSessionBridge() {
     sportCheckPrompt:
       typeof window.getSportCheckPromptSnapshot === 'function'
         ? window.getSportCheckPromptSnapshot()
+        : null,
+    exerciseGuideOpen:
+      typeof window.getExerciseGuidePromptSnapshot === 'function' &&
+      window.getExerciseGuidePromptSnapshot()?.open === true,
+    exerciseGuidePrompt:
+      typeof window.getExerciseGuidePromptSnapshot === 'function'
+        ? window.getExerciseGuidePromptSnapshot()
         : null,
   });
 }
@@ -1166,7 +1158,7 @@ function getProgramSwitcherSnapshotData() {
       ? visible
       : typeof getRegisteredPrograms === 'function'
         ? getRegisteredPrograms()
-        : Object.values(PROGRAMS)
+        : []
   ).map(
     (program) => {
       const compatibility = getProgramFrequencyCompatibility(
@@ -1721,10 +1713,7 @@ function getOnboardingDefaultDraft() {
     guidanceMode: coaching.guidanceMode,
   };
 }
-
-function getOnboardingReactSnapshot() {
-  return { draft: getOnboardingDefaultDraft() };
-}
+window.getOnboardingDefaultDraft = getOnboardingDefaultDraft;
 
 function notifyOnboardingIsland() {
   window.dispatchEvent(new CustomEvent('ironforge:onboarding-updated'));
@@ -1820,9 +1809,7 @@ async function completeOnboarding(draft) {
   const recommendedProgramInitialState =
     typeof getProgramInitialState === 'function'
       ? getProgramInitialState(recommendation.programId)
-      : PROGRAMS?.[recommendation.programId]?.getInitialState
-        ? PROGRAMS[recommendation.programId].getInitialState()
-        : null;
+      : null;
   if (
     !nextPrograms[recommendation.programId] &&
     recommendedProgramInitialState
@@ -1866,9 +1853,7 @@ function maybeOpenOnboarding(options) {
   const coaching = normalizeCoachingProfile(profile);
   if (!opts.force && coaching.onboardingCompleted === true) return;
   if (
-    typeof hasRegisteredPrograms === 'function'
-      ? !hasRegisteredPrograms()
-      : !window.PROGRAMS || !Object.keys(PROGRAMS).length
+    typeof hasRegisteredPrograms === 'function' && !hasRegisteredPrograms()
   ) {
     _onboardingRetryTimer = setTimeout(() => maybeOpenOnboarding(opts), 120);
     return;
@@ -2377,7 +2362,7 @@ async function clearAllData() {
   (
     typeof getRegisteredPrograms === 'function'
       ? getRegisteredPrograms()
-      : Object.values(PROGRAMS)
+      : []
   ).forEach((prog) => {
     profile.programs[prog.id] = prog.getInitialState();
   });

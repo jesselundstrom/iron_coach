@@ -76,9 +76,8 @@
     var exercisesUsed = new Set();
 
     if (
-      !window.EXERCISE_LIBRARY ||
-      !EXERCISE_LIBRARY.getExerciseMeta ||
-      !EXERCISE_LIBRARY.mapMuscleToDisplayGroup
+      typeof window.getExerciseMetadata !== 'function' ||
+      typeof window.mapExerciseMuscleToDisplayGroup !== 'function'
     ) {
       return { muscleLoad: muscleLoad, exercisesUsed: exercisesUsed };
     }
@@ -97,17 +96,17 @@
         if (!completedSets) return;
 
         exercisesUsed.add(ex.name);
-        var meta = EXERCISE_LIBRARY.getExerciseMeta(
+        var meta = window.getExerciseMetadata(
           ex.exerciseId || ex.name
         );
         if (!meta) return;
 
         (meta.primaryMuscles || []).forEach(function (muscle) {
-          var group = EXERCISE_LIBRARY.mapMuscleToDisplayGroup(muscle);
+          var group = window.mapExerciseMuscleToDisplayGroup(muscle);
           if (group) muscleLoad[group] = (muscleLoad[group] || 0) + completedSets;
         });
         (meta.secondaryMuscles || []).forEach(function (muscle) {
-          var group = EXERCISE_LIBRARY.mapMuscleToDisplayGroup(muscle);
+          var group = window.mapExerciseMuscleToDisplayGroup(muscle);
           if (group)
             muscleLoad[group] = (muscleLoad[group] || 0) + completedSets * 0.5;
         });
@@ -165,9 +164,9 @@
 
     // Collect movement tags already heavily used this week
     var weekMovementTags = new Set();
-    if (window.EXERCISE_LIBRARY && EXERCISE_LIBRARY.getExerciseMeta) {
+    if (typeof window.getExerciseMetadata === 'function') {
       analysis.exercisesUsed.forEach(function (name) {
-        var meta = EXERCISE_LIBRARY.getExerciseMeta(name);
+        var meta = window.getExerciseMetadata(name);
         if (meta) (meta.movementTags || []).forEach(function (t) {
           weekMovementTags.add(t);
         });
@@ -178,12 +177,9 @@
     // add a second (or third) exercise per group rather than stopping early.
     function pickFromGap(gap) {
       if (exercises.length >= maxExercises) return;
-      if (
-        !window.EXERCISE_LIBRARY ||
-        !EXERCISE_LIBRARY.searchExercises
-      )
+      if (typeof window.searchRegisteredExercises !== 'function')
         return;
-      var candidates = EXERCISE_LIBRARY.searchExercises('', {
+      var candidates = window.searchRegisteredExercises('', {
         muscleGroups: [gap.group],
         limit: 20,
       });
@@ -256,8 +252,9 @@
       (analysis.muscleLoad.core || 0) < 4 &&
       !exercises.some(function (ex) {
         var meta =
-          window.EXERCISE_LIBRARY &&
-          EXERCISE_LIBRARY.getExerciseMeta(ex.name);
+          typeof window.getExerciseMetadata === 'function'
+            ? window.getExerciseMetadata(ex.name)
+            : null;
         return (
           meta &&
           (meta.displayMuscleGroups || []).indexOf('core') >= 0
@@ -265,11 +262,12 @@
       });
     if (hasCoreGap && exercises.length < maxExercises) {
       var coreCandidates =
-        window.EXERCISE_LIBRARY &&
-        EXERCISE_LIBRARY.searchExercises('', {
-          muscleGroups: ['core'],
-          limit: 10,
-        });
+        typeof window.searchRegisteredExercises === 'function'
+          ? window.searchRegisteredExercises('', {
+              muscleGroups: ['core'],
+              limit: 10,
+            })
+          : null;
       if (coreCandidates) {
         var corePick = coreCandidates.filter(function (c) {
           return (
@@ -314,9 +312,8 @@
           id: ex.id,
           index: idx + 1,
           name:
-            window.EXERCISE_LIBRARY &&
-            EXERCISE_LIBRARY.getDisplayName
-              ? EXERCISE_LIBRARY.getDisplayName(ex.name)
+            typeof window.getExerciseDisplayName === 'function'
+              ? window.getExerciseDisplayName(ex.name)
               : ex.name,
           pattern: preset.sets + ' \u00d7 ' + BONUS_REPS + '-12',
           weight: '',

@@ -475,7 +475,7 @@ function recomputeProgramStateFromWorkouts(programId) {
 
 function applyProgramDateCatchUp(programId) {
   const canonicalId = getCanonicalProgramRef(programId);
-  const prog = PROGRAMS[canonicalId];
+  const prog = getProgramById(canonicalId);
   if (!prog || !prog.dateCatchUp || !profile.programs?.[canonicalId])
     return false;
   const currentState = profile.programs[canonicalId];
@@ -713,7 +713,7 @@ function roundEstimatedWeight(value, increment) {
 
 function getProgramEstimateTargets(targetProgramId) {
   const canonicalId = getCanonicalProgramRef(targetProgramId);
-  const prog = PROGRAMS[canonicalId];
+  const prog = getProgramById(canonicalId);
   const initialState = prog?.getInitialState ? prog.getInitialState() : {};
   const rounding = initialState?.rounding || 2.5;
   if (Array.isArray(initialState?.lifts?.main)) {
@@ -797,7 +797,7 @@ function estimateTMsFromHistory(targetProgramId, workouts, profile) {
 function switchProgram(id) {
   const canonicalId = getCanonicalProgramRef(id);
   if (canonicalId === getActiveProgramId()) return;
-  const prog = PROGRAMS[canonicalId];
+  const prog = getProgramById(canonicalId);
   if (!prog) return;
   const progName = trProg('program.' + prog.id + '.name', prog.name);
   showConfirm(

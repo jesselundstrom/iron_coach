@@ -18,10 +18,13 @@ Phase 2 has now started with the first ownership-transfer cutover landed:
 - The retired standalone `src/app-shell/main.jsx` and `src/onboarding-island/main.jsx` boot paths are no longer part of the active runtime.
 - The legacy page snapshot getter exports and page `*-updated` bridge events for Log, History, Dashboard, Settings, and Nutrition are now deleted.
 - The old page-specific island mounted flags are now deleted. Legacy runtime code checks runtime-bridge capability instead of `__IRONFORGE_*_ISLAND_MOUNTED__`.
+- The old app-shell mounted flag/event path is now deleted too. Shell compatibility code uses runtime-ready / bridge checks instead of `__IRONFORGE_APP_SHELL_MOUNTED__` or `ironforge:app-shell-updated`.
 - Settings tab selection is now owned by the runtime store and mirrored into the existing DOM shell by `AppShell`.
 - Nutrition page activation no longer depends on `initNutritionPage()`. Entering Nutrition now refreshes through the shared `syncNutritionBridge()` path.
 - Module-side React code now has an explicit program-registry seam in `src/core/program-registry.js` instead of reading `window.PROGRAMS` directly.
 - Module-side code now also has an explicit exercise-library seam in `src/core/exercise-library.js`, and higher-level legacy callers can use named helpers like `getExerciseMetadata(...)` and `resolveRegisteredExerciseId(...)` instead of reaching into `window.EXERCISE_LIBRARY` directly.
+- The onboarding React flow now reads from `getOnboardingDefaultDraft()` instead of a snapshot getter wrapper, and `window.getIronforgeState` is deleted.
+- The exercise guide modal now renders from store-backed React shell state instead of imperative DOM injection from `core/workout-layer.js`.
 - Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
 - RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 
@@ -30,7 +33,7 @@ What is still not done:
 - The workout domain still computes React-facing log view models inside legacy helpers before pushing them into the store; it is not yet a dedicated imported session service.
 - The history domain still computes the History page view model inside `core/history-layer.js` before pushing it into the store; it is not yet a dedicated imported history service.
 - The dashboard domain still computes the Dashboard page view model inside `core/dashboard-layer.js` before pushing it into the store; it is not yet a dedicated imported dashboard service.
-- Exercise catalog and guide flows still depend on imperative DOM rendering and global callbacks.
+- Exercise catalog still depends on imperative DOM rendering and global callbacks.
 - The rest-timer bar outside the active-workout subtree is still legacy DOM-driven.
 - Nutrition history/request lifecycle still lives in `core/nutrition-layer.js`, even though route entry now refreshes through the shared bridge.
 - The rest timer still renders through legacy DOM outside the React workout subtree, even though session state now tracks its active state directly instead of re-reading DOM classes.

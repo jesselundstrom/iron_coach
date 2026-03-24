@@ -1,7 +1,4 @@
 export function getState() {
-  if (typeof window !== 'undefined' && typeof window.getIronforgeState === 'function') {
-    return window.getIronforgeState();
-  }
   return {
     workouts: typeof window !== 'undefined' ? window.workouts || [] : [],
     schedule: typeof window !== 'undefined' ? window.schedule || null : null,

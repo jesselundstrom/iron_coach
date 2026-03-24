@@ -19,8 +19,6 @@ import {
 } from '../constants';
 import { useRuntimeStore } from '../store/runtime-store';
 
-const APP_SHELL_EVENT =
-  window.__IRONFORGE_APP_SHELL_EVENT__ || 'ironforge:app-shell-updated';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
 
 type RuntimeBridge = {
@@ -248,9 +246,7 @@ export function prepareLegacyShellMount() {
     'legacy-bottom-nav',
   ].forEach((id) => document.getElementById(id)?.remove());
 
-  window.__IRONFORGE_APP_SHELL_MOUNTED__ = true;
   window.__IRONFORGE_APP_SHELL_READY__ = false;
-  window.dispatchEvent(new CustomEvent(APP_SHELL_EVENT));
 }
 
 window.syncRuntimeStoreFromLegacy = syncRuntimeStoreFromLegacy;

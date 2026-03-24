@@ -124,6 +124,20 @@ export type SummaryPromptSnapshot = {
   summaryData: Record<string, unknown> | null;
 };
 
+export type ExerciseGuidePromptSnapshot = {
+  open: boolean;
+  title: string;
+  subtitle: string;
+  setup: string;
+  execution: string[];
+  cues: string[];
+  safety: string;
+  mediaLinks: Array<{
+    href: string;
+    label: string;
+  }>;
+};
+
 export type SessionSnapshot = {
   activeWorkout: unknown;
   restDuration: number;
@@ -138,6 +152,8 @@ export type SessionSnapshot = {
   summaryPrompt: SummaryPromptSnapshot | null;
   sportCheckOpen: boolean;
   sportCheckPrompt: SportCheckPromptSnapshot | null;
+  exerciseGuideOpen: boolean;
+  exerciseGuidePrompt: ExerciseGuidePromptSnapshot | null;
 };
 
 export function isAppPage(value: unknown): value is AppPage {
