@@ -192,23 +192,21 @@ test('dashboard coach card shows a rotating rest-day tip when the week is comple
       ],
     }));
 
-    if (!pastDates.length) {
-      window.eval(`
-        const __originalGetTodayTrainingDecision = window.getTodayTrainingDecision;
-        window.getTodayTrainingDecision = function patchedRestDecision(context) {
-          const base = typeof __originalGetTodayTrainingDecision === 'function'
-            ? (__originalGetTodayTrainingDecision(context) || {})
-            : {};
-          return {
-            ...base,
-            action: 'rest',
-            reasonCodes: ['week_complete'],
-            restrictionFlags: base.restrictionFlags || [],
-            timeBudgetMinutes: base.timeBudgetMinutes || 60
-          };
+    window.eval(`
+      const __originalGetTodayTrainingDecision = window.getTodayTrainingDecision;
+      window.getTodayTrainingDecision = function patchedRestDecision(context) {
+        const base = typeof __originalGetTodayTrainingDecision === 'function'
+          ? (__originalGetTodayTrainingDecision(context) || {})
+          : {};
+        return {
+          ...base,
+          action: 'rest',
+          reasonCodes: ['week_complete'],
+          restrictionFlags: base.restrictionFlags || [],
+          timeBudgetMinutes: base.timeBudgetMinutes || 60
         };
-      `);
-    }
+      };
+    `);
 
     window.eval(`
       workouts = ${JSON.stringify(seededWorkouts)};

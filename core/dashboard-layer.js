@@ -6,6 +6,10 @@ let _lastTmValues = {};
 let dashboardUiState = { coachingExpanded: false };
 let dashboardReactSnapshotCache = null;
 dashboardUiState.activeDayIndex = null;
+
+function getRuntimeBridge() {
+  return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
+}
 function trDash(key, fallback, params) {
   if (window.I18N) return I18N.t(key, params, fallback);
   return fallback;
@@ -2375,7 +2379,8 @@ function buildDashboardPlanStructuredSnapshot(prog, ps, fatigue) {
     todaySummary
   );
   const restDayTip =
-    !todaySummary.hasLift && trainingDecision.action === 'rest'
+    !todaySummary.hasLift &&
+    (trainingDecision.action === 'rest' || doneThisWeek >= frequency)
       ? getRestDayTip(now)
       : null;
   const completionMessage = getDashboardCompletionMessage(todaySummary);
@@ -2608,9 +2613,19 @@ function isDashboardIslandActive() {
   return window.__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__ === true;
 }
 function notifyDashboardIsland() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setDashboardView === 'function') {
+    bridge.setDashboardView(getDashboardReactSnapshot());
+  }
   if (!hasDashboardIslandMount()) return;
   window.dispatchEvent(new CustomEvent(DASHBOARD_ISLAND_EVENT));
 }
 window.__IRONFORGE_DASHBOARD_ISLAND_EVENT__ = DASHBOARD_ISLAND_EVENT;
 window.getDashboardReactSnapshot = getDashboardReactSnapshot;
+window.syncDashboardBridge = function syncDashboardBridge() {
+  const bridge = getRuntimeBridge();
+  if (bridge && typeof bridge.setDashboardView === 'function') {
+    bridge.setDashboardView(getDashboardReactSnapshot());
+  }
+};
 window.buildDashboardWeekLegendMarkup = buildDashboardWeekLegendMarkup;

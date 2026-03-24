@@ -20,7 +20,7 @@ Status values:
 | Workout session state | `app.js` + `core/workout-layer.js` + `core/data-layer.js` | session service + store | `in_progress` | timer/draft/RPE/finish-discard state no longer depends on globals |
 | Nutrition page state | `core/nutrition-layer.js` snapshot/event bridge | React route + services | `legacy` | nutrition route stops using `getNutritionReactSnapshot()` |
 | Settings tabs state | `app.js` snapshot/event bridge | store + React settings route | `legacy` | settings islands stop using `getSettings*ReactSnapshot()` |
-| History/dashboard state | `core/history-layer.js` + `core/dashboard-layer.js` snapshot/event bridge | store + route components | `in_progress` | history/dashboard islands stop using bridge snapshots |
+| History/dashboard state | `core/history-layer.js` + `core/dashboard-layer.js` snapshot/event bridge | store + route components | `in_progress` | history/dashboard islands stop using bridge snapshots and the getter exports are deleted |
 | Program registry | `window.PROGRAMS` | imported registry module | `legacy` | programs are imported instead of discovered on `window` |
 | Exercise library access | `window.EXERCISE_LIBRARY` | imported service/module | `legacy` | page/runtime code no longer reads exercise metadata via globals |
 | App build entry | many island module scripts in `index.html` | one top-level React app entry | `in_progress` | page islands are fully collapsed into the app entry |
@@ -42,7 +42,7 @@ Status values:
 | `window.getSettingsPreferencesReactSnapshot` | `app.js` | settings selectors | `legacy` | settings preferences route reads store directly |
 | `window.getSettingsProgramReactSnapshot` | `app.js` | settings selectors + registry service | `legacy` | settings program route reads store directly |
 | `window.getSettingsBodyReactSnapshot` | `app.js` | settings selectors | `legacy` | settings body route reads store directly |
-| `window.getDashboardReactSnapshot` | `core/dashboard-layer.js` | dashboard selectors | `legacy` | dashboard route reads store directly |
+| `window.getDashboardReactSnapshot` | `core/dashboard-layer.js` | dashboard selectors/store actions | `in_progress` | dashboard route no longer depends on the getter and the helper is deleted |
 | `window.getHistoryReactSnapshot` | `core/history-layer.js` | history selectors/store actions | `in_progress` | history route no longer depends on the getter and the helper is deleted |
 | `window.getNutritionReactSnapshot` | `core/nutrition-layer.js` | nutrition selectors | `legacy` | nutrition route reads store directly |
 | `window.getOnboardingReactSnapshot` | `app.js` | onboarding store/service | `legacy` | onboarding reads draft from store/service |
@@ -55,12 +55,12 @@ Status values:
 | `__IRONFORGE_LOG_START_ISLAND_MOUNTED__` | log start island | delete | `legacy` | log start is part of routed app tree |
 | `__IRONFORGE_LOG_ACTIVE_ISLAND_MOUNTED__` | log active island | delete | `legacy` | log active is part of routed app tree |
 | `__IRONFORGE_HISTORY_ISLAND_MOUNTED__` | history island | delete | `in_progress` | history route no longer mounts separately |
-| `__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__` | dashboard island | delete | `legacy` | dashboard route no longer mounts separately |
+| `__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__` | dashboard island | delete | `in_progress` | dashboard route no longer mounts separately |
 | `__IRONFORGE_NUTRITION_ISLAND_MOUNTED__` | nutrition island | delete | `legacy` | nutrition route no longer mounts separately |
 | `ironforge:app-shell-updated` | legacy shell bridge event | store actions | `in_progress` | route/store own shell state directly and no listeners need the event |
 | `ironforge:settings-*-updated` events | settings bridge | delete | `legacy` | settings route reads store directly |
 | `ironforge:history-updated` | history bridge | delete | `in_progress` | history route reads store directly |
-| `ironforge:dashboard-updated` | dashboard bridge | delete | `legacy` | dashboard route reads store directly |
+| `ironforge:dashboard-updated` | dashboard bridge | delete | `in_progress` | dashboard route reads store directly |
 | `ironforge:nutrition-updated` | nutrition bridge | delete | `legacy` | nutrition route reads store directly |
 | `ironforge:onboarding-updated` | onboarding bridge | store/service | `in_progress` | onboarding data lives in store/service |
 

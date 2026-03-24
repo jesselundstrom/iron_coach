@@ -12,6 +12,7 @@ Phase 2 has now started with the first ownership-transfer cutover landed:
 - `core/ui-shell.js` still exposes `showPage(...)`, `showToast(...)`, and `showConfirm(...)`, but those APIs now write into React-owned store actions when the shared app shell is mounted.
 - The log start and active workout React screens now read store-backed workout view state instead of consuming `getLogStartReactSnapshot()` / `getLogActiveReactSnapshot()` directly from React.
 - The History React screen now reads store-backed history view state instead of consuming `getHistoryReactSnapshot()` directly from React.
+- The Dashboard React screen now reads store-backed dashboard view state instead of consuming `getDashboardReactSnapshot()` directly from React.
 - Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
 - RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 
@@ -19,9 +20,10 @@ What is still not done:
 
 - The workout domain still computes React-facing log view models inside legacy helpers before pushing them into the store; it is not yet a dedicated imported session service.
 - The history domain still computes the History page view model inside `core/history-layer.js` before pushing it into the store; it is not yet a dedicated imported history service.
+- The dashboard domain still computes the Dashboard page view model inside `core/dashboard-layer.js` before pushing it into the store; it is not yet a dedicated imported dashboard service.
 - Exercise catalog and guide flows still depend on imperative DOM rendering and global callbacks.
 - The rest-timer bar outside the active-workout subtree is still legacy DOM-driven.
-- Dashboard, Settings, and Nutrition still render through separate island bridges instead of direct routed page components.
+- Settings and Nutrition still render through separate island bridges instead of direct routed page components.
 
 ## Files That Matter Most Right Now
 
@@ -50,7 +52,7 @@ Known non-blocking repo issue:
 
 ## Recommended Next Step
 
-Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then apply the same store-backed pattern to Dashboard.
+Continue Phase 2 by shrinking the remaining hybrid surface inside the workout domain, then apply the same store-backed pattern to Settings.
 
 The goal is to keep the current workout logic intact where useful, but move the log route away from snapshot getters and window state.
 

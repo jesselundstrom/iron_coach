@@ -41,6 +41,10 @@ export type HistoryView = {
   [key: string]: unknown;
 };
 
+export type DashboardView = {
+  [key: string]: unknown;
+};
+
 export type RpePromptSnapshot = {
   open: boolean;
   title: string;

@@ -1,16 +1,9 @@
 import { createElement, useEffect, useState } from 'react';
-import { useIslandSnapshot } from '../island-runtime/index.jsx';
-
-const DASHBOARD_EVENT =
-  window.__IRONFORGE_DASHBOARD_ISLAND_EVENT__ || 'ironforge:dashboard-updated';
-const LANGUAGE_EVENT = 'ironforge:language-changed';
+import { useRuntimeStore } from '../app/store/runtime-store.ts';
 
 const svgCache = new Map();
 
 function getSnapshot() {
-  if (typeof window.getDashboardReactSnapshot === 'function') {
-    return window.getDashboardReactSnapshot();
-  }
   return {
     labels: {
       todayPlan: "Today's Plan",
@@ -359,19 +352,31 @@ function StatsSection({ section }) {
         <div className="dashboard-plan-card-head dashboard-plan-card-head-stats">
           {section.head}
         </div>
-        <div className={`stats-hero is-${section.primaryMetric.tone}`}>
-          <AdherenceGauge
-            value={section.primaryMetric.value}
-            tone={section.primaryMetric.tone}
-          />
-          <div className="stats-hero-copy">
-            <div className="stats-hero-label">{section.primaryMetric.label}</div>
-            <RichText className="stats-hero-sublabel" text={section.primaryMetric.sublabel} />
-          </div>
-        </div>
         <div className={`dashboard-plan-summary dashboard-plan-summary-${section.summary.tone}`}>
           <div className="dashboard-plan-summary-title">{section.summary.title}</div>
           <div className="dashboard-plan-summary-body">{section.summary.body}</div>
+        </div>
+        <div
+          className={`dashboard-plan-primary-metric is-${section.primaryMetric.tone}`}
+        >
+          <div className="dashboard-plan-primary-metric-gauge">
+            <AdherenceGauge
+              value={section.primaryMetric.value}
+              tone={section.primaryMetric.tone}
+            />
+          </div>
+          <div className="dashboard-plan-primary-metric-copy">
+            <div className="dashboard-plan-primary-metric-value">
+              {section.primaryMetric.value}
+            </div>
+            <div className="dashboard-plan-primary-metric-label">
+              {section.primaryMetric.label}
+            </div>
+            <RichText
+              className="dashboard-plan-primary-metric-sublabel"
+              text={section.primaryMetric.sublabel}
+            />
+          </div>
         </div>
         {section.supportingMetrics?.length ? (
           <div className="dashboard-plan-supporting-grid">
@@ -686,7 +691,8 @@ function TrainingMaxes({ title, items }) {
 }
 
 function DashboardIsland() {
-  const snapshot = useIslandSnapshot([DASHBOARD_EVENT, LANGUAGE_EVENT], getSnapshot);
+  const snapshot =
+    useRuntimeStore((state) => state.pages.dashboardView) || getSnapshot();
 
   useEffect(() => {
     if (typeof window.animateDashboardPlanMuscleBars === 'function') {

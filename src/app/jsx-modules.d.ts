@@ -38,10 +38,12 @@ declare global {
       setLogStartView?: (view: Record<string, unknown> | null) => void;
       setLogActiveView?: (view: Record<string, unknown> | null) => void;
       setHistoryView?: (view: Record<string, unknown> | null) => void;
+      setDashboardView?: (view: Record<string, unknown> | null) => void;
     };
     syncRuntimeStoreFromLegacy?: () => void;
     syncWorkoutSessionBridge?: () => void;
     syncHistoryBridge?: () => void;
+    syncDashboardBridge?: () => void;
     loadData?: (options?: {
       allowCloudSync?: boolean;
       userId?: string;

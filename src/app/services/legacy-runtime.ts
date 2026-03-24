@@ -2,6 +2,7 @@ import { startTransition } from 'react';
 import {
   type AppPage,
   type ConfirmSnapshot,
+  type DashboardView,
   type HistoryView,
   type LogActiveView,
   type LogStartView,
@@ -31,6 +32,7 @@ type RuntimeBridge = {
   setLogStartView: (view: LogStartView | null) => void;
   setLogActiveView: (view: LogActiveView | null) => void;
   setHistoryView: (view: HistoryView | null) => void;
+  setDashboardView: (view: DashboardView | null) => void;
 };
 
 function detectInitialActivePage(): AppPage {
@@ -100,6 +102,9 @@ function registerRuntimeBridge(): RuntimeBridge {
     setHistoryView: (view) => {
       useRuntimeStore.getState().setHistoryView(view);
     },
+    setDashboardView: (view) => {
+      useRuntimeStore.getState().setDashboardView(view);
+    },
   };
 
   (window as Window & { __IRONFORGE_RUNTIME_BRIDGE__?: RuntimeBridge }).__IRONFORGE_RUNTIME_BRIDGE__ =
@@ -112,12 +117,16 @@ export function syncRuntimeStoreFromLegacy() {
   const runtimeWindow = window as Window & {
     syncWorkoutSessionBridge?: () => void;
     syncHistoryBridge?: () => void;
+    syncDashboardBridge?: () => void;
   };
   if (typeof runtimeWindow.syncWorkoutSessionBridge === 'function') {
     runtimeWindow.syncWorkoutSessionBridge();
   }
   if (typeof runtimeWindow.syncHistoryBridge === 'function') {
     runtimeWindow.syncHistoryBridge();
+  }
+  if (typeof runtimeWindow.syncDashboardBridge === 'function') {
+    runtimeWindow.syncDashboardBridge();
   }
 }
 
@@ -131,12 +140,16 @@ export function startLegacyRuntimeBridge() {
       const runtimeWindow = window as Window & {
         syncWorkoutSessionBridge?: () => void;
         syncHistoryBridge?: () => void;
+        syncDashboardBridge?: () => void;
       };
       if (typeof runtimeWindow.syncWorkoutSessionBridge === 'function') {
         runtimeWindow.syncWorkoutSessionBridge();
       }
       if (typeof runtimeWindow.syncHistoryBridge === 'function') {
         runtimeWindow.syncHistoryBridge();
+      }
+      if (typeof runtimeWindow.syncDashboardBridge === 'function') {
+        runtimeWindow.syncDashboardBridge();
       }
     });
   };

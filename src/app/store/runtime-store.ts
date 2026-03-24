@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type {
   AppPage,
   ConfirmSnapshot,
+  DashboardView,
   HistoryView,
   LogActiveView,
   LogStartView,
@@ -24,6 +25,7 @@ type RuntimeStore = {
     logActiveView: LogActiveView | null;
   };
   pages: {
+    dashboardView: DashboardView | null;
     historyView: HistoryView | null;
   };
   navigateToPage: (page: AppPage) => void;
@@ -35,6 +37,7 @@ type RuntimeStore = {
   setLogStartView: (view: LogStartView | null) => void;
   setLogActiveView: (view: LogActiveView | null) => void;
   setHistoryView: (view: HistoryView | null) => void;
+  setDashboardView: (view: DashboardView | null) => void;
   bumpLanguageVersion: () => void;
 };
 
@@ -88,6 +91,7 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
     logActiveView: null,
   },
   pages: {
+    dashboardView: null,
     historyView: null,
   },
   navigateToPage: (page) =>
@@ -163,6 +167,13 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
       pages: {
         ...state.pages,
         historyView,
+      },
+    })),
+  setDashboardView: (dashboardView) =>
+    set((state) => ({
+      pages: {
+        ...state.pages,
+        dashboardView,
       },
     })),
   bumpLanguageVersion: () =>
