@@ -1,4 +1,4 @@
-import { Component, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Component, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { APP_PAGES } from './constants.ts';
 import { useRuntimeStore } from './store/runtime-store.ts';
@@ -114,8 +114,8 @@ export default function AppShell() {
     [languageVersion]
   );
 
-  useLayoutEffect(() => {
-    // Set island mounted flags synchronously (previously set by mountIsland() at module load time)
+  useEffect(() => {
+    // Keep temporary mounted flags for legacy callers that still branch on React ownership.
     const flags = [
       '__IRONFORGE_DASHBOARD_ISLAND_MOUNTED__',
       '__IRONFORGE_HISTORY_ISLAND_MOUNTED__',
@@ -128,27 +128,11 @@ export default function AppShell() {
       '__IRONFORGE_SETTINGS_PROGRAM_ISLAND_MOUNTED__',
       '__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_MOUNTED__',
     ];
-    flags.forEach((flag) => { window[flag] = true; });
-
-    // Dispatch initial snapshot events so islands render with data
-    const events = [
-      '__IRONFORGE_DASHBOARD_ISLAND_EVENT__',
-      '__IRONFORGE_HISTORY_ISLAND_EVENT__',
-      '__IRONFORGE_NUTRITION_ISLAND_EVENT__',
-      '__IRONFORGE_LOG_START_ISLAND_EVENT__',
-      '__IRONFORGE_LOG_ACTIVE_ISLAND_EVENT__',
-      '__IRONFORGE_SETTINGS_BODY_ISLAND_EVENT__',
-      '__IRONFORGE_SETTINGS_ACCOUNT_ISLAND_EVENT__',
-      '__IRONFORGE_SETTINGS_PREFERENCES_ISLAND_EVENT__',
-      '__IRONFORGE_SETTINGS_PROGRAM_ISLAND_EVENT__',
-      '__IRONFORGE_SETTINGS_SCHEDULE_ISLAND_EVENT__',
-    ];
-    events.forEach((key) => {
-      const eventName = window[key];
-      if (eventName) window.dispatchEvent(new CustomEvent(eventName));
+    flags.forEach((flag) => {
+      window[flag] = true;
     });
 
-    // Remove any remaining legacy shell divs (previously cleaned up by mountIsland())
+    // Remove any remaining legacy shell divs from the retired standalone island mounts.
     const legacyShells = [
       'dashboard-legacy-shell', 'history-legacy-shell', 'nutrition-legacy-shell',
       'log-start-legacy-shell', 'log-active-legacy-shell',
@@ -165,6 +149,12 @@ export default function AppShell() {
         window.initNutritionPage();
       }
     });
+
+    return () => {
+      flags.forEach((flag) => {
+        delete window[flag];
+      });
+    };
   }, []);
 
   useEffect(() => {

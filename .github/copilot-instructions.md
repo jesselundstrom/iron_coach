@@ -10,6 +10,7 @@
 - Contributor tooling now uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
 - React islands now own every visible page and settings surface, while the existing vanilla shell/runtime still remains the source of truth for business logic, persistence, and mutation flows behind explicit bridge events and DOM-compatible handlers.
 - The shell cutover now boots through a shared React app entry in `src/app/main.tsx` with a HashRouter + Zustand runtime foundation. Existing page islands still mount through their legacy bridges for now, but the shell and onboarding no longer boot as separate island entries.
+- The retired standalone entries `src/app-shell/main.jsx`, `src/onboarding-island/main.jsx`, and `src/island-runtime/index.jsx` are no longer part of the active runtime and should not be reintroduced.
 - Prefer extending the current global-function and shared-state style instead of introducing new architectural patterns.
 
 ## Primary Product Context

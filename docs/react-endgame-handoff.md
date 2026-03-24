@@ -15,6 +15,7 @@ Phase 2 has now started with the first ownership-transfer cutover landed:
 - The Dashboard React screen now reads store-backed dashboard view state instead of consuming `getDashboardReactSnapshot()` directly from React.
 - The Settings React screens now read store-backed settings view state instead of consuming `getSettings*ReactSnapshot()` directly from React.
 - The Nutrition React screen now reads store-backed nutrition view state instead of consuming `getNutritionReactSnapshot()` directly from React.
+- The retired standalone `src/app-shell/main.jsx` and `src/onboarding-island/main.jsx` boot paths are no longer part of the active runtime.
 - Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
 - RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 

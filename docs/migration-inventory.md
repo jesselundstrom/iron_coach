@@ -15,7 +15,7 @@ Status values:
 | Bottom navigation and page activation | `core/ui-shell.js` compatibility facade | React app shell + router/store | `in_progress` | `showPage` no longer needed for primary navigation |
 | Confirm modal | `core/ui-shell.js` compatibility facade | React app shell/store | `in_progress` | legacy confirm snapshot helper is removed |
 | Toast host | `core/ui-shell.js` compatibility facade | React app shell/store | `in_progress` | toast state no longer written through DOM ids |
-| Onboarding mount | `app.js` + `src/onboarding-island/main.jsx` | React app entry | `in_progress` | onboarding no longer mounts through a separate entry |
+| Onboarding mount | `app.js` + `src/app/OnboardingFlow.jsx` | React app entry | `done` | onboarding no longer mounts through a separate entry |
 | Page islands | `src/*-island/main.jsx` | React routes/components | `in_progress` | each page reads store/services directly |
 | Workout session state | `app.js` + `core/workout-layer.js` + `core/data-layer.js` | session service + store | `in_progress` | timer/draft/RPE/finish-discard state no longer depends on globals |
 | Nutrition page state | `core/nutrition-layer.js` snapshot/event bridge | React route + services | `in_progress` | nutrition route stops using `getNutritionReactSnapshot()` |

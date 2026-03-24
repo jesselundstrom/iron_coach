@@ -1698,7 +1698,7 @@ function renderProgramStatusBar() {
   if (isSettingsProgramIslandActive()) notifySettingsProgramIsland();
 }
 
-/* ── Onboarding bridge (UI is in src/onboarding-island/main.jsx) ── */
+/* ── Onboarding bridge (UI is in src/app/OnboardingFlow.jsx) ── */
 
 let _onboardingRetryTimer = null;
 
