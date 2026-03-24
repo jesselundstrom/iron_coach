@@ -10,6 +10,10 @@ import {
   syncRuntimeStoreFromLegacy,
 } from './services/legacy-runtime';
 import { useRuntimeStore } from './store/runtime-store';
+import { installLegacyI18nStoreBridge } from '../stores/i18n-store';
+import { installLegacyDataStoreBridge } from '../stores/data-store';
+import { installLegacyProfileStoreBridge } from '../stores/profile-store';
+import { installLegacyProgramStoreBridge } from '../stores/program-store';
 
 function LegacyRuntimeBridge() {
   useEffect(() => startLegacyRuntimeBridge(), []);
@@ -48,6 +52,10 @@ function App() {
 const mountNode = document.getElementById('app-shell-react-root');
 
 if (mountNode) {
+  installLegacyI18nStoreBridge();
+  installLegacyDataStoreBridge();
+  installLegacyProfileStoreBridge();
+  installLegacyProgramStoreBridge();
   prepareLegacyShellMount();
   syncRuntimeStoreFromLegacy();
   createRoot(mountNode).render(<App />);

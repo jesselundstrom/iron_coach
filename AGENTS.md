@@ -7,7 +7,7 @@
 
 ## Project Context
 
-Ironforge is a personal coaching PWA with three pillars: Training, Nutrition, and Recovery. Built with vanilla JS (no frameworks), it runs primarily on iPhone. The codebase uses a layer architecture (`core/*.js`) with a plugin system for training programs (`programs/*.js`). Nutrition coaching is powered by the Anthropic Claude API (browser-side). The app will eventually be wrapped with Capacitor for native distribution, with React Native as a future option.
+Ironforge is a personal coaching PWA with three pillars: Training, Nutrition, and Recovery. The shipped app already uses a React + Vite shell with a Zustand runtime foundation, while substantial business logic still lives in `app.js`, `core/*.js`, and `programs/*.js` during the ongoing TypeScript + Zustand migration. Nutrition coaching runs through the Supabase `nutrition-coach` edge function, and the app remains mobile-first with Capacitor as the near-term native wrapper path and React Native as a future option.
 
 ## Skills
 

@@ -1,4 +1,4 @@
-# Ironforge — Claude Instructions
+# Ironforge - Claude Instructions
 
 > Full project architecture, stack, and coding rules are in `.github/copilot-instructions.md`.
 > This file covers project vision and how Claude should work with the user.
@@ -6,9 +6,9 @@
 ## Project Vision
 
 - **Personal coaching app** with three pillars: Training, Nutrition, Recovery
-- Currently a vanilla JS PWA, primarily used on iPhone
+- Current app runtime is a mobile-first PWA with a React + Vite shell and legacy business logic still being migrated
 - Mobile strategy: Capacitor (wrap PWA in native shell) as first step, React Native as future option
-- The PWA is the production product — not a prototype
+- The PWA is the production product, not a prototype
 
 ## About the User
 
@@ -20,13 +20,13 @@
 ## How to Work With Me
 
 ### Always Explain
-- State WHAT you are doing and WHY — do not just produce code
+- State WHAT you are doing and WHY - do not just produce code
 - If making an architecture decision, justify it briefly
 - If something is a best practice, name it explicitly
 
 ### Ask Before Big Changes
-- If a change touches more than 2–3 files, describe the plan first
-- If unsure what the user wants, ask — do not guess
+- If a change touches more than 2-3 files, describe the plan first
+- If unsure what the user wants, ask - do not guess
 - Offer alternatives when they exist
 
 ### Teach Along the Way
@@ -35,14 +35,14 @@
 - Surface good practices (naming, structure, security) briefly
 
 ### Production Quality Always
-- No quick hacks — production-grade solutions only
+- No quick hacks - production-grade solutions only
 - Production-grade means: works offline, tested, handles edge cases
 - All weights in kilograms (kg)
 - Follow existing patterns and conventions in the codebase
 
 ### Keep These Instructions Current
 - When we make a decision that affects future sessions, add it to the Decisions section below
-- Example: "decided to use X pattern for Y problem" → add to Decisions
+- Example: "decided to use X pattern for Y problem" -> add to Decisions
 
 ---
 
@@ -50,36 +50,22 @@
 
 *Architecture decisions are logged here as they are made.*
 
-- **UI modals**: Sheet-pattern (not native dialog) — consistency and mobile UX
-- **Training programs**: Plugin architecture — new programs register without touching core files
-- **Testing**: Playwright e2e — test like a real user, no unit tests
+- **UI modals**: Sheet-pattern (not native dialog) - consistency and mobile UX
+- **Training programs**: Plugin architecture - new programs register without touching core files
+- **Testing**: Playwright e2e - test like a real user, no unit tests
 - **Nutrition coaching**: Anthropic API (Claude) runs through a Supabase Edge Function with an Ironforge-managed server-side key, signed-in access, and daily per-user caps
 - **Nutrition flow**: Guided daily actions with an optional short note, not an open-ended rolling chat
 - **Recovery/readiness**: Fatigue engine (muscular, CNS, overall) is a core coaching pillar
 - **Code language**: All code, comments, and docs in English; UI supports EN/FI via i18n
-- **Layer architecture**: Business logic split into `core/*.js` layers, not a single monolith
+- **Layer architecture**: Business logic is still largely split across `core/*.js` plus `app.js`, with an active migration path toward TypeScript + Zustand
 - **Sport schedule**: Configurable sport type (not hardcoded to hockey)
 - **Mobile strategy**: Capacitor for PWA wrapping first, React Native as future option
-- **React migration**: Gradual island-based migration using React + Vite (not Next.js, not full rewrite)
-  - Vite builds React islands as JS bundles loaded into the existing index.html (library/bundle mode)
-  - Existing vanilla shell (app.js, showPage, global state) stays as source of truth during migration
-  - React islands are consumers of existing state via a thin adapter layer (custom events for sync)
-  - Program plugins stay as vanilla `<script>` tags; React accesses them via global `PROGRAMS` object
-  - Migration order: History (read-only first) → Dashboard → Settings → full shell replacement
-  - Settings migration uses bounded slices with the Body tab as the proving pattern; Body, Account, Preferences, Schedule, and Program now run as React islands while advanced program setup stays on the legacy sheet flow
-  - Log migration now runs both the workout start shell and active workout editor through React islands, while the workout logic, draft persistence, rest-timer bar, modals, and finish/discard handlers stay legacy-backed under the same DOM contract
-  - Nutrition migration now runs the visible guided daily coaching shell through a React island while the day-scoped local history, signed-in setup card, clear-history flow, and photo handling remain legacy-backed under explicit snapshot events; Claude requests now proxy through the Supabase `nutrition-coach` edge function instead of calling Anthropic directly from the browser
-  - The shell replacement now boots through a single top-level React app entry in `src/app/main.tsx`, with a HashRouter + Zustand runtime foundation. That shared app entry now renders the real app shell in `src/app/AppShell.jsx`: header/content shell, visible bottom nav, toast host, confirm modal, exercise catalog/name modal, workout overlay hosts (RPE, summary, sport-check, exercise guide), settings overlay hosts (onboarding and program setup), the rest-timer bar, and the page tree itself. `core/ui-shell.js` remains the compatibility bridge for `showPage(...)`, `showToast(...)`, and `showConfirm(...)`, but React/module-side code should prefer imported app services/actions, and the legacy workout catalog now pushes structured catalog view state into the runtime bridge instead of rendering the modal with `innerHTML`
-  - The retired standalone entries `src/app-shell/main.jsx`, `src/onboarding-island/main.jsx`, and `src/island-runtime/index.jsx` are no longer part of the active runtime and should not be reintroduced
-  - The Log route no longer reads `getLogStartReactSnapshot()` / `getLogActiveReactSnapshot()` from React. Legacy workout code now pushes store-backed log start/active view models into the shared workout-session surface while the workout logic, persistence, and program building remain legacy-backed for now
-  - The History route no longer reads `getHistoryReactSnapshot()` from React. Legacy history code now pushes a store-backed History view model into the shared runtime store while the history grouping/stats logic remain legacy-backed for now
-  - The Dashboard route no longer reads `getDashboardReactSnapshot()` from React. Legacy dashboard code now pushes a store-backed Dashboard view model into the shared runtime store while readiness, fatigue, and dashboard composition logic remain legacy-backed for now
-  - The Settings route no longer reads `getSettings*ReactSnapshot()` from React. Legacy settings code now pushes store-backed Settings tab view models into the shared runtime store while tab switching, persistence, and advanced setup flows remain legacy-backed for now
-  - The Nutrition route no longer reads `getNutritionReactSnapshot()` from React. Legacy nutrition code now pushes a store-backed Nutrition view model into the shared runtime store while init/render lifecycle, day history, and request handling remain legacy-backed for now
-  - The old page snapshot getter exports, page `*-updated` bridge events, and page-specific mounted-flag ownership checks for Log, History, Dashboard, Settings, and Nutrition are removed; remaining hybrid coordination now centers on store sync helpers and runtime-bridge capability checks
-  - Settings tab ownership now lives in the shared React runtime store and `AppShell`, while Nutrition page entry refreshes through `syncNutritionBridge()` instead of `initNutritionPage()`
-  - The cutover now tracks hybrid removal in `docs/migration-inventory.md`; page islands still render through their existing bridges for now, but the shell and onboarding no longer mount as separate island entries
-  - Visible-surface UI migration is now complete: every shipped page and settings surface renders through React, while the legacy `core/*.js` and `app.js` layers remain the mutation/business-logic bridge behind explicit snapshot events and DOM-compatible handlers
-  - localStorage/Supabase data model unchanged throughout migration
-  - Service worker must handle Vite's hashed output filenames
-  - i18n and offline behavior preserved from day one in every migrated page
+- **UI runtime**: React + Vite is the shipped visible-shell runtime
+  - `src/app/main.tsx` boots the app
+  - `src/app/AppShell.jsx` owns the visible shell, navigation, overlays, and page tree
+  - `src/app/store/runtime-store.ts` is already part of the active runtime foundation
+  - Compatibility bridges and selected `window.*` globals still exist temporarily for untouched legacy logic and tests
+- **Legacy runtime migration**: The active migration is now the remaining business/runtime layer in `app.js`, `core/*.js`, and `programs/*.js` to TypeScript + Zustand
+  - Migrate incrementally with compatibility shims until the typed runtime fully owns each surface
+  - Preserve localStorage/Supabase compatibility, offline behavior, and i18n during every phase
+  - Use `docs/migration-ts-zustand.md` as the migration source of truth

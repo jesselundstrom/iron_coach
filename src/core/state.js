@@ -1,13 +1,16 @@
+import { getDataStateSnapshot } from '../stores/data-store';
+
 export function getState() {
+  const state = getDataStateSnapshot();
   return {
-    workouts: typeof window !== 'undefined' ? window.workouts || [] : [],
-    schedule: typeof window !== 'undefined' ? window.schedule || null : null,
-    profile: typeof window !== 'undefined' ? window.profile || null : null,
-    activeWorkout: typeof window !== 'undefined' ? window.activeWorkout || null : null,
-    restDuration: typeof window !== 'undefined' ? window.restDuration || 0 : 0,
-    restEndsAt: typeof window !== 'undefined' ? window.restEndsAt || 0 : 0,
-    restSecondsLeft: typeof window !== 'undefined' ? window.restSecondsLeft || 0 : 0,
-    currentUser: typeof window !== 'undefined' ? window.currentUser || null : null,
+    workouts: state.workouts,
+    schedule: state.schedule,
+    profile: state.profile,
+    activeWorkout: state.activeWorkout,
+    restDuration: state.restDuration,
+    restEndsAt: state.restEndsAt,
+    restSecondsLeft: state.restSecondsLeft,
+    currentUser: state.currentUser,
   };
 }
 

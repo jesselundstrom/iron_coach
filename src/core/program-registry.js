@@ -1,41 +1,45 @@
-function getWindowProgramRegistry() {
-  if (typeof window === 'undefined') return {};
-  if (typeof window.getProgramRegistry === 'function') {
-    return window.getProgramRegistry() || {};
-  }
-  return window.PROGRAMS || {};
-}
+import { programStore } from '../stores/program-store.ts';
 
 export function getRegisteredPrograms() {
-  if (typeof window !== 'undefined' && typeof window.getRegisteredPrograms === 'function') {
-    return window.getRegisteredPrograms() || [];
-  }
-  return Object.values(getWindowProgramRegistry());
+  return programStore.getState().programs || [];
 }
 
 export function hasRegisteredPrograms() {
-  if (typeof window !== 'undefined' && typeof window.hasRegisteredPrograms === 'function') {
-    return window.hasRegisteredPrograms() === true;
-  }
   return getRegisteredPrograms().length > 0;
 }
 
 export function getProgramById(programId) {
-  if (typeof window !== 'undefined' && typeof window.getProgramById === 'function') {
-    return window.getProgramById(programId) || null;
-  }
-  const registry = getWindowProgramRegistry();
-  return registry?.[String(programId || '').trim()] || null;
+  return programStore.getState().getProgramById(programId) || null;
 }
 
 export function getProgramInitialState(programId) {
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.getProgramInitialState === 'function'
-  ) {
-    return window.getProgramInitialState(programId);
-  }
-  const program = getProgramById(programId);
-  if (!program || typeof program.getInitialState !== 'function') return null;
-  return program.getInitialState();
+  return programStore.getState().getProgramInitialState(programId);
+}
+
+export function getActiveProgramId() {
+  return programStore.getState().activeProgramId || null;
+}
+
+export function getActiveProgram() {
+  return programStore.getState().activeProgram || null;
+}
+
+export function getActiveProgramState() {
+  return programStore.getState().activeProgramState || null;
+}
+
+export function getProgramCapabilities(programId) {
+  return programStore.getState().getProgramCapabilities(programId);
+}
+
+export function getProgramDifficultyMeta(programId) {
+  return programStore.getState().getProgramDifficultyMeta(programId);
+}
+
+export function getProgramTrainingDaysRange(programId) {
+  return programStore.getState().getProgramTrainingDaysRange(programId);
+}
+
+export function getEffectiveProgramFrequency(programId, profileLike) {
+  return programStore.getState().getEffectiveProgramFrequency(programId, profileLike);
 }

@@ -14,6 +14,27 @@ declare module './OnboardingFlow.jsx' {
 
 declare global {
   interface Window {
+    I18N?: {
+      t?: (
+        key: string,
+        params?: Record<string, unknown> | null,
+        fallback?: string
+      ) => string;
+      extendStrings?: (locale: string, entries: Record<string, string>) => void;
+      setLanguage?: (
+        locale: string,
+        options?: { persist?: boolean; notify?: boolean }
+      ) => string;
+      getLanguage?: () => string;
+      applyTranslations?: (root?: ParentNode | null) => void;
+      fallbackLocale?: string;
+      supportedLocales?: string[];
+    };
+    tr?: (
+      key: string,
+      fallback?: string,
+      params?: Record<string, unknown> | null
+    ) => string;
     __IRONFORGE_APP_SHELL_READY__?: boolean;
     __IRONFORGE_RUNTIME_BRIDGE__?: {
       navigateToPage?: (page: string) => void;
@@ -90,7 +111,25 @@ declare global {
     loadData?: (options?: {
       allowCloudSync?: boolean;
       userId?: string;
+      allowLegacyFallback?: boolean;
     }) => Promise<void> | void;
+    getLocalCacheKey?: (baseKey: string, userId?: string) => string;
+    clearLocalDataCache?: (options?: Record<string, unknown>) => void;
+    getActiveWorkoutDraftCache?: () => Record<string, unknown> | null;
+    saveWorkouts?: (...args: unknown[]) => Promise<unknown> | unknown;
+    saveScheduleData?: (...args: unknown[]) => Promise<unknown> | unknown;
+    saveProfileData?: (...args: unknown[]) => Promise<unknown> | unknown;
+    persistActiveWorkoutDraft?: (...args: unknown[]) => unknown;
+    clearActiveWorkoutDraft?: (...args: unknown[]) => unknown;
+    currentUser?: Record<string, unknown> | null;
+    workouts?: Array<Record<string, unknown>>;
+    schedule?: Record<string, unknown> | null;
+    profile?: Record<string, unknown> | null;
+    activeWorkout?: Record<string, unknown> | null;
+    restDuration?: number;
+    restEndsAt?: number;
+    restSecondsLeft?: number;
+    __IRONFORGE_TEST_USER_ID__?: string;
     runPageActivationSideEffects?: (page: string) => void;
     showSettingsTab?: (tab: string, trigger?: Element | null) => void;
     showConfirm?: (
@@ -102,6 +141,9 @@ declare global {
     confirmCancel?: () => void;
     clearNutritionHistory?: () => void;
     retryLastNutritionMessage?: () => void;
+    loginWithEmail?: () => Promise<unknown> | unknown;
+    signUpWithEmail?: () => Promise<unknown> | unknown;
+    logout?: () => Promise<unknown> | unknown;
     setSelectedNutritionAction?: (actionId: string) => void;
     submitNutritionTextMessage?: (text: string, isCorrection?: boolean) => void;
     handleNutritionPhoto?: (event: Event) => void;

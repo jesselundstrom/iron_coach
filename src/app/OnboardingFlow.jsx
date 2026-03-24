@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { getProgramById } from '../core/program-registry.js';
+import {
+  getProgramById,
+  getProgramDifficultyMeta,
+} from '../core/program-registry.js';
+import { buildOnboardingRecommendation } from '../core/planning.js';
 
 const ONBOARDING_EVENT = 'ironforge:onboarding-updated';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
@@ -329,10 +333,7 @@ function StepGuidance({ draft, setField }) {
 }
 
 function StepRecommendation({ draft }) {
-  const recommendation =
-    typeof window.buildOnboardingRecommendation === 'function'
-      ? window.buildOnboardingRecommendation(draft)
-      : null;
+  const recommendation = buildOnboardingRecommendation(draft);
 
   if (!recommendation) {
     return (
@@ -349,7 +350,7 @@ function StepRecommendation({ draft }) {
     'program.' + programId + '.description',
     program?.description || ''
   );
-  const difficultyMeta = window.getProgramDifficultyMeta?.(programId);
+  const difficultyMeta = getProgramDifficultyMeta(programId);
   const difficultyLabel = difficultyMeta
     ? t(difficultyMeta.labelKey, difficultyMeta.fallback)
     : '';

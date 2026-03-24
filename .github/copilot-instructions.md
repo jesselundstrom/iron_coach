@@ -2,21 +2,31 @@
 
 ## Project Shape
 - Ironforge is a **personal coaching app** with three pillars: Training, Nutrition, and Recovery.
-- This repository is a no-build vanilla web app and PWA.
-- Main entry points are `index.html`, `app.js`, `styles.css`, `manifest.json`, and `sw.js`.
-- `app.js` is the orchestration/bootstrap layer. Heavy business logic lives in 11 layer files under `core/`.
-- Key layers: `core/workout-layer.js` (session logic), `core/nutrition-layer.js` (AI nutrition coach), `core/dashboard-layer.js`, `core/history-layer.js`, `core/plan-engine.js` (planning utilities), `core/data-layer.js` (persistence/sync), `core/i18n-layer.js` (translations), `core/exercise-library.js` (exercise catalog), `core/program-layer.js` (program helpers).
-- Training program definitions live under `programs/` (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
-- Contributor tooling now uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
-- React now owns the full visible app shell, page tree, and overlay host through the shared app entry in `src/app/main.tsx`, while the existing vanilla runtime still remains the source of truth for business logic, persistence, and mutation flows behind explicit bridge/store adapters.
-- The shell cutover now boots through a shared React app entry in `src/app/main.tsx` with a HashRouter + Zustand runtime foundation. `src/app/AppShell.jsx` renders the actual page DOM, header, nav, rest timer, confirm/toast hosts, onboarding, workout overlays, and the exercise catalog directly; the old pre-rendered HTML page shell is retired.
-- The retired standalone entries `src/app-shell/main.jsx`, `src/onboarding-island/main.jsx`, and `src/island-runtime/index.jsx` are no longer part of the active runtime and should not be reintroduced.
-- Prefer extending the current global-function and shared-state style instead of introducing new architectural patterns.
+- This repository is a mobile-first PWA with a hybrid runtime:
+  - a React + Vite app shell in `src/app/`
+  - an existing legacy runtime in `app.js`, `core/*.js`, and `programs/*.js`
+  - an active migration path from that legacy runtime to TypeScript + Zustand
+- Main runtime entry points are `index.html`, `app.js`, `src/app/main.tsx`, `styles.css`, `manifest.json`, and `sw.js`.
+- The React shell already owns the visible app shell, page tree, and overlay host through `src/app/main.tsx` and `src/app/AppShell.jsx`.
+- `src/app/store/runtime-store.ts` is already part of the active runtime foundation for shell/navigation/UI state.
+- The legacy business/runtime layer still lives primarily in:
+  - `core/workout-layer.js`
+  - `core/nutrition-layer.js`
+  - `core/dashboard-layer.js`
+  - `core/history-layer.js`
+  - `core/plan-engine.js`
+  - `core/data-layer.js`
+  - `core/i18n-layer.js`
+  - `core/exercise-library.js`
+  - `core/program-layer.js`
+  - `programs/*.js`
+- Training program definitions currently live under `programs/` (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
+- Contributor tooling uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
 
 ## Primary Product Context
 - The app is primarily used as an installed PWA on a phone (iPhone).
 - The app has 5 pages: Dashboard, Log, History, Settings, and Nutrition.
-- AI nutrition coaching is a core feature, not an add-on — it bridges training and nutrition data.
+- AI nutrition coaching is a core feature, not an add-on - it bridges training and nutrition data.
 - Treat mobile usability as the default, not a secondary breakpoint.
 - Avoid changes that assume desktop-first layouts, hover-only interactions, wide tables, or precise pointer input.
 - Preserve installability, offline-friendly behavior, and fast startup.
@@ -25,37 +35,36 @@
 
 ## Architecture Rules
 - Prefer extending the existing layer structure instead of adding new abstractions.
-- Do not introduce frameworks, bundlers, TypeScript, or a server dependency unless explicitly requested.
-- React-owned UI should render from the shared app shell and typed app services/store slices instead of portaling into pre-rendered legacy page markup. Keep legacy runtime access behind explicit adapters/events instead of importing legacy files into React.
-- For form-heavy settings areas, migrate bounded slices first (using the Body tab pattern) and keep the existing handlers, persistence flow, and advanced program setup sheet as the source of truth while React islands replace the main settings panels.
-- For the Log page, keep the legacy workout logic as the source of truth even when the visible start shell and active editor run through React islands. Preserve the existing DOM ids, draft restore flow, finish/discard handlers, rest-timer bar, and workout modals while React mirrors the rendered session UI through explicit snapshot events.
-- For the Nutrition page, keep the day-scoped local history, signed-in setup card, clear-history flow, and photo handling in the legacy runtime even when the visible guided coaching shell is mounted through a React island. Claude requests now proxy through the Supabase `nutrition-coach` edge function instead of calling Anthropic directly from the browser.
-- The current shell-replacement step runs through the shared React app entry in `src/app/main.tsx`, which mounts the shell from `src/app/AppShell.jsx`: visible bottom navigation, header/content shell, toast host, confirm modal, exercise catalog/name modal, workout overlay hosts, settings overlay hosts, onboarding, and the page container itself. `core/ui-shell.js` remains the compatibility bridge for `showPage(...)`, `showToast(...)`, and `showConfirm(...)`, but React module code should prefer imported actions/services. The mounted React shell owns nav metadata, confirm/toast rendering, active-page rendering, content scroll-lock state, page-activation timing after route changes, and the catalog modal UI.
-- The Log route no longer reads `getLogStartReactSnapshot()` / `getLogActiveReactSnapshot()` from React components. Legacy workout code now pushes log start/active view models into the shared workout-session store surface, while workout logic and persistence still remain legacy-backed.
-- The History route no longer reads `getHistoryReactSnapshot()` from React components. Legacy history code now pushes a store-backed History view model into the shared runtime store, while history grouping/stats logic still remain legacy-backed.
-- The Dashboard route no longer reads `getDashboardReactSnapshot()` from React components. Legacy dashboard code now pushes a store-backed Dashboard view model into the shared runtime store, while readiness/fatigue/dashboard composition logic still remain legacy-backed.
-- The Settings route no longer reads `getSettings*ReactSnapshot()` from React components. Legacy settings code now pushes store-backed Settings tab view models into the shared runtime store, while tab switching, persistence, and advanced setup flows remain legacy-backed.
-- The Nutrition route no longer reads `getNutritionReactSnapshot()` from React components. Legacy nutrition code now pushes a store-backed Nutrition view model into the shared runtime store, while init/render lifecycle, day history, and request handling remain legacy-backed.
-- The old page snapshot getter exports, page `*-updated` bridge events, and page-specific mounted-flag ownership checks for Log, History, Dashboard, Settings, and Nutrition are removed; remaining hybrid coordination now centers on store sync helpers and runtime-bridge capability checks.
-- The exercise catalog no longer renders through legacy `innerHTML`/inline-handler DOM injection. Legacy workout code now pushes a structured catalog view into the runtime bridge, and React renders the modal UI from store state.
-- Module-side React code should use explicit accessors such as `src/core/program-registry.js` and `src/core/exercise-library.js` instead of reading `window.PROGRAMS` or `window.EXERCISE_LIBRARY` directly during the migration.
-- Use `docs/migration-inventory.md` as the living checklist for hybrid bridge removal during the React cutover.
+- Do not introduce new frameworks or server dependencies unless explicitly requested.
+- Do not add new legacy globals or new bridge-only patterns unless temporary compatibility truly requires them.
+- Prefer new typed modules and Zustand stores for surfaces that are actively being migrated.
+- Preserve existing runtime compatibility for untouched legacy surfaces until the migration phase for that surface is complete.
+- React-owned UI should render from the shared app shell and typed app services/store slices instead of portaling into pre-rendered legacy page markup.
+- React/store code should prefer typed store accessors or explicit adapter modules over direct `window.*` reads whenever a typed path exists.
+- Keep legacy runtime access behind explicit adapters and compatibility seams instead of importing legacy files deeply into React code.
 - Reuse existing state objects, helpers, and DOM patterns before creating new ones.
 - Keep changes small and compatible with the current file organization.
+- Use `docs/migration-ts-zustand.md` as the migration source of truth for the legacy runtime replacement.
+
+## Runtime Compatibility Rules
+- `core/ui-shell.js`, `window.showPage(...)`, `window.showToast(...)`, `window.showConfirm(...)`, and similar globals remain compatibility surfaces until their callers are fully migrated.
+- `window.PROGRAMS`, `window.EXERCISE_LIBRARY`, `window.workouts`, `window.profile`, `window.schedule`, and `window.activeWorkout` may remain temporarily for untouched legacy code and Playwright compatibility.
+- When migrating a surface, prefer thin delegators and compatibility writes over big-bang removal.
+- Remove bridge/shim code only after the typed runtime owns that surface and the relevant tests no longer depend on the legacy contract.
+- Do not introduce new page-by-page React migration guidance; the visible-surface cutover is already complete.
 
 ## UI And Behavior
 - Match the existing visual language and interaction patterns.
 - Preserve the mobile-first PWA behavior already defined in the HTML, manifest, and service worker.
 - Avoid large HTML rewrites unless the task requires them.
-- Favor simple DOM updates over heavy component-style rewrites.
 - Keep controls usable on small screens and ensure new UI works with touch input.
 - Keep Settings simple-first: expose clear everyday controls in the main view, and keep technical program tuning behind a separate advanced setup path instead of pushing all knobs into the default UI.
 
 ## Internationalization
 - User-facing strings must go through the translation system.
-- Add new keys to the central string map in `core/i18n-layer.js`.
+- Add new keys to the current translation source of truth, which is still `core/i18n-layer.js` unless the active migration phase moves that ownership.
 - Keep English and Finnish translations in sync.
-- Prefer existing `tr(...)`, `I18N.t(...)`, `data-i18n`, and `data-i18n-placeholder` patterns.
+- Prefer existing `tr(...)`, `I18N.t(...)`, `data-i18n`, and `data-i18n-placeholder` patterns until a migrated i18n store fully replaces them.
 - Do not hardcode new visible UI strings directly into templates or DOM updates unless there is a very strong reason.
 - Follow the `section.area.action` naming style for translation keys.
 - Avoid verbose labels that wrap badly on narrow screens or weaken tap-target layouts.
@@ -63,7 +72,7 @@
 ## Data And Persistence
 - Respect the current localStorage-backed state and existing data shapes.
 - Do not rename persisted keys or change stored structures without migration logic.
-- Be careful with Supabase-related code in `app.js` and `core/data-layer.js`.
+- Be careful with Supabase-related code in the current legacy runtime, especially `app.js` and `core/data-layer.js`, unless that responsibility is being migrated deliberately.
 - Treat `public.workouts` as the source of truth for workout history sync.
 - Treat `public.profile_documents` as the primary sync source for profile core, schedule, and per-program state.
 - Treat `profile.preferences` as a durable part of `profile_core`. Preserve and migrate it when changing profile persistence or recommendation logic.
@@ -71,7 +80,7 @@
 - Treat `profiles.data` as a compatibility mirror/fallback for profile and schedule only; do not reintroduce `profiles.data.workouts`.
 - Keep workout-table changes compatible with the additive migration flow under `supabase/migrations/`.
 - Keep profile-document sync compatible with the additive migration flow under `supabase/migrations/`.
-- Profile-document writes now go through the guarded Supabase RPC `upsert_profile_documents_if_newer(jsonb)` and resolve document freshness by `client_updated_at`, not by server `updated_at`.
+- Profile-document writes go through the guarded Supabase RPC `upsert_profile_documents_if_newer(jsonb)` and resolve document freshness by `client_updated_at`, not by server `updated_at`.
 - Preserve soft-delete behavior for synced workouts unless the task explicitly requires a different deletion model.
 - Avoid changes that could silently invalidate existing user data on devices.
 - `profile.bodyMetrics` stores body composition data (weight, height, age, sex, activity level, body goal, target weight).
@@ -81,19 +90,19 @@
 - Profile and schedule sync use section-level timestamps in `profile.syncMeta`. Preserve that merge behavior when changing profile persistence.
 - Keep saves targeted: program-state writes should update the relevant `program:<id>` document instead of re-writing every program state blob.
 - When changing import, clear-all, delete, or undo flows, ensure behavior stays correct for both the local localStorage cache and the `workouts` Supabase table.
-- Prefer small, explicit sync helpers in `core/data-layer.js` over spreading Supabase calls across unrelated files.
+- Prefer small, explicit sync helpers while migrating instead of spreading Supabase calls across unrelated files.
 
 ## Program Files
 - Files under `programs/` define training logic and metadata (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
-- Keep new program implementations consistent with the existing program modules.
-- Avoid mixing program logic into unrelated UI code when a program file or layer file is the correct home.
-- Exercise metadata such as movement tags, muscle groups, and equipment tags belongs in `core/exercise-library.js`. Reuse that catalog instead of scattering duplicate exercise heuristics across program files.
-- User-facing muscle-load UI should use the display-group mapping from `core/exercise-library.js` instead of inventing separate dashboard-only muscle labels.
-- Keep new program objects compatible with the existing integration points: id, name, description, icon, session options, session building, state advancement, and settings hooks. Extend the existing shape instead of introducing new abstractions.
-- When adding settings UI from a program file, follow the existing inline DOM rendering style already used by current program modules.
+- Keep new program implementations consistent with the existing program modules and their current runtime contract.
+- Avoid mixing program logic into unrelated UI code when a program file or a program/domain/store module is the correct home.
+- Exercise metadata such as movement tags, muscle groups, and equipment tags belongs in the exercise-library surface. Reuse that catalog instead of scattering duplicate exercise heuristics across program files.
+- User-facing muscle-load UI should use the display-group mapping from the exercise-library surface instead of inventing separate dashboard-only muscle labels.
+- Keep new program objects compatible with the existing integration points: id, name, description, icon, session options, session building, state advancement, and settings hooks.
+- When migrating program settings UI, preserve behavior first and refactor the rendering model later.
 
 ## Nutrition And AI Coaching
-- `core/nutrition-layer.js` is a self-contained Claude-powered nutrition coach.
+- The current legacy nutrition implementation lives in `core/nutrition-layer.js` until migrated.
 - Anthropic requests are routed through the Supabase `nutrition-coach` edge function with an Ironforge-managed server-side API key.
 - Nutrition Coach requires a signed-in user and enforces daily per-user request caps in `public.nutrition_usage_daily`.
 - The browser must never store an Anthropic API key or send requests directly to `api.anthropic.com`.
@@ -108,7 +117,7 @@
 
 ## Recovery And Readiness
 - The fatigue engine is a core coaching pillar, not just a training helper.
-- `FATIGUE_CONFIG` constants live in `app.js` and drive sport-aware fatigue scoring.
+- `FATIGUE_CONFIG` currently lives in `app.js` and should move only as part of an intentional migration step.
 - Three fatigue dimensions: Muscular, CNS, and Overall.
 - Sport schedule integration affects leg fatigue calculations and training day recommendations.
 - `getTodayTrainingDecision()` and readiness scoring form the recovery-layer logic.
@@ -117,10 +126,10 @@
 
 ## Mobile Portability
 - Mobile strategy: Capacitor (wrap PWA in native shell) as the pragmatic first step, React Native as a future option.
-- When writing new business logic in `core/*.js`, keep it separable from DOM manipulation.
+- When writing new business logic, keep it separable from DOM manipulation.
 - Prefer pure functions (data in, data out) over functions that directly read/write the DOM in business logic layers.
-- Avoid introducing new web-only APIs (e.g., `window.speechSynthesis`, `navigator.share`) in core layers — use them only in UI code.
-- The `core/` layer split is the foundation for eventual extraction into a shared logic package.
+- Avoid introducing new web-only APIs (for example `window.speechSynthesis` or `navigator.share`) in domain/business logic; keep them in UI code.
+- The current layer split plus the ongoing TS/Zustand migration is the foundation for eventual extraction into a shared logic package.
 - Avoid APIs that Capacitor cannot bridge when adding new platform features.
 - React Native skills are available in `.agents/skills/vercel-react-native-skills/` for reference if a full rewrite is needed later.
 
@@ -133,8 +142,7 @@
 - Keep tests small, readable, and purpose-driven. One user flow per test is preferred over giant all-in-one scripts.
 - Before closing meaningful work, run the relevant verification commands from the current toolchain such as `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run build`, and targeted `npm.cmd run test:e2e` coverage when applicable.
 - When a change alters architecture, persistence, sync behavior, migrations, or contributor workflow, also update the relevant AI instructions under `.github/` before committing.
-- When changing recommendation logic, readiness logic, or future AI-training groundwork, check whether `profile.preferences` shape or related guidance in `.github/` needs to be updated too.
-- Before committing and pushing meaningful project changes, explicitly check whether `.github/copilot-instructions.md` or a matching file under `.github/instructions/` should be updated to reflect the new reality.
+- Before committing and pushing meaningful project changes, explicitly check whether `.github/copilot-instructions.md` should be updated to reflect the new reality.
 - When changing cached runtime assets or PWA update behavior, also decide whether `sw.js` cache versioning or fetch strategy needs an update.
 - Do not add instruction-only churn for trivial edits, but do document durable workflow or architecture changes once they become part of the project standard.
 - Prefer minimal diffs that preserve the current coding style and user flows.
