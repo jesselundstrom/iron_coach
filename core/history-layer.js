@@ -102,8 +102,8 @@ function histLocale() {
 }
 
 function histDisplayName(input) {
-  if (window.EXERCISE_LIBRARY && EXERCISE_LIBRARY.getDisplayName)
-    return EXERCISE_LIBRARY.getDisplayName(input);
+  if (typeof window.getExerciseDisplayName === 'function')
+    return window.getExerciseDisplayName(input);
   return String(input || '');
 }
 

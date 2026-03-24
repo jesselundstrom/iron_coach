@@ -48,13 +48,12 @@ function analyzeProgramSessionShape(prog, session) {
 function getPlannedSessionDisplayMuscleLoad(session) {
   const totals = {};
   if (
-    !window.EXERCISE_LIBRARY ||
-    !EXERCISE_LIBRARY.getExerciseMeta ||
-    !EXERCISE_LIBRARY.mapMuscleToDisplayGroup
+    typeof window.getExerciseMetadata !== 'function' ||
+    typeof window.mapExerciseMuscleToDisplayGroup !== 'function'
   )
     return totals;
   (Array.isArray(session) ? session : []).forEach((ex) => {
-    const meta = EXERCISE_LIBRARY.getExerciseMeta(
+    const meta = window.getExerciseMetadata(
       ex?.exerciseId || ex?.name || ex
     );
     if (!meta) return;
@@ -62,12 +61,12 @@ function getPlannedSessionDisplayMuscleLoad(session) {
     if (!setCount) return;
     const exerciseScale = ex?.isAccessory ? 0.6 : ex?.isAux ? 0.85 : 1;
     (meta.primaryMuscles || []).forEach((muscle) => {
-      const group = EXERCISE_LIBRARY.mapMuscleToDisplayGroup(muscle);
+      const group = window.mapExerciseMuscleToDisplayGroup(muscle);
       if (!group) return;
       totals[group] = (totals[group] || 0) + setCount * exerciseScale;
     });
     (meta.secondaryMuscles || []).forEach((muscle) => {
-      const group = EXERCISE_LIBRARY.mapMuscleToDisplayGroup(muscle);
+      const group = window.mapExerciseMuscleToDisplayGroup(muscle);
       if (!group) return;
       totals[group] = (totals[group] || 0) + setCount * 0.5 * exerciseScale;
     });

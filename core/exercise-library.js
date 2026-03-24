@@ -1584,6 +1584,89 @@ FALLBACK_EXERCISE_NAMES.forEach(name=>registerExercise({name}));
   ['step ups','Step-Ups']
 ].forEach(([alias,target])=>registerAlias(alias,target));
 
+function getExerciseLibrary(){
+  return window.EXERCISE_LIBRARY||null;
+}
+
+function hasExerciseLibrary(){
+  return !!getExerciseLibrary();
+}
+
+function resolveRegisteredExerciseId(input){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.resolveExerciseId!=='function')return null;
+  return library.resolveExerciseId(input)||null;
+}
+
+function getRegisteredExercise(input){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.getExercise!=='function')return null;
+  return library.getExercise(input)||null;
+}
+
+function getExerciseMetadata(input,locale){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.getExerciseMeta!=='function')return null;
+  return library.getExerciseMeta(input,locale)||null;
+}
+
+function getExerciseDisplayName(input,locale){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.getDisplayName!=='function'){
+    return String(typeof input==='object'?input?.name||'':input||'');
+  }
+  return library.getDisplayName(input,locale)||'';
+}
+
+function getExerciseGuidanceFor(input,locale){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.getExerciseGuidance!=='function')return null;
+  return library.getExerciseGuidance(input,locale)||null;
+}
+
+function mapExerciseMuscleToDisplayGroup(muscle){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.mapMuscleToDisplayGroup!=='function')return null;
+  return library.mapMuscleToDisplayGroup(muscle)||null;
+}
+
+function listRegisteredExercises(options){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.getExerciseList!=='function')return [];
+  return library.getExerciseList(options)||[];
+}
+
+function searchRegisteredExercises(query,filters){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.searchExercises!=='function')return [];
+  return library.searchExercises(query,filters)||[];
+}
+
+function getRelatedRegisteredExercises(exerciseId,options){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.getRelatedExercises!=='function')return [];
+  return library.getRelatedExercises(exerciseId,options)||[];
+}
+
+function registerCustomExercise(definition){
+  const library=getExerciseLibrary();
+  if(!library||typeof library.registerExercise!=='function')return null;
+  return library.registerExercise(definition)||null;
+}
+
+window.getExerciseLibrary=getExerciseLibrary;
+window.hasExerciseLibrary=hasExerciseLibrary;
+window.resolveRegisteredExerciseId=resolveRegisteredExerciseId;
+window.getRegisteredExercise=getRegisteredExercise;
+window.getExerciseMetadata=getExerciseMetadata;
+window.getExerciseDisplayName=getExerciseDisplayName;
+window.getExerciseGuidanceFor=getExerciseGuidanceFor;
+window.mapExerciseMuscleToDisplayGroup=mapExerciseMuscleToDisplayGroup;
+window.listRegisteredExercises=listRegisteredExercises;
+window.searchRegisteredExercises=searchRegisteredExercises;
+window.getRelatedRegisteredExercises=getRelatedRegisteredExercises;
+window.registerCustomExercise=registerCustomExercise;
+
 window.EXERCISE_LIBRARY={
   resolveExerciseId,
   getExercise,

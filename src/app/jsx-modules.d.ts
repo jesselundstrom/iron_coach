@@ -58,6 +58,32 @@ declare global {
     hasRegisteredPrograms?: () => boolean;
     getProgramById?: (programId: string) => Record<string, unknown> | null;
     getProgramInitialState?: (programId: string) => Record<string, unknown> | null;
+    getExerciseLibrary?: () => Record<string, unknown> | null;
+    hasExerciseLibrary?: () => boolean;
+    resolveRegisteredExerciseId?: (input: unknown) => string | null;
+    getRegisteredExercise?: (input: unknown) => Record<string, unknown> | null;
+    getExerciseMetadata?: (
+      input: unknown,
+      locale?: string
+    ) => Record<string, unknown> | null;
+    getExerciseDisplayName?: (input: unknown, locale?: string) => string;
+    getExerciseGuidanceFor?: (
+      input: unknown,
+      locale?: string
+    ) => Record<string, unknown> | null;
+    mapExerciseMuscleToDisplayGroup?: (muscle: unknown) => string | null;
+    listRegisteredExercises?: (options?: Record<string, unknown>) => Array<Record<string, unknown>>;
+    searchRegisteredExercises?: (
+      query?: string,
+      filters?: Record<string, unknown>
+    ) => Array<Record<string, unknown>>;
+    getRelatedRegisteredExercises?: (
+      exerciseId: string,
+      options?: Record<string, unknown>
+    ) => Array<Record<string, unknown>>;
+    registerCustomExercise?: (
+      definition: Record<string, unknown>
+    ) => Record<string, unknown> | null;
     setRestBarActiveState?: (active: boolean) => void;
     loadData?: (options?: {
       allowCloudSync?: boolean;

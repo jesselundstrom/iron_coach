@@ -22,7 +22,7 @@ Status values:
 | Settings tabs state | React runtime store + `AppShell` tab host | store + React settings route | `done` | settings tabs already render from runtime state |
 | History/dashboard state | `core/history-layer.js` + `core/dashboard-layer.js` snapshot/event bridge | store + route components | `in_progress` | history/dashboard islands stop using bridge snapshots and the getter exports are deleted |
 | Program registry | `core/program-layer.js` registry helpers + `window.PROGRAMS` compatibility | imported registry module | `in_progress` | callers use explicit registry helpers or imported accessors instead of reading `window.PROGRAMS` directly |
-| Exercise library access | `window.EXERCISE_LIBRARY` | imported service/module | `legacy` | page/runtime code no longer reads exercise metadata via globals |
+| Exercise library access | `core/exercise-library.js` helper seam + `window.EXERCISE_LIBRARY` compatibility | imported service/module | `in_progress` | page/runtime code no longer reads exercise metadata via globals |
 | App build entry | many island module scripts in `index.html` | one top-level React app entry | `in_progress` | page islands are fully collapsed into the app entry |
 
 ## Global Bridge Surface

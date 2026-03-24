@@ -15,8 +15,8 @@ function trDash(key, fallback, params) {
   return fallback;
 }
 function dashExerciseName(name) {
-  if (window.EXERCISE_LIBRARY && EXERCISE_LIBRARY.getDisplayName)
-    return EXERCISE_LIBRARY.getDisplayName(name);
+  if (typeof window.getExerciseDisplayName === 'function')
+    return window.getExerciseDisplayName(name);
   return name;
 }
 function clampDash(value, min, max) {
@@ -411,8 +411,8 @@ function exerciseLookupKeys(exercise) {
   const keys = [];
   const id =
     src.exerciseId ||
-    (window.EXERCISE_LIBRARY && EXERCISE_LIBRARY.resolveExerciseId
-      ? EXERCISE_LIBRARY.resolveExerciseId(src.name)
+    (typeof window.resolveRegisteredExerciseId === 'function'
+      ? window.resolveRegisteredExerciseId(src.name)
       : null);
   if (id) keys.push('id:' + id);
   if (src.name) keys.push('name:' + String(src.name).trim().toLowerCase());
@@ -447,10 +447,10 @@ function getSuggested(exercise) {
 }
 
 function getExerciseMuscleProfile(exercise) {
-  if (!window.EXERCISE_LIBRARY || !EXERCISE_LIBRARY.getExerciseMeta)
+  if (typeof window.getExerciseMetadata !== 'function')
     return null;
   return (
-    EXERCISE_LIBRARY.getExerciseMeta(
+    window.getExerciseMetadata(
       exercise?.exerciseId || exercise?.name || exercise
     ) || null
   );
@@ -535,8 +535,8 @@ function getRecentMuscleLoads(days) {
 }
 
 function mapMuscleToDisplayGroup(muscle) {
-  if (window.EXERCISE_LIBRARY && EXERCISE_LIBRARY.mapMuscleToDisplayGroup)
-    return EXERCISE_LIBRARY.mapMuscleToDisplayGroup(muscle);
+  if (typeof window.mapExerciseMuscleToDisplayGroup === 'function')
+    return window.mapExerciseMuscleToDisplayGroup(muscle);
   return null;
 }
 

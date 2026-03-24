@@ -21,6 +21,7 @@ Phase 2 has now started with the first ownership-transfer cutover landed:
 - Settings tab selection is now owned by the runtime store and mirrored into the existing DOM shell by `AppShell`.
 - Nutrition page activation no longer depends on `initNutritionPage()`. Entering Nutrition now refreshes through the shared `syncNutritionBridge()` path.
 - Module-side React code now has an explicit program-registry seam in `src/core/program-registry.js` instead of reading `window.PROGRAMS` directly.
+- Module-side code now also has an explicit exercise-library seam in `src/core/exercise-library.js`, and higher-level legacy callers can use named helpers like `getExerciseMetadata(...)` and `resolveRegisteredExerciseId(...)` instead of reaching into `window.EXERCISE_LIBRARY` directly.
 - Workout view updates are now pushed into the store from legacy workout code, while the existing workout logic, persistence, and program building remain in `core/workout-layer.js`.
 - RPE, sport-check, summary, rest-timer state, and draft restore/clear flows continue to work under the new push-based shell/session bridge.
 
@@ -34,7 +35,7 @@ What is still not done:
 - Nutrition history/request lifecycle still lives in `core/nutrition-layer.js`, even though route entry now refreshes through the shared bridge.
 - The rest timer still renders through legacy DOM outside the React workout subtree, even though session state now tracks its active state directly instead of re-reading DOM classes.
 - Global registries like `PROGRAMS` and `EXERCISE_LIBRARY` are still window-backed compatibility surfaces.
-- Legacy script callers still use the underlying global registry, but higher-level/module-side code should now prefer explicit helpers over raw `window.PROGRAMS`.
+- Legacy script callers still use the underlying registries in places, but higher-level/module-side code should now prefer explicit helpers over raw `window.PROGRAMS` / `window.EXERCISE_LIBRARY`.
 
 ## Files That Matter Most Right Now
 

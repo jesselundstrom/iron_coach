@@ -1005,9 +1005,45 @@ function resetNotStartedView() {
 }
 
 function exerciseIdForName(name) {
-  if (!window.EXERCISE_LIBRARY || !EXERCISE_LIBRARY.resolveExerciseId)
+  if (typeof window.resolveRegisteredExerciseId !== 'function')
     return null;
-  return EXERCISE_LIBRARY.resolveExerciseId(name) || null;
+  return window.resolveRegisteredExerciseId(name) || null;
+}
+
+function getWorkoutExercise(input) {
+  if (typeof window.getRegisteredExercise !== 'function') return null;
+  return window.getRegisteredExercise(input) || null;
+}
+
+function getWorkoutExerciseMeta(input, locale) {
+  if (typeof window.getExerciseMetadata !== 'function') return null;
+  return window.getExerciseMetadata(input, locale) || null;
+}
+
+function getWorkoutExerciseDisplayName(input, locale) {
+  if (typeof window.getExerciseDisplayName !== 'function')
+    return String(input || '');
+  return window.getExerciseDisplayName(input, locale) || String(input || '');
+}
+
+function getWorkoutExerciseGuidance(input, locale) {
+  if (typeof window.getExerciseGuidanceFor !== 'function') return null;
+  return window.getExerciseGuidanceFor(input, locale) || null;
+}
+
+function getWorkoutExerciseList(options) {
+  if (typeof window.listRegisteredExercises !== 'function') return [];
+  return window.listRegisteredExercises(options) || [];
+}
+
+function searchWorkoutExercises(query, filters) {
+  if (typeof window.searchRegisteredExercises !== 'function') return [];
+  return window.searchRegisteredExercises(query, filters) || [];
+}
+
+function registerWorkoutExercise(definition) {
+  if (typeof window.registerCustomExercise !== 'function') return null;
+  return window.registerCustomExercise(definition) || null;
 }
 
 function withResolvedExerciseId(ex) {
@@ -1500,11 +1536,7 @@ function setExerciseCardCollapsed(exercise, collapsed) {
 }
 
 function isLowerBodyExercise(ex) {
-  if (!window.EXERCISE_LIBRARY || !EXERCISE_LIBRARY.getExerciseMeta)
-    return false;
-  const meta = EXERCISE_LIBRARY.getExerciseMeta(
-    ex?.exerciseId || ex?.name || ex
-  );
+  const meta = getWorkoutExerciseMeta(ex?.exerciseId || ex?.name || ex);
   if (!meta) return false;
   const groups = new Set(meta.displayMuscleGroups || []);
   return (
@@ -2940,9 +2972,7 @@ function renderWorkoutStartDecisionCard(
 // escapeHtml() is defined globally in i18n-layer.js (loaded first)
 
 function displayExerciseName(input) {
-  if (window.EXERCISE_LIBRARY && EXERCISE_LIBRARY.getDisplayName)
-    return EXERCISE_LIBRARY.getDisplayName(input);
-  return String(input || '');
+  return getWorkoutExerciseDisplayName(input);
 }
 
 function displaySportName(input) {
@@ -2956,14 +2986,8 @@ function displaySportName(input) {
 }
 
 function getExerciseGuide(ex) {
-  if (
-    !ex ||
-    !window.EXERCISE_LIBRARY ||
-    !EXERCISE_LIBRARY.getExerciseGuidance
-  ) {
-    return null;
-  }
-  const guide = EXERCISE_LIBRARY.getExerciseGuidance(
+  if (!ex) return null;
+  const guide = getWorkoutExerciseGuidance(
     ex.exerciseId || ex.name,
     window.I18N && I18N.getLanguage ? I18N.getLanguage() : 'en'
   );
@@ -4010,9 +4034,8 @@ function mergeExerciseCatalogLists(primary, extra) {
 
 function getExerciseCatalogCandidateExercises(filters) {
   const candidateIds = arrayify(exerciseCatalogState?.candidateIds);
-  if (!candidateIds.length || !window.EXERCISE_LIBRARY?.getExerciseList)
-    return [];
-  return EXERCISE_LIBRARY.getExerciseList({
+  if (!candidateIds.length) return [];
+  return getWorkoutExerciseList({
     sort: 'featured',
     filters: {
       ...filters,
@@ -4030,9 +4053,7 @@ function getExerciseCatalogRecent(limit) {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .forEach((workout) => {
       (workout?.exercises || []).forEach((ex) => {
-        const resolved = window.EXERCISE_LIBRARY?.resolveExerciseId
-          ? EXERCISE_LIBRARY.resolveExerciseId(ex.exerciseId || ex.name)
-          : null;
+        const resolved = exerciseIdForName(ex.exerciseId || ex.name);
         if (!resolved || seen.has(resolved)) return;
         seen.add(resolved);
         ids.push(resolved);
@@ -4040,30 +4061,27 @@ function getExerciseCatalogRecent(limit) {
     });
   return ids
     .slice(0, limit)
-    .map((id) => EXERCISE_LIBRARY.getExercise(id))
+    .map((id) => getWorkoutExercise(id))
     .filter(Boolean);
 }
 
 function getExerciseCatalogFeatured(limit, filters) {
-  if (!window.EXERCISE_LIBRARY || !EXERCISE_LIBRARY.getExerciseList) return [];
-  return EXERCISE_LIBRARY.getExerciseList({
+  return getWorkoutExerciseList({
     sort: 'featured',
     filters: { ...filters, featuredOnly: true },
   }).slice(0, limit);
 }
 
 function getExerciseCatalogAll(filters) {
-  if (!window.EXERCISE_LIBRARY || !EXERCISE_LIBRARY.getExerciseList) return [];
-  return EXERCISE_LIBRARY.getExerciseList({ sort: 'name', filters });
+  return getWorkoutExerciseList({ sort: 'name', filters });
 }
 
 function getExerciseCatalogResults() {
-  if (!window.EXERCISE_LIBRARY) return [];
   const search = exerciseCatalogState?.search || '';
   const filters = getExerciseCatalogFilterPayload();
   const userFilters = getExerciseCatalogUserFilters();
   if (search) {
-    const baseResults = EXERCISE_LIBRARY.searchExercises(search, {
+    const baseResults = searchWorkoutExercises(search, {
       ...filters,
       limit: 120,
     });
@@ -4072,7 +4090,7 @@ function getExerciseCatalogResults() {
       limit: 120,
     });
     const searchedCandidates = search
-      ? EXERCISE_LIBRARY.searchExercises(search, {
+      ? searchWorkoutExercises(search, {
           ...userFilters,
           includeIds: candidateResults.map((ex) => ex.id),
           excludeIds: arrayify(exerciseCatalogState?.baseFilters?.excludeIds),
@@ -4281,10 +4299,8 @@ function ensureExerciseCatalogListeners() {
 function resolveExerciseSelection(input) {
   const raw =
     typeof input === 'object' ? input?.name || input?.exerciseId || '' : input;
-  const resolved = window.EXERCISE_LIBRARY?.getExercise
-    ? EXERCISE_LIBRARY.getExercise(input) ||
-      EXERCISE_LIBRARY.getExercise(exerciseIdForName(raw))
-    : null;
+  const resolved =
+    getWorkoutExercise(input) || getWorkoutExercise(exerciseIdForName(raw));
   return {
     exerciseId: resolved?.id || exerciseIdForName(raw),
     name: resolved?.name || String(raw || '').trim(),
@@ -4292,11 +4308,9 @@ function resolveExerciseSelection(input) {
 }
 
 function inferExerciseCatalogSwapFilters(exercise, category) {
-  const meta = window.EXERCISE_LIBRARY?.getExerciseMeta
-    ? EXERCISE_LIBRARY.getExerciseMeta(
-        exercise?.exerciseId || exercise?.name || exercise
-      )
-    : null;
+  const meta = getWorkoutExerciseMeta(
+    exercise?.exerciseId || exercise?.name || exercise
+  );
   const categoryFilters = {
     squat: {
       movementTags: ['squat'],
@@ -4384,13 +4398,10 @@ function getResolvedCatalogOptionExercises(options) {
   const seen = new Set();
   return arrayify(options)
     .map((option) => {
-      const resolved = window.EXERCISE_LIBRARY?.getExercise
-        ? EXERCISE_LIBRARY.getExercise(option) ||
-          EXERCISE_LIBRARY.getExercise(exerciseIdForName(option)) ||
-          (window.EXERCISE_LIBRARY?.registerExercise
-            ? EXERCISE_LIBRARY.registerExercise({ name: option })
-            : null)
-        : null;
+      const resolved =
+        getWorkoutExercise(option) ||
+        getWorkoutExercise(exerciseIdForName(option)) ||
+        registerWorkoutExercise({ name: option });
       if (!resolved || seen.has(resolved.id)) return null;
       seen.add(resolved.id);
       return resolved;
@@ -4526,8 +4537,7 @@ function resetExerciseCatalogState() {
 }
 
 function selectExerciseCatalogExercise(exerciseId) {
-  if (!window.EXERCISE_LIBRARY) return;
-  const exercise = EXERCISE_LIBRARY.getExercise(exerciseId);
+  const exercise = getWorkoutExercise(exerciseId);
   if (!exercise) return;
   document.getElementById('name-modal')?.classList.remove('active');
   const onSelect = exerciseCatalogState?.onSelect || null;

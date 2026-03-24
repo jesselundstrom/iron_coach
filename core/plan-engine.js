@@ -25,15 +25,15 @@ function toPlanList(value){
 function resolvePlanExerciseId(exercise){
   if(!exercise)return '';
   if(exercise.exerciseId)return String(exercise.exerciseId);
-  if(window.EXERCISE_LIBRARY&&EXERCISE_LIBRARY.resolveExerciseId){
-    return String(EXERCISE_LIBRARY.resolveExerciseId(exercise.name||exercise)||'');
+  if(typeof window.resolveRegisteredExerciseId==='function'){
+    return String(window.resolveRegisteredExerciseId(exercise.name||exercise)||'');
   }
   return '';
 }
 
 function getPlanExerciseMeta(exercise){
-  if(!window.EXERCISE_LIBRARY||!EXERCISE_LIBRARY.getExerciseMeta)return null;
-  return EXERCISE_LIBRARY.getExerciseMeta(resolvePlanExerciseId(exercise)||exercise?.name||exercise)||null;
+  if(typeof window.getExerciseMetadata!=='function')return null;
+  return window.getExerciseMetadata(resolvePlanExerciseId(exercise)||exercise?.name||exercise)||null;
 }
 
 function getPlanExerciseMovementTags(exercise){
@@ -1236,7 +1236,11 @@ function getConstraintReasonEvent(exercise,replacement,conflict){
 }
 
 function getExerciseReplacementCandidates(exercise,context,decision,replacementInfo){
-  if(!window.EXERCISE_LIBRARY)return [];
+  if(
+    typeof window.getRegisteredExercise!=='function'||
+    typeof window.listRegisteredExercises!=='function'||
+    typeof window.searchRegisteredExercises!=='function'
+  )return [];
   const excludeIds=[...new Set([
     resolvePlanExerciseId(exercise),
     ...toPlanList(context?.excludedExerciseIds)
@@ -1252,10 +1256,10 @@ function getExerciseReplacementCandidates(exercise,context,decision,replacementI
   }
 
   toPlanList(replacementInfo?.options).forEach(option=>{
-    addRecord(EXERCISE_LIBRARY.getExercise(option));
+    addRecord(window.getRegisteredExercise(option));
   });
   if(replacementInfo?.filters){
-    EXERCISE_LIBRARY.getExerciseList({
+    window.listRegisteredExercises({
       sort:'featured',
       filters:{
         ...replacementInfo.filters,
@@ -1265,8 +1269,8 @@ function getExerciseReplacementCandidates(exercise,context,decision,replacementI
     }).slice(0,12).forEach(addRecord);
   }
   const baseId=resolvePlanExerciseId(exercise);
-  if(baseId&&EXERCISE_LIBRARY.getRelatedExercises){
-    EXERCISE_LIBRARY.getRelatedExercises(baseId,{
+  if(baseId&&typeof window.getRelatedRegisteredExercises==='function'){
+    window.getRelatedRegisteredExercises(baseId,{
       sameMovement:true,
       sameEquipment:decision?.restrictionFlags?.includes('minimal_equipment')!==true,
       excludeIds,
@@ -1274,8 +1278,8 @@ function getExerciseReplacementCandidates(exercise,context,decision,replacementI
     }).forEach(addRecord);
   }
   const baseMeta=getPlanExerciseMeta(exercise);
-  if(baseMeta&&EXERCISE_LIBRARY.searchExercises){
-    EXERCISE_LIBRARY.searchExercises('',{
+  if(baseMeta){
+    window.searchRegisteredExercises('',{
       limit:18,
       excludeIds,
       movementTags:baseMeta.movementTags,
@@ -1515,11 +1519,11 @@ function getCoachingInsights(input){
     .map(([day])=>parseInt(day,10))
     .filter(Number.isFinite);
   const skippedNames=toPlanList(context.behaviorSignals?.skippedAccessoryExerciseIds)
-    .map(id=>window.EXERCISE_LIBRARY?.getDisplayName?EXERCISE_LIBRARY.getDisplayName(id):id)
+    .map(id=>typeof window.getExerciseDisplayName==='function'?window.getExerciseDisplayName(id):id)
     .filter(Boolean)
     .slice(0,2);
   const swapNames=toPlanList(context.behaviorSignals?.preferredSwapExerciseIds)
-    .map(id=>window.EXERCISE_LIBRARY?.getDisplayName?EXERCISE_LIBRARY.getDisplayName(id):id)
+    .map(id=>typeof window.getExerciseDisplayName==='function'?window.getExerciseDisplayName(id):id)
     .filter(Boolean)
     .slice(0,2);
   const frictionItems=[];

@@ -1696,7 +1696,7 @@ function parseOnboardingExerciseIds(text) {
     .split(',')
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((name) => window.EXERCISE_LIBRARY?.resolveExerciseId?.(name) || name)
+    .map((name) => window.resolveRegisteredExerciseId?.(name) || name)
     .filter(Boolean);
 }
 
