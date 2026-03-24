@@ -1,5 +1,6 @@
 import { createElement, useEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { navigateToPage } from '../app/services/navigation-actions';
 
 const svgCache = new Map();
 
@@ -602,7 +603,7 @@ function NutritionStatus({ nutrition }) {
             <button
               className="dashboard-nutrition-log-btn"
               type="button"
-              onClick={() => window.showPage?.('nutrition', document.querySelectorAll('.nav-btn')[4])}
+              onClick={() => navigateToPage('nutrition')}
             >
               {nutrition.labels.logMeal}
             </button>

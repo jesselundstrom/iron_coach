@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter, useLocation, useNavigate } from 'react-router-dom';
 import AppShell from './AppShell.jsx';
 import { getPageFromHash } from './constants';
+import { syncRoutePage } from './services/navigation-actions';
 import {
   prepareLegacyShellMount,
   startLegacyRuntimeBridge,
@@ -27,7 +28,7 @@ function RouteInitializer() {
       return;
     }
     if (routePage !== activePage) {
-      window.showPage?.(routePage);
+      syncRoutePage(routePage);
     }
   }, [location.pathname, navigate]);
 

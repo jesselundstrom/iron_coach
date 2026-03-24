@@ -46,6 +46,7 @@ declare global {
       setSettingsPreferencesView?: (view: Record<string, unknown> | null) => void;
       setSettingsProgramView?: (view: Record<string, unknown> | null) => void;
       setSettingsScheduleView?: (view: Record<string, unknown> | null) => void;
+      setExerciseCatalogView?: (view: Record<string, unknown> | null) => void;
     };
     syncRuntimeStoreFromLegacy?: () => void;
     syncWorkoutSessionBridge?: () => void;
@@ -90,5 +91,26 @@ declare global {
       allowCloudSync?: boolean;
       userId?: string;
     }) => Promise<void> | void;
+    runPageActivationSideEffects?: (page: string) => void;
+    showSettingsTab?: (tab: string, trigger?: Element | null) => void;
+    showConfirm?: (
+      title: string,
+      message: string,
+      onConfirm?: (() => void) | null
+    ) => void;
+    confirmOk?: () => void;
+    confirmCancel?: () => void;
+    clearNutritionHistory?: () => void;
+    retryLastNutritionMessage?: () => void;
+    setSelectedNutritionAction?: (actionId: string) => void;
+    submitNutritionTextMessage?: (text: string, isCorrection?: boolean) => void;
+    handleNutritionPhoto?: (event: Event) => void;
+    setExerciseCatalogSearch?: (value: string) => void;
+    setExerciseCatalogFilter?: (group: string, value: string) => void;
+    clearExerciseCatalogFilters?: () => void;
+    selectExerciseCatalogExercise?: (exerciseId: string) => void;
+    closeNameModal?: () => void;
   }
 }
+
+export {};

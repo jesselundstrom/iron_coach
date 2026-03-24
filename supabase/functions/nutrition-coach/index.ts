@@ -1,7 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://jesselundstrom.github.io',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+
+const BASE_CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
@@ -20,10 +27,42 @@ const ANTHROPIC_TIMEOUT_MS = 20000;
 const TEXT_MODEL = 'claude-haiku-4-5';
 const PHOTO_MODEL = 'claude-sonnet-4-5';
 
-function jsonResponse(status: number, payload: Record<string, unknown>) {
+function getAllowedOrigins() {
+  const fromEnv = String(
+    Deno.env.get('ALLOWED_ORIGINS') || Deno.env.get('SITE_URL') || ''
+  )
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  return [...fromEnv, ...DEFAULT_ALLOWED_ORIGINS].filter((origin) => {
+    if (seen.has(origin)) return false;
+    seen.add(origin);
+    return true;
+  });
+}
+
+function getCorsHeaders(request: Request) {
+  const origin = String(request.headers.get('origin') || '').trim();
+  const allowedOrigins = getAllowedOrigins();
+  const resolvedOrigin = allowedOrigins.includes(origin)
+    ? origin
+    : allowedOrigins[0] || 'https://jesselundstrom.github.io';
+  return {
+    ...BASE_CORS_HEADERS,
+    'Access-Control-Allow-Origin': resolvedOrigin,
+    Vary: 'Origin',
+  };
+}
+
+function jsonResponse(
+  status: number,
+  payload: Record<string, unknown>,
+  corsHeaders: Record<string, string>
+) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: CORS_HEADERS,
+    headers: corsHeaders,
   });
 }
 
@@ -31,7 +70,8 @@ function errorResponse(
   status: number,
   code: string,
   message: string,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  corsHeaders: Record<string, string>
 ) {
   return jsonResponse(status, {
     error: {
@@ -39,7 +79,7 @@ function errorResponse(
       message,
       ...extra,
     },
-  });
+  }, corsHeaders);
 }
 
 function sanitizeText(value: unknown, maxLength: number) {
@@ -266,11 +306,18 @@ function buildSystemPrompt(payload: {
 }
 
 Deno.serve(async (request) => {
+  const corsHeaders = getCorsHeaders(request);
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
+    return new Response('ok', { headers: corsHeaders });
   }
   if (request.method !== 'POST') {
-    return errorResponse(405, 'method_not_allowed', 'Only POST is supported.');
+    return errorResponse(
+      405,
+      'method_not_allowed',
+      'Only POST is supported.',
+      {},
+      corsHeaders
+    );
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -280,14 +327,22 @@ Deno.serve(async (request) => {
     return errorResponse(
       503,
       'server_unavailable',
-      'Nutrition Coach is temporarily unavailable.'
+      'Nutrition Coach is temporarily unavailable.',
+      {},
+      corsHeaders
     );
   }
 
   const authHeader = request.headers.get('authorization') || '';
   const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!tokenMatch?.[1]) {
-    return errorResponse(401, 'auth_required', 'Sign in to use Nutrition Coach.');
+    return errorResponse(
+      401,
+      'auth_required',
+      'Sign in to use Nutrition Coach.',
+      {},
+      corsHeaders
+    );
   }
 
   const contentLength = Number(request.headers.get('content-length') || 0);
@@ -295,7 +350,9 @@ Deno.serve(async (request) => {
     return errorResponse(
       413,
       'request_too_large',
-      'That photo is too large. Choose a smaller image and try again.'
+      'That photo is too large. Choose a smaller image and try again.',
+      {},
+      corsHeaders
     );
   }
 
@@ -307,7 +364,13 @@ Deno.serve(async (request) => {
     error: userError,
   } = await supabase.auth.getUser(tokenMatch[1]);
   if (userError || !user?.id) {
-    return errorResponse(401, 'auth_required', 'Sign in to use Nutrition Coach.');
+    return errorResponse(
+      401,
+      'auth_required',
+      'Sign in to use Nutrition Coach.',
+      {},
+      corsHeaders
+    );
   }
 
   const rawBody = await request.text();
@@ -315,7 +378,9 @@ Deno.serve(async (request) => {
     return errorResponse(
       413,
       'request_too_large',
-      'That photo is too large. Choose a smaller image and try again.'
+      'That photo is too large. Choose a smaller image and try again.',
+      {},
+      corsHeaders
     );
   }
 
@@ -323,7 +388,13 @@ Deno.serve(async (request) => {
   try {
     parsedBody = JSON.parse(rawBody);
   } catch (_) {
-    return errorResponse(400, 'invalid_json', 'Invalid request body.');
+    return errorResponse(
+      400,
+      'invalid_json',
+      'Invalid request body.',
+      {},
+      corsHeaders
+    );
   }
 
   const locale = sanitizeLocale(parsedBody.locale);
@@ -340,7 +411,13 @@ Deno.serve(async (request) => {
   const targets = validateTargets(parsedBody.targets);
   const messages = validateMessages(parsedBody.messages, requestKind);
   if (!messages) {
-    return errorResponse(400, 'invalid_request', 'Invalid Nutrition Coach payload.');
+    return errorResponse(
+      400,
+      'invalid_request',
+      'Invalid Nutrition Coach payload.',
+      {},
+      corsHeaders
+    );
   }
 
   const usageDate = new Date().toISOString().slice(0, 10);
@@ -358,7 +435,9 @@ Deno.serve(async (request) => {
     return errorResponse(
       503,
       'quota_unavailable',
-      'Nutrition Coach is temporarily unavailable.'
+      'Nutrition Coach is temporarily unavailable.',
+      {},
+      corsHeaders
     );
   }
 
@@ -371,7 +450,8 @@ Deno.serve(async (request) => {
       {
         request_count: quota?.request_count ?? null,
         photo_request_count: quota?.photo_request_count ?? null,
-      }
+      },
+      corsHeaders
     );
   }
 
@@ -418,20 +498,26 @@ Deno.serve(async (request) => {
         return errorResponse(
           413,
           'request_too_large',
-          'That photo is too large. Choose a smaller image and try again.'
+          'That photo is too large. Choose a smaller image and try again.',
+          {},
+          corsHeaders
         );
       }
       if (anthropicResponse.status === 429) {
         return errorResponse(
           429,
           'rate_limit',
-          'Rate limit reached - wait a moment and try again.'
+          'Rate limit reached - wait a moment and try again.',
+          {},
+          corsHeaders
         );
       }
       return errorResponse(
         anthropicResponse.status >= 500 ? 503 : 502,
         'upstream_error',
-        'Nutrition Coach is temporarily unavailable.'
+        'Nutrition Coach is temporarily unavailable.',
+        {},
+        corsHeaders
       );
     }
 
@@ -461,7 +547,9 @@ Deno.serve(async (request) => {
       return errorResponse(
         502,
         'invalid_upstream_payload',
-        'Nutrition Coach is temporarily unavailable.'
+        'Nutrition Coach is temporarily unavailable.',
+        {},
+        corsHeaders
       );
     }
 
@@ -489,7 +577,7 @@ Deno.serve(async (request) => {
       model,
       usage,
       raw_text: rawText || null,
-    });
+    }, corsHeaders);
   } catch (error) {
     await supabase.rpc('release_nutrition_usage_claim', {
       p_user_id: user.id,
@@ -500,13 +588,17 @@ Deno.serve(async (request) => {
       return errorResponse(
         503,
         'server_timeout',
-        'Nutrition Coach is temporarily unavailable.'
+        'Nutrition Coach is temporarily unavailable.',
+        {},
+        corsHeaders
       );
     }
     return errorResponse(
       503,
       'server_unavailable',
-      'Nutrition Coach is temporarily unavailable.'
+      'Nutrition Coach is temporarily unavailable.',
+      {},
+      corsHeaders
     );
   } finally {
     clearTimeout(timeoutId);

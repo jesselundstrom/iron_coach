@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../core/i18n.js';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import {
+  clearNutritionHistory,
+  handleNutritionPhoto,
+  openNutritionSettings,
+  retryLastNutritionMessage,
+  selectNutritionAction,
+  submitNutritionTextMessage,
+} from '../app/services/nutrition-coach';
 
 const initialSnapshot = {
   values: {
@@ -25,23 +33,16 @@ function getSnapshot() {
   return initialSnapshot;
 }
 
-function openNutritionSettings() {
-  const navButton =
-    document.querySelector('.nav-btn[data-page="settings"]') ||
-    document.querySelectorAll('.nav-btn')[3];
-  window.showPage?.('settings', navButton);
-}
-
 function handleClear() {
-  window.clearNutritionHistory?.();
+  clearNutritionHistory();
 }
 
 function handleRetry() {
-  window.retryLastNutritionMessage?.();
+  retryLastNutritionMessage();
 }
 
 function handleActionSelect(actionId) {
-  window.setSelectedNutritionAction?.(actionId);
+  selectNutritionAction(actionId);
 }
 
 function formatInline(text, keyPrefix) {
@@ -678,7 +679,7 @@ function CorrectionRow() {
       <NutritionTextSheet
         open={open}
         onClose={() => setOpen(false)}
-        onSend={(trimmed) => window.submitNutritionTextMessage?.(trimmed, true)}
+        onSend={(trimmed) => submitNutritionTextMessage(trimmed, true)}
         title={t('nutrition.correction.label', 'Correct the food analysis')}
         placeholder={t(
           'nutrition.correction.placeholder',
@@ -834,7 +835,7 @@ function Composer({ snapshot }) {
         id="nutrition-photo-camera-input"
         accept="image/*"
         capture="environment"
-        onChange={(event) => window.handleNutritionPhoto?.(event)}
+        onChange={(event) => handleNutritionPhoto(event)}
         className="file-input-hidden"
       />
       <input
@@ -842,7 +843,7 @@ function Composer({ snapshot }) {
         type="file"
         id="nutrition-photo-library-input"
         accept="image/*"
-        onChange={(event) => window.handleNutritionPhoto?.(event)}
+        onChange={(event) => handleNutritionPhoto(event)}
         className="file-input-hidden"
       />
       <div className="nutrition-action-grid" id="nutrition-action-grid">
@@ -926,7 +927,7 @@ function Composer({ snapshot }) {
       <NutritionTextSheet
         open={textEntryOpen}
         onClose={() => setTextEntryOpen(false)}
-        onSend={(trimmed) => window.submitNutritionTextMessage?.(trimmed)}
+        onSend={(trimmed) => submitNutritionTextMessage(trimmed)}
         title={t('nutrition.food_entry.label', 'Type the food')}
         placeholder={t(
           'nutrition.food_entry.placeholder',

@@ -1,6 +1,4 @@
 import { Component, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { APP_PAGES, SETTINGS_TABS } from './constants.ts';
 import { useRuntimeStore } from './store/runtime-store.ts';
 import { t } from '../core/i18n.js';
 import OnboardingFlow from './OnboardingFlow.jsx';
@@ -14,6 +12,15 @@ import { SettingsAccountIsland } from '../settings-account-island/main.jsx';
 import { SettingsPreferencesIsland } from '../settings-preferences-island/main.jsx';
 import { SettingsProgramIsland } from '../settings-program-island/main.jsx';
 import { SettingsScheduleIsland } from '../settings-schedule-island/main.jsx';
+import {
+  clearExerciseCatalogFilters,
+  closeExerciseCatalog,
+  selectExerciseCatalogExercise,
+  setExerciseCatalogFilter,
+  setExerciseCatalogSearch,
+} from './services/exercise-catalog.ts';
+import { confirmCancel, confirmOk } from './services/confirm-actions.ts';
+import { navigateToPage, showSettingsTab } from './services/navigation-actions.ts';
 
 const PAGE_META = [
   { id: 'dashboard', labelKey: 'nav.dashboard', fallbackLabel: 'Dashboard' },
@@ -21,6 +28,34 @@ const PAGE_META = [
   { id: 'history', labelKey: 'nav.history', fallbackLabel: 'History' },
   { id: 'settings', labelKey: 'nav.settings', fallbackLabel: 'Settings' },
   { id: 'nutrition', labelKey: 'nav.nutrition', fallbackLabel: 'Nutrition' },
+];
+
+const SETTINGS_TAB_META = [
+  {
+    id: 'schedule',
+    labelKey: 'settings.tabs.my_sport',
+    fallbackLabel: 'My Sport',
+  },
+  {
+    id: 'preferences',
+    labelKey: 'settings.tabs.training',
+    fallbackLabel: 'Training',
+  },
+  {
+    id: 'program',
+    labelKey: 'settings.tabs.program',
+    fallbackLabel: 'Program',
+  },
+  {
+    id: 'account',
+    labelKey: 'settings.tabs.app',
+    fallbackLabel: 'App',
+  },
+  {
+    id: 'body',
+    labelKey: 'settings.tabs.body',
+    fallbackLabel: 'Body',
+  },
 ];
 
 const NAV_ICONS = {
@@ -62,8 +97,6 @@ const NAV_ICONS = {
   ),
 };
 
-// Error boundary for individual island portals — prevents one island crash from
-// taking down the entire React tree (all islands share one root now).
 class IslandErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -79,41 +112,226 @@ class IslandErrorBoundary extends Component {
   }
 
   render() {
-    if (this.state.error) return null;
+    if (this.state.error) {
+      return (
+        <div className="card" style={{ margin: '16px 0', padding: '20px' }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>
+            Something went wrong.
+          </div>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      );
+    }
     return this.props.children;
   }
 }
 
-// PageHost manages the active class on existing #page-X divs in the HTML.
-// ui-shell.js owns the primary class toggle; this keeps React store in sync.
-function PageHost({ name, active }) {
-  useEffect(() => {
-    const node = document.getElementById(`page-${name}`);
-    if (!node) return;
-    node.classList.toggle('active', active);
-    node.dataset.pageShell = name;
-  }, [name, active]);
-  return null;
+function formatRestTimerText(totalSeconds) {
+  const safe = Math.max(0, Number(totalSeconds || 0));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function SettingsTabHost({ name, active }) {
-  useEffect(() => {
-    const panel = document.getElementById(`settings-tab-${name}`);
-    if (panel) {
-      panel.style.display = active ? '' : 'none';
-      panel.dataset.settingsTabShell = name;
-    }
+function RestTimerBar({ session }) {
+  const total = Math.max(0, Number(session.restTotal || 0));
+  const remaining = Math.max(0, Number(session.restSecondsLeft || 0));
+  const ratio = total > 0 ? remaining / total : 0;
+  const circumference = 119.4;
+  const dashOffset = circumference * (1 - ratio);
 
-    const tabButton = document.querySelector(
-      `#settings-tabs .tab[data-settings-tab="${name}"]`
-    );
-    if (tabButton instanceof HTMLElement) {
-      tabButton.classList.toggle('active', active);
-      tabButton.setAttribute('aria-selected', active ? 'true' : 'false');
-    }
-  }, [name, active]);
+  return (
+    <div
+      className={`rest-timer-bar${session.restBarActive ? ' active' : ''}`}
+      id="rest-timer-bar"
+    >
+      <svg className="rest-timer-ring" viewBox="0 0 44 44">
+        <circle
+          cx="22"
+          cy="22"
+          r="19"
+          fill="none"
+          stroke="var(--border)"
+          strokeWidth="3"
+        />
+        <circle
+          cx="22"
+          cy="22"
+          r="19"
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="3"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          id="timer-arc"
+          strokeLinecap="round"
+          transform="rotate(-90 22 22)"
+          style={{ transition: 'stroke-dashoffset 1s linear' }}
+        />
+      </svg>
+      <div className="rest-timer-info">
+        <div className="rest-timer-label" data-i18n="workout.rest_timer">
+          Rest Timer
+        </div>
+        <div className="rest-timer-count" id="rest-timer-count">
+          {formatRestTimerText(remaining || session.restDuration)}
+        </div>
+      </div>
+      <button
+        className="rest-skip-btn"
+        type="button"
+        onClick={() => window.skipRest?.()}
+      >
+        Skip
+      </button>
+    </div>
+  );
+}
 
-  return null;
+function ExerciseCatalogModal({ view }) {
+  const filters = view?.filters || [];
+  const sections = view?.sections || [];
+  const firstResult = sections.flatMap((section) => section.items)[0] || null;
+
+  return (
+    <div
+      className={`modal-overlay${view?.open ? ' active' : ''}`}
+      id="name-modal"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          closeExerciseCatalog();
+        }
+      }}
+    >
+      <div className="modal-sheet catalog-sheet">
+        <div className="modal-handle" />
+        <div className="catalog-header">
+          <div className="modal-title" id="name-modal-title">
+            {view?.title || 'Add Exercise'}
+          </div>
+          <div className="modal-sub" id="exercise-catalog-sub">
+            {view?.subtitle || 'Pick an exercise from the library or search by name.'}
+          </div>
+        </div>
+        <div className="catalog-search-wrap">
+          <input
+            type="text"
+            id="name-modal-input"
+            className="exercise-catalog-search-input"
+            placeholder="Search exercises"
+            value={view?.search || ''}
+            onChange={(event) => setExerciseCatalogSearch(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                closeExerciseCatalog();
+                return;
+              }
+              if (event.key === 'Enter' && firstResult) {
+                event.preventDefault();
+                selectExerciseCatalogExercise(firstResult.id);
+              }
+            }}
+          />
+          <button
+            className="btn btn-ghost btn-sm catalog-clear-btn"
+            id="catalog-clear-btn"
+            type="button"
+            onClick={() => clearExerciseCatalogFilters()}
+            style={{ visibility: view?.clearVisible ? 'visible' : 'hidden' }}
+          >
+            Clear
+          </button>
+        </div>
+        <div className="catalog-filter-groups" id="exercise-catalog-filters">
+          {filters.map((group) => (
+            <div className="catalog-filter-group" key={group.id}>
+              <label
+                className="catalog-filter-label"
+                htmlFor={`catalog-filter-${group.id}`}
+              >
+                {group.label}
+              </label>
+              <div className="catalog-filter-select-wrap">
+                <select
+                  id={`catalog-filter-${group.id}`}
+                  className="catalog-filter-select"
+                  value={group.activeValue || ''}
+                  onChange={(event) =>
+                    setExerciseCatalogFilter(group.id, event.currentTarget.value)
+                  }
+                >
+                  {group.options.map((option) => (
+                    <option key={option.value || '__all'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="catalog-scroll" id="exercise-catalog-scroll">
+          <div id="exercise-catalog-content">
+            {sections.map((section) => (
+              <section className="catalog-section" key={section.id}>
+                <div className="catalog-section-title">{section.title}</div>
+                {section.items.length ? (
+                  section.items.map((item) => (
+                    <button
+                      type="button"
+                      className="catalog-item"
+                      data-exercise-id={item.id}
+                      key={item.id}
+                      onClick={() => selectExerciseCatalogExercise(item.id)}
+                    >
+                      <span className="catalog-item-main">{item.name}</span>
+                      <span className="catalog-item-meta">{item.meta}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="catalog-section-empty">
+                    {section.emptyCopy ||
+                      view?.emptyCopy ||
+                      t('catalog.section.empty', 'No exercises in this section yet.')}
+                  </div>
+                )}
+              </section>
+            ))}
+          </div>
+          <div
+            className="catalog-empty-state"
+            id="exercise-catalog-empty"
+            style={{ display: view?.emptyVisible ? 'block' : 'none' }}
+          >
+            {view?.emptyCopy || 'No exercises matched your filters.'}
+          </div>
+        </div>
+        <div className="catalog-footer">
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={() => closeExerciseCatalog()}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PageShell({ id, active, children }) {
+  return (
+    <div className={`page${active ? ' active' : ''}`} id={`page-${id}`}>
+      {children}
+    </div>
+  );
 }
 
 export default function AppShell() {
@@ -126,6 +344,7 @@ export default function AppShell() {
   const hideToast = useRuntimeStore((state) => state.hideToast);
   const languageVersion = useRuntimeStore((state) => state.ui.languageVersion);
   const session = useRuntimeStore((state) => state.workoutSession.session);
+  const exerciseCatalog = useRuntimeStore((state) => state.exerciseCatalog.view);
   const previousPageRef = useRef(activePage);
 
   const navItems = useMemo(
@@ -137,17 +356,14 @@ export default function AppShell() {
     [languageVersion]
   );
 
-  useEffect(() => {
-    // Remove any remaining legacy shell divs from the retired standalone island mounts.
-    const legacyShells = [
-      'dashboard-legacy-shell', 'history-legacy-shell', 'nutrition-legacy-shell',
-      'log-start-legacy-shell', 'log-active-legacy-shell',
-      'settings-body-legacy-shell', 'settings-account-legacy-shell',
-      'settings-preferences-legacy-shell', 'settings-program-legacy-shell',
-      'settings-schedule-legacy-shell',
-    ];
-    legacyShells.forEach((id) => document.getElementById(id)?.remove());
-  }, []);
+  const settingsTabs = useMemo(
+    () =>
+      SETTINGS_TAB_META.map((tab) => ({
+        ...tab,
+        label: t(tab.labelKey, tab.fallbackLabel),
+      })),
+    [languageVersion]
+  );
 
   useEffect(() => {
     if (!confirm?.open) return;
@@ -207,48 +423,7 @@ export default function AppShell() {
   }, [activePage]);
 
   return (
-    <>
-      {/* Sync active class on existing #page-X HTML divs from React store */}
-      {APP_PAGES.map((name) => (
-        <PageHost key={name} name={name} active={activePage === name} />
-      ))}
-      {SETTINGS_TABS.map((name) => (
-        <SettingsTabHost
-          key={name}
-          name={name}
-          active={activeSettingsTab === name}
-        />
-      ))}
-      {/* Island portals — each wrapped in an error boundary so a single island
-          crash cannot unmount the entire React tree (toast, modals, nav). */}
-      {(() => {
-        const portals = [];
-        const add = (id, IslandComponent) => {
-          const node = document.getElementById(id);
-          if (node) {
-            portals.push(
-              createPortal(
-                <IslandErrorBoundary key={id}>
-                  <IslandComponent />
-                </IslandErrorBoundary>,
-                node,
-                id
-              )
-            );
-          }
-        };
-        add('dashboard-react-root', DashboardIsland);
-        add('history-react-root', HistoryIsland);
-        add('nutrition-react-root', NutritionIsland);
-        add('log-start-react-root', LogStartIsland);
-        add('log-active-react-root', LogActiveIsland);
-        add('settings-body-react-root', SettingsBodyIsland);
-        add('settings-account-react-root', SettingsAccountIsland);
-        add('settings-preferences-react-root', SettingsPreferencesIsland);
-        add('settings-program-react-root', SettingsProgramIsland);
-        add('settings-schedule-react-root', SettingsScheduleIsland);
-        return portals;
-      })()}
+    <div className="app" id="app-root">
       <div
         className={`toast${toast?.variant ? ` toast-${toast.variant}` : ''}${
           toast?.visible ? ' show' : ''
@@ -285,70 +460,10 @@ export default function AppShell() {
           </button>
         ) : null}
       </div>
-      <div className="modal-overlay" id="name-modal">
-        <div className="modal-sheet catalog-sheet">
-          <div className="modal-handle" />
-          <div className="catalog-header">
-            <div
-              className="modal-title"
-              id="name-modal-title"
-              data-i18n="catalog.title.add"
-            >
-              Add Exercise
-            </div>
-            <div
-              className="modal-sub"
-              id="exercise-catalog-sub"
-              data-i18n="catalog.sub"
-            >
-              Pick an exercise from the library or search by name.
-            </div>
-          </div>
-          <div className="catalog-search-wrap">
-            <input
-              type="text"
-              id="name-modal-input"
-              className="exercise-catalog-search-input"
-              data-i18n-placeholder="catalog.search.placeholder"
-              placeholder="Search exercises"
-            />
-            <button
-              className="btn btn-ghost btn-sm catalog-clear-btn"
-              id="catalog-clear-btn"
-              type="button"
-              onClick={() => window.clearExerciseCatalogFilters?.()}
-              data-i18n="catalog.clear_filters"
-            >
-              Clear
-            </button>
-          </div>
-          <div
-            className="catalog-filter-groups"
-            id="exercise-catalog-filters"
-          />
-          <div className="catalog-scroll" id="exercise-catalog-scroll">
-            <div id="exercise-catalog-content" />
-            <div
-              className="catalog-empty-state"
-              id="exercise-catalog-empty"
-              style={{ display: 'none' }}
-              data-i18n="catalog.empty"
-            >
-              No exercises matched your filters.
-            </div>
-          </div>
-          <div className="catalog-footer">
-            <button
-              className="btn btn-secondary"
-              type="button"
-              onClick={() => window.closeNameModal?.()}
-              data-i18n="common.cancel"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
+
+      <RestTimerBar session={session} />
+      <ExerciseCatalogModal view={exerciseCatalog} />
+
       <div
         className={`confirm-modal${confirm?.open ? ' active' : ''}`}
         id="confirm-modal"
@@ -365,7 +480,7 @@ export default function AppShell() {
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => window.confirmCancel?.()}
+              onClick={() => confirmCancel()}
             >
               {confirm?.cancelLabel || 'Cancel'}
             </button>
@@ -373,13 +488,14 @@ export default function AppShell() {
               type="button"
               className="btn btn-primary btn-sm"
               id="confirm-ok"
-              onClick={() => window.confirmOk?.()}
+              onClick={() => confirmOk()}
             >
               {confirm?.confirmLabel || 'Confirm'}
             </button>
           </div>
         </div>
       </div>
+
       <div
         className={`modal-overlay${session.rpeOpen ? ' active' : ''}`}
         id="rpe-modal"
@@ -419,12 +535,12 @@ export default function AppShell() {
                 window.skipRPE?.();
               }
             }}
-            data-i18n="common.skip"
           >
             Skip
           </div>
         </div>
       </div>
+
       <div
         className={`modal-overlay${session.summaryOpen ? ' active' : ''}`}
         id="summary-modal"
@@ -540,6 +656,7 @@ export default function AppShell() {
           </div>
         </div>
       </div>
+
       <div
         className={`modal-overlay${session.sportCheckOpen ? ' active' : ''}`}
         id="sport-check-modal"
@@ -558,7 +675,6 @@ export default function AppShell() {
               className="btn btn-secondary sport-check-btn"
               type="button"
               onClick={() => window.selectSportReadiness?.('none')}
-              data-i18n="workout.sport_check.none"
             >
               No
             </button>
@@ -566,7 +682,6 @@ export default function AppShell() {
               className="btn btn-secondary sport-check-btn"
               type="button"
               onClick={() => window.selectSportReadiness?.('yesterday')}
-              data-i18n="workout.sport_check.yesterday"
             >
               Yes, yesterday
             </button>
@@ -574,7 +689,6 @@ export default function AppShell() {
               className="btn btn-secondary sport-check-btn"
               type="button"
               onClick={() => window.selectSportReadiness?.('tomorrow')}
-              data-i18n="workout.sport_check.tomorrow"
             >
               Yes, tomorrow
             </button>
@@ -582,7 +696,6 @@ export default function AppShell() {
               className="btn btn-secondary sport-check-btn"
               type="button"
               onClick={() => window.selectSportReadiness?.('both')}
-              data-i18n="workout.sport_check.both"
             >
               Yes, both
             </button>
@@ -591,12 +704,12 @@ export default function AppShell() {
             className="btn btn-ghost session-secondary-action"
             type="button"
             onClick={() => window.cancelSportReadinessCheck?.()}
-            data-i18n="common.cancel"
           >
             Cancel
           </button>
         </div>
       </div>
+
       <div className="modal-overlay" id="onboarding-modal">
         <div className="modal-sheet onboarding-sheet">
           <div className="modal-handle" />
@@ -605,6 +718,7 @@ export default function AppShell() {
           </div>
         </div>
       </div>
+
       <div
         className={`modal-overlay${
           session.exerciseGuideOpen ? ' active' : ''
@@ -614,11 +728,7 @@ export default function AppShell() {
       >
         <div className="modal-sheet exercise-guide-sheet">
           <div className="modal-handle" />
-          <div
-            className="modal-title"
-            id="exercise-guide-modal-title"
-            data-i18n="guidance.title"
-          >
+          <div className="modal-title" id="exercise-guide-modal-title">
             {session.exerciseGuidePrompt?.title || 'Movement Guide'}
           </div>
           <div className="modal-sub" id="exercise-guide-modal-sub">
@@ -683,12 +793,12 @@ export default function AppShell() {
             className="btn btn-ghost exercise-guide-sheet-close"
             type="button"
             onClick={() => window.closeExerciseGuide?.()}
-            data-i18n="common.done"
           >
             Done
           </button>
         </div>
       </div>
+
       <div
         className="modal-overlay"
         id="program-setup-sheet"
@@ -697,18 +807,13 @@ export default function AppShell() {
         <div className="modal-sheet sheet-scroll-body">
           <div className="modal-handle" />
           <div className="sheet-header">
-            <div
-              className="modal-title"
-              id="program-setup-sheet-title"
-              data-i18n="settings.program_setup"
-            >
+            <div className="modal-title" id="program-setup-sheet-title">
               Program Setup
             </div>
             <button
               className="sheet-close-btn"
               type="button"
               onClick={() => window.closeProgramSetupSheet?.()}
-              data-i18n="common.done"
             >
               Done
             </button>
@@ -716,6 +821,156 @@ export default function AppShell() {
           <div id="program-settings-container" />
         </div>
       </div>
+
+      <main className="content">
+        <div className="header">
+          <div className="header-brand">
+            <svg className="header-logo" viewBox="0 0 44 36" aria-hidden="true">
+              <defs>
+                <linearGradient id="hdr-m" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fffdf5" />
+                  <stop offset="25%" stopColor="#f5d9a0" />
+                  <stop offset="55%" stopColor="#dba85e" />
+                  <stop offset="100%" stopColor="#a06830" />
+                </linearGradient>
+                <linearGradient id="hdr-hi" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+                  <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M4,8 L22,8 Q28,8 34,10 Q40,12 40,13 Q40,14 34,13 L22,12 L4,12 Z"
+                fill="url(#hdr-m)"
+              />
+              <path
+                d="M4,8 L22,8 Q28,8 34,10 L22,9.5 L4,9.5 Z"
+                fill="url(#hdr-hi)"
+              />
+              <path
+                d="M6,12 L20,12 Q21,12 21,13 L21,20 Q21,21 20,21 L6,21 Q5,21 5,20 L5,13 Q5,12 6,12 Z"
+                fill="url(#hdr-m)"
+              />
+              <path
+                d="M8,21 L18,21 Q19,21 19,22 L19,25 Q19,26 18,26 L8,26 Q7,26 7,25 L7,22 Q7,21 8,21 Z"
+                fill="url(#hdr-m)"
+              />
+              <path
+                d="M1,26 L25,26 Q27,26 27,28 L27,31 Q27,33 25,33 L1,33 Q-1,33 -0.5,31 L-0.5,28 Q-1,26 1,26 Z"
+                fill="url(#hdr-m)"
+              />
+              <path
+                d="M1,26 L25,26 Q27,26 27,28 L-0.5,28 Q-1,26 1,26 Z"
+                fill="url(#hdr-hi)"
+              />
+            </svg>
+            <div className="header-text">
+              <h1 className="page-title page-title-wordmark" aria-label="Ironforge">
+                <span>Ironforge</span>
+              </h1>
+              <p id="header-sub">Forge Protocol · Ladataan...</p>
+            </div>
+          </div>
+        </div>
+
+        <PageShell id="dashboard" active={activePage === 'dashboard'}>
+          <div id="dashboard-react-root">
+            <IslandErrorBoundary>
+              <DashboardIsland />
+            </IslandErrorBoundary>
+          </div>
+        </PageShell>
+
+        <PageShell id="log" active={activePage === 'log'}>
+          <div id="log-start-react-root">
+            <IslandErrorBoundary>
+              <LogStartIsland />
+            </IslandErrorBoundary>
+          </div>
+          <div id="log-active-react-root">
+            <IslandErrorBoundary>
+              <LogActiveIsland />
+            </IslandErrorBoundary>
+          </div>
+        </PageShell>
+
+        <PageShell id="history" active={activePage === 'history'}>
+          <div id="history-react-root">
+            <IslandErrorBoundary>
+              <HistoryIsland />
+            </IslandErrorBoundary>
+          </div>
+        </PageShell>
+
+        <PageShell id="settings" active={activePage === 'settings'}>
+          <div className="tabs" id="settings-tabs" role="tablist" aria-label="Settings sections">
+            {settingsTabs.map((tab) => {
+              const isActive = activeSettingsTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  className={`tab${isActive ? ' active' : ''}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive ? 'true' : 'false'}
+                  data-settings-tab={tab.id}
+                  onClick={(event) => showSettingsTab(tab.id, event.currentTarget)}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div id="settings-tab-schedule" style={{ display: activeSettingsTab === 'schedule' ? '' : 'none' }}>
+            <div id="settings-schedule-react-root">
+              <IslandErrorBoundary>
+                <SettingsScheduleIsland />
+              </IslandErrorBoundary>
+            </div>
+          </div>
+
+          <div id="settings-tab-preferences" style={{ display: activeSettingsTab === 'preferences' ? '' : 'none' }}>
+            <div id="settings-preferences-react-root">
+              <IslandErrorBoundary>
+                <SettingsPreferencesIsland />
+              </IslandErrorBoundary>
+            </div>
+          </div>
+
+          <div id="settings-tab-program" style={{ display: activeSettingsTab === 'program' ? '' : 'none' }}>
+            <div id="settings-program-react-root">
+              <IslandErrorBoundary>
+                <SettingsProgramIsland />
+              </IslandErrorBoundary>
+            </div>
+          </div>
+
+          <div id="settings-tab-account" style={{ display: activeSettingsTab === 'account' ? '' : 'none' }}>
+            <div id="settings-account-react-root">
+              <IslandErrorBoundary>
+                <SettingsAccountIsland />
+              </IslandErrorBoundary>
+            </div>
+          </div>
+
+          <div id="settings-tab-body" style={{ display: activeSettingsTab === 'body' ? '' : 'none' }}>
+            <div id="settings-body-react-root">
+              <IslandErrorBoundary>
+                <SettingsBodyIsland />
+              </IslandErrorBoundary>
+            </div>
+          </div>
+        </PageShell>
+
+        <PageShell id="nutrition" active={activePage === 'nutrition'}>
+          <div id="nutrition-react-root">
+            <IslandErrorBoundary>
+              <NutritionIsland />
+            </IslandErrorBoundary>
+          </div>
+        </PageShell>
+      </main>
+
       <nav
         className="bottom-nav"
         style={{
@@ -732,7 +987,7 @@ export default function AppShell() {
               type="button"
               data-page={item.id}
               aria-current={isActive ? 'page' : undefined}
-              onClick={(event) => window.showPage?.(item.id, event.currentTarget)}
+              onClick={() => navigateToPage(item.id)}
             >
               {NAV_ICONS[item.id]}
               <span>{item.label}</span>
@@ -740,6 +995,6 @@ export default function AppShell() {
           );
         })}
       </nav>
-    </>
+    </div>
   );
 }

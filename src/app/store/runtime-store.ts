@@ -3,6 +3,7 @@ import type {
   AppPage,
   ConfirmSnapshot,
   DashboardView,
+  ExerciseCatalogView,
   HistoryView,
   LogActiveView,
   LogStartView,
@@ -42,6 +43,9 @@ type RuntimeStore = {
     settingsProgramView: SettingsProgramView | null;
     settingsScheduleView: SettingsScheduleView | null;
   };
+  exerciseCatalog: {
+    view: ExerciseCatalogView | null;
+  };
   navigateToPage: (page: AppPage) => void;
   setActiveSettingsTab: (tab: SettingsTab) => void;
   openConfirm: (confirm: ConfirmSnapshot) => void;
@@ -59,6 +63,7 @@ type RuntimeStore = {
   setSettingsPreferencesView: (view: SettingsPreferencesView | null) => void;
   setSettingsProgramView: (view: SettingsProgramView | null) => void;
   setSettingsScheduleView: (view: SettingsScheduleView | null) => void;
+  setExerciseCatalogView: (view: ExerciseCatalogView | null) => void;
   bumpLanguageVersion: () => void;
 };
 
@@ -123,6 +128,9 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
     settingsPreferencesView: null,
     settingsProgramView: null,
     settingsScheduleView: null,
+  },
+  exerciseCatalog: {
+    view: null,
   },
   navigateToPage: (page) =>
     set((state) => ({
@@ -253,6 +261,12 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
       pages: {
         ...state.pages,
         settingsScheduleView,
+      },
+    })),
+  setExerciseCatalogView: (view) =>
+    set(() => ({
+      exerciseCatalog: {
+        view,
       },
     })),
   bumpLanguageVersion: () =>

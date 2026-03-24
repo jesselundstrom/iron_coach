@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { showConfirm } from '../app/services/confirm-actions';
 
 const initialSnapshot = {
   labels: {
@@ -568,19 +569,19 @@ function LogActiveIsland() {
         {snapshot.labels.finishSession}
       </button>
 
-      <button
-        className="btn btn-ghost session-secondary-action"
-        type="button"
-        onClick={() =>
-          window.showConfirm?.(
-            snapshot.labels.cancelConfirmTitle,
-            snapshot.labels.cancelConfirmMessage,
-            window.cancelWorkout
-          )
-        }
-      >
-        {snapshot.labels.cancelSession}
-      </button>
+        <button
+          className="btn btn-ghost session-secondary-action"
+          type="button"
+          onClick={() => {
+            showConfirm(
+              snapshot.labels.cancelConfirmTitle,
+              snapshot.labels.cancelConfirmMessage,
+              window.cancelWorkout
+            );
+          }}
+        >
+          {snapshot.labels.cancelSession}
+        </button>
     </div>
   );
 }

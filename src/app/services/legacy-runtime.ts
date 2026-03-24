@@ -3,6 +3,7 @@ import {
   type AppPage,
   type ConfirmSnapshot,
   type DashboardView,
+  type ExerciseCatalogView,
   type HistoryView,
   type LogActiveView,
   type LogStartView,
@@ -22,8 +23,8 @@ import { useRuntimeStore } from '../store/runtime-store';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
 
 type RuntimeBridge = {
-  navigateToPage: (page: AppPage) => void;
-  setActiveSettingsTab: (tab: SettingsTab) => void;
+  navigateToPage: (page: string) => void;
+  setActiveSettingsTab: (tab: string) => void;
   openConfirm: (confirm: Partial<ConfirmSnapshot>) => void;
   closeConfirm: () => void;
   showToast: (toast: {
@@ -46,6 +47,7 @@ type RuntimeBridge = {
   setSettingsPreferencesView: (view: SettingsPreferencesView | null) => void;
   setSettingsProgramView: (view: SettingsProgramView | null) => void;
   setSettingsScheduleView: (view: SettingsScheduleView | null) => void;
+  setExerciseCatalogView: (view: ExerciseCatalogView | null) => void;
 };
 
 function detectInitialActivePage(): AppPage {
@@ -82,11 +84,19 @@ function createDefaultConfirm(confirm?: Partial<ConfirmSnapshot>): ConfirmSnapsh
   };
 }
 
+function syncHashToPage(page: AppPage) {
+  const nextHash = `#/${page}`;
+  if (window.location.hash !== nextHash) {
+    window.location.hash = `/${page}`;
+  }
+}
+
 function registerRuntimeBridge(): RuntimeBridge {
   const bridge: RuntimeBridge = {
     navigateToPage: (page) => {
       if (!isAppPage(page)) return;
       useRuntimeStore.getState().navigateToPage(page);
+      syncHashToPage(page);
     },
     setActiveSettingsTab: (tab) => {
       if (!isSettingsTab(tab)) return;
@@ -154,10 +164,17 @@ function registerRuntimeBridge(): RuntimeBridge {
     setSettingsScheduleView: (view) => {
       useRuntimeStore.getState().setSettingsScheduleView(view);
     },
+    setExerciseCatalogView: (view) => {
+      useRuntimeStore.getState().setExerciseCatalogView(view);
+    },
   };
 
-  (window as Window & { __IRONFORGE_RUNTIME_BRIDGE__?: RuntimeBridge }).__IRONFORGE_RUNTIME_BRIDGE__ =
-    bridge;
+  (
+    window as Window & {
+      __IRONFORGE_RUNTIME_BRIDGE__?: Window['__IRONFORGE_RUNTIME_BRIDGE__'];
+    }
+  ).__IRONFORGE_RUNTIME_BRIDGE__ =
+    bridge as unknown as Window['__IRONFORGE_RUNTIME_BRIDGE__'];
   return bridge;
 }
 

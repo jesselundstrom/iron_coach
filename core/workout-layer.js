@@ -3961,6 +3961,10 @@ const EXERCISE_CATALOG_FILTERS = {
 let exerciseCatalogState = null;
 let exerciseCatalogListenersBound = false;
 
+function getExerciseCatalogRuntimeBridge() {
+  return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
+}
+
 function mergeExerciseCatalogFilterGroup(baseValues, selectedValue) {
   const base = arrayify(baseValues).filter(Boolean);
   if (!selectedValue) return base;
@@ -4136,9 +4140,7 @@ function renderExerciseCatalogSection(titleKey, fallback, items, emptyCopy) {
   return `<section class="catalog-section"><div class="catalog-section-title">${escapeHtml(i18nText(titleKey, fallback))}</div>${body}</section>`;
 }
 
-function renderExerciseCatalogFilters() {
-  const wrap = document.getElementById('exercise-catalog-filters');
-  if (!wrap) return;
+function buildExerciseCatalogFilterGroups() {
   const groups = [
     {
       id: 'movement',
@@ -4162,19 +4164,147 @@ function renderExerciseCatalogFilters() {
       options: EXERCISE_CATALOG_FILTERS.equipment,
     },
   ];
-  wrap.innerHTML = groups
-    .map((group) => {
-      const selectId = 'catalog-filter-' + group.id;
-      const selectOptions = [
-        `<option value="">${escapeHtml(i18nText('catalog.filter.all', 'All'))}</option>`,
-        ...group.options.map(
-          (option) =>
-            `<option value="${escapeHtml(option.value)}"${group.active === option.value ? ' selected' : ''}>${escapeHtml(i18nText(option.labelKey, option.fallback))}</option>`
+  return groups.map((group) => ({
+    id: group.id,
+    label: i18nText(group.labelKey, group.fallback),
+    activeValue: group.active,
+    options: [
+      {
+        value: '',
+        label: i18nText('catalog.filter.all', 'All'),
+      },
+      ...group.options.map((option) => ({
+        value: option.value,
+        label: i18nText(option.labelKey, option.fallback),
+      })),
+    ],
+  }));
+}
+
+function toExerciseCatalogItems(items) {
+  return arrayify(items).map((ex) => ({
+    id: ex.id,
+    name: displayExerciseName(ex.name),
+    meta: getExerciseCatalogMetaLine(ex),
+  }));
+}
+
+function buildExerciseCatalogView() {
+  if (!exerciseCatalogState) {
+    return {
+      open: false,
+      mode: 'add',
+      title: '',
+      subtitle: '',
+      search: '',
+      clearVisible: false,
+      emptyVisible: false,
+      emptyCopy: i18nText(
+        'catalog.empty',
+        'No exercises matched your filters.'
+      ),
+      filters: [],
+      sections: [],
+    };
+  }
+
+  const title = i18nText(
+    exerciseCatalogState?.titleKey || 'catalog.title.add',
+    exerciseCatalogState?.titleFallback || 'Add Exercise',
+    exerciseCatalogState?.titleParams
+  );
+  const subtitle = i18nText(
+    exerciseCatalogState?.subtitleKey || 'catalog.sub',
+    exerciseCatalogState?.subtitleFallback ||
+      'Pick an exercise from the library or search by name.',
+    exerciseCatalogState?.subtitleParams
+  );
+  const search = exerciseCatalogState?.search || '';
+  const filters = buildExerciseCatalogFilterGroups();
+  const clearVisible = !!(search || hasExerciseCatalogFilters());
+  const emptyCopy = i18nText(
+    'catalog.empty',
+    'No exercises matched your filters.'
+  );
+  const payloadFilters = getExerciseCatalogFilterPayload();
+  const userFilters = getExerciseCatalogUserFilters();
+  let sections = [];
+  let emptyVisible = false;
+
+  if (search || hasExerciseCatalogFilters()) {
+    const results = search
+      ? getExerciseCatalogResults()
+      : mergeExerciseCatalogLists(
+          getExerciseCatalogAll(payloadFilters),
+          getExerciseCatalogCandidateExercises(userFilters)
+        );
+    sections = results.length
+      ? [
+          {
+            id: 'results',
+            title: i18nText('catalog.section.results', 'Results'),
+            items: toExerciseCatalogItems(results),
+          },
+        ]
+      : [];
+    emptyVisible = !results.length;
+  } else if (isExerciseCatalogSwapMode()) {
+    const results = getExerciseCatalogResults();
+    sections = results.length
+      ? [
+          {
+            id: 'swap',
+            title: i18nText('catalog.section.swap', 'Available options'),
+            items: toExerciseCatalogItems(results),
+          },
+        ]
+      : [];
+    emptyVisible = !results.length;
+  } else {
+    const recent = getExerciseCatalogRecent(8);
+    const featured = getExerciseCatalogFeatured(10, {});
+    const all = getExerciseCatalogAll({});
+    sections = [
+      {
+        id: 'recent',
+        title: i18nText('catalog.section.recent', 'Recently used'),
+        items: toExerciseCatalogItems(recent),
+        emptyCopy: i18nText(
+          'catalog.section.recent_empty',
+          'Log a few workouts and your recent exercises will show up here.'
         ),
-      ];
-      return `<div class="catalog-filter-group"><label class="catalog-filter-label" for="${selectId}">${escapeHtml(i18nText(group.labelKey, group.fallback))}</label><div class="catalog-filter-select-wrap"><select id="${selectId}" class="catalog-filter-select" onchange="setExerciseCatalogFilter('${group.id}',this.value)">${selectOptions.join('')}</select></div></div>`;
-    })
-    .join('');
+      },
+      {
+        id: 'featured',
+        title: i18nText('catalog.section.featured', 'Popular basics'),
+        items: toExerciseCatalogItems(featured),
+      },
+      {
+        id: 'all',
+        title: i18nText('catalog.section.all', 'All exercises'),
+        items: toExerciseCatalogItems(all),
+      },
+    ];
+  }
+
+  return {
+    open: true,
+    mode: exerciseCatalogState?.mode || 'add',
+    title,
+    subtitle,
+    search,
+    clearVisible,
+    emptyVisible,
+    emptyCopy,
+    filters,
+    sections,
+  };
+}
+
+function pushExerciseCatalogView() {
+  const bridge = getExerciseCatalogRuntimeBridge();
+  if (!bridge || typeof bridge.setExerciseCatalogView !== 'function') return;
+  bridge.setExerciseCatalogView(buildExerciseCatalogView());
 }
 
 function refreshExerciseCatalogCopy() {
@@ -4196,100 +4326,11 @@ function refreshExerciseCatalogCopy() {
 }
 
 function renderExerciseCatalog() {
-  refreshExerciseCatalogCopy();
-  renderExerciseCatalogFilters();
-  const content = document.getElementById('exercise-catalog-content');
-  const empty = document.getElementById('exercise-catalog-empty');
-  const clearBtn = document.getElementById('catalog-clear-btn');
-  if (!content || !empty) return;
-  if (clearBtn)
-    clearBtn.style.visibility =
-      exerciseCatalogState?.search || hasExerciseCatalogFilters()
-        ? 'visible'
-        : 'hidden';
-  const search = exerciseCatalogState?.search || '';
-  const filters = getExerciseCatalogFilterPayload();
-  const userFilters = getExerciseCatalogUserFilters();
-  if (search || hasExerciseCatalogFilters()) {
-    const results = search
-      ? getExerciseCatalogResults()
-      : mergeExerciseCatalogLists(
-          getExerciseCatalogAll(filters),
-          getExerciseCatalogCandidateExercises(userFilters)
-        );
-    content.innerHTML = renderExerciseCatalogSection(
-      'catalog.section.results',
-      'Results',
-      results,
-      false
-    );
-    empty.style.display = results.length ? 'none' : 'block';
-    return;
-  }
-  if (isExerciseCatalogSwapMode()) {
-    const results = getExerciseCatalogResults();
-    content.innerHTML = renderExerciseCatalogSection(
-      'catalog.section.swap',
-      'Available options',
-      results,
-      false
-    );
-    empty.style.display = results.length ? 'none' : 'block';
-    return;
-  }
-  const recent = getExerciseCatalogRecent(8);
-  const featured = getExerciseCatalogFeatured(10, {});
-  const all = getExerciseCatalogAll({});
-  content.innerHTML =
-    renderExerciseCatalogSection(
-      'catalog.section.recent',
-      'Recently used',
-      recent,
-      i18nText(
-        'catalog.section.recent_empty',
-        'Log a few workouts and your recent exercises will show up here.'
-      )
-    ) +
-    renderExerciseCatalogSection(
-      'catalog.section.featured',
-      'Popular basics',
-      featured,
-      false
-    ) +
-    renderExerciseCatalogSection(
-      'catalog.section.all',
-      'All exercises',
-      all,
-      false
-    );
-  empty.style.display = 'none';
+  pushExerciseCatalogView();
 }
 
 function ensureExerciseCatalogListeners() {
   if (exerciseCatalogListenersBound) return;
-  const modal = document.getElementById('name-modal');
-  const input = document.getElementById('name-modal-input');
-  if (modal) {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeNameModal();
-    });
-  }
-  if (input) {
-    input.addEventListener('input', (e) => {
-      if (!exerciseCatalogState) return;
-      exerciseCatalogState.search = e.target.value || '';
-      renderExerciseCatalog();
-    });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        closeNameModal();
-        return;
-      }
-      if (e.key !== 'Enter') return;
-      const first = getExerciseCatalogResults()[0];
-      if (first) selectExerciseCatalogExercise(first.id);
-    });
-  }
   exerciseCatalogListenersBound = true;
 }
 
@@ -4410,7 +4451,6 @@ function openExerciseCatalogPicker(config) {
   const next = config || {};
   ensureExerciseCatalogListeners();
   const intent = next.intent || 'add';
-  const input = document.getElementById('name-modal-input');
   if (intent === 'add') {
     nameModalCallback =
       next.onSubmit || next.callback || nameModalCallback || addExerciseByName;
@@ -4431,10 +4471,8 @@ function openExerciseCatalogPicker(config) {
       subtitleParams: next.subtitleParams || null,
       onSelect: null,
     };
-    if (input) input.value = '';
     renderExerciseCatalog();
-    document.getElementById('name-modal')?.classList.add('active');
-    setTimeout(() => input?.focus(), 80);
+    setTimeout(() => document.getElementById('name-modal-input')?.focus(), 80);
     return true;
   }
 
@@ -4490,10 +4528,8 @@ function openExerciseCatalogPicker(config) {
       (intent === 'swap' ? { name: displayExerciseName(current.name) } : null),
     onSelect: next.onSelect || null,
   };
-  if (input) input.value = '';
   renderExerciseCatalog();
-  document.getElementById('name-modal')?.classList.add('active');
-  setTimeout(() => input?.focus(), 80);
+  setTimeout(() => document.getElementById('name-modal-input')?.focus(), 80);
   return true;
 }
 
@@ -4517,30 +4553,35 @@ function setExerciseCatalogFilter(group, value) {
   renderExerciseCatalog();
 }
 
+function setExerciseCatalogSearch(value) {
+  if (!exerciseCatalogState) return;
+  exerciseCatalogState.search = value || '';
+  renderExerciseCatalog();
+}
+
 function clearExerciseCatalogFilters() {
   if (!exerciseCatalogState) return;
   exerciseCatalogState.search = '';
   exerciseCatalogState.movementTag = '';
   exerciseCatalogState.muscleGroup = '';
   exerciseCatalogState.equipmentTag = '';
-  const input = document.getElementById('name-modal-input');
-  if (input) input.value = '';
   renderExerciseCatalog();
-  input?.focus();
+  document.getElementById('name-modal-input')?.focus();
 }
 
 function resetExerciseCatalogState() {
   exerciseCatalogState = null;
+  renderExerciseCatalog();
 }
 
 function selectExerciseCatalogExercise(exerciseId) {
   const exercise = getWorkoutExercise(exerciseId);
   if (!exercise) return;
-  document.getElementById('name-modal')?.classList.remove('active');
   const onSelect = exerciseCatalogState?.onSelect || null;
   const cb = nameModalCallback;
   nameModalCallback = null;
   exerciseCatalogState = null;
+  renderExerciseCatalog();
   if (onSelect) {
     onSelect(exercise);
     return;
@@ -5877,7 +5918,11 @@ async function finishWorkout() {
     if (typeof window.setNutritionSessionContext === 'function') {
       window.setNutritionSessionContext(summaryData);
     }
-    if (typeof window.showPage === 'function') {
+    const bridge =
+      typeof getRuntimeBridge === 'function' ? getRuntimeBridge() : null;
+    if (bridge && typeof bridge.navigateToPage === 'function') {
+      bridge.navigateToPage('nutrition');
+    } else if (typeof window.showPage === 'function') {
       window.showPage('nutrition');
     }
   }

@@ -79,6 +79,44 @@ export type NutritionView = {
   [key: string]: unknown;
 };
 
+export type ExerciseCatalogOption = {
+  value: string;
+  label: string;
+};
+
+export type ExerciseCatalogFilterGroup = {
+  id: string;
+  label: string;
+  activeValue: string;
+  options: ExerciseCatalogOption[];
+};
+
+export type ExerciseCatalogItem = {
+  id: string;
+  name: string;
+  meta: string;
+};
+
+export type ExerciseCatalogSection = {
+  id: string;
+  title: string;
+  items: ExerciseCatalogItem[];
+  emptyCopy?: string;
+};
+
+export type ExerciseCatalogView = {
+  open: boolean;
+  mode: string;
+  title: string;
+  subtitle: string;
+  search: string;
+  clearVisible: boolean;
+  emptyVisible: boolean;
+  emptyCopy: string;
+  filters: ExerciseCatalogFilterGroup[];
+  sections: ExerciseCatalogSection[];
+};
+
 export type RpePromptSnapshot = {
   open: boolean;
   title: string;

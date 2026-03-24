@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { navigateToPage } from '../app/services/navigation-actions';
 
 function getSnapshot() {
   return {
@@ -219,7 +220,7 @@ function EmptyState({ log }) {
       <button
         className="btn btn-primary hist-empty-cta"
         type="button"
-        onClick={() => window.showPage?.('log', document.querySelectorAll('.nav-btn')[1])}
+        onClick={() => navigateToPage('log')}
       >{labels.cta}</button>
       {phase && (
         <div className="hist-phase-card">
