@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { useHistoryStore } from '../stores/history-store';
 import { navigateToPage } from '../app/services/navigation-actions';
 
 function getSnapshot() {
@@ -432,7 +432,7 @@ function Milestones({ data, labels }) {
 /* ── Main ──────────────────────────────────────────────────── */
 
 function HistoryIsland() {
-  const snapshot = useRuntimeStore((state) => state.pages.historyView) || getSnapshot();
+  const snapshot = useHistoryStore((state) => state.view) || getSnapshot();
   const isStatsTab = snapshot.tab === 'stats';
   const hasStatsContent =
     snapshot.stats.volume.visible ||

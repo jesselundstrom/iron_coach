@@ -116,6 +116,11 @@ declare global {
     getLocalCacheKey?: (baseKey: string, userId?: string) => string;
     clearLocalDataCache?: (options?: Record<string, unknown>) => void;
     getActiveWorkoutDraftCache?: () => Record<string, unknown> | null;
+    getWorkoutStartSnapshot?: (
+      input?: Record<string, unknown>
+    ) => Record<string, unknown> | null;
+    getCachedWorkoutStartSnapshot?: () => Record<string, unknown> | null;
+    clearWorkoutStartSnapshot?: () => void;
     saveWorkouts?: (...args: unknown[]) => Promise<unknown> | unknown;
     saveScheduleData?: (...args: unknown[]) => Promise<unknown> | unknown;
     saveProfileData?: (...args: unknown[]) => Promise<unknown> | unknown;
@@ -126,6 +131,29 @@ declare global {
     schedule?: Record<string, unknown> | null;
     profile?: Record<string, unknown> | null;
     activeWorkout?: Record<string, unknown> | null;
+    startWorkout?: () => void;
+    resumeActiveWorkoutUI?: (options?: Record<string, unknown>) => unknown;
+    updateRestDuration?: (nextValue?: string | number | null) => void;
+    startRestTimer?: () => void;
+    skipRest?: () => void;
+    addExerciseByName?: (name: string) => void;
+    showSetRIRPrompt?: (exerciseIndex: number, setIndex: number) => void;
+    applySetRIR?: (
+      exerciseIndex: number,
+      setIndex: number,
+      rirValue: string | number
+    ) => void;
+    toggleSet?: (exerciseIndex: number, setIndex: number) => void;
+    updateSet?: (
+      exerciseIndex: number,
+      setIndex: number,
+      field: string,
+      value: string | number
+    ) => void;
+    addSet?: (exerciseIndex: number) => void;
+    removeEx?: (exerciseIndex: number) => void;
+    finishWorkout?: () => Promise<unknown> | unknown;
+    cancelWorkout?: () => void;
     restDuration?: number;
     restEndsAt?: number;
     restSecondsLeft?: number;

@@ -14,6 +14,10 @@ import { installLegacyI18nStoreBridge } from '../stores/i18n-store';
 import { installLegacyDataStoreBridge } from '../stores/data-store';
 import { installLegacyProfileStoreBridge } from '../stores/profile-store';
 import { installLegacyProgramStoreBridge } from '../stores/program-store';
+import { installLegacyWorkoutStoreBridge } from '../stores/workout-store';
+import { installLegacyDashboardStoreBridge } from '../stores/dashboard-store';
+import { installLegacyHistoryStoreBridge } from '../stores/history-store';
+import { installLegacyNutritionStoreBridge } from '../stores/nutrition-store';
 
 function LegacyRuntimeBridge() {
   useEffect(() => startLegacyRuntimeBridge(), []);
@@ -56,6 +60,10 @@ if (mountNode) {
   installLegacyDataStoreBridge();
   installLegacyProfileStoreBridge();
   installLegacyProgramStoreBridge();
+  installLegacyWorkoutStoreBridge();
+  installLegacyDashboardStoreBridge();
+  installLegacyHistoryStoreBridge();
+  installLegacyNutritionStoreBridge();
   prepareLegacyShellMount();
   syncRuntimeStoreFromLegacy();
   createRoot(mountNode).render(<App />);

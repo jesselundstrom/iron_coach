@@ -33,7 +33,10 @@ function getLegacyProgram(programId: string) {
   );
 }
 
-export function createLegacyProgramAdapter(seed: LegacyProgramSeed): AnyProgramPlugin {
+export function createLegacyProgramAdapter(
+  seed: LegacyProgramSeed,
+  overrides?: Partial<AnyProgramPlugin>
+): AnyProgramPlugin {
   const base: AnyProgramPlugin = {
     id: seed.id,
     name: seed.name,
@@ -46,28 +49,37 @@ export function createLegacyProgramAdapter(seed: LegacyProgramSeed): AnyProgramP
       return cloneJson(legacy.getInitialState() || {});
     },
   };
+  const target = {
+    ...base,
+    ...(overrides || {}),
+  } as AnyProgramPlugin;
 
-  return new Proxy(base, {
-    get(target, prop, receiver) {
-      if (prop in target) {
-        return Reflect.get(target, prop, receiver);
+  return new Proxy(target, {
+    get(currentTarget, prop, receiver) {
+      if (prop in currentTarget) {
+        return Reflect.get(currentTarget, prop, receiver);
       }
       const legacy = getLegacyProgram(seed.id);
       const value = legacy?.[prop as keyof AnyProgramPlugin];
       return typeof value === 'function' ? value.bind(legacy) : value;
     },
-    has(target, prop) {
-      if (prop in target) return true;
+    has(currentTarget, prop) {
+      if (prop in currentTarget) return true;
       const legacy = getLegacyProgram(seed.id);
       return !!legacy && prop in legacy;
     },
-    ownKeys(target) {
+    ownKeys(currentTarget) {
       const legacy = getLegacyProgram(seed.id);
-      return [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(legacy || {})])];
+      return [
+        ...new Set([
+          ...Reflect.ownKeys(currentTarget),
+          ...Reflect.ownKeys(legacy || {}),
+        ]),
+      ];
     },
-    getOwnPropertyDescriptor(target, prop) {
-      if (prop in target) {
-        return Reflect.getOwnPropertyDescriptor(target, prop);
+    getOwnPropertyDescriptor(currentTarget, prop) {
+      if (prop in currentTarget) {
+        return Reflect.getOwnPropertyDescriptor(currentTarget, prop);
       }
       const legacy = getLegacyProgram(seed.id);
       if (!legacy || !(prop in legacy)) return undefined;

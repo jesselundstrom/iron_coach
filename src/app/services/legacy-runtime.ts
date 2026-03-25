@@ -19,6 +19,9 @@ import {
   isSettingsTab,
 } from '../constants';
 import { useRuntimeStore } from '../store/runtime-store';
+import { useDashboardStore } from '../../stores/dashboard-store';
+import { useHistoryStore } from '../../stores/history-store';
+import { useNutritionStore } from '../../stores/nutrition-store';
 
 const LANGUAGE_EVENT = 'ironforge:language-changed';
 
@@ -141,12 +144,15 @@ function registerRuntimeBridge(): RuntimeBridge {
       useRuntimeStore.getState().setLogActiveView(view);
     },
     setHistoryView: (view) => {
+      useHistoryStore.getState().setView(view);
       useRuntimeStore.getState().setHistoryView(view);
     },
     setDashboardView: (view) => {
+      useDashboardStore.getState().setView(view);
       useRuntimeStore.getState().setDashboardView(view);
     },
     setNutritionView: (view) => {
+      useNutritionStore.getState().setView(view);
       useRuntimeStore.getState().setNutritionView(view);
     },
     setSettingsAccountView: (view) => {

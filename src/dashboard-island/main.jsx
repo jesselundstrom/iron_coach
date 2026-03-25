@@ -1,5 +1,5 @@
 import { createElement, useEffect, useState } from 'react';
-import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { useDashboardStore } from '../stores/dashboard-store';
 import { navigateToPage } from '../app/services/navigation-actions';
 
 const svgCache = new Map();
@@ -692,8 +692,7 @@ function TrainingMaxes({ title, items }) {
 }
 
 function DashboardIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.pages.dashboardView) || getSnapshot();
+  const snapshot = useDashboardStore((state) => state.view) || getSnapshot();
 
   useEffect(() => {
     if (typeof window.animateDashboardPlanMuscleBars === 'function') {

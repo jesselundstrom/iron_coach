@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../core/i18n.js';
-import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { useNutritionStore } from '../stores/nutrition-store';
 import {
   clearNutritionHistory,
   handleNutritionPhoto,
@@ -941,8 +941,7 @@ function Composer({ snapshot }) {
 }
 
 function NutritionIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.pages.nutritionView) || getSnapshot();
+  const snapshot = useNutritionStore((state) => state.view) || getSnapshot();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {

@@ -1,16 +1,18 @@
 import { getDataStateSnapshot } from '../stores/data-store';
+import { getWorkoutStoreSnapshot } from '../stores/workout-store';
 
 export function getState() {
-  const state = getDataStateSnapshot();
+  const dataState = getDataStateSnapshot();
+  const workoutState = getWorkoutStoreSnapshot();
   return {
-    workouts: state.workouts,
-    schedule: state.schedule,
-    profile: state.profile,
-    activeWorkout: state.activeWorkout,
-    restDuration: state.restDuration,
-    restEndsAt: state.restEndsAt,
-    restSecondsLeft: state.restSecondsLeft,
-    currentUser: state.currentUser,
+    workouts: dataState.workouts,
+    schedule: dataState.schedule,
+    profile: dataState.profile,
+    activeWorkout: workoutState.activeWorkout,
+    restDuration: workoutState.restDuration,
+    restEndsAt: workoutState.restEndsAt,
+    restSecondsLeft: workoutState.restSecondsLeft,
+    currentUser: dataState.currentUser,
   };
 }
 

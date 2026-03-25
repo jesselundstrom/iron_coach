@@ -117,3 +117,50 @@ test('log active island keeps focus handoff inside React for enter progression a
 
   await expect(newWeightInput).toBeFocused();
 });
+
+test('log active island keeps RIR saves flowing through the workout store seam', async ({
+  page,
+}) => {
+  await openAppShell(page);
+  await openActiveWorkout(page);
+
+  await page.evaluate(() => {
+    window.eval('showSetRIRPrompt(0,0)');
+  });
+
+  await expect(page.locator('#custom-swap-modal')).toBeVisible();
+
+  await page.evaluate(() => {
+    window.applySetRIR?.(0, 0, '2');
+  });
+
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.eval("String(activeWorkout?.exercises?.[0]?.sets?.[0]?.rir ?? '')")
+      )
+    )
+    .toBe('2');
+  await expect(page.locator('#custom-swap-modal')).toHaveCount(0);
+});
+
+test('log active island keeps add exercise flowing through the workout store seam', async ({
+  page,
+}) => {
+  await openAppShell(page);
+  await openActiveWorkout(page);
+
+  const beforeCount = await page.evaluate(() =>
+    window.eval('activeWorkout?.exercises?.length || 0')
+  );
+
+  await page.evaluate(() => {
+    window.addExerciseByName?.('Dumbbell Row');
+  });
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.eval('activeWorkout?.exercises?.length || 0'))
+    )
+    .toBe(beforeCount + 1);
+});

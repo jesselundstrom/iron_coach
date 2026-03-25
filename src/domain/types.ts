@@ -39,6 +39,7 @@ export type ExerciseSet = {
   done: boolean;
   isWarmup?: boolean;
   rpe?: number | null;
+  rir?: number | string | null;
   loggedReps?: number | null;
   notes?: string;
   isAmrap?: boolean;
@@ -135,6 +136,23 @@ export type ActiveWorkout = {
   startTime?: number;
   startedAt?: string | number;
   sessionDescription?: string;
+  [key: string]: unknown;
+};
+
+export type WorkoutStartSnapshot = {
+  signature?: string;
+  programId?: string | null;
+  selectedOption?: string;
+  buildContext?: Record<string, unknown> | null;
+  buildState?: Record<string, unknown> | null;
+  exercises: WorkoutExercise[];
+  sessionDescription?: string;
+  programLabel?: string;
+  effectiveDecision?: PlanningDecision | null;
+  trainingDecision?: PlanningDecision | null;
+  changes?: Array<Record<string, unknown>>;
+  equipmentHint?: string;
+  commentary?: WorkoutCommentary | Record<string, unknown> | null;
   [key: string]: unknown;
 };
 
