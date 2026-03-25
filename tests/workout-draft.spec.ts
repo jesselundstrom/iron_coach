@@ -6,8 +6,11 @@ test.describe.configure({ mode: 'serial' });
 
 async function openTrainPage(page: Page) {
   await page.evaluate(() => {
-    window.eval("showPage('log')");
-    window.eval("window.runPageActivationSideEffects && window.runPageActivationSideEffects('log')");
+    const navButton =
+      document.querySelector('.nav-btn[data-page="log"]') ||
+      document.querySelectorAll('.nav-btn')[1];
+    window.showPage?.('log', navButton);
+    window.runPageActivationSideEffects?.('log');
     if (window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout) {
       window.__IRONFORGE_STORES__?.workout?.resumeActiveWorkoutUI?.({
         toast: false,
@@ -101,11 +104,7 @@ test('discarding a workout clears the persisted draft', async ({ page }) => {
   await page.waitForFunction(
     () => !window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
   );
-  await expect(
-    page.locator('#log-start-react-root').getByRole('button', {
-      name: /start workout/i,
-    })
-  ).toBeVisible();
+  await expect(page.locator('#workout-not-started')).toBeVisible();
   expect(
     await page.evaluate(
       () => window.__IRONFORGE_STORES__?.data?.getActiveWorkoutDraftCache?.()

@@ -8,6 +8,7 @@
     "build": "vite build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "guard:migration": "node scripts/check-migrated-workout-surface.cjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",

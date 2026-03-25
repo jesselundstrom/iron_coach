@@ -3,8 +3,11 @@ import { openAppShell } from './helpers';
 
 async function openTrainPage(page: import('@playwright/test').Page) {
   await page.evaluate(() => {
-    window.eval("showPage('log')");
-    window.eval('resetNotStartedView()');
+    const navButton =
+      document.querySelector('.nav-btn[data-page="log"]') ||
+      document.querySelectorAll('.nav-btn')[1];
+    window.showPage?.('log', navButton);
+    window.resetNotStartedView?.();
   });
 }
 

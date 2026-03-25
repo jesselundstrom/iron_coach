@@ -9,10 +9,11 @@ test('log start island renders from the legacy bridge and still starts a workout
   await openAppShell(page);
 
   await page.evaluate(() => {
-    window.eval(`
-      resetNotStartedView();
-      showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    `);
+    const navButton =
+      document.querySelector('.nav-btn[data-page="log"]') ||
+      document.querySelectorAll('.nav-btn')[1];
+    window.resetNotStartedView?.();
+    window.showPage?.('log', navButton);
   });
 
   await expect(page.locator('#page-log')).toHaveClass(/active/);
@@ -43,10 +44,11 @@ test('log start island uses explicit selection state when starting a different d
   await openAppShell(page);
 
   await page.evaluate(() => {
-    window.eval(`
-      resetNotStartedView();
-      showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    `);
+    const navButton =
+      document.querySelector('.nav-btn[data-page="log"]') ||
+      document.querySelectorAll('.nav-btn')[1];
+    window.resetNotStartedView?.();
+    window.showPage?.('log', navButton);
   });
 
   await expect(page.locator('#page-log')).toHaveClass(/active/);
@@ -90,16 +92,17 @@ test('log start island keeps sport readiness check-in interactions working', asy
   await openAppShell(page);
 
   await page.evaluate(() => {
-    window.eval(`
-      profile.preferences = normalizeTrainingPreferences({
-        preferences: {
-          ...(profile.preferences || {}),
-          sportReadinessCheckEnabled: true
-        }
-      });
-      resetNotStartedView();
-      showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    `);
+    profile.preferences = normalizeTrainingPreferences({
+      preferences: {
+        ...(profile.preferences || {}),
+        sportReadinessCheckEnabled: true,
+      },
+    });
+    const navButton =
+      document.querySelector('.nav-btn[data-page="log"]') ||
+      document.querySelectorAll('.nav-btn')[1];
+    window.resetNotStartedView?.();
+    window.showPage?.('log', navButton);
   });
 
   await expect(page.locator('#page-log')).toHaveClass(/active/);

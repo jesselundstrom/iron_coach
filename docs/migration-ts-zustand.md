@@ -1,5 +1,17 @@
 # Ironforge: Legacy Runtime Migration to TypeScript + Zustand
 
+## Status
+
+This migration plan is complete as of 2026-03-25.
+
+All seven planned phases were delivered and verified. The remaining work in this repo is ordinary cleanup, hardening, and feature work rather than unfinished migration-plan work.
+
+Closeout checkpoints completed:
+
+- React workout entry points now use `workoutStore` actions instead of direct legacy workout globals.
+- End-to-end tests use the test-only `window.__IRONFORGE_STORES__` bridge where migrated store seams exist.
+- CI now includes a migration guardrail that blocks new `src/` regressions back to legacy workout globals and `window.eval(...)` on migrated workout surfaces.
+
 ## Summary
 
 Ironforge's visible UI migration is complete. The shipped app shell already runs through React + Vite from `src/app/main.tsx` and `src/app/AppShell.jsx`, and the shared `src/app/store/runtime-store.ts` is already part of the live runtime.
@@ -84,7 +96,7 @@ Notes:
 - Adapter modules such as `src/core/program-registry.js`, `src/core/exercise-library.js`, and `src/core/state.js` may remain temporarily as compatibility surfaces while the migration is in progress.
 - `index.html` may continue loading legacy scripts until each migrated surface is ready to take ownership.
 
-## Planned Phases
+## Completed Phases
 
 ### Phase 0: Foundation
 
@@ -299,3 +311,4 @@ For any phase that changes cached runtime assets, review `sw.js` and decide whet
 - This file is the active migration roadmap for the legacy runtime replacement.
 - Do not add new migration instructions that refer to `docs/migration-inventory.md` unless that file is explicitly created later for a real need.
 - Prefer updating this file when the migration direction changes, rather than scattering migration status bullets across agent-guidance files.
+- If a future cleanup removes more legacy runtime files, track that as normal architecture cleanup rather than reopening this seven-phase migration plan.

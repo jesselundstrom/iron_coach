@@ -160,6 +160,7 @@ declare global {
     restSecondsLeft?: number;
     __IRONFORGE_TEST_USER_ID__?: string;
     runPageActivationSideEffects?: (page: string) => void;
+    resetNotStartedView?: () => void;
     showSettingsTab?: (tab: string, trigger?: Element | null) => void;
     showConfirm?: (
       title: string,

@@ -29,6 +29,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Migration guardrail
+        run: npm run guard:migration
+
       - name: Typecheck
         run: npm run typecheck
 
