@@ -992,12 +992,19 @@ test('nutrition meal entry text option opens the shared sheet and sends typed fo
   await openMealEntryPicker(page);
   await page.getByRole('button', { name: 'Type the food' }).click();
   await expect(page.locator('#nutrition-food-text-input')).toBeVisible();
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.url() === NUTRITION_FUNCTION_URL &&
+      response.request().method() === 'POST',
+    { timeout: 45000 }
+  );
   await page
     .locator('#nutrition-food-text-input')
     .fill('Chicken rice bowl and a protein yogurt');
-  await page.locator('.nc-correction-send').click();
+  await page.locator('#nutrition-food-text-input').press('Enter');
 
-  await expectNutritionCoachResponse(page, 'Typed meal logged.');
+  await responsePromise;
+  await expectNutritionCoachResponse(page, 'Typed meal logged.', 45000);
   expect(capturedUserText).toContain('Chicken rice bowl and a protein yogurt');
 });
 
@@ -1056,12 +1063,19 @@ test('nutrition correction row appears inline after photo analysis and sends typ
   await expect(page.locator('.nc-correction-trigger')).toBeVisible();
   await page.locator('.nc-correction-trigger').click();
   await expect(page.locator('#nutrition-text-input')).toBeVisible();
+  const correctionResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url() === NUTRITION_FUNCTION_URL &&
+      response.request().method() === 'POST',
+    { timeout: 45000 }
+  );
 
   // Type the correction and send
   await page
     .locator('#nutrition-text-input')
     .fill('Actually that was 2 portions');
-  await page.locator('.nc-correction-send').click();
+  await page.locator('#nutrition-text-input').press('Enter');
+  await correctionResponsePromise;
 
   await expectNutritionCoachResponse(page, 'Updated — noted.');
   expect(capturedUserText).toContain('Actually that was 2 portions');

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { workoutStore } from '../stores/workout-store.ts';
 
 const initialSnapshot = {
   labels: {
@@ -593,7 +594,7 @@ function LogStartIsland() {
               bonusSelected ? ' bonus-cta' : ''
             }`}
             type="button"
-            onClick={() => window.startWorkout?.()}
+            onClick={() => workoutStore.getState().startWorkout()}
           >
             {bonusSelected
               ? bonus?.startLabel || snapshot.labels.startWorkout

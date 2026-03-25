@@ -32,7 +32,9 @@ test('exercise guide modal shows specific bench guidance from the active workout
         startTime: Date.now() - 120000
       };
       showPage('log', document.querySelectorAll('.nav-btn')[1]);
-      resumeActiveWorkoutUI({ toast: false });
+      window.__IRONFORGE_STORES__?.workout?.resumeActiveWorkoutUI?.({
+        toast: false,
+      });
     `);
   });
 

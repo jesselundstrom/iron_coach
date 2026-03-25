@@ -70,6 +70,12 @@ type LegacyWorkoutSnapshot = Omit<
 
 type LegacyWorkoutWindow = Window & {
   activeWorkout?: Record<string, unknown> | null;
+  getLiveWorkoutSessionSnapshot?: () => {
+    activeWorkout?: Record<string, unknown> | null;
+    restDuration?: number;
+    restEndsAt?: number;
+    restSecondsLeft?: number;
+  } | null;
   getWorkoutStartSnapshot?: (
     input?: Record<string, unknown>
   ) => Record<string, unknown> | null;
@@ -181,14 +187,22 @@ function isPromiseLike(value: unknown): value is Promise<unknown> {
   return !!value && typeof (value as Promise<unknown>).then === 'function';
 }
 
+function hasOwnProperty(
+  value: unknown,
+  key: string
+): value is Record<string, unknown> {
+  return !!value && Object.prototype.hasOwnProperty.call(value, key);
+}
+
 function readLegacyWorkoutSnapshot(): LegacyWorkoutSnapshot {
   const runtimeWindow = getLegacyWindow();
   const runtimeSession = readRuntimeWorkoutSession();
-  const fallbackActiveWorkout =
-    runtimeWindow?.activeWorkout || dataStore.getState().activeWorkout;
-  const activeWorkout =
-    normalizeActiveWorkout(runtimeSession.activeWorkout) ||
-    normalizeActiveWorkout(fallbackActiveWorkout);
+  const liveSession = runtimeWindow?.getLiveWorkoutSessionSnapshot?.() || null;
+  const activeWorkout = hasOwnProperty(liveSession, 'activeWorkout')
+    ? normalizeActiveWorkout(liveSession.activeWorkout ?? null)
+    : normalizeActiveWorkout(runtimeSession.activeWorkout) ||
+      normalizeActiveWorkout(runtimeWindow?.activeWorkout) ||
+      normalizeActiveWorkout(dataStore.getState().activeWorkout);
   const startSnapshot = normalizeWorkoutStartSnapshot(
     runtimeWindow?.getCachedWorkoutStartSnapshot?.() || null
   );
@@ -197,15 +211,15 @@ function readLegacyWorkoutSnapshot(): LegacyWorkoutSnapshot {
     startSnapshot,
     hasActiveWorkout: !!activeWorkout,
     restDuration: readSessionNumber(
-      runtimeSession.restDuration,
+      liveSession?.restDuration ?? runtimeSession.restDuration,
       Number(runtimeWindow?.restDuration || 0)
     ),
     restEndsAt: readSessionNumber(
-      runtimeSession.restEndsAt,
+      liveSession?.restEndsAt ?? runtimeSession.restEndsAt,
       Number(runtimeWindow?.restEndsAt || 0)
     ),
     restSecondsLeft: readSessionNumber(
-      runtimeSession.restSecondsLeft,
+      liveSession?.restSecondsLeft ?? runtimeSession.restSecondsLeft,
       Number(runtimeWindow?.restSecondsLeft || 0)
     ),
   };

@@ -7,7 +7,7 @@ test.describe.configure({ mode: 'serial' });
 async function openActiveWorkout(page: Page) {
   await page.evaluate(() => {
     window.showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    (window as any).startWorkout();
+    window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
   });
 
   await page.waitForFunction(() => (window as any).getActivePageName?.() === 'log');
@@ -39,15 +39,14 @@ test('log active island keeps set completion and rest timer controls working', a
 
   await page.getByRole('button', { name: '3 min' }).click();
 
-  const interactionResult = await page.evaluate(() =>
-    window.eval(`(
-      toggleSet(0,0),
-      {
-        restDuration,
-        done: activeWorkout.exercises[0].sets[0].done
-      }
-    )`)
-  );
+  const interactionResult = await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.toggleSet?.(0, 0);
+    const state = window.__IRONFORGE_STORES__?.workout?.getState?.();
+    return {
+      restDuration: state?.restDuration,
+      done: state?.activeWorkout?.exercises?.[0]?.sets?.[0]?.done,
+    };
+  });
 
   expect(interactionResult.restDuration).toBe(180);
   expect(interactionResult.done).toBe(true);
@@ -71,24 +70,42 @@ test('log active island keeps weight edits and done toggles in sync with the vis
   await expect(firstWeightInput).toHaveValue('67.5');
   await expect
     .poll(() =>
-      page.evaluate(() => window.eval('String(activeWorkout.exercises[0].sets[0].weight ?? "")'))
+      page.evaluate(
+        () =>
+          String(
+            window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+              ?.exercises?.[0]?.sets?.[0]?.weight ?? ''
+          )
+      )
     )
     .toBe('67.5');
 
   await page.evaluate(() => {
-    window.eval('toggleSet(0,0)');
+    window.__IRONFORGE_STORES__?.workout?.toggleSet?.(0, 0);
   });
   await expect(firstToggle).toHaveClass(/done/);
   await expect
-    .poll(() => page.evaluate(() => window.eval('activeWorkout.exercises[0].sets[0].done')))
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+            ?.exercises?.[0]?.sets?.[0]?.done
+      )
+    )
     .toBe(true);
 
   await page.evaluate(() => {
-    window.eval('toggleSet(0,0)');
+    window.__IRONFORGE_STORES__?.workout?.toggleSet?.(0, 0);
   });
   await expect(firstToggle).not.toHaveClass(/(^| )done( |$)/);
   await expect
-    .poll(() => page.evaluate(() => window.eval('activeWorkout.exercises[0].sets[0].done')))
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+            ?.exercises?.[0]?.sets?.[0]?.done
+      )
+    )
     .toBe(false);
 });
 
@@ -131,13 +148,16 @@ test('log active island keeps RIR saves flowing through the workout store seam',
   await expect(page.locator('#custom-swap-modal')).toBeVisible();
 
   await page.evaluate(() => {
-    window.applySetRIR?.(0, 0, '2');
+    window.__IRONFORGE_STORES__?.workout?.applySetRIR?.(0, 0, '2');
   });
 
   await expect
     .poll(() =>
       page.evaluate(() =>
-        window.eval("String(activeWorkout?.exercises?.[0]?.sets?.[0]?.rir ?? '')")
+        String(
+          window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+            ?.exercises?.[0]?.sets?.[0]?.rir ?? ''
+        )
       )
     )
     .toBe('2');
@@ -150,17 +170,23 @@ test('log active island keeps add exercise flowing through the workout store sea
   await openAppShell(page);
   await openActiveWorkout(page);
 
-  const beforeCount = await page.evaluate(() =>
-    window.eval('activeWorkout?.exercises?.length || 0')
+  const beforeCount = await page.evaluate(
+    () =>
+      window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+        ?.exercises?.length || 0
   );
 
   await page.evaluate(() => {
-    window.addExerciseByName?.('Dumbbell Row');
+    window.__IRONFORGE_STORES__?.workout?.addExerciseByName?.('Dumbbell Row');
   });
 
   await expect
     .poll(() =>
-      page.evaluate(() => window.eval('activeWorkout?.exercises?.length || 0'))
+      page.evaluate(
+        () =>
+          window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+            ?.exercises?.length || 0
+      )
     )
     .toBe(beforeCount + 1);
 });

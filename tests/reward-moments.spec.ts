@@ -56,14 +56,16 @@ test('live PR detection flows into the summary and history views', async ({ page
 
     window.showRPEPicker = (_name, _setNum, cb) => cb(8);
     window.showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    window.resumeActiveWorkoutUI({ toast: false });
+    window.__IRONFORGE_STORES__?.workout?.resumeActiveWorkoutUI?.({
+      toast: false,
+    });
   });
 
   await expect(page.locator('#log-active-react-root #workout-active')).toBeVisible();
   await expect(page.locator('#log-active-react-root .exercise-block')).toHaveCount(1);
 
   await page.evaluate(() => {
-    window.eval('toggleSet(0,0)');
+    window.__IRONFORGE_STORES__?.workout?.toggleSet?.(0, 0);
   });
   await page.waitForFunction(() =>
     (document.getElementById('toast')?.textContent || '').includes('New PR!')
@@ -71,7 +73,7 @@ test('live PR detection flows into the summary and history views', async ({ page
   await expect(page.locator('#toast')).toContainText('New PR!');
 
   await page.evaluate(() => {
-    window.finishWorkout();
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
   });
 
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
@@ -147,15 +149,17 @@ test('summary coach note shows PR message when a PR is set', async ({ page }) =>
 
     window.showRPEPicker = (_name: string, _setNum: number, cb: (v: number) => void) => cb(8);
     window.showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    window.resumeActiveWorkoutUI({ toast: false });
+    window.__IRONFORGE_STORES__?.workout?.resumeActiveWorkoutUI?.({
+      toast: false,
+    });
   });
 
   await page.evaluate(() => {
-    window.eval('toggleSet(0,0)');
+    window.__IRONFORGE_STORES__?.workout?.toggleSet?.(0, 0);
   });
 
   await page.evaluate(() => {
-    window.finishWorkout();
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
   });
 
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
@@ -204,15 +208,17 @@ test('summary coach note shows clean fallback when session completes without PRs
 
     window.showRPEPicker = (_name: string, _setNum: number, cb: (v: number) => void) => cb(7);
     window.showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    window.resumeActiveWorkoutUI({ toast: false });
+    window.__IRONFORGE_STORES__?.workout?.resumeActiveWorkoutUI?.({
+      toast: false,
+    });
   });
 
   await page.evaluate(() => {
-    window.eval('toggleSet(0,0)');
+    window.__IRONFORGE_STORES__?.workout?.toggleSet?.(0, 0);
   });
 
   await page.evaluate(() => {
-    window.finishWorkout();
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
   });
 
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);

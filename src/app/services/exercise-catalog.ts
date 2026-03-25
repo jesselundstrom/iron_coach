@@ -1,3 +1,5 @@
+import { workoutStore } from '../../stores/workout-store';
+
 export function setExerciseCatalogSearch(value: string) {
   window.setExerciseCatalogSearch?.(value);
 }
@@ -15,5 +17,5 @@ export function closeExerciseCatalog() {
 }
 
 export function selectExerciseCatalogExercise(exerciseId: string) {
-  window.selectExerciseCatalogExercise?.(exerciseId);
+  workoutStore.getState().selectExerciseCatalogExercise(exerciseId);
 }

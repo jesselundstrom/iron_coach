@@ -119,6 +119,7 @@ declare global {
     getWorkoutStartSnapshot?: (
       input?: Record<string, unknown>
     ) => Record<string, unknown> | null;
+    getLiveWorkoutSessionSnapshot?: () => Record<string, unknown> | null;
     getCachedWorkoutStartSnapshot?: () => Record<string, unknown> | null;
     clearWorkoutStartSnapshot?: () => void;
     saveWorkouts?: (...args: unknown[]) => Promise<unknown> | unknown;
@@ -180,6 +181,38 @@ declare global {
     clearExerciseCatalogFilters?: () => void;
     selectExerciseCatalogExercise?: (exerciseId: string) => void;
     closeNameModal?: () => void;
+    showSessionSummary?: () => Promise<unknown> | unknown;
+    __IRONFORGE_STORES__?: {
+      data?: {
+        getState?: () => any;
+        getActiveWorkoutDraftCache?: () => any;
+      };
+      workout?: {
+        getState?: () => any;
+        startWorkout?: () => void;
+        resumeActiveWorkoutUI?: (options?: Record<string, unknown>) => unknown;
+        updateRestDuration?: (nextValue?: string | number | null) => void;
+        addExerciseByName?: (name: string) => void;
+        applySetRIR?: (
+          exerciseIndex: number,
+          setIndex: number,
+          rirValue: string | number
+        ) => void;
+        toggleSet?: (exerciseIndex: number, setIndex: number) => void;
+        updateSet?: (
+          exerciseIndex: number,
+          setIndex: number,
+          field: string,
+          value: string | number
+        ) => void;
+        addSet?: (exerciseIndex: number) => void;
+        finishWorkout?: () => Promise<unknown> | unknown;
+        cancelWorkout?: () => void;
+      };
+      runtime?: {
+        getState?: () => any;
+      };
+    };
   }
 }
 

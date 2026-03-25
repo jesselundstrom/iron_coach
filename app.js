@@ -117,6 +117,18 @@ function syncWorkoutSessionBridge() {
   });
 }
 
+window.getLiveWorkoutSessionSnapshot = function getLiveWorkoutSessionSnapshot() {
+  return {
+    activeWorkout,
+    restDuration: Number(restDuration || 0),
+    restEndsAt: Number(restEndsAt || 0),
+    restSecondsLeft: Number(restSecondsLeft || 0),
+    restTotal: Number(restTotal || 0),
+    currentUser,
+    restBarActive: restBarActive === true,
+  };
+};
+
 window.syncWorkoutSessionBridge = syncWorkoutSessionBridge;
 
 function notifyRpeOverlayShell() {

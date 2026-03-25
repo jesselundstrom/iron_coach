@@ -28,7 +28,7 @@ test('log start island renders from the legacy bridge and still starts a workout
   await expect(page.locator('#log-start-react-root .workout-decision-options')).toHaveCount(0);
 
   await page.evaluate(() => {
-    window.eval('startWorkout()');
+    window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
   });
 
   await expect(page.locator('#workout-active')).toBeVisible();
@@ -69,12 +69,20 @@ test('log start island uses explicit selection state when starting a different d
     .click();
 
   await page.evaluate(() => {
-    window.eval('startWorkout()');
+    window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
   });
 
   await expect(page.locator('#workout-active')).toBeVisible();
   await expect
-    .poll(() => page.evaluate(() => window.eval('String(activeWorkout?.programOption || "")')))
+    .poll(() =>
+      page.evaluate(
+        () =>
+          String(
+            window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+              ?.programOption || ''
+          )
+      )
+    )
     .toBe(String(targetSelection.value));
 });
 

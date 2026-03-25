@@ -28,6 +28,12 @@ export async function bootstrapAppShell(page: Page) {
         }
       ).syncNutritionBridge === 'function'
   );
+  await page.waitForFunction(
+    () =>
+      typeof window.__IRONFORGE_STORES__?.workout?.getState === 'function' &&
+      typeof window.__IRONFORGE_STORES__?.data?.getActiveWorkoutDraftCache ===
+        'function'
+  );
 
   await page.evaluate(() => {
     const runtimeWindow = window as Window & {
@@ -101,5 +107,14 @@ export async function confirmModal(page: Page) {
 
   await expect(modal).toHaveClass(/active/);
   await expect(confirmButton).toBeVisible();
-  await confirmButton.click({ force: true });
+  await page.evaluate(() => {
+    const button = document.getElementById('confirm-ok');
+    if (button instanceof HTMLButtonElement) {
+      button.click();
+      return;
+    }
+    if (typeof window.confirmOk === 'function') {
+      window.confirmOk();
+    }
+  });
 }

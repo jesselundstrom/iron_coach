@@ -46,7 +46,9 @@ async function setupWorkoutState(page: Page, seedWorkouts: object[] = []) {
 
     window.showRPEPicker = (_name: string, _setNum: number, cb: (v: number) => void) => cb(7);
     window.showPage('log', document.querySelectorAll('.nav-btn')[1]);
-    window.resumeActiveWorkoutUI({ toast: false });
+    window.__IRONFORGE_STORES__?.workout?.resumeActiveWorkoutUI?.({
+      toast: false,
+    });
   }, seedWorkouts);
 }
 
@@ -74,7 +76,9 @@ test('feedback capture: tap too_hard, verify on workout record', async ({ page }
   await openAppShell(page);
   await setupWorkoutState(page);
 
-  await page.evaluate(() => { window.finishWorkout(); });
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
+  });
 
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
   await expect(page.locator('.summary-feedback-btn')).toHaveCount(3);
@@ -94,7 +98,9 @@ test('feedback survives reload', async ({ page }) => {
   await openAppShell(page);
   await setupWorkoutState(page);
 
-  await page.evaluate(() => { window.finishWorkout(); });
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
+  });
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
 
   await page.evaluate(() => {
@@ -114,7 +120,9 @@ test('summary notes persist onto the workout record and history card', async ({ 
   await openAppShell(page);
   await setupWorkoutState(page);
 
-  await page.evaluate(() => { window.finishWorkout(); });
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
+  });
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
 
   await page.locator('#summary-notes-textarea').fill('Left shoulder felt tight on the descent.');
@@ -143,7 +151,9 @@ test('post-workout nutrition nudge appears for a signed-in user and routes into 
   await openAppShell(page);
   await setupWorkoutState(page);
 
-  await page.evaluate(() => { window.finishWorkout(); });
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
+  });
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
   await expect(page.locator('.summary-nutrition-action')).toBeVisible();
 
@@ -167,7 +177,9 @@ test('post-workout nutrition nudge stays hidden when signed out', async ({ page 
     currentUser = null;
   });
 
-  await page.evaluate(() => { window.finishWorkout(); });
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
+  });
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
   await expect(page.locator('.summary-nutrition-action')).toHaveCount(0);
 });
@@ -181,7 +193,9 @@ test('duration signal: long session infers too_long', async ({ page }) => {
     window.eval('activeWorkout.startTime = Date.now() - 80 * 60 * 1000');
   });
 
-  await page.evaluate(() => { window.finishWorkout(); });
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
+  });
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);
   await page.evaluate(() => {
     window.eval('closeSummaryModal()');

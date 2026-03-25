@@ -18,6 +18,7 @@ import { installLegacyWorkoutStoreBridge } from '../stores/workout-store';
 import { installLegacyDashboardStoreBridge } from '../stores/dashboard-store';
 import { installLegacyHistoryStoreBridge } from '../stores/history-store';
 import { installLegacyNutritionStoreBridge } from '../stores/nutrition-store';
+import { installTestStoresBridge } from './services/test-stores';
 
 function LegacyRuntimeBridge() {
   useEffect(() => startLegacyRuntimeBridge(), []);
@@ -64,6 +65,7 @@ if (mountNode) {
   installLegacyDashboardStoreBridge();
   installLegacyHistoryStoreBridge();
   installLegacyNutritionStoreBridge();
+  installTestStoresBridge();
   prepareLegacyShellMount();
   syncRuntimeStoreFromLegacy();
   createRoot(mountNode).render(<App />);

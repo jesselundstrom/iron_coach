@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { showConfirm } from '../app/services/confirm-actions';
+import { workoutStore } from '../stores/workout-store.ts';
 
 const initialSnapshot = {
   labels: {
@@ -57,6 +58,12 @@ const initialSnapshot = {
 function invokeLegacy(name, ...args) {
   const fn = window[name];
   if (typeof fn === 'function') return fn(...args);
+  return undefined;
+}
+
+function invokeWorkoutAction(name, ...args) {
+  const action = workoutStore.getState()[name];
+  if (typeof action === 'function') return action(...args);
   return undefined;
 }
 
@@ -297,7 +304,9 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
           data-action="remove-exercise"
           title={labels.removeExercise}
           aria-label={labels.removeExercise}
-          onClick={() => invokeLegacy('removeEx', exercise.exerciseIndex)}
+          onClick={() =>
+            invokeWorkoutAction('removeExercise', exercise.exerciseIndex)
+          }
         >
           {labels.removeExercise}
         </button>
@@ -346,7 +355,7 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
               placeholder={labels.weightPlaceholder}
               value={String(set.weight ?? '')}
               onChange={(event) =>
-                invokeLegacy(
+                invokeWorkoutAction(
                   'updateSet',
                   exercise.exerciseIndex,
                   set.index,
@@ -379,7 +388,7 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
               value={String(set.reps ?? '')}
               style={set.isAmrap ? { borderColor: 'var(--purple)' } : undefined}
               onChange={(event) =>
-                invokeLegacy(
+                invokeWorkoutAction(
                   'updateSet',
                   exercise.exerciseIndex,
                   set.index,
@@ -410,7 +419,11 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
                 data-set-index={set.index}
                 data-exercise-index={exercise.exerciseIndex}
                 onClick={() =>
-                  invokeLegacy('toggleSet', exercise.exerciseIndex, set.index)
+                  invokeWorkoutAction(
+                    'toggleSet',
+                    exercise.exerciseIndex,
+                    set.index
+                  )
                 }
               >
                 ✓
@@ -430,7 +443,7 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
         style={{ marginTop: 8 }}
         type="button"
         data-action="add-set"
-        onClick={() => invokeLegacy('addSet', exercise.exerciseIndex)}
+        onClick={() => invokeWorkoutAction('addSet', exercise.exerciseIndex)}
       >
         {labels.addSet}
       </button>
@@ -540,7 +553,9 @@ function LogActiveIsland() {
                 type="button"
                 className={`rest-timer-pill${isActive ? ' is-active' : ''}`}
                 aria-pressed={isActive}
-                onClick={() => window.updateRestDuration?.(option.value)}
+                onClick={() =>
+                  invokeWorkoutAction('updateRestDuration', option.value)
+                }
               >
                 {option.label}
               </button>
@@ -564,7 +579,7 @@ function LogActiveIsland() {
       <button
         className="btn btn-primary session-primary-action"
         type="button"
-        onClick={() => window.finishWorkout?.()}
+        onClick={() => invokeWorkoutAction('finishWorkout')}
       >
         {snapshot.labels.finishSession}
       </button>
@@ -576,7 +591,7 @@ function LogActiveIsland() {
             showConfirm(
               snapshot.labels.cancelConfirmTitle,
               snapshot.labels.cancelConfirmMessage,
-              window.cancelWorkout
+              () => invokeWorkoutAction('cancelWorkout')
             );
           }}
         >

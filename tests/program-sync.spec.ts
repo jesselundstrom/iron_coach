@@ -26,9 +26,9 @@ test('gym basics preview stays locked to the started session', async ({ page }) 
         resetNotStartedView();
         const snapshot = getCachedWorkoutStartSnapshot();
         const previewNames = (snapshot?.exercises || []).map(ex => ex.name);
-        startWorkout();
+        window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
         const activeNames = (activeWorkout?.exercises || []).map(ex => ex.name);
-        cancelWorkout();
+        window.__IRONFORGE_STORES__?.workout?.cancelWorkout?.();
         return { previewNames, activeNames };
       })()
     `);
@@ -63,7 +63,7 @@ test('forge normal override on deload uses the previous build week for progressi
         const tmBefore = profile.programs.forge.lifts.main[0].tm;
         window.showRPEPicker = (_title, _index, cb) => cb(7);
         window.showSessionSummary = async () => {};
-        startWorkout();
+        window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
         activeWorkout.exercises.forEach(exercise => {
           if (exercise.isAccessory) return;
           exercise.sets.forEach((set, idx) => {
@@ -71,7 +71,7 @@ test('forge normal override on deload uses the previous build week for progressi
             if (idx === exercise.sets.length - 1) set.rir = 3;
           });
         });
-        await finishWorkout();
+        await window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
         return {
           snapshotWeek: snapshot?.buildState?.week,
           storedBuildWeek: workouts[workouts.length - 1]?.programStateUsedForBuild?.week,
@@ -111,7 +111,7 @@ test('forge default deload stays light and does not apply normal-week progressio
         const tmBefore = profile.programs.forge.lifts.main[0].tm;
         window.showRPEPicker = (_title, _index, cb) => cb(7);
         window.showSessionSummary = async () => {};
-        startWorkout();
+        window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
         activeWorkout.exercises.forEach(exercise => {
           if (exercise.isAccessory) return;
           exercise.sets.forEach((set, idx) => {
@@ -119,7 +119,7 @@ test('forge default deload stays light and does not apply normal-week progressio
             if (idx === exercise.sets.length - 1) set.rir = 3;
           });
         });
-        await finishWorkout();
+        await window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
         return {
           snapshotWeek: snapshot?.buildState?.week,
           storedBuildWeek: workouts[workouts.length - 1]?.programStateUsedForBuild?.week,
@@ -157,13 +157,13 @@ test('recomputing forge state from history matches the saved post-workout state'
         updateProgramDisplay();
         window.showRPEPicker = (_title, _index, cb) => cb(7);
         window.showSessionSummary = async () => {};
-        startWorkout();
+        window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
         activeWorkout.exercises.forEach(exercise => {
           exercise.sets.forEach(set => {
             set.done = true;
           });
         });
-        await finishWorkout();
+        await window.__IRONFORGE_STORES__?.workout?.finishWorkout?.();
         const savedState = cloneJson(profile.programs.forge);
         const savedWorkout = cloneJson(workouts[workouts.length - 1]);
         workouts = workouts.filter(workout => workout.id !== savedWorkout.id);
