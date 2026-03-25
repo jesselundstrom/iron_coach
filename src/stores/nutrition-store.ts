@@ -18,12 +18,12 @@ function getLegacyWindow(): LegacyNutritionWindow | null {
   return window as LegacyNutritionWindow;
 }
 
-export const useNutritionStore = create<NutritionStoreState>((set) => ({
+export const useNutritionStore = create<NutritionStoreState>((set, get) => ({
   view: null,
   setView: (view) => set({ view }),
-  syncFromLegacy: () => {
+  syncFromLegacy: (): NutritionView | null => {
     getLegacyWindow()?.syncNutritionBridge?.();
-    return useNutritionStore.getState().view;
+    return get().view;
   },
 }));
 

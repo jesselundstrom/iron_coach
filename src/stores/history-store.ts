@@ -18,12 +18,12 @@ function getLegacyWindow(): LegacyHistoryWindow | null {
   return window as LegacyHistoryWindow;
 }
 
-export const useHistoryStore = create<HistoryStoreState>((set) => ({
+export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
   view: null,
   setView: (view) => set({ view }),
-  syncFromLegacy: () => {
+  syncFromLegacy: (): HistoryView | null => {
     getLegacyWindow()?.syncHistoryBridge?.();
-    return useHistoryStore.getState().view;
+    return get().view;
   },
 }));
 

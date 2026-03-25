@@ -18,12 +18,12 @@ function getLegacyWindow(): LegacyDashboardWindow | null {
   return window as LegacyDashboardWindow;
 }
 
-export const useDashboardStore = create<DashboardStoreState>((set) => ({
+export const useDashboardStore = create<DashboardStoreState>((set, get) => ({
   view: null,
   setView: (view) => set({ view }),
-  syncFromLegacy: () => {
+  syncFromLegacy: (): DashboardView | null => {
     getLegacyWindow()?.syncDashboardBridge?.();
-    return useDashboardStore.getState().view;
+    return get().view;
   },
 }));
 

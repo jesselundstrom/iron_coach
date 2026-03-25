@@ -2,12 +2,9 @@ import { create } from 'zustand';
 import type {
   AppPage,
   ConfirmSnapshot,
-  DashboardView,
   ExerciseCatalogView,
-  HistoryView,
   LogActiveView,
   LogStartView,
-  NutritionView,
   SessionSnapshot,
   SettingsTab,
   SettingsAccountView,
@@ -34,9 +31,6 @@ type RuntimeStore = {
     logActiveView: LogActiveView | null;
   };
   pages: {
-    dashboardView: DashboardView | null;
-    historyView: HistoryView | null;
-    nutritionView: NutritionView | null;
     settingsAccountView: SettingsAccountView | null;
     settingsBodyView: SettingsBodyView | null;
     settingsPreferencesView: SettingsPreferencesView | null;
@@ -55,9 +49,6 @@ type RuntimeStore = {
   syncWorkoutSession: (session: SessionSnapshot) => void;
   setLogStartView: (view: LogStartView | null) => void;
   setLogActiveView: (view: LogActiveView | null) => void;
-  setHistoryView: (view: HistoryView | null) => void;
-  setDashboardView: (view: DashboardView | null) => void;
-  setNutritionView: (view: NutritionView | null) => void;
   setSettingsAccountView: (view: SettingsAccountView | null) => void;
   setSettingsBodyView: (view: SettingsBodyView | null) => void;
   setSettingsPreferencesView: (view: SettingsPreferencesView | null) => void;
@@ -120,9 +111,6 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
     logActiveView: null,
   },
   pages: {
-    dashboardView: null,
-    historyView: null,
-    nutritionView: null,
     settingsAccountView: null,
     settingsBodyView: null,
     settingsPreferencesView: null,
@@ -205,27 +193,6 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
       workoutSession: {
         ...state.workoutSession,
         logActiveView,
-      },
-    })),
-  setHistoryView: (historyView) =>
-    set((state) => ({
-      pages: {
-        ...state.pages,
-        historyView,
-      },
-    })),
-  setDashboardView: (dashboardView) =>
-    set((state) => ({
-      pages: {
-        ...state.pages,
-        dashboardView,
-      },
-    })),
-  setNutritionView: (nutritionView) =>
-    set((state) => ({
-      pages: {
-        ...state.pages,
-        nutritionView,
       },
     })),
   setSettingsAccountView: (settingsAccountView) =>

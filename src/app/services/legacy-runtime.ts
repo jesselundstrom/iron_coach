@@ -145,15 +145,12 @@ function registerRuntimeBridge(): RuntimeBridge {
     },
     setHistoryView: (view) => {
       useHistoryStore.getState().setView(view);
-      useRuntimeStore.getState().setHistoryView(view);
     },
     setDashboardView: (view) => {
       useDashboardStore.getState().setView(view);
-      useRuntimeStore.getState().setDashboardView(view);
     },
     setNutritionView: (view) => {
       useNutritionStore.getState().setView(view);
-      useRuntimeStore.getState().setNutritionView(view);
     },
     setSettingsAccountView: (view) => {
       useRuntimeStore.getState().setSettingsAccountView(view);
