@@ -8,8 +8,10 @@ import { openAppShell, reloadAppShell } from './helpers';
  */
 async function setupWorkoutState(page: Page, seedWorkouts: object[] = []) {
   await page.evaluate((seeds) => {
-    const benchId = window.eval("EXERCISE_LIBRARY.resolveExerciseId('Bench Press')");
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const benchId =
+      window.resolveRegisteredExerciseId?.('Bench Press') || 'bench-press';
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
 
     window.eval(`
       workouts = ${JSON.stringify(seeds)};
@@ -218,7 +220,8 @@ test('2-of-3 too_hard biases decision toward train_light', async ({ page }) => {
   ];
 
   await page.evaluate((workoutSeeds) => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
     window.eval(`
       workouts = ${JSON.stringify(workoutSeeds)};
       profile.preferences = normalizeTrainingPreferences({
@@ -251,7 +254,8 @@ test('one good session after too_hard streak clears the bias', async ({ page }) 
   ];
 
   await page.evaluate((workoutSeeds) => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
     window.eval(`
       workouts = ${JSON.stringify(workoutSeeds)};
       profile.activeProgram = 'forge';
@@ -277,7 +281,8 @@ test('duration friction biases decision toward shorten', async ({ page }) => {
   ];
 
   await page.evaluate((workoutSeeds) => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
     window.eval(`
       workouts = ${JSON.stringify(workoutSeeds)};
       profile.activeProgram = 'forge';
@@ -302,7 +307,8 @@ test('dashboard coach card renders reason chips when reasons exist', async ({ pa
   ];
 
   await page.evaluate((workoutSeeds) => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
     window.eval(`
       workouts = ${JSON.stringify(workoutSeeds)};
       profile.activeProgram = 'forge';

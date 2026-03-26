@@ -7,7 +7,8 @@ test('exercise guide modal shows specific bench guidance from the active workout
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const benchId = window.eval("EXERCISE_LIBRARY.resolveExerciseId('Bench Press')");
+    const benchId =
+      window.resolveRegisteredExerciseId?.('Bench Press') || 'bench-press';
 
     window.eval(`
       activeWorkout = {

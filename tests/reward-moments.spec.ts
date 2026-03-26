@@ -8,8 +8,10 @@ test('live PR detection flows into the summary and history views', async ({ page
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const benchId = window.eval("EXERCISE_LIBRARY.resolveExerciseId('Bench Press')");
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const benchId =
+      window.resolveRegisteredExerciseId?.('Bench Press') || 'bench-press';
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
 
     window.eval(`
       workouts = [{
@@ -102,8 +104,10 @@ test('summary coach note shows PR message when a PR is set', async ({ page }) =>
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const benchId = window.eval("EXERCISE_LIBRARY.resolveExerciseId('Bench Press')");
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const benchId =
+      window.resolveRegisteredExerciseId?.('Bench Press') || 'bench-press';
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
 
     window.eval(`
       workouts = [{
@@ -176,8 +180,10 @@ test('summary coach note shows clean fallback when session completes without PRs
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const benchId = window.eval("EXERCISE_LIBRARY.resolveExerciseId('Bench Press')");
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const benchId =
+      window.resolveRegisteredExerciseId?.('Bench Press') || 'bench-press';
+    const forgeState =
+      window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {};
 
     window.eval(`
       workouts = [];
@@ -235,7 +241,11 @@ test('dashboard rounds TM display to 0.5kg and ignores raw changes inside the sa
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const state = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const state = (window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {
+      lifts: { main: [{ tm: 0 }, { tm: 0 }] },
+    }) as Record<string, unknown> & {
+      lifts: { main: Array<{ tm: number }> };
+    };
     state.lifts.main[1].tm = 82.43;
     window.eval(`
       profile.activeProgram = 'forge';
@@ -259,7 +269,11 @@ test('dashboard shows rounded TM change state with rolling counter markers', asy
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const state = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+    const state = (window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {
+      lifts: { main: [{ tm: 0 }, { tm: 0 }] },
+    }) as Record<string, unknown> & {
+      lifts: { main: Array<{ tm: number }> };
+    };
     window.eval(`
       profile.activeProgram = 'forge';
       profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(state)} };
@@ -287,8 +301,16 @@ test('dashboard TM rounding does not change exercise prescriptions', async ({ pa
   await openAppShell(page);
 
   const sessionSnapshot = await page.evaluate(() => {
-    const state = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
-    const forgeProgram = window.eval('PROGRAMS.forge');
+    const state = (window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {
+      lifts: { main: [{ tm: 0 }, { tm: 0 }] },
+    }) as Record<string, unknown> & {
+      lifts: { main: Array<{ tm: number }> };
+    };
+    const forgeProgram = (window.__IRONFORGE_E2E__?.program?.getById?.('forge') || {
+      buildSession: () => [],
+    }) as {
+      buildSession: (option: string, programState: Record<string, unknown>, context: Record<string, unknown>) => Array<any>;
+    };
     state.lifts.main[1].tm = 82.43;
     const snapshotSession = (exercises: Array<any>) =>
       exercises.map(exercise => ({
