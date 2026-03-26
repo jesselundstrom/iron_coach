@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { workoutStore } from '../stores/workout-store.ts';
+import { t } from '../app/services/i18n.ts';
+import {
+  getSelectedBonusDuration,
+  quickLogSport,
+  setPendingEnergyLevel,
+  setPendingSessionMode,
+  setPendingSportReadinessLevel,
+  setPendingSportReadinessTiming,
+  setProgramDayOption,
+  setSelectedBonusDuration,
+  setSelectedWorkoutStartOption,
+} from '../app/services/workout-ui-actions.ts';
 
 const initialSnapshot = {
   labels: {
@@ -128,7 +140,7 @@ function SportReadiness({ sportReadiness, embedded = false }) {
               data-sport-check-option={option.value}
               key={option.value}
               onClick={() =>
-                window.setPendingSportReadinessLevel?.(option.value)
+                setPendingSportReadinessLevel(option.value)
               }
             >
               {option.label}
@@ -152,7 +164,7 @@ function SportReadiness({ sportReadiness, embedded = false }) {
                 data-sport-check-option={option.value}
                 key={option.value}
                 onClick={() =>
-                  window.setPendingSportReadinessTiming?.(option.value)
+                  setPendingSportReadinessTiming(option.value)
                 }
               >
                 {option.label}
@@ -183,7 +195,7 @@ function EnergyAssessment({ assessment }) {
               opt.active ? ' active' : ''
             }`}
             key={opt.value}
-            onClick={() => window.setPendingEnergyLevel?.(opt.value)}
+            onClick={() => setPendingEnergyLevel(opt.value)}
           >
             {opt.label}
           </button>
@@ -195,9 +207,7 @@ function EnergyAssessment({ assessment }) {
 
 function getSportLoadDecisionContext(sportReadiness, decisionCard) {
   if (!sportReadiness || !decisionCard?.reasons?.length) return null;
-  const sportLoadLabel =
-    window.I18N?.t?.('training.reason.sport_load.label', null, 'Sport load') ||
-    'Sport load';
+  const sportLoadLabel = t('training.reason.sport_load.label', 'Sport load');
   if (!decisionCard.reasons.includes(sportLoadLabel)) return null;
 
   const activeLevel = sportReadiness.levels?.find(
@@ -221,21 +231,16 @@ function SessionSetupCard({
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const activeMode = decisionCard?.options?.find((option) => option.active);
-  const setupKicker =
-    window.I18N?.t?.('workout.setup.kicker', null, 'Session setup') ||
-    'Session setup';
-  const advancedLabel =
-    window.I18N?.t?.(
-      'workout.setup.advanced_toggle',
-      { mode: activeMode?.title || 'Auto' },
-      'Fine-tune: {mode}'
-    ) || `Fine-tune: ${activeMode?.title || 'Auto'}`;
-  const advancedHint =
-    window.I18N?.t?.(
-      'workout.setup.advanced_hint',
-      null,
-      'Use this only if you want to override the usual recommendation.'
-    ) || 'Use this only if you want to override the usual recommendation.';
+  const setupKicker = t('workout.setup.kicker', 'Session setup');
+  const advancedLabel = t(
+    'workout.setup.advanced_toggle',
+    'Fine-tune: {mode}',
+    { mode: activeMode?.title || 'Auto' }
+  );
+  const advancedHint = t(
+    'workout.setup.advanced_hint',
+    'Use this only if you want to override the usual recommendation.'
+  );
 
   if (
     !assessment &&
@@ -334,7 +339,7 @@ function SessionSetupCard({
                     }`}
                     type="button"
                     key={option.value}
-                    onClick={() => window.setPendingSessionMode?.(option.value)}
+                    onClick={() => setPendingSessionMode(option.value)}
                   >
                     <div className="workout-decision-option-title">
                       {option.title}
@@ -455,8 +460,8 @@ function LogStartIsland() {
     snapshot.values.options.length > 0 &&
     snapshot.values.options.every((o) => o.done);
   const [bonusSelected, setBonusSelected] = useState(false);
-  const [bonusDuration, setBonusDuration] = useState(() =>
-    window.getSelectedBonusDuration?.() || 'standard'
+  const [bonusDuration, setBonusDuration] = useState(
+    () => getSelectedBonusDuration() || 'standard'
   );
   const autoSelectedRef = useRef(false);
 
@@ -464,7 +469,7 @@ function LogStartIsland() {
     if (allDone && bonus?.available && !autoSelectedRef.current) {
       autoSelectedRef.current = true;
       setBonusSelected(true);
-      window.setSelectedWorkoutStartOption?.('bonus');
+      setSelectedWorkoutStartOption('bonus');
     }
   }, [allDone, bonus?.available]);
 
@@ -474,23 +479,23 @@ function LogStartIsland() {
   }, [snapshot.values.selectedOption]);
 
   useEffect(() => {
-    const selectedDuration = window.getSelectedBonusDuration?.() || 'standard';
+    const selectedDuration = getSelectedBonusDuration() || 'standard';
     setBonusDuration(selectedDuration);
   }, [snapshot.values.selectedOption, bonus?.available]);
 
   function selectBonus() {
     setBonusSelected(true);
-    window.setSelectedWorkoutStartOption?.('bonus');
+    setSelectedWorkoutStartOption('bonus');
   }
 
   function selectDay(value) {
     setBonusSelected(false);
-    window.setProgramDayOption?.(value);
+    setProgramDayOption(value);
   }
 
   function changeBonusDuration(value) {
     setBonusDuration(value);
-    window.setSelectedBonusDuration?.(value);
+    setSelectedBonusDuration(value);
   }
 
   return (
@@ -502,7 +507,7 @@ function LogStartIsland() {
         <button
           className="quick-log-card ql-sport"
           type="button"
-          onClick={() => window.quickLogSport?.()}
+          onClick={() => quickLogSport()}
         >
           <div className="ql-icon">{snapshot.values.quickLog.icon}</div>
           <div>

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  getProgramById,
-  getProgramDifficultyMeta,
-} from '../core/program-registry.js';
-import { buildOnboardingRecommendation } from '../core/planning.js';
+import { programStore } from '../stores/program-store.ts';
+import { buildOnboardingRecommendation } from '../domain/planning.ts';
+import { t } from './services/i18n.ts';
 
 const ONBOARDING_EVENT = 'ironforge:onboarding-updated';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
@@ -48,14 +46,6 @@ const EQUIPMENT_OPTIONS = [
   { value: 'home_gym', key: 'onboarding.equipment.home_gym', fallback: 'Home Gym' },
   { value: 'minimal', key: 'onboarding.equipment.minimal', fallback: 'Minimal Equipment' },
 ];
-
-function t(key, fallback, params) {
-  if (window.I18N && I18N.t) return I18N.t(key, params, fallback);
-  if (!params) return fallback;
-  return fallback.replace(/\{(\w+)\}/g, (_, name) =>
-    params[name] != null ? params[name] : `{${name}}`
-  );
-}
 
 function getStepTitle(step) {
   const titles = [
@@ -334,6 +324,8 @@ function StepGuidance({ draft, setField }) {
 
 function StepRecommendation({ draft }) {
   const recommendation = buildOnboardingRecommendation(draft);
+  const getProgramById = programStore.getState().getProgramById;
+  const getProgramDifficultyMeta = programStore.getState().getProgramDifficultyMeta;
 
   if (!recommendation) {
     return (
@@ -343,8 +335,8 @@ function StepRecommendation({ draft }) {
     );
   }
 
-  const program = getProgramById(recommendation.programId);
   const programId = recommendation.programId || '';
+  const program = getProgramById(programId);
   const programName = t('program.' + programId + '.name', program?.name || programId);
   const programDescription = t(
     'program.' + programId + '.description',

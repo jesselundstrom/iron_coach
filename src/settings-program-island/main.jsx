@@ -1,5 +1,12 @@
 import React from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { t } from '../app/services/i18n.ts';
+import {
+  openProgramSetupSheet,
+  saveSimpleProgramSettings,
+  switchProgram,
+} from '../app/services/settings-actions.ts';
+import { runProgramSettingsInlineAction } from '../app/services/program-settings-actions.ts';
 
 function getSnapshot() {
   return {
@@ -27,10 +34,7 @@ function getSnapshot() {
 }
 
 function runInlineHandler(code, event) {
-  if (!code) return;
-  const checkedValue = event?.target?.checked ? 'true' : 'false';
-  const expression = String(code).replace(/\bthis\.checked\b/g, checkedValue);
-  window.eval?.(expression);
+  runProgramSettingsInlineAction(code, event);
 }
 
 function SettingsTreeNode({ node }) {
@@ -68,7 +72,7 @@ function SettingsTreeNode({ node }) {
     props.onClick = (event) => {
       runInlineHandler(attrs.onClickCode, event);
       if (String(attrs.className || '').includes('sl-basic-next-btn')) {
-        window.saveSimpleProgramSettings?.();
+        saveSimpleProgramSettings();
       }
     };
   }
@@ -76,7 +80,7 @@ function SettingsTreeNode({ node }) {
   if (tag === 'input' || tag === 'select' || tag === 'textarea') {
     props.onChange = (event) => {
       runInlineHandler(attrs.onChangeCode, event);
-      window.saveSimpleProgramSettings?.();
+      saveSimpleProgramSettings();
     };
   }
 
@@ -100,20 +104,16 @@ function ProgramSwitcher({ switcher }) {
         <button
           aria-pressed={card.active}
           aria-label={
-            window.I18N?.t
-              ? window.I18N.t(
-                  card.active ? 'program.card.active' : 'program.card.switch_to',
-                  { name: card.name },
-                  card.active ? 'Active program: {name}' : 'Switch to {name}'
-                )
-              : card.active
-                ? `Active program: ${card.name}`
-                : `Switch to ${card.name}`
+            t(
+              card.active ? 'program.card.active' : 'program.card.switch_to',
+              card.active ? 'Active program: {name}' : 'Switch to {name}',
+              { name: card.name }
+            )
           }
           className={`program-card${card.active ? ' active' : ''}`}
           key={card.id}
           type="button"
-          onClick={() => window.switchProgram?.(card.id)}
+          onClick={() => switchProgram(card.id)}
         >
           <div className="program-card-icon">{card.icon}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -148,6 +148,7 @@ function ProgramSwitcher({ switcher }) {
 }
 
 function SettingsProgramIsland() {
+  useRuntimeStore((state) => state.ui.languageVersion);
   const [difficultyFilter, setDifficultyFilter] = React.useState('all');
   const snapshot =
     useRuntimeStore((state) => state.pages.settingsProgramView) || getSnapshot();
@@ -155,26 +156,22 @@ function SettingsProgramIsland() {
   const difficultyOptions = [
     {
       key: 'all',
-      label: window.I18N?.t?.('program.filter.all', null, 'All') || 'All',
+      label: t('program.filter.all', 'All'),
       count: cards.length,
     },
     {
       key: 'beginner',
-      label:
-        window.I18N?.t?.('program.filter.beginner', null, 'Beginner') || 'Beginner',
+      label: t('program.filter.beginner', 'Beginner'),
       count: cards.filter((card) => card.difficultyTone === 'beginner').length,
     },
     {
       key: 'intermediate',
-      label:
-        window.I18N?.t?.('program.filter.intermediate', null, 'Intermediate') ||
-        'Intermediate',
+      label: t('program.filter.intermediate', 'Intermediate'),
       count: cards.filter((card) => card.difficultyTone === 'intermediate').length,
     },
     {
       key: 'advanced',
-      label:
-        window.I18N?.t?.('program.filter.advanced', null, 'Advanced') || 'Advanced',
+      label: t('program.filter.advanced', 'Advanced'),
       count: cards.filter((card) => card.difficultyTone === 'advanced').length,
     },
   ];
@@ -233,8 +230,7 @@ function SettingsProgramIsland() {
           {showDifficultyFilter ? (
             <div className="program-filter-header">
               <div className="settings-panel-title" style={{ marginBottom: 0 }}>
-                {window.I18N?.t?.('program.filter.title', null, 'Filter by level') ||
-                  'Filter by level'}
+                {t('program.filter.title', 'Filter by level')}
               </div>
               <div
                 className="program-filter-row"
@@ -267,7 +263,7 @@ function SettingsProgramIsland() {
           className="settings-panel settings-panel-static program-advanced-card"
           id="program-advanced-panel"
           type="button"
-          onClick={() => window.openProgramSetupSheet?.()}
+          onClick={() => openProgramSetupSheet()}
         >
           <div className="settings-panel-summary settings-panel-summary-static">
             <div>

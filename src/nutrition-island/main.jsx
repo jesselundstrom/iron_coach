@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { t } from '../core/i18n.js';
+import { t } from '../app/services/i18n.ts';
 import { useNutritionStore } from '../stores/nutrition-store';
 import {
   clearNutritionHistory,
   handleNutritionPhoto,
+  openNutritionLogin,
   openNutritionSettings,
   retryLastNutritionMessage,
   selectNutritionAction,
@@ -325,7 +326,7 @@ function SetupCard() {
       <button
         className="btn btn-primary"
         type="button"
-        onClick={() => window.openNutritionLogin?.()}
+        onClick={() => openNutritionLogin()}
       >
         {t('nutrition.setup.sign_in', 'Sign in to continue')}
       </button>

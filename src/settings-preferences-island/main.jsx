@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import {
+  restartOnboarding,
+  saveRestTimer,
+  saveTrainingPreferences,
+} from '../app/services/settings-actions.ts';
 
 function getSnapshot() {
   return {
@@ -119,7 +124,7 @@ function SettingsPreferencesIsland() {
               value={formValues.goal}
               onChange={(event) => {
                 updateField('goal', event.target.value);
-                window.saveTrainingPreferences?.();
+                saveTrainingPreferences();
               }}
             >
               <option value="strength">{labels.goalStrength}</option>
@@ -136,7 +141,7 @@ function SettingsPreferencesIsland() {
               value={formValues.trainingDaysPerWeek}
               onChange={(event) => {
                 updateField('trainingDaysPerWeek', event.target.value);
-                window.saveTrainingPreferences?.();
+                saveTrainingPreferences();
               }}
             >
               <option value="2">{labels.trainingDays2}</option>
@@ -154,7 +159,7 @@ function SettingsPreferencesIsland() {
               value={formValues.sessionMinutes}
               onChange={(event) => {
                 updateField('sessionMinutes', event.target.value);
-                window.saveTrainingPreferences?.();
+                saveTrainingPreferences();
               }}
             >
               <option value="30">{labels.duration30}</option>
@@ -173,7 +178,7 @@ function SettingsPreferencesIsland() {
               value={formValues.equipmentAccess}
               onChange={(event) => {
                 updateField('equipmentAccess', event.target.value);
-                window.saveTrainingPreferences?.();
+                saveTrainingPreferences();
               }}
             >
               <option value="full_gym">{labels.equipmentFullGym}</option>
@@ -194,7 +199,7 @@ function SettingsPreferencesIsland() {
                   checked={formValues.warmupSetsEnabled}
                   onChange={(event) => {
                     updateField('warmupSetsEnabled', event.target.checked);
-                    window.saveTrainingPreferences?.();
+                    saveTrainingPreferences();
                   }}
                 />
                 <span className="toggle-track">
@@ -215,7 +220,7 @@ function SettingsPreferencesIsland() {
                   checked={formValues.sportReadinessCheckEnabled}
                   onChange={(event) => {
                     updateField('sportReadinessCheckEnabled', event.target.checked);
-                    window.saveTrainingPreferences?.();
+                    saveTrainingPreferences();
                   }}
                 />
                 <span className="toggle-track">
@@ -240,7 +245,7 @@ function SettingsPreferencesIsland() {
                   checked={formValues.detailedView}
                   onChange={(event) => {
                     updateField('detailedView', event.target.checked);
-                    window.saveTrainingPreferences?.({
+                    saveTrainingPreferences({
                       detailedViewOverride: event.target.checked,
                     });
                   }}
@@ -264,7 +269,7 @@ function SettingsPreferencesIsland() {
                 value={formValues.defaultRest}
                 onChange={(event) => {
                   updateField('defaultRest', event.target.value);
-                  window.saveRestTimer?.();
+                  saveRestTimer();
                 }}
               >
                 <option value="60">1 min</option>
@@ -286,7 +291,7 @@ function SettingsPreferencesIsland() {
               value={formValues.notes}
               onChange={(event) => {
                 updateField('notes', event.target.value);
-                window.saveTrainingPreferences?.();
+                saveTrainingPreferences();
               }}
             ></textarea>
           </div>
@@ -294,7 +299,7 @@ function SettingsPreferencesIsland() {
           <button
             className="btn btn-secondary settings-action-primary"
             type="button"
-            onClick={() => window.restartOnboarding?.()}
+            onClick={() => restartOnboarding()}
           >
             {labels.restartOnboarding}
           </button>

@@ -25,7 +25,7 @@ test('gym basics preview stays locked to the started session', async ({ page }) 
           }
         });
         profile.activeProgram = 'casualfullbody';
-        profile.programs.casualfullbody = PROGRAMS.casualfullbody.getInitialState();
+        profile.programs.casualfullbody = window.__IRONFORGE_E2E__?.program?.getInitialState?.('casualfullbody');
         resetNotStartedView();
         const snapshot = getCachedWorkoutStartSnapshot();
         const previewNames = (snapshot?.exercises || []).map(ex => ex.name);
@@ -56,7 +56,7 @@ test('forge normal override on deload uses the previous build week for progressi
           }
         });
         profile.activeProgram = 'forge';
-        profile.programs.forge = PROGRAMS.forge.getInitialState();
+        profile.programs.forge = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
         profile.programs.forge.week = 7;
         profile.programs.forge.mode = 'rir';
         resetNotStartedView();
@@ -105,7 +105,7 @@ test('forge default deload stays light and does not apply normal-week progressio
           }
         });
         profile.activeProgram = 'forge';
-        profile.programs.forge = PROGRAMS.forge.getInitialState();
+        profile.programs.forge = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
         profile.programs.forge.week = 7;
         profile.programs.forge.mode = 'rir';
         resetNotStartedView();
@@ -153,7 +153,7 @@ test('recomputing forge state from history matches the saved post-workout state'
           }
         });
         profile.activeProgram = 'forge';
-        profile.programs.forge = PROGRAMS.forge.getInitialState();
+        profile.programs.forge = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
         profile.programs.forge.week = 6;
         profile.programs.forge.mode = 'sets';
         resetNotStartedView();
@@ -191,7 +191,7 @@ test('wendler 531 three-day flow rotates four lifts before the scheme week advan
   const result = await page.evaluate(() => {
     return window.eval(`
       (() => {
-        const program = PROGRAMS.wendler531;
+        const program = window.__IRONFORGE_E2E__?.program?.getById?.('wendler531');
 
         profile.preferences = normalizeTrainingPreferences({
           preferences: {
@@ -271,12 +271,12 @@ test('switching to delayed calendar-based programs applies catch-up immediately'
       (() => {
         const daysAgo = count => new Date(Date.now() - count * 24 * 60 * 60 * 1000).toISOString();
         profile.programs.forge = {
-          ...PROGRAMS.forge.getInitialState(),
+          ...window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge'),
           week: 1,
           weekStartDate: daysAgo(15)
         };
         profile.programs.hypertrophysplit = {
-          ...PROGRAMS.hypertrophysplit.getInitialState(),
+          ...window.__IRONFORGE_E2E__?.program?.getInitialState?.('hypertrophysplit'),
           week: 1,
           weekStartDate: daysAgo(15)
         };

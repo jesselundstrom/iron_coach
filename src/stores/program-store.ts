@@ -6,7 +6,7 @@ import { typedProgramRegistry } from '../programs';
 import { dataStore } from './data-store';
 import { profileStore } from './profile-store';
 
-type AnyProgramPlugin = ProgramPlugin<Record<string, unknown>>;
+type AnyProgramPlugin = ProgramPlugin<any>;
 type ProgramRegistry = Record<string, AnyProgramPlugin>;
 
 type ProgramCapabilities = Record<string, unknown> & {
@@ -55,27 +55,14 @@ type ProgramStoreSnapshot = Omit<
   | 'getEffectiveProgramFrequency'
 >;
 
-type ProgramWindow = Window & {
-  PROGRAMS?: ProgramRegistry;
-  getProgramRegistry?: () => ProgramRegistry;
-  getProgramInitialState?: (programId?: string | null) => Record<string, unknown> | null;
-  getCanonicalProgramId?: (programId?: string | null) => string | null;
-  getProgramCapabilities?: (programId?: string | null) => ProgramCapabilities;
-  getProgramDifficultyMeta?: (programId?: string | null) => ProgramDifficultyMeta | null;
-  getProgramTrainingDaysRange?: (
-    programId?: string | null
-  ) => { min: number; max: number } | null;
-  getEffectiveProgramFrequency?: (
-    programId?: string | null,
-    profileLike?: Profile | Record<string, unknown> | null
-  ) => number;
-};
-
 const DEFAULT_RANGE = { min: 2, max: 6 };
 const DEFAULT_DIFFICULTY: ProgramDifficultyMeta = {
   key: 'intermediate',
   labelKey: 'program.difficulty.intermediate',
   fallback: 'Intermediate',
+};
+const PROGRAM_ID_ALIASES: Record<string, string> = {
+  w531: 'wendler531',
 };
 
 let bridgeInstalled = false;
@@ -88,28 +75,18 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function getProgramWindow(): ProgramWindow | null {
-  if (typeof window === 'undefined') return null;
-  return window as ProgramWindow;
+function getTypedRegistry() {
+  return {
+    ...(typedProgramRegistry as unknown as ProgramRegistry),
+  };
 }
 
 function getCanonicalProgramId(programId?: string | null) {
-  const runtimeWindow = getProgramWindow();
-  const canonical = runtimeWindow?.getCanonicalProgramId?.(programId);
-  if (canonical) return String(canonical);
   const raw = String(programId || '').trim();
-  return raw || null;
-}
-
-function getLegacyRegistry() {
-  const runtimeWindow = getProgramWindow();
-  const legacyRegistry = (
-    runtimeWindow?.getProgramRegistry?.() || runtimeWindow?.PROGRAMS || {}
-  ) as ProgramRegistry;
-  return {
-    ...legacyRegistry,
-    ...typedProgramRegistry,
-  } as ProgramRegistry;
+  if (!raw) return null;
+  const normalized = raw.toLowerCase();
+  if (normalized in typedProgramRegistry) return normalized;
+  return PROGRAM_ID_ALIASES[normalized] || raw;
 }
 
 function getProfileRecord(
@@ -175,25 +152,19 @@ function getProgramByIdFromRegistry(
   return registry?.[canonicalId] || null;
 }
 
-function getProgramInitialStateFromLegacy(
+function getProgramInitialStateFromRegistry(
   registry: ProgramRegistry,
   programId?: string | null
 ) {
-  const runtimeWindow = getProgramWindow();
-  const initialState = runtimeWindow?.getProgramInitialState?.(programId);
-  if (initialState) return cloneJson(initialState);
   const program = getProgramByIdFromRegistry(registry, programId);
   if (typeof program?.getInitialState !== 'function') return null;
   return cloneJson(program.getInitialState() || null);
 }
 
-function getProgramCapabilitiesFromLegacy(
+function getProgramCapabilitiesFromRegistry(
   registry: ProgramRegistry,
   programId?: string | null
 ) {
-  const runtimeWindow = getProgramWindow();
-  const explicit = runtimeWindow?.getProgramCapabilities?.(programId);
-  if (explicit) return { ...explicit };
   const program = getProgramByIdFromRegistry(registry, programId);
   const capabilities =
     ((typeof program?.getCapabilities === 'function'
@@ -208,14 +179,11 @@ function getProgramCapabilitiesFromLegacy(
   return capabilities;
 }
 
-function getProgramTrainingDaysRangeFromLegacy(
+function getProgramTrainingDaysRangeFromRegistry(
   registry: ProgramRegistry,
   programId?: string | null
 ) {
-  const runtimeWindow = getProgramWindow();
-  const explicit = runtimeWindow?.getProgramTrainingDaysRange?.(programId);
-  if (explicit?.min && explicit?.max) return explicit;
-  const capabilities = getProgramCapabilitiesFromLegacy(registry, programId);
+  const capabilities = getProgramCapabilitiesFromRegistry(registry, programId);
   const range = capabilities.frequencyRange || DEFAULT_RANGE;
   return {
     min: Number(range.min) || DEFAULT_RANGE.min,
@@ -223,15 +191,12 @@ function getProgramTrainingDaysRangeFromLegacy(
   };
 }
 
-function getProgramDifficultyMetaFromLegacy(
+function getProgramDifficultyMetaFromRegistry(
   registry: ProgramRegistry,
   programId?: string | null
 ) {
-  const runtimeWindow = getProgramWindow();
-  const explicit = cloneJson(runtimeWindow?.getProgramDifficultyMeta?.(programId) || null);
-  if (explicit) return explicit;
   const difficulty =
-    String(getProgramCapabilitiesFromLegacy(registry, programId).difficulty || '').trim() ||
+    String(getProgramCapabilitiesFromRegistry(registry, programId).difficulty || '').trim() ||
     DEFAULT_DIFFICULTY.key;
   return {
     key: difficulty,
@@ -245,17 +210,13 @@ function getProgramDifficultyMetaFromLegacy(
   };
 }
 
-function getEffectiveProgramFrequencyFromLegacy(
+function getEffectiveProgramFrequencyFromRegistry(
   registry: ProgramRegistry,
   programId?: string | null,
   profileLike?: Profile | Record<string, unknown> | null
 ) {
-  const runtimeWindow = getProgramWindow();
-  const explicit = runtimeWindow?.getEffectiveProgramFrequency?.(programId, profileLike);
-  if (Number.isFinite(explicit)) return Number(explicit);
-
   const requested = getRequestedTrainingDays(profileLike);
-  const range = getProgramTrainingDaysRangeFromLegacy(registry, programId);
+  const range = getProgramTrainingDaysRangeFromRegistry(registry, programId);
   return Math.max(range.min, Math.min(range.max, requested));
 }
 
@@ -272,13 +233,13 @@ function resolveActiveProgramId(
 }
 
 function readLegacyProgramSnapshot(): ProgramStoreSnapshot {
-  const registry = { ...getLegacyRegistry() } as ProgramRegistry;
+  const registry = getTypedRegistry();
   const profileLike = getProfileLike();
   const activeProgramId = resolveActiveProgramId(registry, profileLike);
   const activeProgram = getProgramByIdFromRegistry(registry, activeProgramId);
   const rawState =
     getStoredProgramState(profileLike, activeProgramId) ||
-    getProgramInitialStateFromLegacy(registry, activeProgramId) ||
+    getProgramInitialStateFromRegistry(registry, activeProgramId) ||
     null;
 
   return {
@@ -304,34 +265,38 @@ export const programStore: StoreApi<ProgramStoreState> =
     ...readLegacyProgramSnapshot(),
     syncFromLegacy: () => syncStoreFromLegacy(),
     getProgramById: (programId) => {
-      const registry =
-        (programStoreRef?.getState().registry || getLegacyRegistry()) as ProgramRegistry;
+      const registry = (programStoreRef?.getState().registry ||
+        getTypedRegistry()) as ProgramRegistry;
       return getProgramByIdFromRegistry(registry, programId);
     },
     getProgramInitialState: (programId) => {
-      const registry =
-        (programStoreRef?.getState().registry || getLegacyRegistry()) as ProgramRegistry;
-      return getProgramInitialStateFromLegacy(registry, programId);
+      const registry = (programStoreRef?.getState().registry ||
+        getTypedRegistry()) as ProgramRegistry;
+      return getProgramInitialStateFromRegistry(registry, programId);
     },
     getProgramCapabilities: (programId) => {
-      const registry =
-        (programStoreRef?.getState().registry || getLegacyRegistry()) as ProgramRegistry;
-      return getProgramCapabilitiesFromLegacy(registry, programId);
+      const registry = (programStoreRef?.getState().registry ||
+        getTypedRegistry()) as ProgramRegistry;
+      return getProgramCapabilitiesFromRegistry(registry, programId);
     },
     getProgramDifficultyMeta: (programId) => {
-      const registry =
-        (programStoreRef?.getState().registry || getLegacyRegistry()) as ProgramRegistry;
-      return getProgramDifficultyMetaFromLegacy(registry, programId);
+      const registry = (programStoreRef?.getState().registry ||
+        getTypedRegistry()) as ProgramRegistry;
+      return getProgramDifficultyMetaFromRegistry(registry, programId);
     },
     getProgramTrainingDaysRange: (programId) => {
-      const registry =
-        (programStoreRef?.getState().registry || getLegacyRegistry()) as ProgramRegistry;
-      return getProgramTrainingDaysRangeFromLegacy(registry, programId);
+      const registry = (programStoreRef?.getState().registry ||
+        getTypedRegistry()) as ProgramRegistry;
+      return getProgramTrainingDaysRangeFromRegistry(registry, programId);
     },
     getEffectiveProgramFrequency: (programId, profileLike) => {
-      const registry =
-        (programStoreRef?.getState().registry || getLegacyRegistry()) as ProgramRegistry;
-      return getEffectiveProgramFrequencyFromLegacy(registry, programId, profileLike);
+      const registry = (programStoreRef?.getState().registry ||
+        getTypedRegistry()) as ProgramRegistry;
+      return getEffectiveProgramFrequencyFromRegistry(
+        registry,
+        programId,
+        profileLike
+      );
     },
   }));
 

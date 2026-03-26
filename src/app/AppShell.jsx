@@ -1,6 +1,6 @@
 import { Component, useEffect, useMemo, useRef } from 'react';
 import { useRuntimeStore } from './store/runtime-store.ts';
-import { t } from '../core/i18n.js';
+import { t } from './services/i18n.ts';
 import OnboardingFlow from './OnboardingFlow.jsx';
 import { DashboardIsland } from '../dashboard-island/main.jsx';
 import { HistoryIsland } from '../history-island/main.jsx';
@@ -21,6 +21,20 @@ import {
 } from './services/exercise-catalog.ts';
 import { confirmCancel, confirmOk } from './services/confirm-actions.ts';
 import { navigateToPage, showSettingsTab } from './services/navigation-actions.ts';
+import { closeProgramSetupSheet } from './services/settings-actions.ts';
+import {
+  cancelSportReadinessCheck,
+  closeExerciseGuide,
+  closeSummaryModal,
+  prefersReducedMotionUI,
+  runPageActivationSideEffects,
+  selectRPE,
+  selectSportReadiness,
+  setSummaryFeedback,
+  skipRPE,
+  startSessionSummaryCelebration,
+  updateSummaryNotes,
+} from './services/workout-ui-actions.ts';
 
 const PAGE_META = [
   { id: 'dashboard', labelKey: 'nav.dashboard', fallbackLabel: 'Dashboard' },
@@ -387,13 +401,10 @@ export default function AppShell() {
       if (modal) {
         modal.classList.toggle(
           'reduced-motion',
-          window.prefersReducedMotionUI?.() === true
+          prefersReducedMotionUI()
         );
       }
-      window.startSessionSummaryCelebration?.(
-        modal,
-        session.summaryPrompt?.summaryData || null
-      );
+      startSessionSummaryCelebration(modal, session.summaryPrompt?.summaryData || null);
       const notesField = document.getElementById('summary-notes-textarea');
       if (notesField instanceof HTMLTextAreaElement) {
         notesField.style.height = 'auto';
@@ -419,7 +430,7 @@ export default function AppShell() {
   useEffect(() => {
     if (previousPageRef.current === activePage) return;
     previousPageRef.current = activePage;
-    window.runPageActivationSideEffects?.(activePage);
+    runPageActivationSideEffects(activePage);
   }, [activePage]);
 
   return (
@@ -515,7 +526,7 @@ export default function AppShell() {
                 className="rpe-btn"
                 type="button"
                 onClick={() => {
-                  window.setTimeout(() => window.selectRPE?.(option.value), 200);
+                  window.setTimeout(() => selectRPE(option.value), 200);
                 }}
               >
                 <div className="rpe-num">{option.value}</div>
@@ -528,11 +539,11 @@ export default function AppShell() {
             className="rpe-skip"
             role="button"
             tabIndex={0}
-            onClick={() => window.skipRPE?.()}
+            onClick={() => skipRPE()}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                window.skipRPE?.();
+                skipRPE();
               }
             }}
           >
@@ -606,7 +617,7 @@ export default function AppShell() {
                           event.currentTarget.scrollHeight,
                           168
                         )}px`;
-                        window.updateSummaryNotes?.(nextValue);
+                        updateSummaryNotes(nextValue);
                       }}
                     />
                   </div>
@@ -625,9 +636,7 @@ export default function AppShell() {
                           }`}
                           type="button"
                           data-feedback={option.value}
-                          onClick={() =>
-                            window.setSummaryFeedback?.(option.value)
-                          }
+                          onClick={() => setSummaryFeedback(option.value)}
                         >
                           {option.label}
                         </button>
@@ -638,7 +647,7 @@ export default function AppShell() {
                     <button
                       className="btn btn-ghost summary-nutrition-action"
                       type="button"
-                      onClick={() => window.closeSummaryModal?.(true)}
+                      onClick={() => closeSummaryModal(true)}
                     >
                       {session.summaryPrompt.nutritionLabel}
                     </button>
@@ -646,7 +655,7 @@ export default function AppShell() {
                   <button
                     className="btn btn-primary summary-action"
                     type="button"
-                    onClick={() => window.closeSummaryModal?.()}
+                    onClick={() => closeSummaryModal()}
                   >
                     {session.summaryPrompt.doneLabel}
                   </button>
@@ -674,28 +683,28 @@ export default function AppShell() {
             <button
               className="btn btn-secondary sport-check-btn"
               type="button"
-              onClick={() => window.selectSportReadiness?.('none')}
+              onClick={() => selectSportReadiness('none')}
             >
               No
             </button>
             <button
               className="btn btn-secondary sport-check-btn"
               type="button"
-              onClick={() => window.selectSportReadiness?.('yesterday')}
+              onClick={() => selectSportReadiness('yesterday')}
             >
               Yes, yesterday
             </button>
             <button
               className="btn btn-secondary sport-check-btn"
               type="button"
-              onClick={() => window.selectSportReadiness?.('tomorrow')}
+              onClick={() => selectSportReadiness('tomorrow')}
             >
               Yes, tomorrow
             </button>
             <button
               className="btn btn-secondary sport-check-btn"
               type="button"
-              onClick={() => window.selectSportReadiness?.('both')}
+              onClick={() => selectSportReadiness('both')}
             >
               Yes, both
             </button>
@@ -703,7 +712,7 @@ export default function AppShell() {
           <button
             className="btn btn-ghost session-secondary-action"
             type="button"
-            onClick={() => window.cancelSportReadinessCheck?.()}
+            onClick={() => cancelSportReadinessCheck()}
           >
             Cancel
           </button>
@@ -724,7 +733,7 @@ export default function AppShell() {
           session.exerciseGuideOpen ? ' active' : ''
         }`}
         id="exercise-guide-modal"
-        onClick={(event) => window.closeExerciseGuide?.(event)}
+        onClick={(event) => closeExerciseGuide(event)}
       >
         <div className="modal-sheet exercise-guide-sheet">
           <div className="modal-handle" />
@@ -792,7 +801,7 @@ export default function AppShell() {
           <button
             className="btn btn-ghost exercise-guide-sheet-close"
             type="button"
-            onClick={() => window.closeExerciseGuide?.()}
+            onClick={() => closeExerciseGuide()}
           >
             Done
           </button>
@@ -802,7 +811,7 @@ export default function AppShell() {
       <div
         className="modal-overlay"
         id="program-setup-sheet"
-        onClick={(event) => window.closeProgramSetupSheet?.(event)}
+        onClick={(event) => closeProgramSetupSheet(event)}
       >
         <div className="modal-sheet sheet-scroll-body">
           <div className="modal-handle" />
@@ -813,7 +822,7 @@ export default function AppShell() {
             <button
               className="sheet-close-btn"
               type="button"
-              onClick={() => window.closeProgramSetupSheet?.()}
+              onClick={() => closeProgramSetupSheet()}
             >
               Done
             </button>

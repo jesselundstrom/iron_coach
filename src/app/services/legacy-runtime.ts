@@ -22,8 +22,21 @@ import { useRuntimeStore } from '../store/runtime-store';
 import { useDashboardStore } from '../../stores/dashboard-store';
 import { useHistoryStore } from '../../stores/history-store';
 import { useNutritionStore } from '../../stores/nutrition-store';
+import { casualFullBodyProgram } from '../../programs/casualfullbody';
+import { forgeProgram } from '../../programs/forge';
+import { hypertrophySplitProgram } from '../../programs/hypertrophysplit';
+import { strongLifts5x5Program } from '../../programs/stronglifts5x5';
+import { wendler531Program } from '../../programs/wendler531';
 
 const LANGUAGE_EVENT = 'ironforge:language-changed';
+
+const TYPED_PROGRAM_OVERRIDES = [
+  casualFullBodyProgram,
+  forgeProgram,
+  hypertrophySplitProgram,
+  strongLifts5x5Program,
+  wendler531Program,
+];
 
 type RuntimeBridge = {
   navigateToPage: (page: string) => void;
@@ -92,6 +105,16 @@ function syncHashToPage(page: AppPage) {
   if (window.location.hash !== nextHash) {
     window.location.hash = `/${page}`;
   }
+}
+
+function installTypedProgramOverrides() {
+  const runtimeWindow = window as Window & {
+    registerProgram?: (program: Record<string, unknown>) => void;
+  };
+  if (typeof runtimeWindow.registerProgram !== 'function') return;
+  TYPED_PROGRAM_OVERRIDES.forEach((program) => {
+    runtimeWindow.registerProgram?.(program as unknown as Record<string, unknown>);
+  });
 }
 
 function registerRuntimeBridge(): RuntimeBridge {
@@ -209,6 +232,7 @@ export function syncRuntimeStoreFromLegacy() {
 }
 
 export function startLegacyRuntimeBridge() {
+  installTypedProgramOverrides();
   registerRuntimeBridge();
   syncRuntimeStoreFromLegacy();
 

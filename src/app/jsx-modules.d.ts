@@ -79,6 +79,7 @@ declare global {
     getProgramRegistry?: () => Record<string, unknown>;
     getRegisteredPrograms?: () => Array<Record<string, unknown>>;
     hasRegisteredPrograms?: () => boolean;
+    registerProgram?: (program: Record<string, unknown>) => void;
     getProgramById?: (programId: string) => Record<string, unknown> | null;
     getProgramInitialState?: (programId: string) => Record<string, unknown> | null;
     getExerciseLibrary?: () => Record<string, unknown> | null;
@@ -162,6 +163,11 @@ declare global {
     runPageActivationSideEffects?: (page: string) => void;
     resetNotStartedView?: () => void;
     showSettingsTab?: (tab: string, trigger?: Element | null) => void;
+    updateDashboard?: () => void;
+    renderHistory?: () => void;
+    getTodayTrainingDecision?: (
+      context?: Record<string, unknown> | null
+    ) => Record<string, unknown> | null;
     showConfirm?: (
       title: string,
       message: string,
@@ -212,6 +218,49 @@ declare global {
       };
       runtime?: {
         getState?: () => any;
+      };
+    };
+    __IRONFORGE_E2E__?: {
+      app?: {
+        loadData?: (options?: Record<string, unknown>) => Promise<void>;
+        navigateToPage?: (page: string) => void;
+        setCurrentUser?: (user: Record<string, unknown> | null) => void;
+        seedData?: (snapshot: {
+          workouts?: Array<Record<string, unknown>>;
+          profile?: Record<string, unknown> | null;
+          schedule?: Record<string, unknown> | null;
+        }) => Promise<void>;
+      };
+      settings?: {
+        openProgramTab?: (
+          programId?: string,
+          programState?: Record<string, unknown> | null
+        ) => void;
+      };
+      program?: {
+        getById?: (programId: string) => Record<string, unknown> | null;
+        getInitialState?: (programId: string) => Record<string, unknown> | null;
+      };
+      i18n?: {
+        setLanguage?: (
+          locale: string,
+          options?: { persist?: boolean; notify?: boolean }
+        ) => string;
+      };
+      profile?: {
+        update?: (patch: Record<string, unknown>) => Record<string, unknown> | null;
+        setSportReadinessCheckEnabled?: (enabled: boolean) => void;
+      };
+      workout?: {
+        showRPEPicker?: (
+          exerciseName: string,
+          setNumber: number,
+          callback: (value: number | null) => void
+        ) => unknown;
+        showSportReadinessCheck?: (
+          callback: (context: Record<string, unknown> | null) => void
+        ) => unknown;
+        showSessionSummary?: (summaryData: Record<string, unknown>) => unknown;
       };
     };
   }

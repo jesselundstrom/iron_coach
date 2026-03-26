@@ -15,21 +15,11 @@ export async function openApp(page: Page) {
 }
 
 export async function bootstrapAppShell(page: Page) {
-  await page.waitForFunction(() => typeof window.showPage === 'function');
-  await page.waitForFunction(() => typeof window.loadData === 'function');
-  await page.waitForFunction(
-    () => typeof window.getCanonicalProgramId === 'function'
-  );
   await page.waitForFunction(
     () =>
-      typeof (
-        window as Window & {
-          syncNutritionBridge?: () => void;
-        }
-      ).syncNutritionBridge === 'function'
-  );
-  await page.waitForFunction(
-    () =>
+      typeof window.__IRONFORGE_E2E__?.app?.loadData === 'function' &&
+      typeof window.__IRONFORGE_E2E__?.app?.navigateToPage === 'function' &&
+      typeof window.__IRONFORGE_E2E__?.app?.setCurrentUser === 'function' &&
       typeof window.__IRONFORGE_STORES__?.workout?.getState === 'function' &&
       typeof window.__IRONFORGE_STORES__?.data?.getActiveWorkoutDraftCache ===
         'function'
@@ -52,16 +42,21 @@ export async function bootstrapAppShell(page: Page) {
     window.showLoginScreen = suppressLoginUi;
     window.hideLoginScreen = suppressLoginUi;
     window.maybeOpenOnboarding = () => {};
-    currentUser = {
+    const seededUser = {
       id: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user',
       email: 'e2e@example.com',
     };
+    window.__IRONFORGE_E2E__?.app?.setCurrentUser?.(seededUser);
+    if (typeof window.eval === 'function') {
+      window.eval(`currentUser = ${JSON.stringify(seededUser)};`);
+    }
     if (runtimeWindow.__IRONFORGE_SUPABASE__?.auth) {
       runtimeWindow.__IRONFORGE_SUPABASE__.auth.getSession = async () => ({
         data: {
           session: {
             access_token: 'test-access-token',
-            user: currentUser,
+            user:
+              window.__IRONFORGE_STORES__?.data?.getState?.().currentUser || null,
           },
         },
         error: null,
@@ -73,9 +68,9 @@ export async function bootstrapAppShell(page: Page) {
   });
 
   await page.evaluate(async () => {
-    const loadData = window.loadData;
+    const loadData = window.__IRONFORGE_E2E__?.app?.loadData;
     if (typeof loadData !== 'function') {
-      throw new Error('loadData is not available on window');
+      throw new Error('loadData is not available on the e2e harness');
     }
 
     await loadData({

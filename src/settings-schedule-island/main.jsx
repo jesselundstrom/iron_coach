@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { saveSchedule } from '../app/services/settings-actions.ts';
 
 function getSnapshot() {
   return {
@@ -66,7 +67,7 @@ function SettingsScheduleIsland() {
   }
 
   function savePartial(nextValues) {
-    window.saveSchedule?.(nextValues);
+    saveSchedule(nextValues);
   }
 
   function flushSportName(nextValue) {

@@ -1,5 +1,9 @@
 import { createElement, useEffect, useState } from 'react';
 import { useDashboardStore } from '../stores/dashboard-store';
+import {
+  animateDashboardPlanMuscleBars,
+  toggleDayDetail,
+} from '../app/services/dashboard-actions.ts';
 import { navigateToPage } from '../app/services/navigation-actions';
 
 const svgCache = new Map();
@@ -151,7 +155,7 @@ function WeekStrip({ week }) {
           type="button"
           title={day.tooltip}
           aria-label={day.tooltip}
-          onClick={() => window.toggleDayDetail?.(day.index)}
+          onClick={() => toggleDayDetail(day.index)}
         >
           <div className="day-label">{day.label}</div>
           <div className="day-num">{day.dayNumber}</div>
@@ -415,9 +419,7 @@ function MuscleSection({ section }) {
   const [flipped, setFlipped] = useState(false);
 
   useEffect(() => {
-    if (typeof window.animateDashboardPlanMuscleBars === 'function') {
-      window.requestAnimationFrame(() => window.animateDashboardPlanMuscleBars());
-    }
+    window.requestAnimationFrame(() => animateDashboardPlanMuscleBars());
   }, [section, flipped]);
 
   const data = section.body;
@@ -695,9 +697,7 @@ function DashboardIsland() {
   const snapshot = useDashboardStore((state) => state.view) || getSnapshot();
 
   useEffect(() => {
-    if (typeof window.animateDashboardPlanMuscleBars === 'function') {
-      window.requestAnimationFrame(() => window.animateDashboardPlanMuscleBars());
-    }
+    window.requestAnimationFrame(() => animateDashboardPlanMuscleBars());
     const headerSub = document.getElementById('header-sub');
     if (headerSub) headerSub.textContent = snapshot.plan.headerSub || '';
   }, [snapshot]);

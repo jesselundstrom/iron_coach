@@ -4,9 +4,9 @@ import { openAppShell } from './helpers';
 test('history island renders read-only cards and refreshes from the legacy bridge', async ({ page }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    window.eval(`
-      workouts = [{
+  await page.evaluate(async () => {
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [{
         id: 101,
         date: '2026-03-10T09:00:00.000Z',
         program: 'forge',
@@ -20,35 +20,56 @@ test('history island renders read-only cards and refreshes from the legacy bridg
           name: 'Bench Press',
           sets: [{ weight: 80, reps: 5, done: true }]
         }]
-      }];
-      renderHistory();
-      showPage('history', document.querySelectorAll('.nav-btn')[2]);
-    `);
+      }],
+      profile: window.profile || null,
+      schedule: window.schedule || null,
+    });
+    window.renderHistory?.();
+    window.showPage?.('history', document.querySelectorAll('.nav-btn')[2] || null);
   });
 
   await page.waitForFunction(() => document.querySelectorAll('.hist-card').length === 1);
   await expect(page.locator('.hist-card')).toHaveCount(1);
   await expect(page.locator('.hist-delete-btn')).toHaveCount(1);
 
-  await page.evaluate(() => {
-    window.eval(`
-      workouts = workouts.concat([{
-        id: 102,
-        date: '2026-03-11T09:00:00.000Z',
-        program: 'forge',
-        type: 'forge',
-        programDayNum: 2,
-        programMeta: { week: 1 },
-        programLabel: 'Forge Day 2',
-        duration: 1500,
-        rpe: 8,
-        exercises: [{
-          name: 'Squat',
-          sets: [{ weight: 100, reps: 5, done: true }]
-        }]
-      }]);
-      renderHistory();
-    `);
+  await page.evaluate(async () => {
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [
+        {
+          id: 101,
+          date: '2026-03-10T09:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 1,
+          programMeta: { week: 1 },
+          programLabel: 'Forge Day 1',
+          duration: 1800,
+          rpe: 7,
+          exercises: [{
+            name: 'Bench Press',
+            sets: [{ weight: 80, reps: 5, done: true }]
+          }]
+        },
+        {
+          id: 102,
+          date: '2026-03-11T09:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 2,
+          programMeta: { week: 1 },
+          programLabel: 'Forge Day 2',
+          duration: 1500,
+          rpe: 8,
+          exercises: [{
+            name: 'Squat',
+            sets: [{ weight: 100, reps: 5, done: true }]
+          }]
+        }
+      ],
+      profile: window.profile || null,
+      schedule: window.schedule || null,
+    });
+    window.renderHistory?.();
   });
 
   await page.waitForFunction(() => document.querySelectorAll('.hist-card').length === 2);
@@ -58,9 +79,9 @@ test('history island renders read-only cards and refreshes from the legacy bridg
 test('history island switches to stats without leaving the legacy shell', async ({ page }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    window.eval(`
-      workouts = [{
+  await page.evaluate(async () => {
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [{
         id: 201,
         date: '2026-03-12T09:00:00.000Z',
         program: 'forge',
@@ -74,10 +95,12 @@ test('history island switches to stats without leaving the legacy shell', async 
           name: 'Bench Press',
           sets: [{ weight: 82.5, reps: 5, done: true }]
         }]
-      }];
-      renderHistory();
-      showPage('history', document.querySelectorAll('.nav-btn')[2]);
-    `);
+      }],
+      profile: window.profile || null,
+      schedule: window.schedule || null,
+    });
+    window.renderHistory?.();
+    window.showPage?.('history', document.querySelectorAll('.nav-btn')[2] || null);
   });
 
   await page.waitForFunction(() => (window as any).getActivePageName?.() === 'history');
@@ -96,8 +119,12 @@ test('history stats show range controls, extra charts, and milestones for progre
 }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+  await page.evaluate(async () => {
+    const forgeState = (window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {
+      lifts: { main: [] },
+    }) as Record<string, unknown> & {
+      lifts: { main: Array<Record<string, unknown>> };
+    };
     const makeState = (
       bench: number,
       squat: number,
@@ -164,12 +191,16 @@ test('history stats show range controls, extra charts, and milestones for progre
       ],
     }));
 
-    window.eval(`
-      profile.bodyMetrics = { ...(profile.bodyMetrics || {}), weight: 80 };
-      workouts = ${JSON.stringify(seed)};
-      renderHistory();
-      showPage('history', document.querySelectorAll('.nav-btn')[2]);
-    `);
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: seed,
+      profile: {
+        ...(window.profile || {}),
+        bodyMetrics: { ...((window.profile?.bodyMetrics as Record<string, unknown>) || {}), weight: 80 },
+      },
+      schedule: window.schedule || null,
+    });
+    window.renderHistory?.();
+    window.showPage?.('history', document.querySelectorAll('.nav-btn')[2] || null);
   });
 
   await page.waitForFunction(() => (window as any).getActivePageName?.() === 'history');
@@ -190,9 +221,9 @@ test('history stats keep front squat and sumo deadlift out of the main lift tren
 }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    window.eval(`
-      workouts = [
+  await page.evaluate(async () => {
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [
         {
           id: 401,
           date: '2026-02-01T09:00:00.000Z',
@@ -232,10 +263,12 @@ test('history stats keep front squat and sumo deadlift out of the main lift tren
             { name: 'Deadlift', sets: [{ weight: 160, reps: 5, done: true }] }
           ]
         }
-      ];
-      renderHistory();
-      showPage('history', document.querySelectorAll('.nav-btn')[2]);
-    `);
+      ],
+      profile: window.profile || null,
+      schedule: window.schedule || null,
+    });
+    window.renderHistory?.();
+    window.showPage?.('history', document.querySelectorAll('.nav-btn')[2] || null);
     window.switchHistoryTab?.('stats');
   });
 

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import {
+  checkDangerConfirm,
+  clearAllData,
+  exportData,
+  importData,
+  logout,
+  saveLanguageSetting,
+  showDangerConfirm,
+} from '../app/services/settings-actions.ts';
 
 function getSnapshot() {
   return {
@@ -81,7 +90,7 @@ function SettingsAccountIsland() {
             onChange={(event) => {
               const nextLanguage = event.target.value;
               updateField('language', nextLanguage);
-              window.saveLanguageSetting?.(nextLanguage);
+              saveLanguageSetting(nextLanguage);
             }}
           >
             <option value="en">{labels.optionEn}</option>
@@ -91,7 +100,7 @@ function SettingsAccountIsland() {
         <button
           className="btn btn-ghost"
           type="button"
-          onClick={() => window.logout?.()}
+          onClick={() => logout()}
         >
           {labels.signOut}
         </button>
@@ -106,7 +115,7 @@ function SettingsAccountIsland() {
           <button
             className="btn btn-secondary settings-row-button"
             type="button"
-            onClick={() => window.exportData?.()}
+            onClick={() => exportData()}
           >
             {labels.export}
           </button>
@@ -117,7 +126,7 @@ function SettingsAccountIsland() {
               type="file"
               accept=".json"
               className="file-input-hidden"
-              onChange={(event) => window.importData?.(event)}
+              onChange={(event) => importData(event.nativeEvent)}
             />
           </label>
         </div>
@@ -155,7 +164,7 @@ function SettingsAccountIsland() {
               onChange={(event) => {
                 const nextValue = event.target.value;
                 updateField('dangerInput', nextValue);
-                window.checkDangerConfirm?.(nextValue);
+                checkDangerConfirm(nextValue);
               }}
             />
             <button
@@ -163,7 +172,7 @@ function SettingsAccountIsland() {
               id="danger-zone-delete-btn"
               type="button"
               disabled={values.dangerDeleteDisabled}
-              onClick={() => window.clearAllData?.()}
+              onClick={() => clearAllData()}
             >
               {labels.clearAllConfirm}
             </button>
@@ -174,7 +183,7 @@ function SettingsAccountIsland() {
             className="btn btn-ghost danger-btn"
             id="danger-zone-trigger"
             type="button"
-            onClick={() => window.showDangerConfirm?.()}
+            onClick={() => showDangerConfirm()}
           >
             {labels.clearAll}
           </button>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
+import { saveBodyMetrics } from '../app/services/settings-actions.ts';
 
 function getSnapshot() {
   return {
@@ -187,7 +188,7 @@ function SettingsBodyIsland() {
         <button
           className="btn btn-secondary"
           type="button"
-          onClick={() => window.saveBodyMetrics?.()}
+          onClick={() => saveBodyMetrics()}
         >
           {labels.save}
         </button>

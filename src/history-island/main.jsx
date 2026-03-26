@@ -1,5 +1,11 @@
 import { useState } from 'react';
 import { useHistoryStore } from '../stores/history-store';
+import {
+  deleteWorkout,
+  switchHistoryStatsRange,
+  switchHistoryTab,
+  toggleHeatmap,
+} from '../app/services/history-actions.ts';
 import { navigateToPage } from '../app/services/navigation-actions';
 
 function getSnapshot() {
@@ -43,7 +49,7 @@ function Heatmap({ data }) {
 
   return (
     <div className={`heatmap-wrap${isOpen ? ' open' : ''}`}>
-      <div className="heatmap-title-row" onClick={() => window.toggleHeatmap?.()}>
+      <div className="heatmap-title-row" onClick={() => toggleHeatmap()}>
         <span className="heatmap-title">
           {labels.title} <span className="heatmap-toggle-chevron">{'\u25BC'}</span>
         </span>
@@ -100,7 +106,7 @@ function WorkoutCard({ card, labels, style }) {
           <button
             className="hist-delete-btn"
             type="button"
-            onClick={() => window.deleteWorkout?.(card.id)}
+            onClick={() => deleteWorkout(card.id)}
             title={card.title}
             aria-label={card.title}
           >{labels.delete}</button>
@@ -135,7 +141,7 @@ function WorkoutCard({ card, labels, style }) {
         <button
           className="hist-delete-btn"
           type="button"
-          onClick={() => window.deleteWorkout?.(card.id)}
+          onClick={() => deleteWorkout(card.id)}
           title={card.deleteTitle}
           aria-label={card.deleteTitle}
         >{labels.delete}</button>
@@ -399,7 +405,7 @@ function StatsRangeSelector({ range }) {
             type="button"
             data-range={option.id}
             aria-pressed={active ? 'true' : 'false'}
-            onClick={() => window.switchHistoryStatsRange?.(option.id)}
+            onClick={() => switchHistoryStatsRange(option.id)}
           >
             {option.label}
           </button>
@@ -452,7 +458,7 @@ function HistoryIsland() {
           type="button"
           role="tab"
           aria-selected={!isStatsTab ? 'true' : 'false'}
-          onClick={() => window.switchHistoryTab?.('log')}
+          onClick={() => switchHistoryTab('log')}
         >
           {snapshot.labels.log}
         </button>
@@ -461,7 +467,7 @@ function HistoryIsland() {
           type="button"
           role="tab"
           aria-selected={isStatsTab ? 'true' : 'false'}
-          onClick={() => window.switchHistoryTab?.('stats')}
+          onClick={() => switchHistoryTab('stats')}
         >
           {snapshot.labels.stats}
         </button>

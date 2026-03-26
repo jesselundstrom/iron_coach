@@ -11,10 +11,15 @@ test('rpe prompt renders through the React shell and resolves the selected value
   await page.evaluate(() => {
     (window as typeof window & { __testRpeValue?: number | null }).__testRpeValue =
       undefined;
-    window.showRPEPicker?.('Bench Press', 0, (value: number | null) => {
-      (window as typeof window & { __testRpeValue?: number | null }).__testRpeValue =
-        value;
-    });
+    window.__IRONFORGE_E2E__?.workout?.showRPEPicker?.(
+      'Bench Press',
+      0,
+      (value: number | null) => {
+        (
+          window as typeof window & { __testRpeValue?: number | null }
+        ).__testRpeValue = value;
+      }
+    );
   });
 
   await expect(page.locator('#rpe-modal')).toHaveClass(/active/);
@@ -40,31 +45,21 @@ test('sport check prompt renders through the React shell and resolves the select
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const runtimeWindow = window as typeof window & {
-      showSportReadinessCheck?: (
-        callback: (context: Record<string, unknown> | null) => void
-      ) => void;
-    };
-    window.eval(`
-      profile.preferences = normalizeTrainingPreferences({
-        preferences: {
-          ...(profile.preferences || {}),
-          sportReadinessCheckEnabled: true
-        }
-      });
-    `);
+    window.__IRONFORGE_E2E__?.profile?.setSportReadinessCheckEnabled?.(true);
     (
       window as typeof window & {
         __testSportContext?: Record<string, unknown> | null;
       }
     ).__testSportContext = undefined;
-    runtimeWindow.showSportReadinessCheck?.((context: Record<string, unknown> | null) => {
-      (
-        window as typeof window & {
-          __testSportContext?: Record<string, unknown> | null;
-        }
-      ).__testSportContext = context;
-    });
+    window.__IRONFORGE_E2E__?.workout?.showSportReadinessCheck?.(
+      (context: Record<string, unknown> | null) => {
+        (
+          window as typeof window & {
+            __testSportContext?: Record<string, unknown> | null;
+          }
+        ).__testSportContext = context;
+      }
+    );
   });
 
   await expect(page.locator('#sport-check-modal')).toHaveClass(/active/);
@@ -95,11 +90,6 @@ test('summary prompt renders through the React shell and resolves feedback plus 
 
   await page.evaluate(() => {
     const runtimeWindow = window as typeof window & {
-      showSessionSummary?: (summaryData: Record<string, unknown>) => Promise<{
-        feedback: string | null;
-        notes: string;
-        goToNutrition: boolean;
-      }>;
       __testSummaryResult?: {
         feedback: string | null;
         notes: string;
@@ -107,8 +97,8 @@ test('summary prompt renders through the React shell and resolves feedback plus 
       } | null;
     };
     runtimeWindow.__testSummaryResult = null;
-    runtimeWindow
-      .showSessionSummary?.({
+    Promise.resolve(
+      window.__IRONFORGE_E2E__?.workout?.showSessionSummary?.({
         duration: 1800,
         exerciseCount: 3,
         completedSets: 12,
@@ -120,9 +110,13 @@ test('summary prompt renders through the React shell and resolves feedback plus 
         programLabel: 'Forge · Day 1',
         coachNote: 'Strong work today.',
       })
-      ?.then((result) => {
-        runtimeWindow.__testSummaryResult = result;
-      });
+    ).then((result) => {
+      runtimeWindow.__testSummaryResult = result as {
+        feedback: string | null;
+        notes: string;
+        goToNutrition: boolean;
+      } | null;
+    });
   });
 
   await expect(page.locator('#summary-modal')).toHaveClass(/active/);

@@ -7,14 +7,7 @@ test('settings program island renders program basics and switcher through the le
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
-    window.eval(`
-      profile.activeProgram = 'forge';
-      profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(forgeState)} };
-      initSettings();
-      showPage('settings', document.querySelectorAll('.nav-btn')[3]);
-      showSettingsTab('program');
-    `);
+    window.__IRONFORGE_E2E__?.settings?.openProgramTab?.('forge');
   });
 
   await expect(page.locator('#settings-program-legacy-shell')).toHaveCount(0);
@@ -32,14 +25,7 @@ test('settings program island still opens the advanced setup sheet', async ({ pa
   await openAppShell(page);
 
   await page.evaluate(() => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
-    window.eval(`
-      profile.activeProgram = 'forge';
-      profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(forgeState)} };
-      initSettings();
-      showPage('settings', document.querySelectorAll('.nav-btn')[3]);
-      showSettingsTab('program');
-    `);
+    window.__IRONFORGE_E2E__?.settings?.openProgramTab?.('forge');
   });
 
   await page.locator('#settings-program-react-root #program-advanced-panel').click();

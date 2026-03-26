@@ -17,6 +17,7 @@ const forbiddenPatterns = [
   'window.updateRestDuration',
   'window.selectExerciseCatalogExercise',
   'window.eval(',
+  'createLegacyProgramAdapter(',
 ];
 
 const allowedExtensions = new Set(['.js', '.jsx', '.ts', '.tsx']);

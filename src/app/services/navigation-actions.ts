@@ -20,9 +20,5 @@ export function syncRoutePage(page: AppPage) {
 }
 
 export function showSettingsTab(tab: SettingsTab, trigger?: HTMLElement | null) {
-  if (typeof window.showSettingsTab === 'function') {
-    window.showSettingsTab(tab, trigger || undefined);
-    return;
-  }
   useRuntimeStore.getState().setActiveSettingsTab(tab);
 }

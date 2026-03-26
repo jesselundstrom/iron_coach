@@ -1,7 +1,17 @@
 import { IS_E2E_TEST_ENV } from '../utils/env';
 import { dataStore } from '../../stores/data-store';
+import { i18nStore } from '../../stores/i18n-store';
+import { programStore } from '../../stores/program-store';
+import { profileStore } from '../../stores/profile-store';
 import { workoutStore } from '../../stores/workout-store';
 import { useRuntimeStore } from '../store/runtime-store';
+import { navigateToPage } from './navigation-actions';
+import { callLegacyWindowFunction } from './legacy-call';
+import {
+  showRPEPicker,
+  showSessionSummary,
+  showSportReadinessCheck,
+} from './workout-ui-actions';
 
 type TestStoreBridge = {
   data: {
@@ -39,10 +49,62 @@ type TestStoreBridge = {
   };
 };
 
+type E2EHarness = {
+  app: {
+    loadData: (
+      options?: Parameters<ReturnType<typeof dataStore.getState>['loadData']>[0]
+    ) => Promise<void>;
+    navigateToPage: (page: string) => void;
+    setCurrentUser: (user: Record<string, unknown> | null) => void;
+    seedData: (snapshot: {
+      workouts?: Array<Record<string, unknown>>;
+      profile?: Record<string, unknown> | null;
+      schedule?: Record<string, unknown> | null;
+    }) => Promise<void>;
+  };
+  settings: {
+    openProgramTab: (
+      programId?: string,
+      programState?: Record<string, unknown> | null
+    ) => void;
+  };
+  program: {
+    getById: (programId: string) => Record<string, unknown> | null;
+    getInitialState: (programId: string) => Record<string, unknown> | null;
+  };
+  i18n: {
+    setLanguage: (
+      locale: string,
+      options?: { persist?: boolean; notify?: boolean }
+    ) => string;
+  };
+  profile: {
+    update: (patch: Record<string, unknown>) => Record<string, unknown> | null;
+    setSportReadinessCheckEnabled: (enabled: boolean) => void;
+  };
+  workout: {
+    showRPEPicker: (
+      exerciseName: string,
+      setNumber: number,
+      callback: (value: number | null) => void
+    ) => unknown;
+    showSportReadinessCheck: (
+      callback: (context: Record<string, unknown> | null) => void
+    ) => unknown;
+    showSessionSummary: (summaryData: Record<string, unknown>) => unknown;
+  };
+};
+
+function cloneJson<T>(value: T): T {
+  if (value === undefined || value === null) return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
 export function installTestStoresBridge() {
   if (typeof window === 'undefined' || !IS_E2E_TEST_ENV) return;
   const testWindow = window as Window & {
     __IRONFORGE_STORES__?: TestStoreBridge;
+    __IRONFORGE_E2E__?: E2EHarness;
   };
   if (testWindow.__IRONFORGE_STORES__) return;
 
@@ -73,6 +135,116 @@ export function installTestStoresBridge() {
     },
     runtime: {
       getState: () => useRuntimeStore.getState(),
+    },
+  };
+
+  testWindow.__IRONFORGE_E2E__ = {
+    app: {
+      loadData: (options) => Promise.resolve(dataStore.getState().loadData(options)),
+      navigateToPage: (page) => {
+        if (
+          page === 'dashboard' ||
+          page === 'log' ||
+          page === 'history' ||
+          page === 'settings' ||
+          page === 'nutrition'
+        ) {
+          navigateToPage(page);
+        }
+      },
+      setCurrentUser: (user) => {
+        window.currentUser = user as typeof window.currentUser;
+        dataStore.getState().syncFromLegacy();
+      },
+      seedData: async (snapshot) => {
+        const next = snapshot || {};
+        const userId =
+          String(window.currentUser?.id || window.__IRONFORGE_TEST_USER_ID__ || '').trim() ||
+          'e2e-user';
+        const currentData = dataStore.getState();
+        const nextWorkouts = Array.isArray(next.workouts)
+          ? next.workouts
+          : cloneJson(currentData.workouts || []);
+        const nextProfile =
+          next.profile && typeof next.profile === 'object'
+            ? next.profile
+            : cloneJson(currentData.profile || window.profile || {});
+        const nextSchedule =
+          next.schedule && typeof next.schedule === 'object'
+            ? next.schedule
+            : cloneJson(currentData.schedule || window.schedule || {});
+        const getKey = (baseKey: string) => dataStore.getState().getLocalCacheKey(baseKey, userId);
+        const writeJson = (key: string, value: unknown) => {
+          if (value === undefined) {
+            localStorage.removeItem(key);
+            return;
+          }
+          localStorage.setItem(key, JSON.stringify(value));
+        };
+
+        writeJson(getKey('ic_workouts'), nextWorkouts);
+        writeJson(getKey('ic_profile'), nextProfile);
+        writeJson(getKey('ic_schedule'), nextSchedule);
+
+        await dataStore.getState().loadData({
+          allowCloudSync: false,
+          allowLegacyFallback: false,
+          userId,
+        });
+      },
+    },
+    settings: {
+      openProgramTab: (programId = 'forge', programState) => {
+        const currentProfile =
+          (profileStore.getState().profile || {}) as Record<string, unknown>;
+        const currentPrograms =
+          currentProfile.programs && typeof currentProfile.programs === 'object'
+            ? (currentProfile.programs as Record<string, unknown>)
+            : {};
+        const seededState =
+          cloneJson(programState) ||
+          cloneJson(programStore.getState().getProgramInitialState(programId)) ||
+          {};
+        profileStore.getState().updateProfile({
+          activeProgram: programId,
+          programs: {
+            ...currentPrograms,
+            [programId]: seededState,
+          },
+        });
+        callLegacyWindowFunction('initSettings');
+        callLegacyWindowFunction('showPage', 'settings');
+        callLegacyWindowFunction('showSettingsTab', 'program');
+      },
+    },
+    program: {
+      getById: (programId) =>
+        (programStore.getState().getProgramById(programId) as Record<string, unknown> | null) ||
+        null,
+      getInitialState: (programId) =>
+        cloneJson(programStore.getState().getProgramInitialState(programId)) || null,
+    },
+    i18n: {
+      setLanguage: (locale, options) => i18nStore.getState().setLanguage(locale, options),
+    },
+    profile: {
+      update: (patch) => profileStore.getState().updateProfile(patch),
+      setSportReadinessCheckEnabled: (enabled) => {
+        callLegacyWindowFunction('initSettings');
+        callLegacyWindowFunction('showPage', 'settings');
+        callLegacyWindowFunction('showSettingsTab', 'preferences');
+        const checkbox = document.getElementById('training-sport-check');
+        if (checkbox instanceof HTMLInputElement) {
+          checkbox.checked = enabled === true;
+        }
+        callLegacyWindowFunction('saveTrainingPreferences');
+      },
+    },
+    workout: {
+      showRPEPicker: (exerciseName, setNumber, callback) =>
+        showRPEPicker(exerciseName, setNumber, callback),
+      showSportReadinessCheck: (callback) => showSportReadinessCheck(callback),
+      showSessionSummary: (summaryData) => showSessionSummary(summaryData),
     },
   };
 }

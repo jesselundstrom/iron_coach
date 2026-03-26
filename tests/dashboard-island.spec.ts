@@ -6,10 +6,10 @@ test('dashboard island renders from the legacy bridge and removes the fallback s
 }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
-    window.eval(`
-      workouts = [{
+  await page.evaluate(async () => {
+    const forgeState = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [{
         id: 301,
         date: new Date().toISOString(),
         program: 'forge',
@@ -23,12 +23,16 @@ test('dashboard island renders from the legacy bridge and removes the fallback s
           name: 'Bench Press',
           sets: [{ weight: 82.5, reps: 5, done: true }]
         }]
-      }];
-      profile.activeProgram = 'forge';
-      profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(forgeState)} };
-      updateDashboard();
-      showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
-    `);
+      }],
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        programs: { ...((window.profile?.programs as Record<string, unknown>) || {}), forge: forgeState },
+      },
+      schedule: window.schedule || null,
+    });
+    window.updateDashboard?.();
+    window.showPage?.('dashboard', document.querySelectorAll('.nav-btn')[0] || null);
   });
 
   await expect(page.locator('#dashboard-legacy-shell')).toHaveCount(0);
@@ -44,8 +48,8 @@ test('dashboard rhythm card shows summary, featured metric, and supporting signa
 }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+  await page.evaluate(async () => {
+    const forgeState = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
     const today = new Date();
     const seeds = Array.from({ length: 5 }, (_, index) => {
       const date = new Date(today);
@@ -69,14 +73,18 @@ test('dashboard rhythm card shows summary, featured metric, and supporting signa
       };
     });
 
-    window.eval(`
-      workouts = ${JSON.stringify(seeds)};
-      profile.activeProgram = 'forge';
-      profile.preferences = { ...(profile.preferences || {}), trainingDaysPerWeek: 4 };
-      profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(forgeState)} };
-      updateDashboard();
-      showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
-    `);
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: seeds,
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        preferences: { ...((window.profile?.preferences as Record<string, unknown>) || {}), trainingDaysPerWeek: 4 },
+        programs: { ...((window.profile?.programs as Record<string, unknown>) || {}), forge: forgeState },
+      },
+      schedule: window.schedule || null,
+    });
+    window.updateDashboard?.();
+    window.showPage?.('dashboard', document.querySelectorAll('.nav-btn')[0] || null);
   });
 
   await expect(page.locator('.dashboard-plan-summary-title')).not.toBeEmpty();
@@ -89,15 +97,15 @@ test('dashboard rhythm card shows summary, featured metric, and supporting signa
 test('dashboard rhythm card keeps sparse states compact', async ({ page }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+  await page.evaluate(async () => {
+    const forgeState = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
     const date = new Date();
     date.setDate(date.getDate() - 20);
 
-    window.eval(`
-      workouts = [{
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [{
         id: 610,
-        date: '${date.toISOString()}',
+        date: date.toISOString(),
         program: 'forge',
         type: 'forge',
         programDayNum: 1,
@@ -109,13 +117,17 @@ test('dashboard rhythm card keeps sparse states compact', async ({ page }) => {
           name: 'Bench Press',
           sets: [{ weight: 60, reps: 5, done: true }]
         }]
-      }];
-      profile.activeProgram = 'forge';
-      profile.preferences = { ...(profile.preferences || {}), trainingDaysPerWeek: 3 };
-      profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(forgeState)} };
-      updateDashboard();
-      showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
-    `);
+      }],
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        preferences: { ...((window.profile?.preferences as Record<string, unknown>) || {}), trainingDaysPerWeek: 3 },
+        programs: { ...((window.profile?.programs as Record<string, unknown>) || {}), forge: forgeState },
+      },
+      schedule: window.schedule || null,
+    });
+    window.updateDashboard?.();
+    window.showPage?.('dashboard', document.querySelectorAll('.nav-btn')[0] || null);
   });
 
   await expect(page.locator('.dashboard-plan-primary-metric-value')).toContainText('%');
@@ -126,13 +138,17 @@ test('dashboard rhythm card keeps sparse states compact', async ({ page }) => {
 test('dashboard island keeps week strip detail toggling working', async ({ page }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    window.eval(`
-      schedule.sportDays = [new Date().getDay()];
-      workouts = [];
-      updateDashboard();
-      showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
-    `);
+  await page.evaluate(async () => {
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [],
+      profile: window.profile || null,
+      schedule: {
+        ...(window.schedule || {}),
+        sportDays: [new Date().getDay()],
+      },
+    });
+    window.updateDashboard?.();
+    window.showPage?.('dashboard', document.querySelectorAll('.nav-btn')[0] || null);
   });
 
   const firstDayPill = page.locator('#week-strip .day-pill').first();
@@ -149,8 +165,8 @@ test('dashboard coach card shows a rotating rest-day tip when the week is comple
 }) => {
   await openAppShell(page);
 
-  await page.evaluate(() => {
-    const forgeState = JSON.parse(JSON.stringify(window.eval('PROGRAMS.forge.getInitialState()')));
+  await page.evaluate(async () => {
+    const forgeState = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
     const today = new Date();
     today.setHours(12, 0, 0, 0);
     const weekStart = new Date(today);
@@ -167,12 +183,19 @@ test('dashboard coach card shows a rotating rest-day tip when the week is comple
 
     const completedCount = pastDates.length ? Math.min(3, pastDates.length) : 1;
 
-    window.eval(`
-      profile.activeProgram = 'forge';
-      profile.preferences = { ...(profile.preferences || {}), trainingDaysPerWeek: ${completedCount} };
-      profile.programs = { ...(profile.programs || {}), forge: ${JSON.stringify(forgeState)} };
-      workouts = [];
-    `);
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [],
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        preferences: {
+          ...((window.profile?.preferences as Record<string, unknown>) || {}),
+          trainingDaysPerWeek: completedCount,
+        },
+        programs: { ...((window.profile?.programs as Record<string, unknown>) || {}), forge: forgeState },
+      },
+      schedule: window.schedule || null,
+    });
 
     const seededWorkouts = pastDates.slice(0, completedCount).map((date, index) => ({
       id: 400 + index,
@@ -192,27 +215,29 @@ test('dashboard coach card shows a rotating rest-day tip when the week is comple
       ],
     }));
 
-    window.eval(`
-      const __originalGetTodayTrainingDecision = window.getTodayTrainingDecision;
-      window.getTodayTrainingDecision = function patchedRestDecision(context) {
-        const base = typeof __originalGetTodayTrainingDecision === 'function'
-          ? (__originalGetTodayTrainingDecision(context) || {})
-          : {};
-        return {
-          ...base,
-          action: 'rest',
-          reasonCodes: ['week_complete'],
-          restrictionFlags: base.restrictionFlags || [],
-          timeBudgetMinutes: base.timeBudgetMinutes || 60
-        };
+    const originalGetTodayTrainingDecision = window.getTodayTrainingDecision;
+    window.getTodayTrainingDecision = function patchedRestDecision(
+      context?: Record<string, unknown> | null
+    ) {
+      const base = typeof originalGetTodayTrainingDecision === 'function'
+        ? (originalGetTodayTrainingDecision(context) || {})
+        : {};
+      return {
+        ...base,
+        action: 'rest',
+        reasonCodes: ['week_complete'],
+        restrictionFlags: base.restrictionFlags || [],
+        timeBudgetMinutes: base.timeBudgetMinutes || 60
       };
-    `);
+    };
 
-    window.eval(`
-      workouts = ${JSON.stringify(seededWorkouts)};
-      updateDashboard();
-      showPage('dashboard', document.querySelectorAll('.nav-btn')[0]);
-    `);
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: seededWorkouts,
+      profile: window.profile || null,
+      schedule: window.schedule || null,
+    });
+    window.updateDashboard?.();
+    window.showPage?.('dashboard', document.querySelectorAll('.nav-btn')[0] || null);
   });
 
   await expect(page.locator('.dashboard-plan-card-head-coach')).toContainText(

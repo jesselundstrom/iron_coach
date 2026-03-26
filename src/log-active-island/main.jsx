@@ -1,7 +1,28 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { showConfirm } from '../app/services/confirm-actions';
-import { workoutStore } from '../stores/workout-store.ts';
+import {
+  addSet,
+  applyQuickWorkoutAdjustment,
+  cancelWorkout,
+  clearLogActiveCollapseSignal,
+  clearLogActiveFocusTarget,
+  clearLogActiveSetSignal,
+  closeExerciseGuide,
+  collapseCompletedExercise,
+  expandCompletedExercise,
+  finishWorkout,
+  handleSetInputKey,
+  openExerciseCatalogForAdd,
+  openExerciseGuide,
+  removeExercise,
+  swapAuxExercise,
+  swapBackExercise,
+  toggleSet,
+  undoQuickWorkoutAdjustment,
+  updateRestDuration,
+  updateSet,
+} from '../app/services/workout-ui-actions.ts';
 
 const initialSnapshot = {
   labels: {
@@ -56,13 +77,29 @@ const initialSnapshot = {
 };
 
 function invokeLegacy(name, ...args) {
-  const fn = window[name];
+  const fn = {
+    applyQuickWorkoutAdjustment,
+    undoQuickWorkoutAdjustment,
+    expandCompletedExercise,
+    collapseCompletedExercise,
+    swapAuxExercise,
+    swapBackExercise,
+    openExerciseGuide,
+  }[name];
   if (typeof fn === 'function') return fn(...args);
   return undefined;
 }
 
 function invokeWorkoutAction(name, ...args) {
-  const action = workoutStore.getState()[name];
+  const action = {
+    updateSet,
+    toggleSet,
+    addSet,
+    removeExercise,
+    finishWorkout,
+    cancelWorkout,
+    updateRestDuration,
+  }[name];
   if (typeof action === 'function') return action(...args);
   return undefined;
 }
@@ -387,7 +424,7 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
                   )
                 }
                 onKeyDown={(event) =>
-                  window.handleSetInputKey?.(
+                  handleSetInputKey(
                     event.nativeEvent,
                     exercise.uiKey,
                     set.index,
@@ -421,7 +458,7 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
                   )
                 }
                 onKeyDown={(event) =>
-                  window.handleSetInputKey?.(
+                  handleSetInputKey(
                     event.nativeEvent,
                     exercise.uiKey,
                     set.index,
@@ -501,14 +538,14 @@ function LogActiveIsland() {
     if (!(input instanceof HTMLInputElement)) return;
     input.focus();
     input.select?.();
-    window.clearLogActiveFocusTarget?.(focusTarget.token);
+    clearLogActiveFocusTarget(focusTarget.token);
   }, [snapshot.values.ui?.focusTarget?.token, snapshot.values.ui?.focusTarget?.inputId]);
 
   useEffect(() => {
     const nextSignal = snapshot.values.ui?.setSignal;
     if (!nextSignal?.token) return undefined;
     setSetSignal(nextSignal);
-    window.clearLogActiveSetSignal?.(nextSignal.token);
+    clearLogActiveSetSignal(nextSignal.token);
     const timeoutId = window.setTimeout(
       () =>
         setSetSignal((current) =>
@@ -523,7 +560,7 @@ function LogActiveIsland() {
     const nextSignal = snapshot.values.ui?.collapseSignal;
     if (!nextSignal?.token) return undefined;
     setCollapseSignal(nextSignal);
-    window.clearLogActiveCollapseSignal?.(nextSignal.token);
+    clearLogActiveCollapseSignal(nextSignal.token);
     const timeoutId = window.setTimeout(
       () =>
         setCollapseSignal((current) =>
@@ -560,7 +597,7 @@ function LogActiveIsland() {
         <button
           className="btn btn-sm btn-secondary active-session-add-btn"
           type="button"
-          onClick={() => window.openExerciseCatalogForAdd?.()}
+          onClick={() => openExerciseCatalogForAdd()}
         >
           {snapshot.labels.addExercise}
         </button>
@@ -612,10 +649,10 @@ function LogActiveIsland() {
         ))}
       </div>
 
-      <button
-        className="btn btn-primary session-primary-action"
-        type="button"
-        onClick={() => invokeWorkoutAction('finishWorkout')}
+        <button
+          className="btn btn-primary session-primary-action"
+          type="button"
+        onClick={() => finishWorkout()}
       >
         {snapshot.labels.finishSession}
       </button>
@@ -627,7 +664,7 @@ function LogActiveIsland() {
             showConfirm(
               snapshot.labels.cancelConfirmTitle,
               snapshot.labels.cancelConfirmMessage,
-              () => invokeWorkoutAction('cancelWorkout')
+              () => cancelWorkout()
             );
           }}
         >
