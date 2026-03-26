@@ -1,84 +1,111 @@
 import { expect, test } from '@playwright/test';
 import { openAppShell } from './helpers';
 
+declare const PROFILE_CORE_DOC_KEY: string;
+
+declare let profile: Record<string, any>;
+declare let schedule: Record<string, any>;
+
+declare function clearDocKeysDirty(docKeys: string[]): void;
+declare function getDirtyDocKeys(): string[];
+declare function getAllProfileDocumentKeys(profileLike?: Record<string, any> | null): string[];
+declare function getDefaultTrainingPreferences(): Record<string, any>;
+declare function getDefaultCoachingProfile(): Record<string, any>;
+declare function normalizeTrainingPreferences(
+  profileLike?: Record<string, any> | null
+): Record<string, any>;
+declare function normalizeScheduleState(
+  scheduleLike?: Record<string, any> | null
+): Record<string, any> | null;
+declare function buildStateFromProfileDocuments(
+  rows: Array<Record<string, any>>,
+  localProfile: Record<string, any>,
+  localSchedule: Record<string, any>
+): {
+  profile: Record<string, any>;
+  schedule: Record<string, any>;
+};
+declare function applyLegacyProfileBlob(
+  remoteProfile: Record<string, any>,
+  remoteSchedule: Record<string, any>,
+  options?: Record<string, any>
+): void;
+declare function saveSchedule(nextValues?: Record<string, any>): void;
+
 test('stale profile document does not overwrite newer local training frequency', async ({ page }) => {
   await openAppShell(page);
 
   const result = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
-        const localProfile = {
-          ...cloneJson(profile),
-          preferences: normalizeTrainingPreferences({
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 2
-            }
-          }),
-          syncMeta: {
-            ...(profile.syncMeta || {}),
-            profileUpdatedAt: '2026-03-12T10:00:00.000Z'
-          }
-        };
-        const rows = [{
-          doc_key: PROFILE_CORE_DOC_KEY,
-          payload: {
-            defaultRest: 120,
-            language: 'en',
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 3
-            },
-            coaching: getDefaultCoachingProfile(),
-            activeProgram: 'forge'
+    clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
+    const localProfile = {
+      ...structuredClone(profile),
+      preferences: normalizeTrainingPreferences({
+        preferences: {
+          ...getDefaultTrainingPreferences(),
+          trainingDaysPerWeek: 2,
+        },
+      }),
+      syncMeta: {
+        ...(profile.syncMeta || {}),
+        profileUpdatedAt: '2026-03-12T10:00:00.000Z',
+      },
+    };
+    const rows = [
+      {
+        doc_key: PROFILE_CORE_DOC_KEY,
+        payload: {
+          defaultRest: 120,
+          language: 'en',
+          preferences: {
+            ...getDefaultTrainingPreferences(),
+            trainingDaysPerWeek: 3,
           },
-          client_updated_at: '2026-03-12T09:00:00.000Z',
-          updated_at: '2026-03-12T09:00:00.000Z'
-        }];
-        const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
-        return merged.profile.preferences.trainingDaysPerWeek;
-      })()
-    `);
+          coaching: getDefaultCoachingProfile(),
+          activeProgram: 'forge',
+        },
+        client_updated_at: '2026-03-12T09:00:00.000Z',
+        updated_at: '2026-03-12T09:00:00.000Z',
+      },
+    ];
+    const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
+    return merged.profile.preferences.trainingDaysPerWeek;
   });
 
   expect(result).toBe(2);
 });
 
-test('stale legacy profile blob does not overwrite newer local training frequency', async ({ page }) => {
+test('stale legacy profile blob does not overwrite newer local training frequency', async ({
+  page,
+}) => {
   await openAppShell(page);
 
   const result = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
-        profile.preferences = normalizeTrainingPreferences({
-          preferences: {
-            ...getDefaultTrainingPreferences(),
-            trainingDaysPerWeek: 2
-          }
-        });
-        profile.syncMeta = {
-          ...(profile.syncMeta || {}),
-          profileUpdatedAt: '2026-03-12T10:00:00.000Z'
-        };
-        const remoteProfile = {
-          defaultRest: 120,
-          language: 'en',
-          preferences: {
-            ...getDefaultTrainingPreferences(),
-            trainingDaysPerWeek: 3
-          },
-          coaching: getDefaultCoachingProfile(),
-          activeProgram: 'forge',
-          syncMeta: {
-            profileUpdatedAt: '2026-03-12T09:00:00.000Z'
-          }
-        };
-        applyLegacyProfileBlob(remoteProfile, schedule, {});
-        return profile.preferences.trainingDaysPerWeek;
-      })()
-    `);
+    clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
+    profile.preferences = normalizeTrainingPreferences({
+      preferences: {
+        ...getDefaultTrainingPreferences(),
+        trainingDaysPerWeek: 2,
+      },
+    });
+    profile.syncMeta = {
+      ...(profile.syncMeta || {}),
+      profileUpdatedAt: '2026-03-12T10:00:00.000Z',
+    };
+    const remoteProfile = {
+      defaultRest: 120,
+      language: 'en',
+      preferences: {
+        ...getDefaultTrainingPreferences(),
+        trainingDaysPerWeek: 3,
+      },
+      coaching: getDefaultCoachingProfile(),
+      activeProgram: 'forge',
+      syncMeta: {
+        profileUpdatedAt: '2026-03-12T09:00:00.000Z',
+      },
+    };
+    applyLegacyProfileBlob(remoteProfile, schedule, {});
+    return profile.preferences.trainingDaysPerWeek;
   });
 
   expect(result).toBe(2);
@@ -88,41 +115,39 @@ test('newer remote profile document still updates local training frequency', asy
   await openAppShell(page);
 
   const result = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
-        const localProfile = {
-          ...cloneJson(profile),
-          preferences: normalizeTrainingPreferences({
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 2
-            }
-          }),
-          syncMeta: {
-            ...(profile.syncMeta || {}),
-            profileUpdatedAt: '2026-03-12T09:00:00.000Z'
-          }
-        };
-        const rows = [{
-          doc_key: PROFILE_CORE_DOC_KEY,
-          payload: {
-            defaultRest: 120,
-            language: 'en',
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 3
-            },
-            coaching: getDefaultCoachingProfile(),
-            activeProgram: 'forge'
+    clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
+    const localProfile = {
+      ...structuredClone(profile),
+      preferences: normalizeTrainingPreferences({
+        preferences: {
+          ...getDefaultTrainingPreferences(),
+          trainingDaysPerWeek: 2,
+        },
+      }),
+      syncMeta: {
+        ...(profile.syncMeta || {}),
+        profileUpdatedAt: '2026-03-12T09:00:00.000Z',
+      },
+    };
+    const rows = [
+      {
+        doc_key: PROFILE_CORE_DOC_KEY,
+        payload: {
+          defaultRest: 120,
+          language: 'en',
+          preferences: {
+            ...getDefaultTrainingPreferences(),
+            trainingDaysPerWeek: 3,
           },
-          client_updated_at: '2026-03-12T10:00:00.000Z',
-          updated_at: '2026-03-12T10:00:00.000Z'
-        }];
-        const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
-        return merged.profile.preferences.trainingDaysPerWeek;
-      })()
-    `);
+          coaching: getDefaultCoachingProfile(),
+          activeProgram: 'forge',
+        },
+        client_updated_at: '2026-03-12T10:00:00.000Z',
+        updated_at: '2026-03-12T10:00:00.000Z',
+      },
+    ];
+    const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
+    return merged.profile.preferences.trainingDaysPerWeek;
   });
 
   expect(result).toBe(3);
@@ -134,41 +159,39 @@ test('remote profile document does not win solely because updated_at is newer', 
   await openAppShell(page);
 
   const result = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
-        const localProfile = {
-          ...cloneJson(profile),
-          preferences: normalizeTrainingPreferences({
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 2
-            }
-          }),
-          syncMeta: {
-            ...(profile.syncMeta || {}),
-            profileUpdatedAt: '2026-03-12T10:00:00.000Z'
-          }
-        };
-        const rows = [{
-          doc_key: PROFILE_CORE_DOC_KEY,
-          payload: {
-            defaultRest: 120,
-            language: 'en',
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 5
-            },
-            coaching: getDefaultCoachingProfile(),
-            activeProgram: 'forge'
+    clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
+    const localProfile = {
+      ...structuredClone(profile),
+      preferences: normalizeTrainingPreferences({
+        preferences: {
+          ...getDefaultTrainingPreferences(),
+          trainingDaysPerWeek: 2,
+        },
+      }),
+      syncMeta: {
+        ...(profile.syncMeta || {}),
+        profileUpdatedAt: '2026-03-12T10:00:00.000Z',
+      },
+    };
+    const rows = [
+      {
+        doc_key: PROFILE_CORE_DOC_KEY,
+        payload: {
+          defaultRest: 120,
+          language: 'en',
+          preferences: {
+            ...getDefaultTrainingPreferences(),
+            trainingDaysPerWeek: 5,
           },
-          client_updated_at: '2026-03-12T09:00:00.000Z',
-          updated_at: '2026-03-12T11:00:00.000Z'
-        }];
-        const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
-        return merged.profile.preferences.trainingDaysPerWeek;
-      })()
-    `);
+          coaching: getDefaultCoachingProfile(),
+          activeProgram: 'forge',
+        },
+        client_updated_at: '2026-03-12T09:00:00.000Z',
+        updated_at: '2026-03-12T11:00:00.000Z',
+      },
+    ];
+    const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
+    return merged.profile.preferences.trainingDaysPerWeek;
   });
 
   expect(result).toBe(2);
@@ -180,41 +203,39 @@ test('remote profile document still wins when client_updated_at is newer but upd
   await openAppShell(page);
 
   const result = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
-        const localProfile = {
-          ...cloneJson(profile),
-          preferences: normalizeTrainingPreferences({
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 2
-            }
-          }),
-          syncMeta: {
-            ...(profile.syncMeta || {}),
-            profileUpdatedAt: '2026-03-12T09:30:00.000Z'
-          }
-        };
-        const rows = [{
-          doc_key: PROFILE_CORE_DOC_KEY,
-          payload: {
-            defaultRest: 120,
-            language: 'en',
-            preferences: {
-              ...getDefaultTrainingPreferences(),
-              trainingDaysPerWeek: 4
-            },
-            coaching: getDefaultCoachingProfile(),
-            activeProgram: 'forge'
+    clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
+    const localProfile = {
+      ...structuredClone(profile),
+      preferences: normalizeTrainingPreferences({
+        preferences: {
+          ...getDefaultTrainingPreferences(),
+          trainingDaysPerWeek: 2,
+        },
+      }),
+      syncMeta: {
+        ...(profile.syncMeta || {}),
+        profileUpdatedAt: '2026-03-12T09:30:00.000Z',
+      },
+    };
+    const rows = [
+      {
+        doc_key: PROFILE_CORE_DOC_KEY,
+        payload: {
+          defaultRest: 120,
+          language: 'en',
+          preferences: {
+            ...getDefaultTrainingPreferences(),
+            trainingDaysPerWeek: 4,
           },
-          client_updated_at: '2026-03-12T10:00:00.000Z',
-          updated_at: '2026-03-12T09:00:00.000Z'
-        }];
-        const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
-        return merged.profile.preferences.trainingDaysPerWeek;
-      })()
-    `);
+          coaching: getDefaultCoachingProfile(),
+          activeProgram: 'forge',
+        },
+        client_updated_at: '2026-03-12T10:00:00.000Z',
+        updated_at: '2026-03-12T09:00:00.000Z',
+      },
+    ];
+    const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
+    return merged.profile.preferences.trainingDaysPerWeek;
   });
 
   expect(result).toBe(4);
@@ -224,18 +245,14 @@ test('saveSchedule marks only the schedule document as dirty', async ({ page }) 
   await openAppShell(page);
 
   const dirtyDocKeys = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        clearDocKeysDirty(getAllProfileDocumentKeys(profile));
-        saveSchedule({
-          sportName: 'Padel',
-          sportIntensity: 'moderate',
-          sportLegsHeavy: false,
-          sportDays: [1, 3]
-        });
-        return getDirtyDocKeys().slice().sort();
-      })()
-    `);
+    clearDocKeysDirty(getAllProfileDocumentKeys(profile));
+    saveSchedule({
+      sportName: 'Padel',
+      sportIntensity: 'moderate',
+      sportLegsHeavy: false,
+      sportDays: [1, 3],
+    });
+    return getDirtyDocKeys().slice().sort();
   });
 
   expect(dirtyDocKeys).toEqual(['schedule']);
@@ -247,18 +264,14 @@ test('blank schedule sport name survives normalization instead of reverting to t
   await openAppShell(page);
 
   const result = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        const nextSchedule = {
-          sportName: '',
-          sportDays: [1, '3', 3, 9],
-          sportIntensity: 'moderate',
-          sportLegsHeavy: false
-        };
-        normalizeScheduleState(nextSchedule);
-        return nextSchedule;
-      })()
-    `);
+    const nextSchedule = {
+      sportName: '',
+      sportDays: [1, '3', 3, 9],
+      sportIntensity: 'moderate',
+      sportLegsHeavy: false,
+    };
+    normalizeScheduleState(nextSchedule);
+    return nextSchedule;
   });
 
   expect(result).toEqual({
@@ -275,41 +288,39 @@ test('remote profile document normalizes malformed body metrics before applying 
   await openAppShell(page);
 
   const result = await page.evaluate(() => {
-    return window.eval(`
-      (() => {
-        clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
-        const localProfile = {
-          ...cloneJson(profile),
-          syncMeta: {
-            ...(profile.syncMeta || {}),
-            profileUpdatedAt: '2026-03-12T09:00:00.000Z'
-          }
-        };
-        const rows = [{
-          doc_key: PROFILE_CORE_DOC_KEY,
-          payload: {
-            defaultRest: 120,
-            language: 'en',
-            bodyMetrics: {
-              sex: 'robot',
-              activityLevel: 'extreme',
-              weight: 500,
-              height: 95,
-              age: 200,
-              targetWeight: 'oops',
-              bodyGoal: 'bulk_forever'
-            },
-            preferences: getDefaultTrainingPreferences(),
-            coaching: getDefaultCoachingProfile(),
-            activeProgram: 'forge'
+    clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
+    const localProfile = {
+      ...structuredClone(profile),
+      syncMeta: {
+        ...(profile.syncMeta || {}),
+        profileUpdatedAt: '2026-03-12T09:00:00.000Z',
+      },
+    };
+    const rows = [
+      {
+        doc_key: PROFILE_CORE_DOC_KEY,
+        payload: {
+          defaultRest: 120,
+          language: 'en',
+          bodyMetrics: {
+            sex: 'robot',
+            activityLevel: 'extreme',
+            weight: 500,
+            height: 95,
+            age: 200,
+            targetWeight: 'oops',
+            bodyGoal: 'bulk_forever',
           },
-          client_updated_at: '2026-03-12T10:00:00.000Z',
-          updated_at: '2026-03-12T09:00:00.000Z'
-        }];
-        const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
-        return merged.profile.bodyMetrics;
-      })()
-    `);
+          preferences: getDefaultTrainingPreferences(),
+          coaching: getDefaultCoachingProfile(),
+          activeProgram: 'forge',
+        },
+        client_updated_at: '2026-03-12T10:00:00.000Z',
+        updated_at: '2026-03-12T09:00:00.000Z',
+      },
+    ];
+    const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
+    return merged.profile.bodyMetrics;
   });
 
   expect(result).toEqual({
