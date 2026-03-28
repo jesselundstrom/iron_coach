@@ -145,12 +145,19 @@ test('dashboard island keeps week strip detail toggling working', async ({ page 
     window.showPage?.('dashboard', document.querySelectorAll('.nav-btn')[0] || null);
   });
 
-  const firstDayPill = page.locator('#week-strip .day-pill').first();
-  await firstDayPill.click({ force: true });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#week-strip .day-pill').length > 0
+  );
+  await page.evaluate(() => {
+    const firstDayPill = document.querySelector('#week-strip .day-pill');
+    if (firstDayPill instanceof HTMLButtonElement) {
+      firstDayPill.click();
+    }
+  });
 
   await expect(page.locator('#day-detail-panel')).toBeVisible();
   await expect(page.locator('#day-detail-panel')).toContainText(
-    /päivä|treeni|sport|no session logged/i
+    /pÃ¤ivÃ¤|treeni|sport|no session logged/i
   );
 });
 
@@ -238,6 +245,60 @@ test('dashboard coach card shows a rotating rest-day tip when the week is comple
     /Recovery|Palautuminen/i
   );
   await expect(page.locator('.dashboard-plan-coach-copy')).not.toContainText(
-    /Today, prioritize crisp top sets|Tämän päivän päätyö/
+    /Today, prioritize crisp top sets|TÃ¤mÃ¤n pÃ¤ivÃ¤n pÃ¤Ã¤tyÃ¶/
   );
+});
+
+test('dashboard fatigue delegate stays wired to typed stores after the legacy owner extraction', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const fatigue = await page.evaluate(async () => {
+    const runtimeWindow = window as Window & {
+      computeFatigue?: () => Record<string, unknown> | null;
+    };
+    const forgeState = window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge');
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [
+        {
+          id: 510,
+          date: today.toISOString(),
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 1,
+          programMeta: { week: 1 },
+          programLabel: 'Forge Day 1',
+          duration: 1800,
+          rpe: 8,
+          exercises: [
+            {
+              name: 'Bench Press',
+              sets: [{ weight: 82.5, reps: 5, done: true }],
+            },
+          ],
+        },
+      ],
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        programs: {
+          ...((window.profile?.programs as Record<string, unknown>) || {}),
+          forge: forgeState,
+        },
+      },
+      schedule: window.schedule || null,
+    });
+    window.showPage?.('dashboard', document.querySelectorAll('.nav-btn')[0] || null);
+    return runtimeWindow.computeFatigue?.() || null;
+  });
+
+  expect(fatigue).not.toBeNull();
+  expect(typeof fatigue?.overall).toBe('number');
+  expect(typeof fatigue?.muscular).toBe('number');
+  expect(typeof fatigue?.cns).toBe('number');
+  await expect(page.locator('#dashboard-react-root .dashboard-section')).toHaveCount(4);
 });

@@ -926,10 +926,7 @@ function buildSettingsAccountView() {
           label: tr('settings.sync.synced', 'Synced to cloud'),
           className: 'sync-status synced',
         };
-  const nutritionReady =
-    typeof isNutritionCoachAvailable === 'function'
-      ? isNutritionCoachAvailable()
-      : !!currentUser;
+  const nutritionReady = !!String(currentUser?.id || '').trim();
   return {
     labels: {
       accountSection: tr('settings.account_section', 'Account'),
@@ -2452,15 +2449,8 @@ function updateLanguageDependentUI() {
   ) {
     renderExerciseCatalog();
   }
-  if (
-    document.getElementById('page-nutrition')?.classList.contains('active') &&
-    typeof window.syncNutritionBridge === 'function'
-  )
-    window.syncNutritionBridge();
-  else if (
-    document.getElementById('page-history')?.classList.contains('active')
-  )
-    renderHistory();
+  if (document.getElementById('page-history')?.classList.contains('active'))
+    window.renderHistory?.();
   else if (document.getElementById('page-log')?.classList.contains('active'))
     resetNotStartedView();
   notifySettingsAccountIsland();

@@ -92,7 +92,7 @@ export async function openAppShell(page: Page) {
 }
 
 export async function reloadAppShell(page: Page) {
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await bootstrapAppShell(page);
 }
 

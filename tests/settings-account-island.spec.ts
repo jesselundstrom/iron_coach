@@ -171,12 +171,7 @@ test('settings account import keeps hostile workout labels inert after reload', 
   await expect(page.locator('.hist-card')).toContainText(
     '<img src=x onerror="window.__importWorkoutXssTriggered=true">'
   );
-  await page.evaluate(() => {
-    const button = document.querySelector('.hist-delete-btn');
-    if (button instanceof HTMLButtonElement) {
-      button.click();
-    }
-  });
+  await page.locator('.hist-delete-btn').first().click({ force: true });
   await expect(page.locator('#confirm-modal')).toHaveClass(/active/);
 
   const triggered = await page.evaluate(

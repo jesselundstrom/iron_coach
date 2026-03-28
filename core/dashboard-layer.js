@@ -214,48 +214,21 @@ function getSportWorkoutFatigueImpulse(workout) {
     cns *= sportCfg.extraSubtypeCnsMultiplier || 1.15;
   return { muscular, cns };
 }
-function computeFatigue() {
-  const now = Date.now();
-  const liftS = workouts
-    .filter((w) => !isSportWorkout(w))
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-  const sportS = workouts
-    .filter((w) => isSportWorkout(w))
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-  const daysSinceLift = liftS.length ? daysSince(liftS[0].date) : 99;
-  const daysSinceSport = sportS.length ? daysSince(sportS[0].date) : 99;
-  const cfg = FATIGUE_CONFIG;
-  const lookbackDays = getDashboardFatigueLookbackDays();
-  let muscular = 0,
-    cns = 0,
-    recentLiftSessions = 0,
-    recentSportSessions = 0;
-  workouts.forEach((workout) => {
-    const ageDays = getWorkoutAgeDays(workout, now);
-    if (ageDays === null || ageDays < 0 || ageDays > lookbackDays) return;
-    const impulse = isSportWorkout(workout)
-      ? getSportWorkoutFatigueImpulse(workout)
-      : getLiftWorkoutFatigueImpulse(workout);
-    if (!impulse.muscular && !impulse.cns) return;
-    if (isSportWorkout(workout)) recentSportSessions++;
-    else recentLiftSessions++;
-    muscular +=
-      impulse.muscular *
-      getFatigueDecayWeight(ageDays, cfg?.muscularHalfLifeDays || 4.5);
-    cns +=
-      impulse.cns *
-      getFatigueDecayWeight(ageDays, cfg?.cnsHalfLifeDays || 3.25);
-  });
-  muscular = clampDash(muscular, 0, 100);
-  cns = clampDash(cns, 0, 100);
+function getDashboardFatigueSnapshot() {
+  if (typeof window.computeFatigue === 'function') {
+    try {
+      const snapshot = window.computeFatigue();
+      if (snapshot && typeof snapshot === 'object') return snapshot;
+    } catch (_error) {}
+  }
   return {
-    muscular: Math.round(muscular),
-    cns: Math.round(cns),
-    overall: Math.round((muscular + cns) * 0.5),
-    daysSinceLift,
-    daysSinceSport,
-    recentLiftSessions,
-    recentSportSessions,
+    muscular: 0,
+    cns: 0,
+    overall: 0,
+    daysSinceLift: 99,
+    daysSinceSport: 99,
+    recentLiftSessions: 0,
+    recentSportSessions: 0,
   };
 }
 function wasSportRecently(hours) {
@@ -2553,7 +2526,7 @@ function buildDashboardView() {
   if (dashboardReactSnapshotCache) return dashboardReactSnapshotCache;
   const prog = getActiveProgram(),
     ps = getActiveProgramState();
-  const fatigue = computeFatigue();
+  const fatigue = getDashboardFatigueSnapshot();
   const tmData = getDashboardTrainingMaxData(prog, ps);
   dashboardReactSnapshotCache = buildDashboardReactSnapshotInternal(
     prog,
@@ -2570,7 +2543,7 @@ function updateDashboard() {
     .forEach((el) => el.remove());
   const prog = getActiveProgram(),
     ps = getActiveProgramState();
-  const fatigue = computeFatigue();
+  const fatigue = getDashboardFatigueSnapshot();
   const tmData = getDashboardTrainingMaxData(prog, ps);
   const tm = buildDashboardTmSnapshotFromData(tmData);
   const plan = buildDashboardPlanSnapshot(prog, ps, fatigue);

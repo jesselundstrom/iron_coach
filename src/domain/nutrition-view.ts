@@ -7,6 +7,12 @@ export type NutritionActionView = {
   selected: boolean;
 };
 
+export type NutritionActionDefinition = {
+  id: string;
+  labelKey: string;
+  fallbackLabel: string;
+};
+
 export type NutritionContextBanner =
   | {
       kind: 'personalized';
@@ -114,6 +120,8 @@ export type NutritionRuntimeState = {
   snapshotVersion: number;
 };
 
+export type NutritionHistoryEntry = Record<string, any>;
+
 export type BuildNutritionViewInput = {
   currentUser: Record<string, unknown> | null;
   profile: Profile | null;
@@ -122,18 +130,10 @@ export type BuildNutritionViewInput = {
     params?: Record<string, unknown> | null,
     fallback?: string
   ) => string;
+  history: NutritionHistoryEntry[];
+  actions?: NutritionActionDefinition[];
   runtimeState: NutritionRuntimeState;
 };
-
-type NutritionWindow = Window & {
-  getNutritionActionDefinitions?: () => Array<{
-    id: string;
-    labelKey: string;
-    fallbackLabel: string;
-  }>;
-};
-
-type NutritionHistoryEntry = Record<string, any>;
 type StructuredNutritionResponse = {
   display_markdown: string;
   estimated_macros: Record<string, number> | null;
@@ -166,11 +166,6 @@ const ACTIVITY_MULTIPLIERS: Record<string, number> = {
   very_active: 1.725,
 };
 
-function getNutritionWindow(): NutritionWindow | null {
-  if (typeof window === 'undefined') return null;
-  return window as NutritionWindow;
-}
-
 function todaySessionDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -179,23 +174,6 @@ function todayStartTimestamp() {
   const value = new Date();
   value.setHours(0, 0, 0, 0);
   return value.getTime();
-}
-
-function historyKey(currentUser: Record<string, unknown> | null, dateStamp?: string) {
-  const stamp = dateStamp || todaySessionDate();
-  const userId = String(currentUser?.id || '').trim();
-  return userId ? `ic_nutrition_day::${userId}::${stamp}` : `ic_nutrition_day::${stamp}`;
-}
-
-function getActions() {
-  const runtimeWindow = getNutritionWindow();
-  return (
-    runtimeWindow?.getNutritionActionDefinitions?.() || DEFAULT_ACTIONS
-  ) as Array<{
-    id: string;
-    labelKey: string;
-    fallbackLabel: string;
-  }>;
 }
 
 function normalizeNutritionNumber(value: unknown) {
@@ -227,7 +205,7 @@ function normalizeNutritionTags(rawTags: unknown) {
     .slice(0, 6);
 }
 
-function normalizeStructuredNutritionResponse(
+export function normalizeStructuredNutritionResponse(
   rawResponse: any,
   depth = 0
 ): StructuredNutritionResponse | null {
@@ -261,7 +239,7 @@ function normalizeStructuredNutritionResponse(
   };
 }
 
-function parseStructuredNutritionResponse(
+export function parseStructuredNutritionResponse(
   rawText: unknown,
   depth = 0
 ): StructuredNutritionResponse | null {
@@ -292,7 +270,7 @@ function parseStructuredNutritionResponse(
   return normalizeStructuredNutritionResponse(parsed, depth);
 }
 
-function normalizeHistoryEntry(entry: any): NutritionHistoryEntry | null {
+export function normalizeHistoryEntry(entry: any): NutritionHistoryEntry | null {
   if (!entry || typeof entry !== 'object') return null;
   const next: NutritionHistoryEntry = { ...entry };
   next.role = next.role === 'assistant' ? 'assistant' : 'user';
@@ -309,20 +287,6 @@ function normalizeHistoryEntry(entry: any): NutritionHistoryEntry | null {
   else delete next.structured;
   if (structured?.display_markdown) next.text = structured.display_markdown;
   return next;
-}
-
-function loadHistory(currentUser: Record<string, unknown> | null) {
-  try {
-    const raw = localStorage.getItem(historyKey(currentUser));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((entry) => normalizeHistoryEntry(entry))
-      .filter((entry): entry is NutritionHistoryEntry => !!entry);
-  } catch {
-    return [];
-  }
 }
 
 function getStructuredMessageMacros(structured: any) {
@@ -379,7 +343,7 @@ function shouldCountAssistantMessageTowardsToday(
   return findTrackedMealAnchorIndex(history, index) !== -1;
 }
 
-function getTodayTrackedMacroTotals(history: NutritionHistoryEntry[]) {
+export function getTodayTrackedMacroTotals(history: NutritionHistoryEntry[]) {
   const todayTs = todayStartTimestamp();
   const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
   let mealCount = 0;
@@ -421,7 +385,7 @@ function getTodayTrackedMacroTotals(history: NutritionHistoryEntry[]) {
   return { totals, mealCount };
 }
 
-function calculateTargets(profile: Profile | null) {
+export function calculateTargets(profile: Profile | null) {
   const bm = profile?.bodyMetrics || {};
   if (!bm.weight || !bm.height || !bm.age || !bm.sex) return null;
 
@@ -602,7 +566,8 @@ export function buildNutritionViewModel(
   input: BuildNutritionViewInput
 ): NutritionViewModel {
   const canUseNutrition = !!String(input.currentUser?.id || '').trim();
-  const history = canUseNutrition ? loadHistory(input.currentUser) : [];
+  const history = canUseNutrition ? input.history || [] : [];
+  const actions = input.actions?.length ? input.actions : DEFAULT_ACTIONS;
   const targets = canUseNutrition ? calculateTargets(input.profile) : null;
   const tracked = canUseNutrition
     ? getTodayTrackedMacroTotals(history)
@@ -621,7 +586,7 @@ export function buildNutritionViewModel(
         text: loadingText,
       },
       selectedActionId: input.runtimeState.selectedActionId || 'plan_today',
-      actions: getActions().map((action) => ({
+      actions: actions.map((action) => ({
         ...action,
         selected: action.id === (input.runtimeState.selectedActionId || 'plan_today'),
       })),
@@ -646,7 +611,7 @@ export function buildDashboardNutritionSummary(
 ): DashboardNutritionSummary {
   const canUseNutrition = !!String(input.currentUser?.id || '').trim();
   if (!canUseNutrition) return null;
-  const history = loadHistory(input.currentUser);
+  const history = input.history || [];
   const targets = calculateTargets(input.profile);
   if (!targets) return null;
   const tracked = getTodayTrackedMacroTotals(history);

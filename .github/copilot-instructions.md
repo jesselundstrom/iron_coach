@@ -11,15 +11,16 @@
 - `src/app/store/runtime-store.ts` is already part of the active runtime foundation for shell/navigation/UI state.
 - The legacy business/runtime layer still lives primarily in:
   - `core/workout-layer.js`
-  - `core/nutrition-layer.js`
   - `core/dashboard-layer.js`
-  - `core/history-layer.js`
   - `core/plan-engine.js`
   - `core/data-layer.js`
   - `core/i18n-layer.js`
   - `core/exercise-library.js`
   - `core/program-layer.js`
   - `programs/*.js`
+- `core/history-layer.js` is retired from the live page load order; keep its remaining behavior assumptions in `src/stores/history-store.ts` instead of reactivating it.
+- `core/nutrition-layer.js` is compatibility/reference-only; live nutrition runtime ownership now lives in `src/stores/nutrition-store.ts`.
+- `core/dashboard-layer.js` is still partially live for remaining dashboard helper/fallback behavior, but it no longer owns fatigue state.
 - Training program definitions currently live under `programs/` (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
 - Contributor tooling uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
 
@@ -49,6 +50,9 @@
 ## Runtime Compatibility Rules
 - `core/ui-shell.js`, `window.showPage(...)`, `window.showToast(...)`, `window.showConfirm(...)`, and similar globals remain compatibility surfaces until their callers are fully migrated.
 - `window.PROGRAMS`, `window.EXERCISE_LIBRARY`, `window.workouts`, `window.profile`, `window.schedule`, and `window.activeWorkout` may remain temporarily for untouched legacy code and Playwright compatibility.
+- `window.renderHistory`, `window.switchHistoryTab`, `window.switchHistoryStatsRange`, and `window.toggleHeatmap` are provided by `src/stores/history-store.ts`.
+- `window.setSelectedNutritionAction`, `window.submitNutritionMessage`, `window.submitNutritionTextMessage`, `window.handleNutritionPhoto`, `window.retryLastNutritionMessage`, `window.clearNutritionHistory`, `window.clearNutritionLocalData`, and `window.setNutritionSessionContext` are provided by `src/stores/nutrition-store.ts`.
+- `window.computeFatigue` is a compatibility delegate installed from `src/app/services/planning-runtime.ts`.
 - When migrating a surface, prefer thin delegators and compatibility writes over big-bang removal.
 - Remove bridge/shim code only after the typed runtime owns that surface and the relevant tests no longer depend on the legacy contract.
 - Do not introduce new page-by-page React migration guidance; the visible-surface cutover is already complete.
@@ -102,7 +106,8 @@
 - When migrating program settings UI, preserve behavior first and refactor the rendering model later.
 
 ## Nutrition And AI Coaching
-- The current legacy nutrition implementation lives in `core/nutrition-layer.js` until migrated.
+- Live nutrition runtime ownership lives in `src/stores/nutrition-store.ts` and `src/app/services/nutrition-coach.ts`.
+- `core/nutrition-layer.js` is compatibility/reference-only and should not be restored to the live page load order unless the migration is intentionally reversed.
 - Anthropic requests are routed through the Supabase `nutrition-coach` edge function with an Ironforge-managed server-side API key.
 - Nutrition Coach requires a signed-in user and enforces daily per-user request caps in `public.nutrition_usage_daily`.
 - The browser must never store an Anthropic API key or send requests directly to `api.anthropic.com`.
@@ -118,6 +123,8 @@
 ## Recovery And Readiness
 - The fatigue engine is a core coaching pillar, not just a training helper.
 - `FATIGUE_CONFIG` currently lives in `app.js` and should move only as part of an intentional migration step.
+- `computeFatigue` now lives in `src/domain/planning.ts`; keep `window.computeFatigue` only as a compatibility delegate for untouched legacy callers.
+- `core/dashboard-layer.js` no longer owns fatigue calculations.
 - Three fatigue dimensions: Muscular, CNS, and Overall.
 - Sport schedule integration affects leg fatigue calculations and training day recommendations.
 - `getTodayTrainingDecision()` and readiness scoring form the recovery-layer logic.

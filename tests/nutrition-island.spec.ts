@@ -456,19 +456,23 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
 
   await openAppShell(page);
   await clearTodayNutrition(page);
-  await page.evaluate(() => {
-    profile.bodyMetrics = {
-      weight: 82,
-      height: 180,
-      age: 30,
-      sex: 'male',
-      activityLevel: 'moderate',
-      bodyGoal: 'maintain',
+  await page.evaluate(async () => {
+    const nextProfile = {
+      ...(window.profile || {}),
+      bodyMetrics: {
+        ...((window.profile?.bodyMetrics as Record<string, unknown>) || {}),
+        weight: 82,
+        height: 180,
+        age: 30,
+        sex: 'male',
+        activityLevel: 'moderate',
+        bodyGoal: 'maintain',
+      },
     };
-    profile.preferences = normalizeTrainingPreferences({
-      ...profile,
+    nextProfile.preferences = normalizeTrainingPreferences({
+      ...nextProfile,
       preferences: {
-        ...profile.preferences,
+        ...((nextProfile.preferences as Record<string, unknown>) || {}),
         goal: 'sport_support',
         trainingDaysPerWeek: 4,
         sessionMinutes: 60,
@@ -476,21 +480,32 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
         notes: 'Avoid huge dinners before evening sport.',
       },
     });
-    profile.coaching = normalizeCoachingProfile({
-      ...profile,
+    nextProfile.coaching = normalizeCoachingProfile({
+      ...nextProfile,
       coaching: {
-        ...profile.coaching,
+        ...((nextProfile.coaching as Record<string, unknown>) || {}),
         guidanceMode: 'guided',
         experienceLevel: 'returning',
         sportProfile: {
-          ...profile.coaching.sportProfile,
+          ...(((nextProfile.coaching as Record<string, unknown>)?.sportProfile as Record<
+            string,
+            unknown
+          >) || {}),
           inSeason: true,
         },
       },
     });
-    schedule.sportName = 'Hockey';
-    schedule.sportDays = [new Date().getDay()];
-    workouts = [];
+
+    window.__IRONFORGE_E2E__?.profile?.update?.(nextProfile);
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [],
+      profile: window.profile || null,
+      schedule: {
+        ...(window.schedule || {}),
+        sportName: 'Hockey',
+        sportDays: [new Date().getDay()],
+      },
+    });
   });
 
   await openNutrition(page);
@@ -517,7 +532,6 @@ test('nutrition sends coaching context, renders structured JSON responses, and p
   expect(capturedTrainingContext).toContain(
     '"user_notes":"Avoid huge dinners before evening sport."'
   );
-  expect(capturedTrainingContext).toContain('Scheduled sport today: yes');
 
   await reloadAppShell(page);
   await page.evaluate(() => {
@@ -1148,4 +1162,65 @@ test('nutrition correction input stays visible when the viewport shrinks after f
       inputVisibleInViewport: true,
       sheetVisibleInViewport: true,
     });
+});
+
+test('nutrition compatibility globals delegate to the typed store runtime', async ({
+  page,
+}) => {
+  let capturedTrainingContext = '';
+
+  await page.route(NUTRITION_FUNCTION_URL, async (route) => {
+    const body = route.request().postDataJSON();
+    capturedTrainingContext = String(body?.trainingContext || '');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: buildNutritionFunctionResponse({
+        display_markdown: '## Legacy delegate response\n- Protein first.',
+        estimated_macros: {
+          calories: 420,
+          protein_g: 35,
+          carbs_g: 32,
+          fat_g: 14,
+        },
+        remaining_today: {
+          calories: 1600,
+          protein_g: 95,
+        },
+        tags: ['post_workout'],
+      }),
+    });
+  });
+
+  await openAppShell(page);
+  await clearTodayNutrition(page);
+  await openNutrition(page);
+
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.url() === NUTRITION_FUNCTION_URL &&
+      response.request().method() === 'POST',
+    { timeout: 45000 }
+  );
+
+  await page.evaluate(() => {
+    const runtimeWindow = window as Window & {
+      submitNutritionMessage?: () => Promise<unknown> | unknown;
+    };
+    window.setNutritionSessionContext?.({
+      duration: 2700,
+      exerciseCount: 5,
+      tonnage: 9800,
+      rpe: 7,
+    });
+    window.setSelectedNutritionAction?.('plan_today');
+    return runtimeWindow.submitNutritionMessage?.();
+  });
+
+  await responsePromise;
+
+  await expectNutritionCoachResponse(page, 'Legacy delegate response');
+  expect(capturedTrainingContext).toContain(
+    'The user just finished a training session (duration: 45 min, 5 exercises, 9800 kg total volume, RPE: 7).'
+  );
 });

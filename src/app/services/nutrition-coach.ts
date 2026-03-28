@@ -1,33 +1,35 @@
 import { navigateToPage } from './navigation-actions';
-import { callLegacyWindowFunction } from './legacy-call';
+import { useNutritionStore } from '../../stores/nutrition-store';
 
 export function openNutritionSettings() {
   navigateToPage('settings');
 }
 
 export function openNutritionLogin() {
-  callLegacyWindowFunction('openNutritionLogin');
+  window.openNutritionLogin?.();
 }
 
 export function clearNutritionHistory() {
-  callLegacyWindowFunction('clearNutritionHistory');
+  useNutritionStore.getState().clearHistory();
 }
 
 export function retryLastNutritionMessage() {
-  callLegacyWindowFunction('retryLastNutritionMessage');
+  return useNutritionStore.getState().retryLastMessage();
 }
 
 export function selectNutritionAction(actionId: string) {
-  callLegacyWindowFunction('setSelectedNutritionAction', actionId);
+  const store = useNutritionStore.getState();
+  void store.selectAction(actionId);
+  return store.submitSelectedAction();
 }
 
 export function submitNutritionTextMessage(
   text: string,
   isCorrection = false
 ) {
-  callLegacyWindowFunction('submitNutritionTextMessage', text, isCorrection);
+  return useNutritionStore.getState().submitTextMessage(text, isCorrection);
 }
 
 export function handleNutritionPhoto(event: Event) {
-  callLegacyWindowFunction('handleNutritionPhoto', event);
+  useNutritionStore.getState().handlePhoto(event);
 }

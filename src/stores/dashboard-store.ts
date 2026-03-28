@@ -44,7 +44,10 @@ function computeView(state: Pick<DashboardStoreState, 'activeDayIndex'>) {
       (programStore.getState().activeProgram as Record<string, unknown> | null) ||
       null,
     activeProgramState: programStore.getState().activeProgramState,
-    fatigue: computeFatigue(),
+    fatigue: computeFatigue({
+      workouts: (dataStore.getState().workouts || []) as WorkoutRecord[],
+      schedule: profileStore.getState().schedule,
+    }),
     activeDayIndex: state.activeDayIndex,
     nutrition: useNutritionStore.getState().dashboardSummary,
   });

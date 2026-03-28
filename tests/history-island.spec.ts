@@ -33,6 +33,10 @@ test('history island renders read-only cards and refreshes from store-owned data
   await expect(page.locator('.hist-delete-btn')).toHaveCount(1);
 
   await page.evaluate(async () => {
+    const runtimeWindow = window as Window & {
+      switchHistoryStatsRange?: (range: string) => void;
+      toggleHeatmap?: () => void;
+    };
     await window.__IRONFORGE_E2E__?.app?.seedData?.({
       workouts: [
         {
@@ -202,7 +206,10 @@ test('history stats show range controls, extra charts, and milestones for progre
   });
 
   await page.waitForFunction(() => (window as any).getActivePageName?.() === 'history');
-  await page.evaluate(() => (window as any).switchHistoryTab?.('stats'));
+  await page.evaluate(() => {
+    (window as any).switchHistoryTab?.('stats');
+    (window as any).renderHistory?.();
+  });
   await page.waitForFunction(() => {
     const stats = document.getElementById('history-stats');
     return stats?.style.display === 'block';
@@ -224,6 +231,10 @@ test('history stats keep front squat and sumo deadlift out of the main lift tren
   await openAppShell(page);
 
   await page.evaluate(async () => {
+    const runtimeWindow = window as Window & {
+      switchHistoryStatsRange?: (range: string) => void;
+      toggleHeatmap?: () => void;
+    };
     await window.__IRONFORGE_E2E__?.app?.seedData?.({
       workouts: [
         {
@@ -291,4 +302,58 @@ test('history stats keep front squat and sumo deadlift out of the main lift tren
   expect(liftCounts.deadlift).toBe(1);
   expect(liftCounts.bench).toBe(1);
   expect(liftCounts.ohp).toBe(1);
+});
+
+test('history compatibility globals still delegate to the typed store view', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(async () => {
+    const runtimeWindow = window as Window & {
+      switchHistoryStatsRange?: (range: string) => void;
+      toggleHeatmap?: () => void;
+    };
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [
+        {
+          id: 501,
+          date: '2026-03-01T09:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 1,
+          programMeta: { week: 1 },
+          programLabel: 'Forge Day 1',
+          duration: 1800,
+          rpe: 7,
+          exercises: [
+            { name: 'Bench Press', sets: [{ weight: 80, reps: 5, done: true }] },
+          ],
+        },
+      ],
+      profile: window.profile || null,
+      schedule: window.schedule || null,
+    });
+    window.showPage?.('history', document.querySelectorAll('.nav-btn')[2] || null);
+    window.switchHistoryTab?.('stats');
+    runtimeWindow.switchHistoryStatsRange?.('all');
+    runtimeWindow.toggleHeatmap?.();
+    window.renderHistory?.();
+  });
+
+  await page.waitForFunction(() => {
+    const stats = document.getElementById('history-stats');
+    const activeRange = document
+      .querySelector('.stats-range-btn.active')
+      ?.getAttribute('data-range');
+    const heatmap = document.querySelector('.heatmap-wrap');
+    return (
+      stats?.style.display === 'block' &&
+      activeRange === 'all' &&
+      heatmap?.classList.contains('open') === true
+    );
+  });
+
+  await expect(page.locator('.heatmap-wrap')).toHaveClass(/open/);
+  await expect(page.locator('.stats-range-btn.active')).toContainText(/All|Kaikki/i);
 });

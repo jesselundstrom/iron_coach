@@ -64,14 +64,8 @@ function syncLegacyShellDom(name, btn) {
 
 function runPageActivationSideEffects(name) {
   if (name === 'dashboard') updateDashboard();
-  if (name === 'history') renderHistory();
+  if (name === 'history') window.renderHistory?.();
   if (name === 'settings') initSettings();
-  if (
-    name === 'nutrition' &&
-    typeof window.syncNutritionBridge === 'function'
-  ) {
-    window.syncNutritionBridge();
-  }
   if (name === 'log') {
     if (activeWorkout && typeof resumeActiveWorkoutUI === 'function') resumeActiveWorkoutUI({ toast: false });
     else resetNotStartedView();

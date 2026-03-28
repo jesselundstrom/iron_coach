@@ -4,7 +4,7 @@
 
 This migration plan is complete as of 2026-03-28.
 
-All seven planned phases are now delivered and verified. The remaining work in this repo is ordinary cleanup, hardening, and feature work rather than unfinished migration-plan work.
+All seven planned phases are now delivered and verified, and the follow-up cleanup phase is complete. The remaining work in this repo is ordinary cleanup, hardening, and feature work rather than unfinished migration-plan work.
 
 This closeout date supersedes the earlier 2026-03-25 claim. At that point the app shell and most typed runtime seams were in place, but the page-level `history-store`, `dashboard-store`, and `nutrition-store` were still bridge-fed compatibility stubs. Those stores now own their read models directly and the `syncHistoryBridge`, `syncDashboardBridge`, and `syncNutritionBridge` runtime path is no longer part of the live page flow.
 
@@ -14,45 +14,32 @@ Closeout checkpoints completed:
 - End-to-end tests use the test-only `window.__IRONFORGE_STORES__` bridge where migrated store seams exist.
 - CI now includes a migration guardrail that blocks new `src/` regressions back to legacy workout globals and `window.eval(...)` on migrated workout surfaces.
 - History, Dashboard, and Nutrition now render from typed store-owned page models instead of legacy snapshot pushes.
+- `src/domain/planning.ts` now owns typed fatigue math, and `window.computeFatigue` is a typed compatibility delegate installed from `src/app/services/planning-runtime.ts`.
+- `src/stores/nutrition-store.ts` now owns nutrition runtime state and command flow, while `src/app/services/nutrition-coach.ts` is the UI-facing wrapper.
+- `core/history-layer.js` is retired from the live runtime load order, and its legacy globals are now provided by `src/stores/history-store.ts`.
+- `core/nutrition-layer.js` is no longer part of the live page flow; its legacy globals are now provided by `src/stores/nutrition-store.ts`.
 
-## Cleanup Tail
+## Cleanup Phase Complete
 
-The page-store migration is complete, but three follow-up seams remain and should be treated as the next cleanup phase rather than ignored debt.
+The page-store migration follow-up seams are now closed.
 
-### 1. Nutrition runtime state ownership
+### 1. Nutrition runtime state ownership: done
 
-`history-store` and `dashboard-store` now follow the desired pattern of subscribing to typed stores and recomputing their view models locally.
+`nutrition-store` now owns nutrition runtime state directly, including selected action, request lifecycle flags, scroll version, current day history, and session context. Typed UI callers use `src/app/services/nutrition-coach.ts`, and legacy `window.*` entry points delegate into the store instead of owning runtime state in `core/nutrition-layer.js`.
 
-`nutrition-store` is still a hybrid:
+### 2. Legacy layer retirement status: classified
 
-- it recomputes from typed stores
-- it also listens to the DOM event `ironforge:nutrition-state-changed`
-- it also reads runtime flags from `window.getNutritionRuntimeState()`
+- `core/history-layer.js`: retired from live runtime ownership and removed from load order
+- `core/nutrition-layer.js`: compatibility/reference only and removed from live load order
+- `core/dashboard-layer.js`: still live for remaining dashboard helper/fallback responsibilities, but no longer owns fatigue state
 
-This is acceptable for the current migration step because async nutrition commands still live in the legacy layer, but the next nutrition-specific migration step should move runtime state such as `loading`, `streaming`, and `selectedActionId` into `nutrition-store` itself so the page has one obvious source of truth.
+### 3. Fatigue ownership: done
 
-### 2. Legacy layer retirement status
-
-`core/dashboard-layer.js`, `core/history-layer.js`, and `core/nutrition-layer.js` still maintain their own local module state for the legacy shell.
-
-That dual-state setup is intentional during the gradual migration, but it means React islands and legacy rendering still coexist. Before the next phase, each layer should be classified explicitly:
-
-- still driving visible non-React UI and therefore still live
-- compatibility-only and ready for deletion
-
-That decision should be made per layer rather than assuming the remaining legacy state is harmless.
-
-### 3. Fatigue still depends on a legacy global seam
-
-`src/domain/planning.ts` still implements `computeFatigue()` by delegating to `window.computeFatigue?.()`.
-
-That means dashboard fatigue data still depends on the legacy runtime being booted. If the global is absent, the dashboard currently falls back to an empty fatigue snapshot instead of a typed store-owned source.
-
-Closing this seam is the next concrete prerequisite for the fatigue-store work and for fully removing dashboard dependence on legacy planning globals.
+`src/domain/planning.ts` now contains the typed fatigue implementation. The dashboard store consumes it directly from typed inputs, and `window.computeFatigue` remains only as a thin compatibility delegate for untouched legacy planning/workout/program callers.
 
 ## Current Gate
 
-Improvement 1 is materially complete.
+The cleanup follow-up work is complete.
 
 Gate status:
 
@@ -61,7 +48,8 @@ Gate status:
 - `syncNutritionBridge` removed from `window`: done
 - islands render from Zustand instead of legacy snapshot pushes: done
 - dedicated island tests exist for History, Dashboard, and Nutrition: done
-- full Playwright confirmation: still recommended as final verification after cleanup work
+- cleanup-phase regression coverage for fatigue/history/nutrition delegates: done
+- full Playwright confirmation: done
 
 ## Summary
 

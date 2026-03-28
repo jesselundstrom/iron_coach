@@ -238,6 +238,10 @@ export type FatigueResult = {
   cns: number;
   overall: number;
   computedAt?: string;
+  daysSinceLift?: number;
+  daysSinceSport?: number;
+  recentLiftSessions?: number;
+  recentSportSessions?: number;
 };
 
 export type NutritionMessage = {

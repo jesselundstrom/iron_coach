@@ -9,6 +9,7 @@ import {
   startLegacyRuntimeBridge,
   syncRuntimeStoreFromLegacy,
 } from './services/legacy-runtime';
+import { installPlanningWindowBindings } from './services/planning-runtime';
 import { useRuntimeStore } from './store/runtime-store';
 import { installLegacyI18nStoreBridge } from '../stores/i18n-store';
 import { installLegacyDataStoreBridge } from '../stores/data-store';
@@ -62,6 +63,7 @@ if (mountNode) {
   installLegacyProfileStoreBridge();
   installLegacyProgramStoreBridge();
   installLegacyWorkoutStoreBridge();
+  installPlanningWindowBindings();
   installDashboardStore();
   installHistoryStore();
   installNutritionStore();
