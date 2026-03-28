@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --workers=1",
     "typecheck": "tsc --noEmit",
     "test": "playwright test"
   },

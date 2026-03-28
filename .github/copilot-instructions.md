@@ -20,7 +20,7 @@
   - `programs/*.js`
 - `core/history-layer.js` is retired from the live page load order; keep its remaining behavior assumptions in `src/stores/history-store.ts` instead of reactivating it.
 - `core/nutrition-layer.js` is compatibility/reference-only; live nutrition runtime ownership now lives in `src/stores/nutrition-store.ts`.
-- `core/dashboard-layer.js` is still partially live for remaining dashboard helper/fallback behavior, but it no longer owns fatigue state.
+- `core/dashboard-layer.js` is retired from the live page load order; typed dashboard ownership now lives in `src/stores/dashboard-store.ts` plus `src/domain/dashboard-runtime.ts`.
 - Training program definitions currently live under `programs/` (5 programs: forge, wendler531, stronglifts5x5, casualfullbody, hypertrophysplit).
 - Contributor tooling uses `npm` scripts plus `Vite`, `TypeScript`, `ESLint`, `Prettier`, and `Playwright`.
 
@@ -53,6 +53,8 @@
 - `window.renderHistory`, `window.switchHistoryTab`, `window.switchHistoryStatsRange`, and `window.toggleHeatmap` are provided by `src/stores/history-store.ts`.
 - `window.setSelectedNutritionAction`, `window.submitNutritionMessage`, `window.submitNutritionTextMessage`, `window.handleNutritionPhoto`, `window.retryLastNutritionMessage`, `window.clearNutritionHistory`, `window.clearNutritionLocalData`, and `window.setNutritionSessionContext` are provided by `src/stores/nutrition-store.ts`.
 - `window.computeFatigue` is a compatibility delegate installed from `src/app/services/planning-runtime.ts`.
+- `window.updateDashboard`, `window.toggleDayDetail`, `window.wasSportRecently`, and `window.wasHockeyRecently` are provided by `src/stores/dashboard-store.ts`.
+- Typed dashboard/history/nutrition surfaces should prefer the explicit legacy runtime setter/getter in `app.js` over `window.eval(...)` when a compatibility write is still required.
 - When migrating a surface, prefer thin delegators and compatibility writes over big-bang removal.
 - Remove bridge/shim code only after the typed runtime owns that surface and the relevant tests no longer depend on the legacy contract.
 - Do not introduce new page-by-page React migration guidance; the visible-surface cutover is already complete.
@@ -125,6 +127,7 @@
 - `FATIGUE_CONFIG` currently lives in `app.js` and should move only as part of an intentional migration step.
 - `computeFatigue` now lives in `src/domain/planning.ts`; keep `window.computeFatigue` only as a compatibility delegate for untouched legacy callers.
 - `core/dashboard-layer.js` no longer owns fatigue calculations.
+- `src/domain/dashboard-runtime.ts` now owns the typed dashboard recovery/plan/training-max helper composition and dashboard compatibility delegates.
 - Three fatigue dimensions: Muscular, CNS, and Overall.
 - Sport schedule integration affects leg fatigue calculations and training day recommendations.
 - `getTodayTrainingDecision()` and readiness scoring form the recovery-layer logic.
@@ -148,6 +151,7 @@
 - For meaningful behavior or UI changes, add or update automated tests when feasible. Prefer Playwright for user flows and deterministic validation paths over flaky network-dependent tests. If you skip test coverage, say why.
 - Keep tests small, readable, and purpose-driven. One user flow per test is preferred over giant all-in-one scripts.
 - Before closing meaningful work, run the relevant verification commands from the current toolchain such as `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run build`, and targeted `npm.cmd run test:e2e` coverage when applicable.
+- CI uses `npm run test:e2e:ci` for the deterministic single-worker Playwright gate; local development can still use `npm run test:e2e`.
 - When a change alters architecture, persistence, sync behavior, migrations, or contributor workflow, also update the relevant AI instructions under `.github/` before committing.
 - Before committing and pushing meaningful project changes, explicitly check whether `.github/copilot-instructions.md` should be updated to reflect the new reality.
 - When changing cached runtime assets or PWA update behavior, also decide whether `sw.js` cache versioning or fetch strategy needs an update.

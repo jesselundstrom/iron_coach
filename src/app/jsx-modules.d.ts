@@ -130,6 +130,10 @@ declare global {
     schedule?: Record<string, unknown> | null;
     profile?: Record<string, unknown> | null;
     activeWorkout?: Record<string, unknown> | null;
+    __IRONFORGE_GET_LEGACY_RUNTIME_STATE__?: () => Record<string, unknown> | null;
+    __IRONFORGE_SET_LEGACY_RUNTIME_STATE__?: (
+      partial: Record<string, unknown>
+    ) => void;
     startWorkout?: () => void;
     resumeActiveWorkoutUI?: (options?: Record<string, unknown>) => unknown;
     updateRestDuration?: (nextValue?: string | number | null) => void;
@@ -161,6 +165,8 @@ declare global {
     resetNotStartedView?: () => void;
     showSettingsTab?: (tab: string, trigger?: Element | null) => void;
     updateDashboard?: () => void;
+    wasSportRecently?: (hours?: number) => boolean;
+    wasHockeyRecently?: (hours?: number) => boolean;
     renderHistory?: () => void;
     getDashboardLabels?: () => Record<string, string>;
     getDashboardWeekLegendItems?: () => Array<Record<string, unknown>>;
@@ -239,6 +245,11 @@ declare global {
         loadData?: (options?: Record<string, unknown>) => Promise<void>;
         navigateToPage?: (page: string) => void;
         setCurrentUser?: (user: Record<string, unknown> | null) => void;
+        getSeedSnapshot?: () => {
+          workouts?: Array<Record<string, unknown>>;
+          profile?: Record<string, unknown> | null;
+          schedule?: Record<string, unknown> | null;
+        };
         seedData?: (snapshot: {
           workouts?: Array<Record<string, unknown>>;
           profile?: Record<string, unknown> | null;

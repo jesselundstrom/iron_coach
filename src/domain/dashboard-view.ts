@@ -1,4 +1,12 @@
 import type { DashboardNutritionSummary } from './nutrition-view';
+import {
+  buildDashboardPlanStructuredSnapshot,
+  getDashboardDayDetailData,
+  getDashboardLabels,
+  getDashboardRecoverySnapshot,
+  getDashboardTrainingMaxData,
+  getDashboardWeekLegendItems,
+} from './dashboard-runtime';
 import type { Profile, WorkoutRecord } from './types';
 
 export type DashboardWeekDayView = {
@@ -57,32 +65,8 @@ export type BuildDashboardViewInput = {
 };
 
 type DashboardWindow = Window & {
-  getDashboardLabels?: () => Record<string, string>;
-  buildDashboardPlanStructuredSnapshot?: (
-    prog: Record<string, any>,
-    ps: Record<string, any>,
-    fatigue: Record<string, any>
-  ) => {
-    headerSub: string;
-    hero: Record<string, any>;
-    progress: Record<string, any>;
-    sections: Array<Record<string, any>>;
-  };
-  getDashboardRecoverySnapshot?: (fatigue: Record<string, any>) => Record<string, any>;
-  getDashboardTrainingMaxData?: (
-    prog: Record<string, any>,
-    ps: Record<string, any>
-  ) => {
-    title: string;
-    items: Array<Record<string, any>>;
-  };
-  getDashboardWeekLegendItems?: () => Array<{ id: string; tone: string; label: string }>;
-  getDashboardDayDetailData?: (
-    index: number
-  ) => Array<{ kind: string; text: string }>;
   getWeekStart?: (date: Date) => Date;
   isSportWorkout?: (workout: unknown) => boolean;
-  isSimpleMode?: (profileLike?: Record<string, unknown> | null) => boolean;
 };
 
 function getDashboardWindow(): DashboardWindow | null {
@@ -122,11 +106,6 @@ function getStatusText(
   workouts: WorkoutRecord[],
   schedule: { sportName?: string; sportDays?: number[] } | null
 ) {
-  const runtimeWindow = getDashboardWindow();
-  const labels =
-    runtimeWindow?.getDashboardLabels?.() || ({
-      recovery: 'Recovery',
-    } as Record<string, string>);
   const today = new Date();
   const todayDow = today.getDay();
   const todayLogged = workouts.filter(
@@ -136,74 +115,45 @@ function getStatusText(
   const hasSport = todayLogged.some((workout) => isSportWorkout(workout));
   const sportName = schedule?.sportName || 'Sport';
 
-  if (hasLift && hasSport) {
-    return { tone: 'success', text: `Workout + ${sportName} logged` };
-  }
+  if (hasLift && hasSport) return { tone: 'success', text: `Workout + ${sportName} logged` };
   if (hasLift) return { tone: 'success', text: 'Workout logged' };
   if (hasSport) return { tone: 'info', text: `${sportName} logged` };
-  if (schedule?.sportDays?.includes(todayDow)) {
-    return { tone: 'info', text: `${sportName} day` };
-  }
+  if (schedule?.sportDays?.includes(todayDow)) return { tone: 'info', text: `${sportName} day` };
   return { tone: 'neutral', text: 'No session logged' };
+}
+
+function isSimpleMode(profile: Profile | null) {
+  if (!profile || typeof profile !== 'object') return false;
+  const preferences = (profile.preferences || {}) as Record<string, unknown>;
+  if (preferences.detailedView === true) return false;
+  if (preferences.detailedView === false) return true;
+  const coaching = (profile.coaching || {}) as Record<string, unknown>;
+  return (
+    coaching.guidanceMode === 'guided' ||
+    (coaching.guidanceMode === 'balanced' && coaching.experienceLevel === 'beginner')
+  );
 }
 
 export function buildDashboardViewModel(
   input: BuildDashboardViewInput
 ): DashboardViewModel {
-  const runtimeWindow = getDashboardWindow();
-  const labels = (runtimeWindow?.getDashboardLabels?.() || {}) as Record<
-    string,
-    string
-  >;
-  const simpleMode = runtimeWindow?.isSimpleMode?.(input.profile) === true;
-  const plan: {
-    headerSub: string;
-    hero: Record<string, any>;
-    progress: Record<string, any>;
-    sections: Array<Record<string, any>>;
-  } =
-    ((input.activeProgram &&
-      runtimeWindow?.buildDashboardPlanStructuredSnapshot?.(
-        input.activeProgram,
-        input.activeProgramState || {},
-        input.fatigue || {}
-      )) as
-      | {
-          headerSub: string;
-          hero: Record<string, any>;
-          progress: Record<string, any>;
-          sections: Array<Record<string, any>>;
-        }
-      | undefined) || {
-      headerSub: '',
-      hero: { kicker: "Today's Plan", status: { text: '', tone: 'neutral' }, cta: { type: 'none' } },
-      progress: { percent: 0, value: '', footer: '', sportFooter: '' },
-      sections: [],
-    };
-  const recovery: Record<string, any> =
-    runtimeWindow?.getDashboardRecoverySnapshot?.(input.fatigue || {}) || {
-      overallValue: 0,
-      badge: { text: '', tone: 'rest' },
-      rows: [],
-    };
-  const tmData =
-    (runtimeWindow?.getDashboardTrainingMaxData?.(
-      input.activeProgram || {},
-      input.activeProgramState || {}
-    ) as { title: string; items: Array<Record<string, any>> } | undefined) || {
-      title: labels.maxes || 'Maxes',
-      items: [],
-    };
-  const weekLegend = (runtimeWindow?.getDashboardWeekLegendItems?.() || []) as Array<{
-    id: string;
-    tone: string;
-    label: string;
-  }>;
-  const detailItems =
-    input.activeDayIndex !== null
-      ? ((runtimeWindow?.getDashboardDayDetailData?.(input.activeDayIndex) ||
-          []) as Array<{ kind: string; text: string }>)
-      : [];
+  const labels = getDashboardLabels();
+  const simpleMode = isSimpleMode(input.profile);
+  const status = getStatusText(input.workouts, input.schedule);
+  const plan = buildDashboardPlanStructuredSnapshot({
+    activeProgram: input.activeProgram,
+    activeProgramState: input.activeProgramState,
+    fatigue: input.fatigue || {},
+    profile: input.profile,
+    schedule: (input.schedule as any) || null,
+    workouts: input.workouts,
+    status,
+  });
+  const recovery = getDashboardRecoverySnapshot(input.fatigue || {}, input.profile);
+  const tmData = getDashboardTrainingMaxData(
+    input.activeProgram || {},
+    input.activeProgramState || {}
+  );
 
   const today = new Date();
   const weekStart = getWeekStart(today);
@@ -248,9 +198,18 @@ export function buildDashboardViewModel(
         ...(!hasLift && isSportDay ? ['scheduled'] : []),
         ...(hasSport ? ['sport'] : []),
       ],
-      tooltip: tooltipParts.join(' · '),
+      tooltip: tooltipParts.join(' - '),
     };
   });
+
+  const detailItems =
+    input.activeDayIndex !== null
+      ? (() => {
+          const date = new Date(weekStart);
+          date.setDate(weekStart.getDate() + input.activeDayIndex);
+          return getDashboardDayDetailData(input.workouts, (input.schedule as any) || null, date);
+        })()
+      : [];
 
   return {
     simpleMode,
@@ -258,13 +217,13 @@ export function buildDashboardViewModel(
     hero: plan.hero,
     week: {
       days,
-      legend: weekLegend,
+      legend: getDashboardWeekLegendItems(),
       activeDayIndex: input.activeDayIndex,
       detailVisible: input.activeDayIndex !== null,
       detail: {
         items: detailItems,
       },
-      status: getStatusText(input.workouts, input.schedule),
+      status,
     },
     plan: {
       headerSub: plan.headerSub,

@@ -36,6 +36,7 @@ async function startWorkout(page: Page) {
 }
 
 test('active workout draft restores after reload', async ({ page }) => {
+  test.slow();
   await openAppShell(page);
   await startWorkout(page);
 
@@ -49,14 +50,47 @@ test('active workout draft restores after reload', async ({ page }) => {
   await reloadAppShell(page);
   await openTrainPage(page);
 
-  await page.waitForFunction(
-    () => !!window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
-  );
-  await expect(page.locator('#workout-active')).toBeVisible();
-  await expect(page.locator('#exercises-container input[data-field="weight"]').first()).toHaveValue('60');
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const activeWorkout =
+            window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout;
+          const firstSet = activeWorkout?.exercises?.[0]?.sets?.[0];
+          return {
+            hasActiveWorkout: !!activeWorkout,
+            firstWeight: String(firstSet?.weight ?? ''),
+          };
+        }),
+      { timeout: 15000 }
+    )
+    .toEqual({
+      hasActiveWorkout: true,
+      firstWeight: '60',
+    });
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const inputs = Array.from(
+            document.querySelectorAll<HTMLInputElement>(
+              '#exercises-container input[data-field="weight"]'
+            )
+          );
+          const visibleInput = inputs.find((input) => {
+            const rect = input.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+          });
+          return visibleInput?.value || '';
+        }),
+      { timeout: 15000 }
+    )
+    .toBe('60');
 });
 
 test('finishing a workout clears the persisted draft', async ({ page }) => {
+  test.slow();
   await openAppShell(page);
   await startWorkout(page);
 

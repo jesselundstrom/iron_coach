@@ -18,6 +18,7 @@ Closeout checkpoints completed:
 - `src/stores/nutrition-store.ts` now owns nutrition runtime state and command flow, while `src/app/services/nutrition-coach.ts` is the UI-facing wrapper.
 - `core/history-layer.js` is retired from the live runtime load order, and its legacy globals are now provided by `src/stores/history-store.ts`.
 - `core/nutrition-layer.js` is no longer part of the live page flow; its legacy globals are now provided by `src/stores/nutrition-store.ts`.
+- `core/dashboard-layer.js` is no longer part of the live page flow; dashboard helpers and compatibility delegates now live in typed runtime code.
 
 ## Cleanup Phase Complete
 
@@ -27,11 +28,11 @@ The page-store migration follow-up seams are now closed.
 
 `nutrition-store` now owns nutrition runtime state directly, including selected action, request lifecycle flags, scroll version, current day history, and session context. Typed UI callers use `src/app/services/nutrition-coach.ts`, and legacy `window.*` entry points delegate into the store instead of owning runtime state in `core/nutrition-layer.js`.
 
-### 2. Legacy layer retirement status: classified
+### 2. Legacy layer retirement status: closed
 
 - `core/history-layer.js`: retired from live runtime ownership and removed from load order
 - `core/nutrition-layer.js`: compatibility/reference only and removed from live load order
-- `core/dashboard-layer.js`: still live for remaining dashboard helper/fallback responsibilities, but no longer owns fatigue state
+- `core/dashboard-layer.js`: retired from live runtime ownership and removed from load order
 
 ### 3. Fatigue ownership: done
 
@@ -49,6 +50,9 @@ Gate status:
 - islands render from Zustand instead of legacy snapshot pushes: done
 - dedicated island tests exist for History, Dashboard, and Nutrition: done
 - cleanup-phase regression coverage for fatigue/history/nutrition delegates: done
+- dashboard compatibility delegates now come from typed runtime ownership instead of `core/dashboard-layer.js`: done
+- nutrition support concerns are split into helper modules while the store remains the state owner: done
+- CI-safe single-worker Playwright gate exists as `npm run test:e2e:ci`: done
 - full Playwright confirmation: done
 
 ## Summary

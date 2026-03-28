@@ -47,9 +47,6 @@ export async function bootstrapAppShell(page: Page) {
       email: 'e2e@example.com',
     };
     window.__IRONFORGE_E2E__?.app?.setCurrentUser?.(seededUser);
-    if (typeof window.eval === 'function') {
-      window.eval(`currentUser = ${JSON.stringify(seededUser)};`);
-    }
     if (runtimeWindow.__IRONFORGE_SUPABASE__?.auth) {
       runtimeWindow.__IRONFORGE_SUPABASE__.auth.getSession = async () => ({
         data: {

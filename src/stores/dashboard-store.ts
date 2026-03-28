@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { computeFatigue } from '../domain/planning';
 import { buildDashboardViewModel } from '../domain/dashboard-view';
+import {
+  buildDashboardPlanStructuredSnapshot,
+  getDashboardDayDetailData,
+  getDashboardLabels,
+  getDashboardRecoverySnapshot,
+  getDashboardTrainingMaxData,
+  getDashboardWeekLegendItems,
+  wasSportRecently,
+} from '../domain/dashboard-runtime';
 import type { DashboardViewModel } from '../domain/dashboard-view';
 import type { WorkoutRecord } from '../domain/types';
 import { dataStore } from './data-store';
@@ -20,6 +29,21 @@ type DashboardWindow = Window & {
   toggleDayDetail?: (dayIndex: number) => void;
   updateDashboard?: () => DashboardViewModel;
   syncDashboardBridge?: () => void;
+  wasSportRecently?: (hours?: number) => boolean;
+  wasHockeyRecently?: (hours?: number) => boolean;
+  getDashboardLabels?: () => Record<string, string>;
+  getDashboardWeekLegendItems?: () => Array<Record<string, unknown>>;
+  getDashboardDayDetailData?: (dayIndex: number) => Array<Record<string, unknown>>;
+  getDashboardRecoverySnapshot?: (fatigue: Record<string, any>) => Record<string, unknown>;
+  getDashboardTrainingMaxData?: (
+    prog: Record<string, unknown>,
+    ps: Record<string, unknown>
+  ) => Record<string, unknown>;
+  buildDashboardPlanStructuredSnapshot?: (
+    prog: Record<string, unknown>,
+    ps: Record<string, unknown>,
+    fatigue: Record<string, unknown>
+  ) => Record<string, unknown>;
 };
 
 let storeInstalled = false;
@@ -71,6 +95,43 @@ function maybeRecomputeDashboardStore() {
 export function syncDashboardStoreWindowBindings() {
   const runtimeWindow = getDashboardWindow();
   if (!runtimeWindow) return;
+  runtimeWindow.wasSportRecently = (hours) =>
+    wasSportRecently((dataStore.getState().workouts || []) as WorkoutRecord[], hours);
+  runtimeWindow.wasHockeyRecently = runtimeWindow.wasSportRecently;
+  runtimeWindow.getDashboardLabels = () => getDashboardLabels();
+  runtimeWindow.getDashboardWeekLegendItems = () => getDashboardWeekLegendItems();
+  runtimeWindow.getDashboardDayDetailData = (dayIndex) => {
+    const weekStart = new Date();
+    const day = weekStart.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    weekStart.setDate(weekStart.getDate() + diff + Number(dayIndex || 0));
+    weekStart.setHours(0, 0, 0, 0);
+    return getDashboardDayDetailData(
+      (dataStore.getState().workouts || []) as WorkoutRecord[],
+      profileStore.getState().schedule,
+      weekStart
+    );
+  };
+  runtimeWindow.getDashboardRecoverySnapshot = (fatigue) =>
+    getDashboardRecoverySnapshot(
+      (fatigue || {}) as Record<string, any>,
+      profileStore.getState().profile
+    );
+  runtimeWindow.getDashboardTrainingMaxData = (prog, ps) =>
+    getDashboardTrainingMaxData(
+      (prog || {}) as Record<string, any>,
+      (ps || {}) as Record<string, any>
+    );
+  runtimeWindow.buildDashboardPlanStructuredSnapshot = (prog, ps, fatigue) =>
+    buildDashboardPlanStructuredSnapshot({
+      activeProgram: (prog || {}) as Record<string, any>,
+      activeProgramState: (ps || {}) as Record<string, any>,
+      fatigue: (fatigue || {}) as Record<string, any>,
+      profile: profileStore.getState().profile,
+      schedule: profileStore.getState().schedule,
+      workouts: (dataStore.getState().workouts || []) as WorkoutRecord[],
+      status: useDashboardStore.getState().view.week.status,
+    });
   runtimeWindow.toggleDayDetail = (dayIndex) => {
     useDashboardStore.getState().toggleDayDetail(Number(dayIndex));
   };

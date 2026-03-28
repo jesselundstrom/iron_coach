@@ -60,6 +60,11 @@ type E2EHarness = {
     ) => Promise<void>;
     navigateToPage: (page: string) => void;
     setCurrentUser: (user: Record<string, unknown> | null) => void;
+    getSeedSnapshot: () => {
+      workouts: Array<Record<string, unknown>>;
+      profile: Record<string, unknown> | null;
+      schedule: Record<string, unknown> | null;
+    };
     seedData: (snapshot: {
       workouts?: Array<Record<string, unknown>>;
       profile?: Record<string, unknown> | null;
@@ -120,6 +125,9 @@ export function installTestStoresBridge() {
   const testWindow = window as Window & {
     __IRONFORGE_STORES__?: TestStoreBridge;
     __IRONFORGE_E2E__?: E2EHarness;
+    __IRONFORGE_SET_LEGACY_RUNTIME_STATE__?: (
+      partial: Record<string, unknown>
+    ) => void;
   };
   if (testWindow.__IRONFORGE_STORES__) return;
 
@@ -168,11 +176,18 @@ export function installTestStoresBridge() {
         }
       },
       setCurrentUser: (user) => {
-        window.currentUser = user as typeof window.currentUser;
-        if (typeof window.eval === 'function') {
-          window.eval(`currentUser = ${JSON.stringify(user || null)};`);
-        }
+        testWindow.__IRONFORGE_SET_LEGACY_RUNTIME_STATE__?.({
+          currentUser: cloneJson(user || null),
+        });
         dataStore.getState().syncFromLegacy();
+      },
+      getSeedSnapshot: () => {
+        const currentData = dataStore.getState();
+        return {
+          workouts: cloneJson(currentData.workouts || []),
+          profile: cloneJson(currentData.profile || null),
+          schedule: cloneJson(currentData.schedule || null),
+        };
       },
       seedData: async (snapshot) => {
         const next = snapshot || {};
@@ -186,11 +201,11 @@ export function installTestStoresBridge() {
         const nextProfile =
           next.profile && typeof next.profile === 'object'
             ? next.profile
-            : cloneJson(currentData.profile || window.profile || {});
+            : cloneJson(currentData.profile || {});
         const nextSchedule =
           next.schedule && typeof next.schedule === 'object'
             ? next.schedule
-            : cloneJson(currentData.schedule || window.schedule || {});
+            : cloneJson(currentData.schedule || {});
         const getKey = (baseKey: string) => dataStore.getState().getLocalCacheKey(baseKey, userId);
         const writeJson = (key: string, value: unknown) => {
           if (value === undefined) {

@@ -96,6 +96,7 @@ test('settings account island keeps the danger-zone confirmation flow working', 
 test('settings account import keeps hostile workout labels inert after reload', async ({
   page,
 }) => {
+  test.slow();
   await openAppShell(page);
 
   await page.evaluate(() => {

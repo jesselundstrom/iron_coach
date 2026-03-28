@@ -28,24 +28,18 @@ type HistoryActionWindow = Window & {
   renderHistory?: () => void;
   getWorkoutProgramId?: (workout: Record<string, unknown> | null | undefined) => string | null;
   deleteWorkout?: (id: string) => void;
+  __IRONFORGE_GET_LEGACY_RUNTIME_STATE__?: () => {
+    profile?: Record<string, unknown> | null;
+    workouts?: Array<Record<string, unknown>>;
+  };
+  __IRONFORGE_SET_LEGACY_RUNTIME_STATE__?: (
+    partial: Record<string, unknown>
+  ) => void;
 };
 
 function getHistoryActionWindow(): HistoryActionWindow | null {
   if (typeof window === 'undefined') return null;
   return window as HistoryActionWindow;
-}
-
-function readLegacyJson<T>(name: string): T | undefined {
-  if (typeof window === 'undefined' || typeof window.eval !== 'function') {
-    return undefined;
-  }
-  try {
-    return window.eval(
-      `typeof ${name} !== 'undefined' ? ${name} : undefined`
-    ) as T | undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function cloneJson<T>(value: T): T {
@@ -98,18 +92,26 @@ function writeLegacyState(
 ) {
   const runtimeWindow = getHistoryActionWindow();
   if (!runtimeWindow) return;
-  if (key === 'workouts') {
-    runtimeWindow.workouts = cloneJson(
-      (value as Array<Record<string, unknown>> | null) || []
-    );
-  } else {
-    runtimeWindow.profile = cloneJson(
-      (value as Record<string, unknown> | null) || null
-    );
-  }
-  if (typeof window.eval === 'function') {
-    window.eval(`${key} = ${JSON.stringify(value ?? null)};`);
-  }
+  runtimeWindow.__IRONFORGE_SET_LEGACY_RUNTIME_STATE__?.({
+    [key]: cloneJson(value ?? null),
+  });
+}
+
+function getLegacyRuntimeSnapshot() {
+  const runtimeWindow = getHistoryActionWindow();
+  return runtimeWindow?.__IRONFORGE_GET_LEGACY_RUNTIME_STATE__?.() || null;
+}
+
+function getAuthoritativeLegacyProfile() {
+  const runtimeWindow = getHistoryActionWindow();
+  const runtimeSnapshot = getLegacyRuntimeSnapshot();
+  return cloneJson(
+    (runtimeSnapshot?.profile as Record<string, unknown> | null) ||
+      runtimeWindow?.profile ||
+      (dataStore.getState().profile as Record<string, unknown> | null) ||
+      profileStore.getState().profile ||
+      {}
+  ) as Record<string, unknown>;
 }
 
 function getWorkoutProgramId(workout: Record<string, unknown>) {
@@ -143,12 +145,7 @@ async function restoreDeletedWorkout(
       new Date(String(right?.date || '')).getTime()
     );
   });
-  const nextProfile = cloneJson(
-    readLegacyJson<Record<string, unknown> | null>('profile') ||
-      runtimeWindow?.profile ||
-      profileStore.getState().profile ||
-      {}
-  ) as Record<string, unknown>;
+  const nextProfile = getAuthoritativeLegacyProfile();
   nextProfile.programs = cloneJson(programsBackup);
 
   writeLegacyState('workouts', restoredWorkouts);
@@ -233,12 +230,7 @@ export function deleteWorkout(workoutId: string) {
       month: 'short',
     }
   );
-  const profile = cloneJson(
-    readLegacyJson<Record<string, unknown> | null>('profile') ||
-      runtimeWindow?.profile ||
-      profileStore.getState().profile ||
-      {}
-  ) as Record<string, unknown>;
+  const profile = getAuthoritativeLegacyProfile();
   const programsBackup = cloneJson(
     (profile.programs as Record<string, unknown>) || {}
   );

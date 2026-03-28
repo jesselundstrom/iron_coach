@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openAppShell } from './helpers';
+import { confirmModal, openAppShell } from './helpers';
 
 test('history island renders read-only cards and refreshes from store-owned data', async ({ page }) => {
   await openAppShell(page);
@@ -356,4 +356,98 @@ test('history compatibility globals still delegate to the typed store view', asy
 
   await expect(page.locator('.heatmap-wrap')).toHaveClass(/open/);
   await expect(page.locator('.stats-range-btn.active')).toContainText(/All|Kaikki/i);
+});
+
+test('history delete undo preserves legacy-only profile fields that are not yet synced into the typed store', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(async () => {
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts: [
+        {
+          id: 601,
+          date: '2026-03-10T09:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          programDayNum: 1,
+          programMeta: { week: 1 },
+          programLabel: 'Forge Day 1',
+          duration: 1800,
+          rpe: 7,
+          exercises: [
+            {
+              name: 'Bench Press',
+              sets: [{ weight: 80, reps: 5, done: true }],
+            },
+          ],
+        },
+      ],
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        programs: {
+          forge: {
+            week: 1,
+            lastCompletedDay: 1,
+          },
+        },
+      },
+      schedule: window.schedule || null,
+    });
+
+    window.__IRONFORGE_SET_LEGACY_RUNTIME_STATE__?.({
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        programs: {
+          ...(((window.profile || {}) as Record<string, unknown>).programs as
+            | Record<string, unknown>
+            | undefined),
+          forge: {
+            week: 1,
+            lastCompletedDay: 1,
+          },
+        },
+        legacyOnlyBridgeField: {
+          keep: 'yes',
+        },
+      },
+    });
+
+    window.showPage?.('history', document.querySelectorAll('.nav-btn')[2] || null);
+  });
+
+  await expect(page.locator('.hist-card')).toHaveCount(1);
+
+  await page.locator('.hist-delete-btn').first().click({ force: true });
+  await confirmModal(page);
+
+  await expect(page.locator('#toast')).toContainText(/session deleted|sessio poistettu/i);
+  await page.evaluate(() => {
+    const undoAction =
+      window.__IRONFORGE_STORES__?.runtime?.getState?.().ui?.toast?.undoAction;
+    if (typeof undoAction === 'function') {
+      undoAction();
+    }
+  });
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        legacyField:
+          ((window.profile as Record<string, any> | null)?.legacyOnlyBridgeField as
+            | Record<string, unknown>
+            | undefined)?.keep || null,
+        workoutIds: Array.isArray(window.workouts)
+          ? window.workouts.map((workout) => String(workout?.id || ''))
+          : [],
+      })),
+      { timeout: 15000 }
+    )
+    .toEqual({
+      legacyField: 'yes',
+      workoutIds: ['601'],
+    });
 });

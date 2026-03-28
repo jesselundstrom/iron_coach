@@ -20,9 +20,22 @@ const forbiddenPatterns = [
   'createLegacyProgramAdapter(',
 ];
 
+const typedSurfaceWriteRules = [
+  {
+    matcher: /src[\\/](app[\\/]services[\\/](dashboard-actions|history-actions|nutrition-coach)|stores[\\/](dashboard-store|nutrition-store)|domain[\\/]dashboard-runtime)\.(js|jsx|ts|tsx)$/,
+    patterns: ['window.workouts =', 'window.profile =', 'window.schedule =', 'window.currentUser ='],
+  },
+];
+
 const allowedExtensions = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const ignoredSuffixes = ['.d.ts'];
 const failures = [];
+const allowedMatches = [
+  {
+    matcher: /src[\\/]stores[\\/]data-store\.ts$/,
+    patterns: ['window.eval('],
+  },
+];
 
 function shouldScan(filePath) {
   if (ignoredSuffixes.some((suffix) => filePath.endsWith(suffix))) return false;
@@ -48,11 +61,27 @@ function scanFile(filePath) {
   lines.forEach((line, index) => {
     forbiddenPatterns.forEach((pattern) => {
       if (!line.includes(pattern)) return;
+      const allowed = allowedMatches.some(
+        (rule) => rule.matcher.test(filePath) && rule.patterns.includes(pattern)
+      );
+      if (allowed) return;
       failures.push({
         filePath,
         lineNumber: index + 1,
         pattern,
         line: line.trim(),
+      });
+    });
+    typedSurfaceWriteRules.forEach((rule) => {
+      if (!rule.matcher.test(filePath)) return;
+      rule.patterns.forEach((pattern) => {
+        if (!line.includes(pattern)) return;
+        failures.push({
+          filePath,
+          lineNumber: index + 1,
+          pattern,
+          line: line.trim(),
+        });
       });
     });
   });

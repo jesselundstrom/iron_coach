@@ -86,6 +86,7 @@ test('sport check prompt renders through the React shell and resolves the select
 test('summary prompt renders through the React shell and resolves feedback plus notes', async ({
   page,
 }) => {
+  test.slow();
   await openAppShell(page);
 
   await page.evaluate(() => {

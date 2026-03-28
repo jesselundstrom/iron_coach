@@ -59,6 +59,51 @@ if (IS_E2E_TEST_ENV) {
   document.documentElement.classList.add('test-env');
 }
 
+function cloneLegacyRuntimeStateValue(value) {
+  if (value === undefined || value === null) return value;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (_error) {
+    return value;
+  }
+}
+
+window.__IRONFORGE_GET_LEGACY_RUNTIME_STATE__ = function () {
+  return {
+    currentUser: cloneLegacyRuntimeStateValue(currentUser),
+    workouts: cloneLegacyRuntimeStateValue(workouts),
+    schedule: cloneLegacyRuntimeStateValue(schedule),
+    profile: cloneLegacyRuntimeStateValue(profile),
+    activeWorkout: cloneLegacyRuntimeStateValue(activeWorkout),
+  };
+};
+
+window.__IRONFORGE_SET_LEGACY_RUNTIME_STATE__ = function (partial) {
+  if (!partial || typeof partial !== 'object') return;
+  if (Object.prototype.hasOwnProperty.call(partial, 'currentUser')) {
+    currentUser = cloneLegacyRuntimeStateValue(partial.currentUser) || null;
+    window.currentUser = cloneLegacyRuntimeStateValue(currentUser);
+  }
+  if (Object.prototype.hasOwnProperty.call(partial, 'workouts')) {
+    workouts = Array.isArray(partial.workouts)
+      ? cloneLegacyRuntimeStateValue(partial.workouts)
+      : [];
+    window.workouts = cloneLegacyRuntimeStateValue(workouts);
+  }
+  if (Object.prototype.hasOwnProperty.call(partial, 'schedule')) {
+    schedule = cloneLegacyRuntimeStateValue(partial.schedule) || null;
+    window.schedule = cloneLegacyRuntimeStateValue(schedule);
+  }
+  if (Object.prototype.hasOwnProperty.call(partial, 'profile')) {
+    profile = cloneLegacyRuntimeStateValue(partial.profile) || null;
+    window.profile = cloneLegacyRuntimeStateValue(profile);
+  }
+  if (Object.prototype.hasOwnProperty.call(partial, 'activeWorkout')) {
+    activeWorkout = cloneLegacyRuntimeStateValue(partial.activeWorkout) || null;
+    window.activeWorkout = cloneLegacyRuntimeStateValue(activeWorkout);
+  }
+};
+
 function getRuntimeBridge() {
   return window.__IRONFORGE_RUNTIME_BRIDGE__ || null;
 }
@@ -171,6 +216,51 @@ function isLegacyDefaultSportName(name) {
     raw === 'urheilu' ||
     raw === 'kestävyys'
   );
+}
+
+function exerciseLookupKeys(exercise) {
+  if (!exercise) return [];
+  const src = typeof exercise === 'string' ? { name: exercise } : exercise;
+  const keys = [];
+  const id =
+    src.exerciseId ||
+    (typeof window.resolveRegisteredExerciseId === 'function'
+      ? window.resolveRegisteredExerciseId(src.name)
+      : null);
+  if (id) keys.push('id:' + id);
+  if (src.name) keys.push('name:' + String(src.name).trim().toLowerCase());
+  return keys;
+}
+
+function buildExerciseIndex() {
+  exerciseIndex = {};
+  workouts.forEach((workout) => {
+    (workout.exercises || []).forEach((exercise) => {
+      const ts = new Date(workout.date).getTime();
+      exerciseLookupKeys(exercise).forEach((key) => {
+        const prev = exerciseIndex[key];
+        if (!prev || ts > prev.ts) {
+          exerciseIndex[key] = { sets: exercise.sets, date: workout.date, ts };
+        }
+      });
+    });
+  });
+}
+
+function getPreviousSets(exercise) {
+  const keys = exerciseLookupKeys(exercise);
+  for (let index = 0; index < keys.length; index += 1) {
+    const hit = exerciseIndex[keys[index]];
+    if (hit?.sets) return hit.sets;
+  }
+  return null;
+}
+
+function getSuggested(exercise) {
+  const previousSets = getPreviousSets(exercise);
+  if (!previousSets?.length) return null;
+  const max = Math.max(...previousSets.map((set) => parseFloat(set.weight) || 0));
+  return previousSets.every((set) => set.done) ? Math.round((max + 2.5) * 2) / 2 : max;
 }
 
 function getScheduleSportNameValue(scheduleLike) {
