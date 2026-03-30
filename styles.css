@@ -5466,27 +5466,21 @@ select optgroup {
 }
 
 #page-history {
-  overflow: hidden;
+  overflow: visible;
 }
 #page-history.active {
-  display: flex;
-  height: calc(var(--app-vh) - var(--nav-h) - var(--sat) - 18px);
-  flex-direction: column;
-  gap: 10px;
+  display: block;
 }
 #page-history .tabs {
-  margin-bottom: 0;
-  flex-shrink: 0;
+  margin-bottom: 10px;
 }
 #history-heatmap {
-  flex-shrink: 0;
+  margin-bottom: 10px;
 }
 #history-log,
 #history-stats {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  min-height: auto;
+  overflow: visible;
   padding: 2px 0 12px;
 }
 

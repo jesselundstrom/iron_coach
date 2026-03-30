@@ -117,6 +117,99 @@ test('history island switches to stats without leaving the legacy shell', async 
   await expect(page.locator('#stats-numbers-grid .stats-num-card')).toHaveCount(4);
 });
 
+test('history log uses the main page scroller on narrow screens when weeks are expanded', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openAppShell(page);
+
+  await page.evaluate(async () => {
+    const workouts = Array.from({ length: 12 }, (_, index) => {
+      const weekOffset = Math.floor(index / 2);
+      const dayOffset = index % 2 === 0 ? 1 : 4;
+      const date = new Date(Date.UTC(2026, 2, 30 - weekOffset * 7 - dayOffset, 9));
+      const workoutId = 500 + index;
+      const dayNum = (index % 4) + 1;
+
+      return {
+        id: workoutId,
+        date: date.toISOString(),
+        program: 'forge',
+        type: 'forge',
+        programDayNum: dayNum,
+        programMeta: { week: weekOffset + 1 },
+        programLabel: `Forge Day ${dayNum}`,
+        duration: 1800,
+        rpe: 7 + (index % 3),
+        exercises: [
+          {
+            name: index % 2 === 0 ? 'Bench Press' : 'Squat',
+            sets: [{ weight: 70 + index * 2.5, reps: 5, done: true }],
+          },
+        ],
+      };
+    });
+
+    await window.__IRONFORGE_E2E__?.app?.seedData?.({
+      workouts,
+      profile: window.profile || null,
+      schedule: window.schedule || null,
+    });
+    window.__IRONFORGE_E2E__?.app?.navigateToPage?.('history');
+  });
+
+  await page.waitForFunction(() => (window as any).getActivePageName?.() === 'history');
+  await page.evaluate(() => {
+    document.querySelectorAll('.hist-week-details').forEach((details) => {
+      if (details instanceof HTMLDetailsElement) {
+        details.open = true;
+      }
+    });
+  });
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const content = document.querySelector('.content');
+        const historyLog = document.getElementById('history-log');
+        if (!(content instanceof HTMLElement) || !(historyLog instanceof HTMLElement)) {
+          return null;
+        }
+
+        const historyOverflowY = getComputedStyle(historyLog).overflowY;
+        const contentScrollable = content.scrollHeight > content.clientHeight;
+        return { historyOverflowY, contentScrollable };
+      })
+    )
+    .toEqual({ historyOverflowY: 'visible', contentScrollable: true });
+
+  await page.evaluate(() => {
+    const content = document.querySelector('.content');
+    if (content instanceof HTMLElement) {
+      content.scrollTop = content.scrollHeight;
+    }
+  });
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const content = document.querySelector('.content');
+        const lastCard = document.querySelector('#history-list .hist-card:last-of-type');
+        if (!(content instanceof HTMLElement) || !(lastCard instanceof HTMLElement)) {
+          return null;
+        }
+
+        const contentRect = content.getBoundingClientRect();
+        const lastRect = lastCard.getBoundingClientRect();
+        return {
+          contentScrollTop: content.scrollTop,
+          lastCardReachedViewport: lastRect.bottom <= contentRect.bottom,
+        };
+      })
+    )
+    .toEqual({ contentScrollTop: expect.any(Number), lastCardReachedViewport: true });
+});
+
 test('history stats show range controls, extra charts, and milestones for progressive lifting data', async ({
   page,
 }) => {
