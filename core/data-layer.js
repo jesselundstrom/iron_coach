@@ -2809,37 +2809,65 @@ function setupRealtimeSync() {
     .subscribe();
 }
 
-async function initAuth() {
-  const {
-    data: { session },
-  } = await _SB.auth.getSession();
-  currentUser = session?.user ?? null;
-  if (currentUser) {
+async function applyAuthSession(session, options) {
+  const opts = options || {};
+  const sessionUser = session?.user ?? null;
+  const wasLoggedIn = opts.wasLoggedIn ?? !!currentUser;
+  currentUser = sessionUser;
+  if (currentUser && !wasLoggedIn) {
     hideLoginScreen();
     await loadData({ allowCloudSync: true });
     setupRealtimeSync();
-  } else {
+    return;
+  }
+  if (!currentUser && wasLoggedIn) {
+    teardownRealtimeSync();
+    resetRuntimeState();
+    showLoginScreen();
+    return;
+  }
+  if (!currentUser) {
     teardownRealtimeSync();
     resetRuntimeState();
     showLoginScreen();
   }
+}
 
-  _SB.auth.onAuthStateChange(async (_event, session) => {
+function reportAuthSessionError(error) {
+  console.error('Failed to apply auth session change.', error);
+  const message =
+    error instanceof Error
+      ? error.message
+      : 'Unable to finish signing in right now.';
+  if (typeof window.showToast === 'function') {
+    window.showToast(message, '#f87171');
+  }
+  const errEl = document.getElementById('login-error');
+  if (errEl) {
+    errEl.style.color = '#f87171';
+    errEl.textContent = message;
+  }
+}
+
+async function initAuth() {
+  const {
+    data: { session },
+  } = await _SB.auth.getSession();
+  try {
+    await applyAuthSession(session, { wasLoggedIn: false });
+  } catch (error) {
+    reportAuthSessionError(error);
+    if (!currentUser) showLoginScreen();
+  }
+
+  _SB.auth.onAuthStateChange((_event, session) => {
     const wasLoggedIn = !!currentUser;
-    currentUser = session?.user ?? null;
-    if (currentUser && !wasLoggedIn) {
-      hideLoginScreen();
-      await loadData({ allowCloudSync: true });
-      setupRealtimeSync();
-    } else if (!currentUser && wasLoggedIn) {
-      teardownRealtimeSync();
-      resetRuntimeState();
-      showLoginScreen();
-    } else if (!currentUser) {
-      teardownRealtimeSync();
-      resetRuntimeState();
-      showLoginScreen();
-    }
+    window.setTimeout(() => {
+      void applyAuthSession(session, { wasLoggedIn }).catch((error) => {
+        reportAuthSessionError(error);
+        if (!currentUser) showLoginScreen();
+      });
+    }, 0);
   });
 }
 
@@ -2867,10 +2895,15 @@ async function loginWithEmail() {
   const errEl = document.getElementById('login-error');
   errEl.style.color = 'var(--accent)';
   errEl.textContent = 'Signing in...';
-  const { error } = await _SB.auth.signInWithPassword({ email, password });
-  if (error) {
+  try {
+    const { error } = await _SB.auth.signInWithPassword({ email, password });
+    if (!error) return;
     errEl.style.color = '#f87171';
     errEl.textContent = error.message;
+  } catch (error) {
+    errEl.style.color = '#f87171';
+    errEl.textContent =
+      error instanceof Error ? error.message : 'Unable to sign in right now.';
   }
 }
 
@@ -2920,4 +2953,3 @@ window.addEventListener('pagehide', () => {
 window.loginWithEmail = loginWithEmail;
 window.signUpWithEmail = signUpWithEmail;
 window.logout = logout;
-
