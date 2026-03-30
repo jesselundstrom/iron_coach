@@ -26,7 +26,9 @@
 
     var sb = window.__IRONFORGE_SUPABASE__;
     if (!sb) {
-      showErr('App not ready — reload and try again.');
+      var keys = [];
+      try { keys = Object.keys(window).filter(function(k){ return k.indexOf('IRONFORGE') !== -1; }); } catch(e){}
+      showErr('SB not ready. Keys: ' + (keys.join(',') || 'none'));
       return;
     }
 
