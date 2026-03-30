@@ -2813,24 +2813,47 @@ async function applyAuthSession(session, options) {
   const opts = options || {};
   const sessionUser = session?.user ?? null;
   const wasLoggedIn = opts.wasLoggedIn ?? !!currentUser;
+  logAuthTrace('applyAuthSession start', {
+    hasSession: !!session,
+    hasUser: !!sessionUser,
+    userId: sessionUser?.id || '',
+    wasLoggedIn,
+  });
   currentUser = sessionUser;
   if (currentUser && !wasLoggedIn) {
+    logAuthTrace('applyAuthSession loading user data', {
+      userId: currentUser.id || '',
+    });
     hideLoginScreen();
     await loadData({ allowCloudSync: true });
+    logAuthTrace('applyAuthSession data loaded', {
+      userId: currentUser.id || '',
+    });
     setupRealtimeSync();
+    logAuthTrace('applyAuthSession realtime ready', {
+      userId: currentUser.id || '',
+    });
     return;
   }
   if (!currentUser && wasLoggedIn) {
+    logAuthTrace('applyAuthSession logout branch');
     teardownRealtimeSync();
     resetRuntimeState();
     showLoginScreen();
     return;
   }
   if (!currentUser) {
+    logAuthTrace('applyAuthSession no current user');
     teardownRealtimeSync();
     resetRuntimeState();
     showLoginScreen();
   }
+}
+
+function logAuthTrace(message, details) {
+  try {
+    window.__IRONFORGE_LOGIN_DEBUG__?.trace?.(message, details);
+  } catch (_error) {}
 }
 
 function reportAuthSessionError(error) {
@@ -2839,6 +2862,7 @@ function reportAuthSessionError(error) {
     error instanceof Error
       ? error.message
       : 'Unable to finish signing in right now.';
+  logAuthTrace('auth session error', { message });
   if (typeof window.showToast === 'function') {
     window.showToast(message, '#f87171');
   }
@@ -2850,9 +2874,14 @@ function reportAuthSessionError(error) {
 }
 
 async function initAuth() {
+  logAuthTrace('initAuth getSession start');
   const {
     data: { session },
   } = await _SB.auth.getSession();
+  logAuthTrace('initAuth getSession resolved', {
+    hasSession: !!session,
+    userId: session?.user?.id || '',
+  });
   try {
     await applyAuthSession(session, { wasLoggedIn: false });
   } catch (error) {
@@ -2860,8 +2889,16 @@ async function initAuth() {
     if (!currentUser) showLoginScreen();
   }
 
-  _SB.auth.onAuthStateChange((_event, session) => {
+  _SB.auth.onAuthStateChange((event, session) => {
     const wasLoggedIn = !!currentUser;
+    logAuthTrace('onAuthStateChange received', {
+      event,
+      hasSession: !!session,
+      userId: session?.user?.id || '',
+      wasLoggedIn,
+    });
+    // Supabase auth callbacks should stay synchronous; defer the real work so
+    // follow-up auth operations do not get trapped behind the callback lock.
     window.setTimeout(() => {
       void applyAuthSession(session, { wasLoggedIn }).catch((error) => {
         reportAuthSessionError(error);
@@ -2872,6 +2909,7 @@ async function initAuth() {
 }
 
 function showLoginScreen() {
+  logAuthTrace('showLoginScreen');
   document.body.classList.add('login-active');
   document.getElementById('login-screen').style.display = 'flex';
   renderSyncStatus();
@@ -2879,6 +2917,7 @@ function showLoginScreen() {
 }
 
 function hideLoginScreen() {
+  logAuthTrace('hideLoginScreen', { userId: currentUser?.id || '' });
   document.body.classList.remove('login-active');
   document.getElementById('login-screen').style.display = 'none';
   if (typeof window.stopLoginSparks === 'function') window.stopLoginSparks();
@@ -2893,14 +2932,25 @@ async function loginWithEmail() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-error');
+  logAuthTrace('loginWithEmail start', {
+    hasEmail: !!email,
+    hasPassword: !!password,
+  });
   errEl.style.color = 'var(--accent)';
   errEl.textContent = 'Signing in...';
   try {
     const { error } = await _SB.auth.signInWithPassword({ email, password });
+    logAuthTrace('loginWithEmail resolved', {
+      hasError: !!error,
+      error: error?.message || '',
+    });
     if (!error) return;
     errEl.style.color = '#f87171';
     errEl.textContent = error.message;
   } catch (error) {
+    logAuthTrace('loginWithEmail threw', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     errEl.style.color = '#f87171';
     errEl.textContent =
       error instanceof Error ? error.message : 'Unable to sign in right now.';
@@ -2911,7 +2961,14 @@ async function signUpWithEmail() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-error');
+  logAuthTrace('signUpWithEmail start', {
+    hasEmail: !!email,
+    passwordLength: password.length,
+  });
   if (password.length < 6) {
+    logAuthTrace('signUpWithEmail rejected short password', {
+      passwordLength: password.length,
+    });
     errEl.style.color = '#f87171';
     errEl.textContent = 'Password must be at least 6 characters.';
     return;
@@ -2919,6 +2976,10 @@ async function signUpWithEmail() {
   errEl.style.color = 'var(--accent)';
   errEl.textContent = 'Creating account...';
   const { error } = await _SB.auth.signUp({ email, password });
+  logAuthTrace('signUpWithEmail resolved', {
+    hasError: !!error,
+    error: error?.message || '',
+  });
   if (error) {
     errEl.style.color = '#f87171';
     errEl.textContent = error.message;

@@ -8,7 +8,6 @@ function preserveClassicScripts() {
   const marker = '<!--ironforge-legacy-scripts-->';
   const scriptPattern =
     /[ \t]*<script\b(?:(?!type=["']module["'])[^>])*\ssrc=["'][^"']+["'][^>]*><\/script>\s*/g;
-  let preservedScripts = '';
   let isBuild = false;
 
   return {
@@ -21,10 +20,8 @@ function preserveClassicScripts() {
       order: 'pre',
       handler(html) {
         if (!isBuild) return html;
-        const matches = html.match(scriptPattern) || [];
-        if (!matches.length) return html;
-        preservedScripts = matches.map((script) => script.trim()).join('\n    ');
         const withoutClassicScripts = html.replace(scriptPattern, '');
+        if (withoutClassicScripts === html) return html;
         return withoutClassicScripts.replace(
           '</body>',
           `    ${marker}\n  </body>`
@@ -32,16 +29,25 @@ function preserveClassicScripts() {
       },
     },
     closeBundle() {
-      if (!isBuild || !preservedScripts) return;
+      if (!isBuild) return;
       const distIndexPath = path.resolve(process.cwd(), 'dist', 'index.html');
+      const sourceIndexPath = path.resolve(process.cwd(), 'index.html');
       if (!fs.existsSync(distIndexPath)) return;
+      if (!fs.existsSync(sourceIndexPath)) return;
+      // Re-read the source HTML here so the built file always gets the current
+      // classic script list instead of whatever Vite kept from a prior pass.
+      const sourceHtml = fs.readFileSync(sourceIndexPath, 'utf8');
+      const matches = sourceHtml.match(scriptPattern) || [];
+      if (!matches.length) return;
+      const preservedScripts = matches
+        .map((script) => script.trim())
+        .join('\n    ');
       const builtHtml = fs.readFileSync(distIndexPath, 'utf8');
       fs.writeFileSync(
         distIndexPath,
         builtHtml.replace(marker, preservedScripts),
         'utf8'
       );
-      preservedScripts = '';
     },
   };
 }

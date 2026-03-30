@@ -54,6 +54,12 @@
             autocomplete="current-password"
           />
           <div id="login-error"></div>
+          <pre
+            id="login-debug"
+            hidden
+            aria-live="polite"
+            style="display: none; margin: 10px 0 0; padding: 10px 12px; border-radius: 14px; background: rgba(7, 10, 14, 0.72); border: 1px solid rgba(148, 163, 184, 0.16); color: #cbd5e1; font: 12px/1.45 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; white-space: pre-wrap; text-align: left; max-height: 180px; overflow: auto;"
+          ></pre>
           <button
             class="btn-primary"
             data-shell-action="login-with-email"
@@ -72,7 +78,8 @@
       </div>
     </div>
 
-    <script src="src/core/error-display.js"></script>
+    <script src="core/login-debug.js"></script>
+    <script src="core/error-display.js"></script>
     <script src="/vendor/supabase.js"></script>
     <script src="core/i18n-layer.js"></script>
     <script src="core/exercise-library.js"></script>
@@ -83,9 +90,9 @@
     <script src="core/bonus-session-layer.js"></script>
     <script src="core/workout-layer.js"></script>
     <script src="core/ui-shell.js"></script>
-    <script src="src/core/login-sparks.js"></script>
+    <script src="core/login-sparks.js"></script>
+    <script src="core/login-handler.js"></script>
     <script src="app.js"></script>
-    <script src="src/core/login-handler.js"></script>
     <script src="programs/forge.js"></script>
     <script src="programs/wendler531.js"></script>
     <script src="programs/stronglifts5x5.js"></script>

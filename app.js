@@ -46,6 +46,10 @@ const _SB = supabase.createClient(
 window.__IRONFORGE_SUPABASE_URL__ = SUPABASE_URL;
 window.__IRONFORGE_SUPABASE_PUBLISHABLE_KEY__ = SUPABASE_PUBLISHABLE_KEY;
 window.__IRONFORGE_SUPABASE__ = _SB;
+window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('supabase client created', {
+  standalone: isStandaloneDisplayMode(),
+  hasAuth: !!_SB?.auth,
+});
 let currentUser = null;
 
 // STATE (persisted via localStorage)
@@ -445,12 +449,14 @@ function bindLegacyShellActions() {
       }
       case 'login-with-email':
         event.preventDefault();
+        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('shell action login-with-email');
         if (typeof window.loginWithEmail === 'function') {
           window.loginWithEmail();
         }
         break;
       case 'signup-with-email':
         event.preventDefault();
+        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('shell action signup-with-email');
         if (typeof window.signUpWithEmail === 'function') {
           window.signUpWithEmail();
         }
@@ -2208,6 +2214,25 @@ initAuth();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' });
+    window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('service worker register start', {
+      scope: './',
+    });
+    navigator.serviceWorker
+      .register('./sw.js', { scope: './' })
+      .then(() => {
+        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.(
+          'service worker register done',
+          { scope: './' }
+        );
+      })
+      .catch((error) => {
+        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.(
+          'service worker register failed',
+          {
+            message:
+              error instanceof Error ? error.message : String(error || ''),
+          }
+        );
+      });
   });
 }
