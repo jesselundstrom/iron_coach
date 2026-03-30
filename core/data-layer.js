@@ -2939,12 +2939,21 @@ async function loginWithEmail() {
   errEl.style.color = 'var(--accent)';
   errEl.textContent = 'Signing in...';
   try {
-    const { error } = await _SB.auth.signInWithPassword({ email, password });
+    const { data, error } = await _SB.auth.signInWithPassword({ email, password });
     logAuthTrace('loginWithEmail resolved', {
       hasError: !!error,
       error: error?.message || '',
     });
-    if (!error) return;
+    if (!error) {
+      // Drive navigation directly from the session returned here so we are not
+      // dependent on onAuthStateChange firing — which is unreliable in iOS PWA
+      // (standalone) contexts.  applyAuthSession is idempotent: if the event
+      // fires afterwards currentUser is already set so it becomes a no-op.
+      if (data?.session) {
+        await applyAuthSession(data.session, { wasLoggedIn: false });
+      }
+      return;
+    }
     errEl.style.color = '#f87171';
     errEl.textContent = error.message;
   } catch (error) {
