@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter, useLocation, useNavigate } from 'react-router-dom';
+import '../styles/tailwind.css';
 import AppShell from './AppShell.jsx';
 import { getPageFromHash } from './constants';
 import { syncRoutePage } from './services/navigation-actions';

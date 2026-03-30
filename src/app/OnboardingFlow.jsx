@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { cn } from './utils/cn.ts';
 import { programStore } from '../stores/program-store.ts';
 import { buildOnboardingRecommendation } from '../domain/planning.ts';
 import { t } from './services/i18n.ts';
@@ -47,6 +48,25 @@ const EQUIPMENT_OPTIONS = [
   { value: 'minimal', key: 'onboarding.equipment.minimal', fallback: 'Minimal Equipment' },
 ];
 
+const cardTitleClass =
+  "mb-2.5 text-[11px] font-bold uppercase tracking-[1.2px] text-muted before:mr-1 before:align-middle before:text-[7px] before:text-accent/50 before:content-['\\25C6']";
+const onboardingGridClass = 'grid gap-3';
+const onboardingOptionGridClass = 'grid gap-2.5';
+const onboardingOptionButtonBaseClass =
+  'w-full rounded-[14px] border border-white/8 bg-white/[0.03] p-3.5 text-left text-text';
+const onboardingChipBaseClass =
+  'rounded-full border border-white/8 bg-white/[0.03] px-3 py-2.5 text-xs font-bold text-text';
+const onboardingCardClass =
+  'rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-3.5';
+const onboardingRecommendationPillClass =
+  'grid min-w-0 gap-1 rounded-xl border border-white/8 bg-white/[0.04] px-[11px] py-[9px]';
+const onboardingFitTitleClass =
+  'mb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[rgba(255,210,169,0.92)] font-condensed';
+const secondaryButtonClass =
+  'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-white/[0.02] px-[18px] py-3 font-condensed text-base font-bold uppercase tracking-[0.04em] text-text transition-[transform,opacity,box-shadow,background-color,border-color,color] duration-200 hover:bg-white/[0.05] active:scale-[0.97] active:opacity-90';
+const primaryButtonClass =
+  'inline-flex min-h-[54px] w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-[linear-gradient(180deg,#ff983d,#f5821f)] px-[18px] py-3 font-condensed text-base font-bold uppercase tracking-[0.04em] text-white shadow-[0_12px_30px_rgba(245,130,31,0.22)] transition-[transform,box-shadow,background-color] duration-150 hover:bg-[#ff922f] active:scale-[0.96] active:shadow-[0_4px_16px_rgba(245,130,31,0.3)]';
+
 function getStepTitle(step) {
   const titles = [
     t('onboarding.step.0.title', 'Build your starting point'),
@@ -71,11 +91,15 @@ function getStepSub(step) {
 
 function ProgressPills({ step }) {
   return (
-    <div className="onboarding-progress">
+    <div className="flex gap-2" data-ui="onboarding-progress">
       {Array.from({ length: STEP_COUNT }, (_, idx) => (
         <div
           key={idx}
-          className={`onboarding-progress-pill${idx <= step ? ' active' : ''}`}
+          className={cn(
+            'h-1.5 flex-1 overflow-hidden rounded-full bg-white/8',
+            idx <= step && 'bg-[linear-gradient(90deg,var(--accent),var(--gold))]'
+          )}
+          data-state={idx <= step ? 'active' : 'inactive'}
         />
       ))}
     </div>
@@ -86,24 +110,34 @@ function OptionButton({ active, title, description, onClick }) {
   return (
     <button
       type="button"
-      className={`onboarding-option-btn${active ? ' active' : ''}`}
+      className={cn(
+        onboardingOptionButtonBaseClass,
+        active &&
+          'border-[rgba(255,122,58,0.42)] bg-[linear-gradient(180deg,rgba(255,122,58,0.13),rgba(255,122,58,0.05))]'
+      )}
       onClick={onClick}
+      data-state={active ? 'active' : 'inactive'}
     >
-      <div className="onboarding-option-title">{title}</div>
-      <div className="onboarding-option-desc">{description}</div>
+      <div className="text-sm font-extrabold">{title}</div>
+      <div className="mt-1 text-xs leading-[1.45] text-muted">{description}</div>
     </button>
   );
 }
 
 function ChipRow({ items, selected, onToggle }) {
   return (
-    <div className="onboarding-chip-row">
+    <div className="flex flex-wrap gap-2">
       {items.map((item) => (
         <button
           key={item.value}
           type="button"
-          className={`onboarding-chip${selected.includes(item.value) ? ' active' : ''}`}
+          className={cn(
+            onboardingChipBaseClass,
+            selected.includes(item.value) &&
+              'border-[rgba(59,130,246,0.32)] bg-[rgba(59,130,246,0.14)] text-[#d9e7ff]'
+          )}
           onClick={() => onToggle(item.value)}
+          data-state={selected.includes(item.value) ? 'active' : 'inactive'}
         >
           {t(item.key, item.fallback)}
         </button>
@@ -114,10 +148,10 @@ function ChipRow({ items, selected, onToggle }) {
 
 function StepGoalExperience({ draft, setField }) {
   return (
-    <div className="onboarding-grid">
+    <div className={onboardingGridClass}>
       <div>
         <label>{t('onboarding.field.goal', 'Primary Goal')}</label>
-        <div className="onboarding-option-grid">
+        <div className={onboardingOptionGridClass}>
           {GOAL_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
@@ -131,7 +165,7 @@ function StepGoalExperience({ draft, setField }) {
       </div>
       <div>
         <label>{t('onboarding.field.experience', 'Experience Level')}</label>
-        <div className="onboarding-option-grid">
+        <div className={onboardingOptionGridClass}>
           {EXPERIENCE_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
@@ -149,8 +183,8 @@ function StepGoalExperience({ draft, setField }) {
 
 function StepTrainingEnvelope({ draft, setField }) {
   return (
-    <div className="onboarding-grid">
-      <div className="onboarding-inline-grid">
+    <div className={onboardingGridClass}>
+      <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
         <div>
           <label>{t('onboarding.field.frequency', 'Training Frequency')}</label>
           <select
@@ -203,8 +237,8 @@ function StepTrainingEnvelope({ draft, setField }) {
 
 function StepSportConstraints({ draft, setField, toggleArrayValue }) {
   return (
-    <div className="onboarding-grid">
-      <div className="onboarding-inline-grid">
+    <div className={onboardingGridClass}>
+      <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
         <div>
           <label>{t('onboarding.field.sport', 'Sport or Cardio')}</label>
           <input
@@ -216,7 +250,7 @@ function StepSportConstraints({ draft, setField, toggleArrayValue }) {
             )}
             onInput={(event) => setField('sportName', event.target.value)}
           />
-          <div className="onboarding-field-help">
+          <div className="mt-[-4px] text-[11px] leading-[1.5] text-muted">
             {t(
               'onboarding.field.sport_help',
               'Add your regular sport or other recurring hobby here if it affects recovery during the week.'
@@ -293,7 +327,7 @@ function StepSportConstraints({ draft, setField, toggleArrayValue }) {
           value={draft.avoidExercisesText || ''}
           onInput={(event) => setField('avoidExercisesText', event.target.value)}
         />
-        <div className="onboarding-field-help">
+        <div className="mt-[-4px] text-[11px] leading-[1.5] text-muted">
           {t(
             'onboarding.field.avoid_exercises_help',
             'Used to exclude obvious no-go exercises from the first recommendation and future session adaptation.'
@@ -306,8 +340,8 @@ function StepSportConstraints({ draft, setField, toggleArrayValue }) {
 
 function StepGuidance({ draft, setField }) {
   return (
-    <div className="onboarding-grid">
-      <div className="onboarding-option-grid">
+    <div className={onboardingGridClass}>
+      <div className={onboardingOptionGridClass}>
         {GUIDANCE_OPTIONS.map((opt) => (
           <OptionButton
             key={opt.value}
@@ -582,19 +616,23 @@ export default function OnboardingFlow() {
   }
 
   return (
-    <div className="onboarding-flow" ref={scrollRef}>
+    <div className="grid min-h-0 gap-4" ref={scrollRef} data-ui="onboarding-flow">
       <ProgressPills step={step} />
       <div>
-        <div className="onboarding-kicker">{t('onboarding.kicker', 'Guided Setup')}</div>
-        <div className="onboarding-title">{getStepTitle(step)}</div>
-        <div className="onboarding-sub">{getStepSub(step)}</div>
+        <div className="text-[10px] font-extrabold uppercase tracking-[1.2px] text-gold">
+          {t('onboarding.kicker', 'Guided Setup')}
+        </div>
+        <div className="text-2xl leading-[1.1] font-black tracking-[-0.04em] max-[480px]:text-[21px]">
+          {getStepTitle(step)}
+        </div>
+        <div className="text-[13px] leading-[1.55] text-muted">{getStepSub(step)}</div>
       </div>
       {stepContent}
-      <div className="onboarding-actions">
-        <button className="btn btn-secondary" type="button" onClick={handleSecondary}>
+      <div className="sticky bottom-0 grid grid-cols-2 gap-2.5 bg-[linear-gradient(180deg,rgba(11,14,22,0),rgba(11,14,22,0.92)_22%,rgba(11,14,22,0.98))] pt-2.5 max-[480px]:pb-[calc(6px+var(--sab))]">
+        <button className={secondaryButtonClass} type="button" onClick={handleSecondary}>
           {secondaryLabel}
         </button>
-        <button className="btn btn-primary" type="button" onClick={handlePrimary}>
+        <button className={primaryButtonClass} type="button" onClick={handlePrimary}>
           {primaryLabel}
         </button>
       </div>

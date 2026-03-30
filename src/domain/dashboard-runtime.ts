@@ -27,6 +27,9 @@ type DashboardRuntimeWindow = Window &
     getSportRecentHours?: () => number;
     getMuscleBodySvgFront?: () => string;
     getMuscleBodySvgBack?: () => string;
+    getTodayTrainingDecision?: (
+      input?: Record<string, unknown> | null
+    ) => Record<string, any> | null;
   };
 
 type DashboardPlanInput = {
@@ -652,8 +655,13 @@ export function buildDashboardPlanStructuredSnapshot(input: DashboardPlanInput) 
       activeProgramState: input.activeProgramState,
       fatigue: input.fatigue,
     }) || null;
+  const runtimeWindow = getDashboardRuntimeWindow();
+  const getTrainingDecision =
+    typeof runtimeWindow?.getTodayTrainingDecision === 'function'
+      ? runtimeWindow.getTodayTrainingDecision.bind(runtimeWindow)
+      : getTodayTrainingDecision;
   const trainingDecision =
-    getTodayTrainingDecision(planningContext || null) || {
+    getTrainingDecision(planningContext || null) || {
       action: 'train',
       reasonCodes: [],
       restrictionFlags: [],
@@ -666,7 +674,6 @@ export function buildDashboardPlanStructuredSnapshot(input: DashboardPlanInput) 
       sessionsRemaining: Math.max(0, frequency - doneThisWeek),
       sportLoad: {},
     }) || null;
-  const runtimeWindow = getDashboardRuntimeWindow();
   const commentaryState =
     typeof runtimeWindow?.buildTrainingCommentaryState === 'function'
       ? runtimeWindow.buildTrainingCommentaryState({

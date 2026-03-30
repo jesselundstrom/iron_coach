@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 function preserveClassicScripts() {
   const marker = '<!--ironforge-legacy-scripts-->';
@@ -72,7 +73,7 @@ export default defineConfig({
   // GitHub Pages serves this project from /ironforge/, so built asset URLs
   // need that prefix in production while local dev still runs from /.
   base: '/ironforge/',
-  plugins: [preserveClassicScripts(), react(), copyLegacyRuntime()],
+  plugins: [preserveClassicScripts(), tailwindcss(), react(), copyLegacyRuntime()],
   build: {
     // The vanilla shell remains the app entry. Vite only bundles module assets
     // that the existing index.html scripts into the page.

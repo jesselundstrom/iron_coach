@@ -1,0 +1,47 @@
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "./tokens.css";
+
+@theme inline {
+  --font-body:
+    'Barlow',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  --font-condensed: 'Barlow Condensed', sans-serif;
+  --font-display: 'Cinzel', serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface2);
+  --color-surface-3: var(--surface3);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent2);
+  --color-gold: var(--gold);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-focus-ring: var(--focus-ring);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --color-yellow: var(--yellow);
+  --color-blue: var(--blue);
+  --color-purple: var(--purple);
+  --color-success-text: var(--success-text);
+  --color-success-text-muted: var(--success-text-muted);
+  --color-success-surface: var(--success-surface);
+  --color-success-border: var(--success-border);
+
+  --radius-card: var(--radius);
+  --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.18);
+
+  --breakpoint-xs: 22.5rem;
+  --breakpoint-xl: 56.25rem;
+}
+
+@import "./base.css";
+@import "./legacy-ui.css";
+@import "tailwindcss/utilities.css" layer(utilities) source("../..");
+@import "./animations.css";
+@import "./legacy-state.css";

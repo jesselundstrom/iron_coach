@@ -111,6 +111,9 @@ function ProgramSwitcher({ switcher }) {
             )
           }
           className={`program-card${card.active ? ' active' : ''}`}
+          data-program-id={card.id}
+          data-state={card.active ? 'active' : 'inactive'}
+          data-ui="program-card"
           key={card.id}
           type="button"
           onClick={() => switchProgram(card.id)}
@@ -243,6 +246,9 @@ function SettingsProgramIsland() {
                     className={`program-filter-chip${
                       difficultyFilter === option.key ? ' active' : ''
                     }`}
+                    data-difficulty={option.key}
+                    data-state={difficultyFilter === option.key ? 'active' : 'inactive'}
+                    data-ui="program-filter-chip"
                     key={option.key}
                     type="button"
                     onClick={() => setDifficultyFilter(option.key)}
@@ -261,6 +267,7 @@ function SettingsProgramIsland() {
       {!snapshot.values.simpleMode ? (
         <button
           className="settings-panel settings-panel-static program-advanced-card"
+          data-ui="program-advanced-trigger"
           id="program-advanced-panel"
           type="button"
           onClick={() => openProgramSetupSheet()}
