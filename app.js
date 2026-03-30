@@ -1322,7 +1322,10 @@ function openProgramSetupSheet() {
   const prog = getActiveProgram(),
     state = getActiveProgramState();
   const container = document.getElementById('program-settings-container');
-  if (container && prog.renderSettings) prog.renderSettings(state, container);
+  if (container && prog.renderSettings) {
+    bindProgramSetupSheetActions(container);
+    prog.renderSettings(state, container);
+  }
   const title = document.getElementById('program-setup-sheet-title');
   if (title) {
     const progName =
@@ -1333,6 +1336,31 @@ function openProgramSetupSheet() {
       progName + ' ' + tr('settings.program_setup_suffix', 'Setup');
   }
   document.getElementById('program-setup-sheet').classList.add('active');
+}
+function runProgramSetupInlineAction(code, event) {
+  const handler =
+    window.__IRONFORGE_RUN_PROGRAM_SETTINGS_INLINE_ACTION__ || null;
+  if (typeof handler !== 'function') return false;
+  return handler(code, event);
+}
+function bindProgramSetupSheetActions(container) {
+  if (!container || container.dataset.inlineActionBound === 'true') return;
+  container.dataset.inlineActionBound = 'true';
+  container.addEventListener('click', (event) => {
+    const actionTarget = event.target?.closest?.('[onclick]');
+    if (!actionTarget || !container.contains(actionTarget)) return;
+    const code = actionTarget.getAttribute('onclick');
+    if (!code) return;
+    event.preventDefault();
+    runProgramSetupInlineAction(code, event);
+  });
+  container.addEventListener('change', (event) => {
+    const actionTarget = event.target?.closest?.('[onchange]');
+    if (!actionTarget || !container.contains(actionTarget)) return;
+    const code = actionTarget.getAttribute('onchange');
+    if (!code) return;
+    runProgramSetupInlineAction(code, event);
+  });
 }
 let _programBasicsAutoSaveBound = false;
 function renderProgramBasics(options) {
@@ -1978,6 +2006,21 @@ function exportData() {
 function importData(event) {
   const file = event.target.files[0];
   if (!file) return;
+  const maxBackupBytes =
+    typeof getImportedBackupMaxBytes === 'function'
+      ? getImportedBackupMaxBytes()
+      : 5 * 1024 * 1024;
+  if (Number(file.size) > maxBackupBytes) {
+    showToast(
+      tr(
+        'import.file_too_large',
+        'Backup file is too large to import safely'
+      ),
+      'var(--orange)'
+    );
+    event.target.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
@@ -1989,69 +2032,37 @@ function importData(event) {
         );
         return;
       }
-      if (!Array.isArray(data.workouts) && !data.profile) {
+      const validation =
+        typeof validateImportedBackup === 'function'
+          ? validateImportedBackup(data)
+          : {
+              ok: false,
+              errorKey: 'import.invalid_file',
+              fallback: 'Invalid backup file',
+            };
+      if (!validation?.ok) {
         showToast(
-          tr('import.invalid_file', 'Invalid backup file'),
+          tr(validation?.errorKey || 'import.invalid_file', validation?.fallback || 'Invalid backup file'),
           'var(--orange)'
         );
         return;
       }
-      if (data.workouts && !Array.isArray(data.workouts)) {
-        showToast(
-          tr(
-            'import.invalid_workout_data',
-            'Backup file has invalid workout data'
-          ),
-          'var(--orange)'
-        );
-        return;
-      }
-      if (data.workouts) {
-        const bad = data.workouts.some(
-          (w) => !w.id || !w.date || !w.type || !Array.isArray(w.exercises)
-        );
-        if (bad) {
-          showToast(
-            tr(
-              'import.malformed_entries',
-              'Backup file has malformed workout entries'
-            ),
-            'var(--orange)'
-          );
-          return;
-        }
-      }
-      if (data.profile && typeof data.profile !== 'object') {
-        showToast(
-          tr(
-            'import.invalid_profile_data',
-            'Backup file has invalid profile data'
-          ),
-          'var(--orange)'
-        );
-        return;
-      }
+      const validated = validation.value;
       showConfirm(
         tr('import.title', 'Import Data'),
         tr(
           'import.replace_with_backup',
           'Replace all data with backup from {date}?',
           {
-            date: data.exported
-              ? new Date(data.exported).toLocaleDateString()
+            date: validated.exported
+              ? new Date(validated.exported).toLocaleDateString()
               : 'unknown',
           }
         ),
         async () => {
-          if (data.workouts) {
-            const normalizedWorkouts =
-              typeof normalizeWorkoutRecords === 'function'
-                ? normalizeWorkoutRecords(data.workouts)
-                : { items: data.workouts };
-            workouts = normalizedWorkouts.items;
-          }
-          if (data.schedule) schedule = data.schedule;
-          if (data.profile) profile = data.profile;
+          if (validated.workouts) workouts = validated.workouts;
+          if (validated.schedule) schedule = validated.schedule;
+          if (validated.profile) profile = validated.profile;
           if (typeof normalizeScheduleState === 'function') {
             normalizeScheduleState(schedule);
           }

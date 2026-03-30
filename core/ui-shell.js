@@ -144,17 +144,32 @@ function showToast(msg, color, undoFn) {
   if (variant) toast.classList.add(`toast-${variant}`);
 
   toast.style.removeProperty('background');
+  toast.replaceChildren();
 
   if (undoFn) {
     toast.style.pointerEvents = 'auto';
-    toast.innerHTML =
-      `${msg} <span id="t-undo" style="background:rgba(255,255,255,0.2);border-radius:6px;padding:2px 10px;margin-left:6px;cursor:pointer;font-weight:700;font-size:13px">${tr('common.undo', 'Undo')}</span>`;
-    document.getElementById('t-undo').onclick = () => {
+    const messageNode = document.createElement('span');
+    messageNode.textContent = msg || '';
+    const undoButton = document.createElement('button');
+    undoButton.id = 't-undo';
+    undoButton.type = 'button';
+    undoButton.textContent = tr('common.undo', 'Undo');
+    undoButton.style.background = 'rgba(255,255,255,0.2)';
+    undoButton.style.borderRadius = '6px';
+    undoButton.style.padding = '2px 10px';
+    undoButton.style.marginLeft = '6px';
+    undoButton.style.cursor = 'pointer';
+    undoButton.style.fontWeight = '700';
+    undoButton.style.fontSize = '13px';
+    undoButton.style.border = 'none';
+    undoButton.style.color = 'inherit';
+    undoButton.onclick = () => {
       clearTimeout(_toastTimeout);
       toast.classList.remove('show');
       toast.style.pointerEvents = 'none';
       undoFn();
     };
+    toast.append(messageNode, undoButton);
   } else {
     toast.style.pointerEvents = 'none';
     toast.textContent = msg;

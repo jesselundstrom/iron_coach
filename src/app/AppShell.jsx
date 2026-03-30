@@ -130,14 +130,14 @@ class IslandErrorBoundary extends Component {
       return (
         <div className="card" style={{ margin: '16px 0', padding: '20px' }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>
-            Something went wrong.
+            {t('shell.error.title', 'Something went wrong.')}
           </div>
           <button
             className="btn btn-primary"
             type="button"
             onClick={() => window.location.reload()}
           >
-            Reload
+            {t('common.reload', 'Reload')}
           </button>
         </div>
       );
@@ -191,7 +191,7 @@ function RestTimerBar({ session }) {
       </svg>
       <div className="rest-timer-info">
         <div className="rest-timer-label" data-i18n="workout.rest_timer">
-          Rest Timer
+          {t('workout.rest_timer', 'Rest timer')}
         </div>
         <div className="rest-timer-count" id="rest-timer-count">
           {formatRestTimerText(remaining || session.restDuration)}
@@ -202,7 +202,7 @@ function RestTimerBar({ session }) {
         type="button"
         onClick={() => window.skipRest?.()}
       >
-        Skip
+        {t('common.skip', 'Skip')}
       </button>
     </div>
   );
@@ -227,10 +227,14 @@ function ExerciseCatalogModal({ view }) {
         <div className="modal-handle" />
         <div className="catalog-header">
           <div className="modal-title" id="name-modal-title">
-            {view?.title || 'Add Exercise'}
+            {view?.title || t('workout.add_exercise', 'Add Exercise')}
           </div>
           <div className="modal-sub" id="exercise-catalog-sub">
-            {view?.subtitle || 'Pick an exercise from the library or search by name.'}
+            {view?.subtitle ||
+              t(
+                'catalog.sub',
+                'Pick an exercise from the library or search by name.'
+              )}
           </div>
         </div>
         <div className="catalog-search-wrap">
@@ -238,7 +242,7 @@ function ExerciseCatalogModal({ view }) {
             type="text"
             id="name-modal-input"
             className="exercise-catalog-search-input"
-            placeholder="Search exercises"
+            placeholder={t('catalog.search.placeholder', 'Search exercises')}
             value={view?.search || ''}
             onChange={(event) => setExerciseCatalogSearch(event.currentTarget.value)}
             onKeyDown={(event) => {
@@ -485,15 +489,19 @@ export default function AppShell() {
         aria-describedby="confirm-msg"
       >
         <div className="confirm-box">
-          <h3 id="confirm-title">{confirm?.title || 'Confirm'}</h3>
-          <p id="confirm-msg">{confirm?.message || 'Are you sure?'}</p>
+          <h3 id="confirm-title">
+            {confirm?.title || t('modal.confirm.title', 'Confirm')}
+          </h3>
+          <p id="confirm-msg">
+            {confirm?.message || t('modal.confirm.message', 'Are you sure?')}
+          </p>
           <div className="confirm-actions">
             <button
               type="button"
               className="btn btn-secondary btn-sm"
               onClick={() => confirmCancel()}
             >
-              {confirm?.cancelLabel || 'Cancel'}
+              {confirm?.cancelLabel || t('common.cancel', 'Cancel')}
             </button>
             <button
               type="button"
@@ -501,7 +509,7 @@ export default function AppShell() {
               id="confirm-ok"
               onClick={() => confirmOk()}
             >
-              {confirm?.confirmLabel || 'Confirm'}
+              {confirm?.confirmLabel || t('modal.confirm.ok', 'Confirm')}
             </button>
           </div>
         </div>
@@ -514,10 +522,15 @@ export default function AppShell() {
         <div className="modal-sheet">
           <div className="modal-handle" />
           <div className="modal-title" id="rpe-modal-title">
-            {session.rpePrompt?.title || 'How hard was this session?'}
+            {session.rpePrompt?.title ||
+              t('rpe.session_title', 'How hard was this session?')}
           </div>
           <div className="modal-sub" id="rpe-modal-sub">
-            {session.rpePrompt?.subtitle || 'Rate overall effort (6 = easy, 10 = max)'}
+            {session.rpePrompt?.subtitle ||
+              t(
+                'rpe.session_subtitle',
+                'Rate overall effort (6 = easy, 10 = max)'
+              )}
           </div>
           <div className="rpe-grid" id="rpe-grid">
             {(session.rpePrompt?.options || []).map((option) => (
@@ -547,7 +560,7 @@ export default function AppShell() {
               }
             }}
           >
-            Skip
+            {t('common.skip', 'Skip')}
           </div>
         </div>
       </div>
@@ -738,7 +751,8 @@ export default function AppShell() {
         <div className="modal-sheet exercise-guide-sheet">
           <div className="modal-handle" />
           <div className="modal-title" id="exercise-guide-modal-title">
-            {session.exerciseGuidePrompt?.title || 'Movement Guide'}
+            {session.exerciseGuidePrompt?.title ||
+              t('guidance.title', 'Movement Guide')}
           </div>
           <div className="modal-sub" id="exercise-guide-modal-sub">
             {session.exerciseGuidePrompt?.subtitle || ''}
@@ -803,7 +817,7 @@ export default function AppShell() {
             type="button"
             onClick={() => closeExerciseGuide()}
           >
-            Done
+            {t('common.done', 'Done')}
           </button>
         </div>
       </div>
@@ -817,14 +831,14 @@ export default function AppShell() {
           <div className="modal-handle" />
           <div className="sheet-header">
             <div className="modal-title" id="program-setup-sheet-title">
-              Program Setup
+              {t('settings.program_setup', 'Program Setup')}
             </div>
             <button
               className="sheet-close-btn"
               type="button"
               onClick={() => closeProgramSetupSheet()}
             >
-              Done
+              {t('common.done', 'Done')}
             </button>
           </div>
           <div id="program-settings-container" />
@@ -876,7 +890,9 @@ export default function AppShell() {
               <h1 className="page-title page-title-wordmark" aria-label="Ironforge">
                 <span>Ironforge</span>
               </h1>
-              <p id="header-sub">Forge Protocol · Ladataan...</p>
+              <p id="header-sub">
+                {t('shell.header.loading', 'Forge Protocol · Loading...')}
+              </p>
             </div>
           </div>
         </div>

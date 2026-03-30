@@ -384,25 +384,164 @@ function filterCoreSyncMeta(syncMetaLike) {
   return Object.keys(next).length ? next : undefined;
 }
 
-function getProfileCorePayload(profileLike) {
-  const next = cloneJson(profileLike || {}) || {};
-  normalizeBodyMetrics(next);
-  delete next.programs;
-  if (next.syncMeta) {
-    const filteredSyncMeta = filterCoreSyncMeta(next.syncMeta);
+function normalizeImportedRestDuration(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 120;
+  return Math.max(0, Math.min(3600, Math.round(parsed)));
+}
+
+function normalizeImportedLanguage(value) {
+  return String(value || '').trim().toLowerCase() === 'fi' ? 'fi' : 'en';
+}
+
+function getRegisteredProgramDefinition(programId) {
+  const canonicalId = getCanonicalProgramId(programId);
+  return (
+    (typeof getRegisteredPrograms === 'function'
+      ? getRegisteredPrograms()
+      : []
+    ).find((program) => program.id === canonicalId) || null
+  );
+}
+
+function getImportedLegacyProgramMap(profileLike) {
+  const source = cloneJson(profileLike || {}) || {};
+  if (source.atsLifts && !source.forgeLifts) {
+    source.forgeLifts = source.atsLifts;
+    source.forgeWeek = source.atsWeek || 1;
+    source.forgeRounding = source.atsRounding || 2.5;
+    source.forgeDaysPerWeek = source.atsDaysPerWeek || 3;
+    source.forgeDayNum = source.atsDayNum || 1;
+    source.forgeBackExercise = source.atsBackExercise || 'Barbell Rows';
+    source.forgeBackWeight = source.atsBackWeight || 0;
+    source.forgeMode = source.atsMode || 'sets';
+    source.forgeWeekStartDate =
+      source.atsWeekStartDate || new Date().toISOString();
+  }
+  if (!source.programs && source.forgeLifts) {
+    return {
+      forge: {
+        week: source.forgeWeek || 1,
+        dayNum: source.forgeDayNum || 1,
+        daysPerWeek: source.forgeDaysPerWeek || 3,
+        mode: source.forgeMode || 'sets',
+        rounding: source.forgeRounding || 2.5,
+        weekStartDate: source.forgeWeekStartDate || new Date().toISOString(),
+        backExercise: source.forgeBackExercise || 'Barbell Rows',
+        backWeight: source.forgeBackWeight || 0,
+        lifts: source.forgeLifts,
+      },
+    };
+  }
+  return {};
+}
+
+function getNormalizedProgramStateMap(profileLike) {
+  const sourcePrograms = {
+    ...getImportedLegacyProgramMap(profileLike),
+    ...(cloneJson(getProfilePrograms(profileLike)) || {}),
+  };
+  const normalizedProfile = { programs: sourcePrograms };
+  normalizeProfileProgramStateMap(normalizedProfile);
+  const nextPrograms = {};
+  Object.entries(normalizedProfile.programs || {}).forEach(
+    ([programId, state]) => {
+      const definition = getRegisteredProgramDefinition(programId);
+      if (!definition) return;
+      let nextState =
+        state && typeof state === 'object'
+          ? cloneJson(state) || {}
+          : cloneJson(
+              typeof definition.getInitialState === 'function'
+                ? definition.getInitialState()
+                : {}
+            ) || {};
+      if (typeof definition.migrateState === 'function') {
+        nextState = definition.migrateState(nextState);
+      }
+      nextPrograms[definition.id] = nextState;
+    }
+  );
+  return nextPrograms;
+}
+
+function createNormalizedProfileCore(profileLike, options) {
+  const source =
+    profileLike && typeof profileLike === 'object' ? profileLike : {};
+  const next = {
+    defaultRest: normalizeImportedRestDuration(source.defaultRest),
+    language: normalizeImportedLanguage(
+      source.language ||
+        (window.I18N && I18N.getLanguage ? I18N.getLanguage() : 'en')
+    ),
+    activeProgram: getCanonicalProgramId(source.activeProgram) || 'forge',
+  };
+  const preferencesHolder = {
+    preferences: cloneJson(source.preferences || {}) || {},
+  };
+  const coachingHolder = { coaching: cloneJson(source.coaching || {}) || {} };
+  const bodyMetricsHolder = {
+    bodyMetrics: cloneJson(source.bodyMetrics || {}) || {},
+  };
+  next.preferences = normalizeTrainingPreferences(preferencesHolder);
+  next.coaching = normalizeCoachingProfile(coachingHolder);
+  next.bodyMetrics = normalizeBodyMetrics(bodyMetricsHolder);
+  if (options?.includeSyncMeta && source.syncMeta) {
+    const filteredSyncMeta = filterCoreSyncMeta(cloneJson(source.syncMeta));
     if (filteredSyncMeta) next.syncMeta = filteredSyncMeta;
-    else delete next.syncMeta;
   }
   return next;
+}
+
+function createNormalizedProfileImport(profileLike) {
+  const next = createNormalizedProfileCore(profileLike);
+  next.programs = getNormalizedProgramStateMap(profileLike);
+  const activeProgramDefinition = getRegisteredProgramDefinition(next.activeProgram);
+  if (activeProgramDefinition && next.programs[next.activeProgram] === undefined) {
+    next.programs[next.activeProgram] =
+      cloneJson(
+        typeof activeProgramDefinition.getInitialState === 'function'
+          ? activeProgramDefinition.getInitialState()
+          : {}
+      ) || {};
+  }
+  if (!activeProgramDefinition) {
+    const fallbackProgramId = Object.keys(next.programs)[0] || 'forge';
+    next.activeProgram = getCanonicalProgramId(fallbackProgramId) || 'forge';
+  }
+  cleanupLegacyProfileFields(next);
+  return next;
+}
+
+function createNormalizedSchedulePayload(scheduleLike) {
+  const source =
+    scheduleLike && typeof scheduleLike === 'object' ? scheduleLike : {};
+  const next = {
+    sportName: source.sportName,
+    sportDays: Array.isArray(source.sportDays)
+      ? [...source.sportDays]
+      : Array.isArray(source.hockeyDays)
+        ? [...source.hockeyDays]
+        : [],
+    sportIntensity: source.sportIntensity,
+    sportLegsHeavy: source.sportLegsHeavy,
+  };
+  normalizeScheduleState(next);
+  return next;
+}
+
+function getProfileCorePayload(profileLike) {
+  return createNormalizedProfileCore(profileLike, { includeSyncMeta: true });
 }
 
 function getDocumentPayload(docKey, profileLike, scheduleLike) {
   if (docKey === PROFILE_CORE_DOC_KEY)
     return getProfileCorePayload(profileLike);
-  if (docKey === SCHEDULE_DOC_KEY) return cloneJson(scheduleLike || {}) || {};
+  if (docKey === SCHEDULE_DOC_KEY)
+    return createNormalizedSchedulePayload(scheduleLike);
   const programId = programIdFromDocKey(docKey);
   if (programId) {
-    const state = getProfilePrograms(profileLike)[programId];
+    const state = getNormalizedProgramStateMap(profileLike)[programId];
     return state === undefined ? undefined : cloneJson(state) || {};
   }
   return undefined;
@@ -1164,6 +1303,19 @@ function sanitizeWorkoutTextValue(value, maxLength) {
   return limit > 0 ? cleaned.slice(0, limit) : cleaned;
 }
 
+const MAX_IMPORTED_BACKUP_BYTES = 5 * 1024 * 1024;
+
+function getImportedBackupMaxBytes() {
+  return MAX_IMPORTED_BACKUP_BYTES;
+}
+
+function isValidImportedWorkoutDate(value) {
+  const normalized = sanitizeWorkoutTextValue(value, 64);
+  if (!normalized || !/^\d{4}-\d{2}-\d{2}T/.test(normalized)) return false;
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed);
+}
+
 function sanitizeWorkoutIdValue(value) {
   const normalized = sanitizeWorkoutTextValue(value, 120).replace(
     /[^a-zA-Z0-9:_-]/g,
@@ -1177,6 +1329,119 @@ function sanitizeWorkoutMetaValue(value) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   return sanitizeWorkoutTextValue(value, 120);
+}
+
+function sanitizeOptionalWorkoutNumber(value, options) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  const min = Number.isFinite(options?.min) ? options.min : parsed;
+  const max = Number.isFinite(options?.max) ? options.max : parsed;
+  const clamped = Math.max(min, Math.min(max, parsed));
+  return options?.integer === true ? Math.round(clamped) : clamped;
+}
+
+function createImportedWorkoutSetRecord(set) {
+  if (!set || typeof set !== 'object') return null;
+  const next = {};
+  if ('weight' in set) next.weight = set.weight;
+  if ('reps' in set) next.reps = set.reps;
+  if ('done' in set) next.done = set.done === true;
+  if ('isWarmup' in set) next.isWarmup = set.isWarmup === true;
+  if ('isAmrap' in set) next.isAmrap = set.isAmrap === true;
+  if ('isPr' in set) next.isPr = set.isPr === true;
+  if ('isLastHeavySet' in set) next.isLastHeavySet = set.isLastHeavySet === true;
+  if ('rir' in set) next.rir = sanitizeWorkoutTextValue(set.rir, 12);
+  if ('rirTarget' in set) next.rirTarget = set.rirTarget;
+  return sanitizeWorkoutSetRecord(next);
+}
+
+function createImportedWorkoutExerciseRecord(exercise) {
+  if (!exercise || typeof exercise !== 'object') return null;
+  const sets = Array.isArray(exercise.sets)
+    ? exercise.sets.map(createImportedWorkoutSetRecord)
+    : [];
+  if (sets.some((set) => !set)) return null;
+  const next = {
+    name: exercise.name,
+    sets,
+  };
+  if ('exerciseId' in exercise) next.exerciseId = exercise.exerciseId;
+  if ('notes' in exercise) next.notes = exercise.notes;
+  if ('isAux' in exercise) next.isAux = exercise.isAux === true;
+  if ('isAccessory' in exercise) next.isAccessory = exercise.isAccessory === true;
+  return sanitizeWorkoutExerciseRecord(next);
+}
+
+function createImportedWorkoutRecord(workout) {
+  if (
+    !workout ||
+    typeof workout !== 'object' ||
+    !('id' in workout) ||
+    !('date' in workout) ||
+    !('type' in workout) ||
+    !Array.isArray(workout.exercises)
+  ) {
+    return null;
+  }
+  const exercises = workout.exercises.map(createImportedWorkoutExerciseRecord);
+  if (exercises.some((exercise) => !exercise)) return null;
+  const next = {
+    id: workout.id,
+    date: workout.date,
+    type: workout.type,
+    exercises,
+  };
+  if ('subtype' in workout) next.subtype = workout.subtype;
+  if ('program' in workout) next.program = workout.program;
+  if ('name' in workout) next.name = workout.name;
+  if ('programLabel' in workout) next.programLabel = workout.programLabel;
+  if ('sessionDescription' in workout)
+    next.sessionDescription = workout.sessionDescription;
+  if ('sessionNotes' in workout) next.sessionNotes = workout.sessionNotes;
+  if ('programDayNum' in workout) {
+    const programDayNum = sanitizeOptionalWorkoutNumber(workout.programDayNum, {
+      min: 0,
+      max: 365,
+      integer: true,
+    });
+    if (programDayNum !== undefined) next.programDayNum = programDayNum;
+  }
+  if ('duration' in workout) {
+    const duration = sanitizeOptionalWorkoutNumber(workout.duration, {
+      min: 0,
+      max: 86400,
+      integer: true,
+    });
+    if (duration !== undefined) next.duration = duration;
+  }
+  if ('rpe' in workout) {
+    const rpe = sanitizeOptionalWorkoutNumber(workout.rpe, {
+      min: 0,
+      max: 10,
+    });
+    if (rpe !== undefined) next.rpe = rpe;
+  }
+  ['completedAt', 'startedAt', 'createdAt', 'updatedAt', 'deletedAt'].forEach(
+    (field) => {
+      if (field in workout) next[field] = sanitizeWorkoutTextValue(workout[field], 64);
+    }
+  );
+  if ('isDraft' in workout) next.isDraft = workout.isDraft === true;
+  if (workout.programMeta && typeof workout.programMeta === 'object') {
+    next.programMeta = {};
+    Object.keys(workout.programMeta).forEach((key) => {
+      next.programMeta[key] = sanitizeWorkoutMetaValue(workout.programMeta[key]);
+    });
+  }
+  const commentaryResult = normalizeWorkoutCommentaryValue({
+    commentary: workout.commentary,
+    adaptationReasons: workout.adaptationReasons,
+  });
+  if (commentaryResult.commentary) next.commentary = commentaryResult.commentary;
+  const normalized = normalizeWorkoutRecord(next);
+  if (!isValidImportedWorkoutDate(normalized?.date)) return null;
+  return normalized;
 }
 
 function sanitizeWorkoutSetRecord(set) {
@@ -1344,6 +1609,108 @@ function normalizeWorkoutRecords(items) {
     return next;
   });
   return { items: normalized, changed };
+}
+
+function validateImportedBackup(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return {
+      ok: false,
+      errorKey: 'import.invalid_file',
+      fallback: 'Invalid backup file',
+    };
+  }
+  const allowedTopLevelKeys = new Set([
+    'version',
+    'exported',
+    'workouts',
+    'schedule',
+    'profile',
+  ]);
+  const unknownKeys = Object.keys(data).filter(
+    (key) => !allowedTopLevelKeys.has(key)
+  );
+  if (unknownKeys.length) {
+    return {
+      ok: false,
+      errorKey: 'import.unsupported_sections',
+      fallback: 'Backup file contains unsupported sections',
+    };
+  }
+  if (
+    !('workouts' in data) &&
+    !('schedule' in data) &&
+    !('profile' in data)
+  ) {
+    return {
+      ok: false,
+      errorKey: 'import.invalid_file',
+      fallback: 'Invalid backup file',
+    };
+  }
+  const next = {
+    version:
+      typeof data.version === 'number' && Number.isFinite(data.version)
+        ? data.version
+        : 1,
+    exported: sanitizeWorkoutTextValue(data.exported, 64),
+  };
+  if ('workouts' in data) {
+    if (!Array.isArray(data.workouts)) {
+      return {
+        ok: false,
+        errorKey: 'import.invalid_workout_data',
+        fallback: 'Backup file has invalid workout data',
+      };
+    }
+    const workouts = data.workouts.map(createImportedWorkoutRecord);
+    if (workouts.some((workout) => !workout)) {
+      return {
+        ok: false,
+        errorKey: 'import.malformed_entries',
+        fallback: 'Backup file has malformed workout entries',
+      };
+    }
+    const seenWorkoutIds = new Set();
+    for (const workout of workouts) {
+      if (!isValidImportedWorkoutDate(workout.date)) {
+        return {
+          ok: false,
+          errorKey: 'import.invalid_workout_dates',
+          fallback: 'Backup file has invalid workout dates',
+        };
+      }
+      if (seenWorkoutIds.has(workout.id)) {
+        return {
+          ok: false,
+          errorKey: 'import.duplicate_workout_ids',
+          fallback: 'Backup file contains duplicate workout IDs',
+        };
+      }
+      seenWorkoutIds.add(workout.id);
+    }
+    next.workouts = workouts;
+  }
+  if ('schedule' in data) {
+    if (!data.schedule || typeof data.schedule !== 'object' || Array.isArray(data.schedule)) {
+      return {
+        ok: false,
+        errorKey: 'import.invalid_schedule_data',
+        fallback: 'Backup file has invalid schedule data',
+      };
+    }
+    next.schedule = createNormalizedSchedulePayload(data.schedule);
+  }
+  if ('profile' in data) {
+    if (!data.profile || typeof data.profile !== 'object' || Array.isArray(data.profile)) {
+      return {
+        ok: false,
+        errorKey: 'import.invalid_profile_data',
+        fallback: 'Backup file has invalid profile data',
+      };
+    }
+    next.profile = createNormalizedProfileImport(data.profile);
+  }
+  return { ok: true, value: next };
 }
 
 function normalizeScheduleState(scheduleLike) {

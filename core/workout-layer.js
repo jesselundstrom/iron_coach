@@ -2171,14 +2171,14 @@ function showSetRIRPrompt(exerciseIndex, setIndex) {
     .map((value) => {
       const normalizedValue = value === '5+' ? '5' : value;
       const isActive = currentValue === normalizedValue;
-      return `<button class="btn btn-secondary${isActive ? ' active' : ''}" type="button" onclick="applySetRIR(${exerciseIndex},${setIndex},'${normalizedValue}')">${escapeHtml(value)}</button>`;
+      return `<button class="btn btn-secondary${isActive ? ' active' : ''}" type="button" data-custom-modal-action="apply-set-rir" data-exercise-index="${exerciseIndex}" data-set-index="${setIndex}" data-rir-value="${escapeHtml(normalizedValue)}">${escapeHtml(value)}</button>`;
     })
     .join('');
   showCustomModal(
     escapeHtml(i18nText('workout.rir_prompt_title', 'Last set check-in')),
     `<div style="font-size:13px;line-height:1.5;color:var(--muted);margin-bottom:12px">${escapeHtml(i18nText('workout.rir_prompt_body', 'How many reps did you still have left after the last work set of {exercise}?', { exercise: exerciseName }))}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${buttons}</div>
-    <button class="btn btn-secondary" style="margin-top:12px;width:100%" type="button" onclick="skipSetRIRPrompt()">${escapeHtml(i18nText('workout.rir_prompt_skip', 'Skip for now'))}</button>`
+    <button class="btn btn-secondary" style="margin-top:12px;width:100%" type="button" data-custom-modal-action="skip-set-rir">${escapeHtml(i18nText('workout.rir_prompt_skip', 'Skip for now'))}</button>`
   );
 }
 
@@ -2334,11 +2334,11 @@ function showShortenAdjustmentOptions() {
     escapeHtml(preview.title),
     `<div class="custom-modal-copy">${escapeHtml(preview.body)}</div>
     <div class="custom-modal-option-stack">
-      <button class="btn btn-secondary" type="button" onclick="selectShortenAdjustment('light')">${escapeHtml(i18nText('workout.runner.shorten_option_light', 'Save ~5 min'))}</button>
+      <button class="btn btn-secondary" type="button" data-custom-modal-action="select-shorten-adjustment" data-adjustment-level="light">${escapeHtml(i18nText('workout.runner.shorten_option_light', 'Save ~5 min'))}</button>
       <div class="custom-modal-option-note">${escapeHtml(i18nText('workout.runner.shorten_option_light_body', 'Remove accessory work only and keep the rest of the structure intact.'))}</div>
-      <button class="btn btn-secondary" type="button" onclick="selectShortenAdjustment('medium')">${escapeHtml(i18nText('workout.runner.shorten_option_medium', 'Save ~10 min'))}</button>
+      <button class="btn btn-secondary" type="button" data-custom-modal-action="select-shorten-adjustment" data-adjustment-level="medium">${escapeHtml(i18nText('workout.runner.shorten_option_medium', 'Save ~10 min'))}</button>
       <div class="custom-modal-option-note">${escapeHtml(i18nText('workout.runner.shorten_option_medium_body', 'Keep at least two work sets per remaining exercise and cut lower-priority volume.'))}</div>
-      <button class="btn btn-secondary" type="button" onclick="selectShortenAdjustment('hard')">${escapeHtml(i18nText('workout.runner.shorten_option_hard', 'Save ~15 min'))}</button>
+      <button class="btn btn-secondary" type="button" data-custom-modal-action="select-shorten-adjustment" data-adjustment-level="hard">${escapeHtml(i18nText('workout.runner.shorten_option_hard', 'Save ~15 min'))}</button>
       <div class="custom-modal-option-note">${escapeHtml(i18nText('workout.runner.shorten_option_hard_body', 'Trim harder: keep two work sets per exercise and drop the last unstarted lift if needed.'))}</div>
     </div>`
   );
@@ -4975,10 +4975,31 @@ function showCustomModal(title, bodyHtml) {
   m.innerHTML = `<div class="custom-modal-sheet">
     <div class="custom-modal-title">${title}</div>
     ${bodyHtml}
-    <button class="btn btn-secondary custom-modal-cancel" type="button" onclick="closeCustomModal()">${i18nText('common.cancel', 'Cancel')}</button>
+    <button class="btn btn-secondary custom-modal-cancel" type="button" data-custom-modal-action="close">${i18nText('common.cancel', 'Cancel')}</button>
   </div>`;
   m.onclick = (e) => {
-    if (e.target === m) closeCustomModal();
+    if (e.target === m) {
+      closeCustomModal();
+      return;
+    }
+    const actionTarget = e.target?.closest?.('[data-custom-modal-action]');
+    if (!actionTarget || !m.contains(actionTarget)) return;
+    const action = actionTarget.dataset.customModalAction || '';
+    if (action === 'close' || action === 'skip-set-rir') {
+      closeCustomModal();
+      return;
+    }
+    if (action === 'apply-set-rir') {
+      applySetRIR(
+        Number(actionTarget.dataset.exerciseIndex),
+        Number(actionTarget.dataset.setIndex),
+        actionTarget.dataset.rirValue || ''
+      );
+      return;
+    }
+    if (action === 'select-shorten-adjustment') {
+      selectShortenAdjustment(actionTarget.dataset.adjustmentLevel || 'medium');
+    }
   };
   document.body.appendChild(m);
 }

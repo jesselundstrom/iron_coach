@@ -27,6 +27,136 @@ const ANTHROPIC_TIMEOUT_MS = 20000;
 const TEXT_MODEL = 'claude-haiku-4-5';
 const PHOTO_MODEL = 'claude-sonnet-4-5';
 
+type RuntimeConfig = {
+  anthropicApiKey: string;
+  serviceRoleKey: string;
+  supabaseUrl: string;
+};
+
+function createRequestId() {
+  try {
+    return crypto.randomUUID();
+  } catch (_) {
+    return `nutrition_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+function logNutritionEvent(
+  level: 'info' | 'warn' | 'error',
+  requestId: string,
+  event: string,
+  details: Record<string, unknown> = {}
+) {
+  const payload = {
+    scope: 'nutrition_coach',
+    level,
+    event,
+    request_id: requestId,
+    timestamp: new Date().toISOString(),
+    ...details,
+  };
+  const line = JSON.stringify(payload);
+  if (level === 'error') {
+    console.error(line);
+    return;
+  }
+  if (level === 'warn') {
+    console.warn(line);
+    return;
+  }
+  console.log(line);
+}
+
+function getRuntimeConfig(requestId: string) {
+  const config: RuntimeConfig = {
+    supabaseUrl: Deno.env.get('SUPABASE_URL') || '',
+    serviceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+    anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY') || '',
+  };
+  const missing = Object.entries(config)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+  if (missing.length) {
+    logNutritionEvent('error', requestId, 'config_missing', {
+      missing,
+    });
+  }
+  return {
+    config,
+    ok: missing.length === 0,
+  };
+}
+
+function getErrorCode(error: unknown) {
+  if (!error || typeof error !== 'object') return null;
+  return 'code' in error ? String(error.code || '') || null : null;
+}
+
+async function releaseNutritionUsageClaim(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    isPhoto: boolean;
+    reason: string;
+    requestId: string;
+    usageDate: string;
+    userId: string;
+  }
+) {
+  const result = await supabase.rpc('release_nutrition_usage_claim', {
+    p_user_id: input.userId,
+    p_usage_date: input.usageDate,
+    p_is_photo: input.isPhoto,
+  });
+  if (result.error) {
+    logNutritionEvent('warn', input.requestId, 'quota_release_failed', {
+      reason: input.reason,
+      usage_date: input.usageDate,
+      user_id: input.userId,
+      error_code: getErrorCode(result.error),
+    });
+    return false;
+  }
+  logNutritionEvent('info', input.requestId, 'quota_released', {
+    reason: input.reason,
+    usage_date: input.usageDate,
+    user_id: input.userId,
+  });
+  return true;
+}
+
+async function finalizeNutritionUsage(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    inputTokens: number;
+    outputTokens: number;
+    requestId: string;
+    usageDate: string;
+    userId: string;
+  }
+) {
+  const result = await supabase.rpc('finalize_nutrition_usage', {
+    p_user_id: input.userId,
+    p_usage_date: input.usageDate,
+    p_input_tokens: input.inputTokens,
+    p_output_tokens: input.outputTokens,
+  });
+  if (result.error) {
+    logNutritionEvent('warn', input.requestId, 'quota_finalize_failed', {
+      usage_date: input.usageDate,
+      user_id: input.userId,
+      error_code: getErrorCode(result.error),
+    });
+    return false;
+  }
+  logNutritionEvent('info', input.requestId, 'quota_finalized', {
+    usage_date: input.usageDate,
+    user_id: input.userId,
+    input_tokens: input.inputTokens,
+    output_tokens: input.outputTokens,
+  });
+  return true;
+}
+
 function getAllowedOrigins() {
   const fromEnv = String(
     Deno.env.get('ALLOWED_ORIGINS') || Deno.env.get('SITE_URL') || ''
@@ -306,11 +436,20 @@ function buildSystemPrompt(payload: {
 }
 
 Deno.serve(async (request) => {
+  const requestId = createRequestId();
   const corsHeaders = getCorsHeaders(request);
+  logNutritionEvent('info', requestId, 'request_received', {
+    content_length: Number(request.headers.get('content-length') || 0),
+    method: request.method,
+    origin: request.headers.get('origin') || '',
+  });
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
   if (request.method !== 'POST') {
+    logNutritionEvent('warn', requestId, 'method_not_allowed', {
+      method: request.method,
+    });
     return errorResponse(
       405,
       'method_not_allowed',
@@ -320,10 +459,8 @@ Deno.serve(async (request) => {
     );
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY') || '';
-  if (!supabaseUrl || !serviceRoleKey || !anthropicApiKey) {
+  const runtimeConfig = getRuntimeConfig(requestId);
+  if (!runtimeConfig.ok) {
     return errorResponse(
       503,
       'server_unavailable',
@@ -332,10 +469,12 @@ Deno.serve(async (request) => {
       corsHeaders
     );
   }
+  const { supabaseUrl, serviceRoleKey, anthropicApiKey } = runtimeConfig.config;
 
   const authHeader = request.headers.get('authorization') || '';
   const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!tokenMatch?.[1]) {
+    logNutritionEvent('warn', requestId, 'auth_header_missing');
     return errorResponse(
       401,
       'auth_required',
@@ -347,6 +486,9 @@ Deno.serve(async (request) => {
 
   const contentLength = Number(request.headers.get('content-length') || 0);
   if (contentLength > MAX_REQUEST_BYTES) {
+    logNutritionEvent('warn', requestId, 'request_too_large_header', {
+      content_length: contentLength,
+    });
     return errorResponse(
       413,
       'request_too_large',
@@ -364,6 +506,9 @@ Deno.serve(async (request) => {
     error: userError,
   } = await supabase.auth.getUser(tokenMatch[1]);
   if (userError || !user?.id) {
+    logNutritionEvent('warn', requestId, 'auth_failed', {
+      error_code: getErrorCode(userError),
+    });
     return errorResponse(
       401,
       'auth_required',
@@ -372,9 +517,16 @@ Deno.serve(async (request) => {
       corsHeaders
     );
   }
+  logNutritionEvent('info', requestId, 'auth_succeeded', {
+    user_id: user.id,
+  });
 
   const rawBody = await request.text();
   if (new TextEncoder().encode(rawBody).length > MAX_REQUEST_BYTES) {
+    logNutritionEvent('warn', requestId, 'request_too_large_body', {
+      raw_body_bytes: new TextEncoder().encode(rawBody).length,
+      user_id: user.id,
+    });
     return errorResponse(
       413,
       'request_too_large',
@@ -388,6 +540,9 @@ Deno.serve(async (request) => {
   try {
     parsedBody = JSON.parse(rawBody);
   } catch (_) {
+    logNutritionEvent('warn', requestId, 'invalid_json', {
+      user_id: user.id,
+    });
     return errorResponse(
       400,
       'invalid_json',
@@ -411,6 +566,10 @@ Deno.serve(async (request) => {
   const targets = validateTargets(parsedBody.targets);
   const messages = validateMessages(parsedBody.messages, requestKind);
   if (!messages) {
+    logNutritionEvent('warn', requestId, 'invalid_request', {
+      request_kind: requestKind,
+      user_id: user.id,
+    });
     return errorResponse(
       400,
       'invalid_request',
@@ -421,6 +580,11 @@ Deno.serve(async (request) => {
   }
 
   const usageDate = new Date().toISOString().slice(0, 10);
+  logNutritionEvent('info', requestId, 'quota_claim_started', {
+    request_kind: requestKind,
+    usage_date: usageDate,
+    user_id: user.id,
+  });
   const { data: quotaRows, error: quotaError } = await supabase.rpc(
     'claim_nutrition_usage_quota',
     {
@@ -432,6 +596,12 @@ Deno.serve(async (request) => {
     }
   );
   if (quotaError) {
+    logNutritionEvent('error', requestId, 'quota_claim_failed', {
+      request_kind: requestKind,
+      usage_date: usageDate,
+      user_id: user.id,
+      error_code: getErrorCode(quotaError),
+    });
     return errorResponse(
       503,
       'quota_unavailable',
@@ -443,6 +613,13 @@ Deno.serve(async (request) => {
 
   const quota = Array.isArray(quotaRows) ? quotaRows[0] : quotaRows;
   if (!quota?.allowed) {
+    logNutritionEvent('warn', requestId, 'quota_denied', {
+      photo_request_count: quota?.photo_request_count ?? null,
+      request_count: quota?.request_count ?? null,
+      request_kind: requestKind,
+      usage_date: usageDate,
+      user_id: user.id,
+    });
     return errorResponse(
       429,
       'rate_limit',
@@ -468,6 +645,13 @@ Deno.serve(async (request) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
   try {
+    logNutritionEvent('info', requestId, 'upstream_request_started', {
+      action_id: actionId || null,
+      model,
+      request_kind: requestKind,
+      usage_date: usageDate,
+      user_id: user.id,
+    });
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -487,11 +671,19 @@ Deno.serve(async (request) => {
 
     const anthropicJson = await anthropicResponse.json().catch(() => ({}));
     if (!anthropicResponse.ok) {
+      logNutritionEvent('warn', requestId, 'upstream_request_failed', {
+        request_kind: requestKind,
+        status: anthropicResponse.status,
+        usage_date: usageDate,
+        user_id: user.id,
+      });
       if (anthropicResponse.status >= 500) {
-        await supabase.rpc('release_nutrition_usage_claim', {
-          p_user_id: user.id,
-          p_usage_date: usageDate,
-          p_is_photo: requestKind === 'photo',
+        await releaseNutritionUsageClaim(supabase, {
+          isPhoto: requestKind === 'photo',
+          reason: 'upstream_error',
+          requestId,
+          usageDate,
+          userId: user.id,
         });
       }
       if (anthropicResponse.status === 413) {
@@ -539,10 +731,17 @@ Deno.serve(async (request) => {
       };
 
     if (!normalizedPayload.display_markdown) {
-      await supabase.rpc('release_nutrition_usage_claim', {
-        p_user_id: user.id,
-        p_usage_date: usageDate,
-        p_is_photo: requestKind === 'photo',
+      logNutritionEvent('warn', requestId, 'invalid_upstream_payload', {
+        request_kind: requestKind,
+        usage_date: usageDate,
+        user_id: user.id,
+      });
+      await releaseNutritionUsageClaim(supabase, {
+        isPhoto: requestKind === 'photo',
+        reason: 'invalid_upstream_payload',
+        requestId,
+        usageDate,
+        userId: user.id,
       });
       return errorResponse(
         502,
@@ -565,11 +764,18 @@ Deno.serve(async (request) => {
           }
         : null;
 
-    await supabase.rpc('finalize_nutrition_usage', {
-      p_user_id: user.id,
-      p_usage_date: usageDate,
-      p_input_tokens: usage?.input_tokens ?? 0,
-      p_output_tokens: usage?.output_tokens ?? 0,
+    await finalizeNutritionUsage(supabase, {
+      inputTokens: usage?.input_tokens ?? 0,
+      outputTokens: usage?.output_tokens ?? 0,
+      requestId,
+      usageDate,
+      userId: user.id,
+    });
+    logNutritionEvent('info', requestId, 'request_completed', {
+      model,
+      request_kind: requestKind,
+      usage_date: usageDate,
+      user_id: user.id,
     });
 
     return jsonResponse(200, {
@@ -579,12 +785,22 @@ Deno.serve(async (request) => {
       raw_text: rawText || null,
     }, corsHeaders);
   } catch (error) {
-    await supabase.rpc('release_nutrition_usage_claim', {
-      p_user_id: user.id,
-      p_usage_date: usageDate,
-      p_is_photo: requestKind === 'photo',
+    await releaseNutritionUsageClaim(supabase, {
+      isPhoto: requestKind === 'photo',
+      reason:
+        error instanceof DOMException && error.name === 'AbortError'
+          ? 'timeout'
+          : 'server_error',
+      requestId,
+      usageDate,
+      userId: user.id,
     });
     if (error instanceof DOMException && error.name === 'AbortError') {
+      logNutritionEvent('error', requestId, 'request_timeout', {
+        request_kind: requestKind,
+        usage_date: usageDate,
+        user_id: user.id,
+      });
       return errorResponse(
         503,
         'server_timeout',
@@ -593,6 +809,11 @@ Deno.serve(async (request) => {
         corsHeaders
       );
     }
+    logNutritionEvent('error', requestId, 'request_failed', {
+      request_kind: requestKind,
+      usage_date: usageDate,
+      user_id: user.id,
+    });
     return errorResponse(
       503,
       'server_unavailable',

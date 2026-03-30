@@ -310,6 +310,368 @@ test('settings account import normalizes malformed body metrics before persistin
     });
 });
 
+test('settings account rejects invalid workout backup files without partial writes', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    const existing = [
+      {
+        id: 'existing-workout',
+        date: '2026-03-18T09:00:00.000Z',
+        type: 'forge',
+        program: 'forge',
+        exercises: [],
+      },
+    ];
+    workouts = existing;
+    localStorage.setItem('ic_workouts::e2e-user', JSON.stringify(existing));
+    window.__IRONFORGE_E2E__?.settings?.openTab?.('account');
+  });
+
+  const backup = JSON.stringify({
+    version: 1,
+    exported: '2026-03-20T10:00:00.000Z',
+    workouts: 'definitely-not-an-array',
+  });
+
+  await page.locator('[data-ui="settings-backup-import"]').setInputFiles({
+    name: 'ironforge-backup-invalid.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(backup, 'utf8'),
+  });
+
+  await expect(page.locator('#confirm-modal')).not.toHaveClass(/active/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        local: localStorage.getItem('ic_workouts::e2e-user'),
+        workoutIds: (workouts || []).map((workout) => workout.id),
+      }))
+    )
+    .toEqual({
+      local: JSON.stringify([
+        {
+          id: 'existing-workout',
+          date: '2026-03-18T09:00:00.000Z',
+          type: 'forge',
+          program: 'forge',
+          exercises: [],
+        },
+      ]),
+      workoutIds: ['existing-workout'],
+    });
+});
+
+test('settings account rejects unknown backup sections before showing the confirm flow', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    localStorage.removeItem('ic_workouts::e2e-user');
+    workouts = [];
+    window.__IRONFORGE_E2E__?.settings?.openTab?.('account');
+  });
+
+  const backup = JSON.stringify({
+    version: 1,
+    exported: '2026-03-20T10:00:00.000Z',
+    workouts: [],
+    profile: {
+      language: 'en',
+      defaultRest: 120,
+    },
+    rogueSection: {
+      injected: true,
+    },
+  });
+
+  await page.locator('[data-ui="settings-backup-import"]').setInputFiles({
+    name: 'ironforge-backup-unknown-section.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(backup, 'utf8'),
+  });
+
+  await expect(page.locator('#confirm-modal')).not.toHaveClass(/active/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        local: localStorage.getItem('ic_workouts::e2e-user'),
+        workoutCount: (workouts || []).length,
+      }))
+    )
+    .toEqual({
+      local: null,
+      workoutCount: 0,
+    });
+});
+
+test('settings account rejects a malformed workout entry and leaves the whole backup unapplied', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    localStorage.removeItem('ic_workouts::e2e-user');
+    workouts = [];
+    window.__IRONFORGE_E2E__?.settings?.openTab?.('account');
+  });
+
+  const backup = JSON.stringify({
+    version: 1,
+    exported: '2026-03-20T10:00:00.000Z',
+    workouts: [
+      {
+        id: 'valid-workout',
+        date: '2026-03-10T09:00:00.000Z',
+        type: 'forge',
+        program: 'forge',
+        exercises: [],
+      },
+      {
+        id: 'broken-workout',
+        date: '2026-03-11T09:00:00.000Z',
+        type: 'forge',
+      },
+    ],
+  });
+
+  await page.locator('[data-ui="settings-backup-import"]').setInputFiles({
+    name: 'ironforge-backup-malformed-entry.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(backup, 'utf8'),
+  });
+
+  await expect(page.locator('#confirm-modal')).not.toHaveClass(/active/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        local: localStorage.getItem('ic_workouts::e2e-user'),
+        workoutCount: (workouts || []).length,
+      }))
+    )
+    .toEqual({
+      local: null,
+      workoutCount: 0,
+    });
+});
+
+test('settings account rejects oversized backup files before parsing them', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    const existing = [
+      {
+        id: 'existing-workout',
+        date: '2026-03-18T09:00:00.000Z',
+        type: 'forge',
+        program: 'forge',
+        exercises: [],
+      },
+    ];
+    workouts = existing;
+    localStorage.setItem('ic_workouts::e2e-user', JSON.stringify(existing));
+    window.__IRONFORGE_E2E__?.settings?.openTab?.('account');
+  });
+
+  await page.locator('[data-ui="settings-backup-import"]').setInputFiles({
+    name: 'ironforge-backup-too-large.json',
+    mimeType: 'application/json',
+    buffer: Buffer.alloc(5 * 1024 * 1024 + 64, 'a'),
+  });
+
+  await expect(page.locator('#confirm-modal')).not.toHaveClass(/active/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        local: localStorage.getItem('ic_workouts::e2e-user'),
+        workoutIds: (workouts || []).map((workout) => workout.id),
+      }))
+    )
+    .toEqual({
+      local: JSON.stringify([
+        {
+          id: 'existing-workout',
+          date: '2026-03-18T09:00:00.000Z',
+          type: 'forge',
+          program: 'forge',
+          exercises: [],
+        },
+      ]),
+      workoutIds: ['existing-workout'],
+    });
+});
+
+test('settings account rejects duplicate workout ids without partial writes', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    localStorage.removeItem('ic_workouts::e2e-user');
+    workouts = [];
+    window.__IRONFORGE_E2E__?.settings?.openTab?.('account');
+  });
+
+  const backup = JSON.stringify({
+    version: 1,
+    exported: '2026-03-20T10:00:00.000Z',
+    workouts: [
+      {
+        id: 'duplicate-workout',
+        date: '2026-03-10T09:00:00.000Z',
+        type: 'forge',
+        program: 'forge',
+        exercises: [],
+      },
+      {
+        id: 'duplicate-workout',
+        date: '2026-03-11T09:00:00.000Z',
+        type: 'forge',
+        program: 'forge',
+        exercises: [],
+      },
+    ],
+  });
+
+  await page.locator('[data-ui="settings-backup-import"]').setInputFiles({
+    name: 'ironforge-backup-duplicate-id.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(backup, 'utf8'),
+  });
+
+  await expect(page.locator('#confirm-modal')).not.toHaveClass(/active/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        local: localStorage.getItem('ic_workouts::e2e-user'),
+        workoutCount: (workouts || []).length,
+      }))
+    )
+    .toEqual({
+      local: null,
+      workoutCount: 0,
+    });
+});
+
+test('settings account rejects invalid workout dates without partial writes', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    localStorage.removeItem('ic_workouts::e2e-user');
+    workouts = [];
+    window.__IRONFORGE_E2E__?.settings?.openTab?.('account');
+  });
+
+  const backup = JSON.stringify({
+    version: 1,
+    exported: '2026-03-20T10:00:00.000Z',
+    workouts: [
+      {
+        id: 'bad-date-workout',
+        date: 'not-a-real-date',
+        type: 'forge',
+        program: 'forge',
+        exercises: [],
+      },
+    ],
+  });
+
+  await page.locator('[data-ui="settings-backup-import"]').setInputFiles({
+    name: 'ironforge-backup-invalid-date.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(backup, 'utf8'),
+  });
+
+  await expect(page.locator('#confirm-modal')).not.toHaveClass(/active/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        local: localStorage.getItem('ic_workouts::e2e-user'),
+        workoutCount: (workouts || []).length,
+      }))
+    )
+    .toEqual({
+      local: null,
+      workoutCount: 0,
+    });
+});
+
+test('legacy toast undo keeps hostile message content inert', async ({ page }) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    const runtimeWindow = window as Window & {
+      __toastUndoTriggered?: false | 'undo-clicked' | true;
+      showToast?: (
+        msg: string,
+        color: string,
+        undoFn?: () => void
+      ) => void;
+    };
+    runtimeWindow.__toastUndoTriggered = false;
+    runtimeWindow.showToast?.(
+      '<img src=x onerror="window.__toastUndoTriggered=true"> inert',
+      'var(--green)',
+      () => {
+        runtimeWindow.__toastUndoTriggered = 'undo-clicked';
+      }
+    );
+  });
+
+  await expect(page.locator('#toast img')).toHaveCount(0);
+  await expect(page.locator('#toast')).toContainText(
+    '<img src=x onerror="window.__toastUndoTriggered=true"> inert'
+  );
+  await page.locator('#t-undo').click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const runtimeWindow = window as Window & {
+          __toastUndoTriggered?: false | 'undo-clicked' | true;
+        };
+        return runtimeWindow.__toastUndoTriggered;
+      })
+    )
+    .toBe('undo-clicked');
+});
+
+test('app shell ships the local Supabase bundle under the tightened script CSP', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const shellSecurity = await page.evaluate(() => {
+    const csp = document
+      .querySelector('meta[http-equiv="Content-Security-Policy"]')
+      ?.getAttribute('content');
+    const scriptSrcDirective = (csp || '')
+      .split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith('script-src'));
+    const scripts = Array.from(document.scripts)
+      .map((script) => script.getAttribute('src'))
+      .filter(Boolean);
+    return { csp, scriptSrcDirective, scripts };
+  });
+
+  expect(shellSecurity.csp).toContain("script-src 'self'");
+  expect(shellSecurity.scriptSrcDirective).not.toContain("'unsafe-inline'");
+  expect(shellSecurity.csp).not.toContain('jsdelivr');
+  expect(
+    shellSecurity.scripts.some((src) => src?.endsWith('/vendor/supabase.js'))
+  ).toBe(true);
+  expect(shellSecurity.scripts.some((src) => src?.includes('jsdelivr'))).toBe(
+    false
+  );
+});
+
 test('clearAllData resets the schedule sport name to blank and keeps it blank after reload', async ({
   page,
 }) => {

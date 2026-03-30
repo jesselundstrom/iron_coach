@@ -31,6 +31,7 @@ function daysSince(dateStr) {
   const STRINGS = {
     en: {
       'common.undo': 'Undo',
+      'common.reload': 'Reload',
       'common.confirm': 'Confirm',
       'common.cancel': 'Cancel',
       'common.add': 'Add',
@@ -59,6 +60,9 @@ function daysSince(dateStr) {
       'modal.confirm.title': 'Confirm',
       'modal.confirm.ok': 'Confirm',
       'modal.confirm.cancel': 'Cancel',
+      'modal.confirm.message': 'Are you sure?',
+      'shell.error.title': 'Something went wrong.',
+      'shell.header.loading': 'Forge Protocol · Loading...',
       'modal.name.title': 'Add Exercise',
       'modal.name.sub': 'Enter the exercise name',
       'modal.name.placeholder': 'e.g. Back Squat',
@@ -928,6 +932,11 @@ function daysSince(dateStr) {
       'import.invalid_workout_data': 'Backup file has invalid workout data',
       'import.malformed_entries': 'Backup file has malformed workout entries',
       'import.invalid_profile_data': 'Backup file has invalid profile data',
+      'import.file_too_large': 'Backup file is too large to import safely',
+      'import.duplicate_workout_ids':
+        'Backup file contains duplicate workout IDs',
+      'import.invalid_workout_dates':
+        'Backup file has invalid workout dates',
       'import.title': 'Import Data',
       'import.replace_with_backup': 'Replace all data with backup from {date}?',
       'confirm.clear_all_title': 'Clear All Data',
@@ -965,6 +974,7 @@ function daysSince(dateStr) {
       'day.sat.short': 'Sat',
       'rpe.set': 'Set',
       'rpe.session_title': 'How hard was this session?',
+      'rpe.session_subtitle': 'Rate overall effort (6 = easy, 10 = max)',
       'rpe.session_prompt': 'Rate overall session effort (6 = easy, 10 = max)',
       'rpe.desc.6': 'Could keep going easily',
       'rpe.desc.7': 'Comfortable effort',
@@ -1687,6 +1697,7 @@ function daysSince(dateStr) {
     },
     fi: {
       'common.undo': 'Kumoa',
+      'common.reload': 'Lataa uudelleen',
       'common.confirm': 'Vahvista',
       'common.cancel': 'Peruuta',
       'common.add': 'Lisää',
@@ -1714,6 +1725,9 @@ function daysSince(dateStr) {
       'modal.confirm.title': 'Vahvista',
       'modal.confirm.ok': 'Vahvista',
       'modal.confirm.cancel': 'Peruuta',
+      'modal.confirm.message': 'Oletko varma?',
+      'shell.error.title': 'Jokin meni pieleen.',
+      'shell.header.loading': 'Forge Protocol · Ladataan...',
       'modal.name.title': 'Lisää liike',
       'modal.name.sub': 'Syötä liikkeen nimi',
       'modal.name.placeholder': 'esim. Takakyykky',
@@ -2599,6 +2613,12 @@ function daysSince(dateStr) {
         'Varmuuskopiossa on virheellisiä treenimerkintöjä',
       'import.invalid_profile_data':
         'Varmuuskopion profiilidata on virheellinen',
+      'import.file_too_large':
+        'Varmuuskopio on liian suuri turvalliseen tuontiin',
+      'import.duplicate_workout_ids':
+        'Varmuuskopiossa on päällekkäisiä treeni-ID:itä',
+      'import.invalid_workout_dates':
+        'Varmuuskopiossa on virheellisiä treenipäiviä',
       'import.title': 'Tuo data',
       'confirm.clear_all_title': 'Tyhjennä kaikki data',
       'confirm.clear_all_msg':
@@ -2635,6 +2655,7 @@ function daysSince(dateStr) {
       'day.sat.short': 'La',
       'rpe.set': 'Sarja',
       'rpe.session_title': 'Kuinka raskaalta tämä treeni tuntui?',
+      'rpe.session_subtitle': 'Arvioi kokonaisrasitus (6 = helppo, 10 = maksimi)',
       'rpe.session_prompt':
         'Arvioi treenin rasittavuus (6 = kevyt, 10 = maksimi)',
       'rpe.desc.6': 'Jaksaisi jatkaa helposti',

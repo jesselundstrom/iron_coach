@@ -149,10 +149,7 @@ test('log active island keeps RIR saves flowing through the workout store seam',
   });
 
   await expect(page.locator('#custom-swap-modal')).toBeVisible();
-
-  await page.evaluate(() => {
-    window.__IRONFORGE_STORES__?.workout?.applySetRIR?.(0, 0, '2');
-  });
+  await page.locator('#custom-swap-modal button[data-rir-value="2"]').click();
 
   await expect
     .poll(() =>
@@ -165,6 +162,39 @@ test('log active island keeps RIR saves flowing through the workout store seam',
     )
     .toBe('2');
   await expect(page.locator('#custom-swap-modal')).toHaveCount(0);
+});
+
+test('log active island keeps custom modal adjustment actions working under strict CSP', async ({
+  page,
+}) => {
+  await openAppShell(page);
+  await openActiveWorkout(page);
+
+  await page.evaluate(() => {
+    (
+      window as Window & {
+        showShortenAdjustmentOptions?: () => void;
+      }
+    ).showShortenAdjustmentOptions?.();
+  });
+
+  await expect(page.locator('#custom-swap-modal')).toBeVisible();
+  await page
+    .locator(
+      '#custom-swap-modal button[data-custom-modal-action="select-shorten-adjustment"][data-adjustment-level="medium"]'
+    )
+    .click();
+
+  await expect(page.locator('#custom-swap-modal')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout
+            ?.runnerState?.adjustments?.length || 0
+      )
+    )
+    .toBeGreaterThan(0);
 });
 
 test('log active island keeps add exercise flowing through the workout store seam', async ({
