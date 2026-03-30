@@ -6,7 +6,7 @@
   - a React + Vite app shell in `src/app/`
   - an existing legacy runtime in `app.js`, `core/*.js`, and `programs/*.js`
   - an active migration path from that legacy runtime to TypeScript + Zustand
-- Main runtime entry points are `index.html`, `app.js`, `src/app/main.tsx`, `styles.css`, `manifest.json`, and `sw.js`.
+- Main runtime entry points are `index.html`, `app.js`, `src/app/main.tsx`, `src/styles/tailwind.css`, `manifest.json`, and `sw.js`.
 - The React shell already owns the visible app shell, page tree, and overlay host through `src/app/main.tsx` and `src/app/AppShell.jsx`.
 - `src/app/store/runtime-store.ts` is already part of the active runtime foundation for shell/navigation/UI state.
 - The legacy business/runtime layer still lives primarily in:
@@ -74,6 +74,8 @@
 - When editing a component that already exists, opportunistically swap its legacy class names to Tailwind equivalents while you are already in the file — but only if the change is small and safe. Never open a file solely to migrate its CSS.
 - When a class in `legacy-ui.css` has no remaining references in the codebase, delete it. Do not keep dead CSS.
 - Do not add new rules to `legacy-ui.css`. That file shrinks over time, it does not grow.
+- New React-owned UI should expose stable `data-ui` and `data-state` hooks when tests or compatibility seams need a durable DOM contract.
+- Prefer role, id, and `data-*` selectors in Playwright tests; do not make presentational class names the long-term test contract for newly touched surfaces.
 
 ## Internationalization
 - User-facing strings must go through the translation system.
