@@ -2916,3 +2916,4 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', () => {
   void flushPendingCloudSync();
 });
+
