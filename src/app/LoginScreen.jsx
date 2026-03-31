@@ -12,74 +12,192 @@ function getBuildLabel() {
   return String(window.__IRONFORGE_APP_VERSION__ || '').trim();
 }
 
+const MIN_EMBERS = 18;
+const MAX_EMBERS = 34;
+const COLOR_A = [255, 122, 58];
+const COLOR_B = [255, 176, 103];
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function emberColor(t, alpha) {
+  const r = Math.round(lerp(COLOR_A[0], COLOR_B[0], t));
+  const g = Math.round(lerp(COLOR_A[1], COLOR_B[1], t));
+  const b = Math.round(lerp(COLOR_A[2], COLOR_B[2], t));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function resetEmber(ember, initial, width, height) {
+  const fromForge = Math.random() < 0.82;
+  const originX = width * 0.5;
+  const spread = fromForge ? width * 0.32 : width * 0.72;
+
+  ember.size = fromForge ? 0.8 + Math.random() * 1.8 : 0.6 + Math.random() * 1.2;
+  ember.x = fromForge
+    ? originX + (Math.random() - 0.5) * spread
+    : Math.random() * width;
+  ember.y = initial
+    ? fromForge
+      ? height * 0.64 + Math.random() * height * 0.22
+      : height * 0.4 + Math.random() * height * 0.36
+    : fromForge
+      ? height * 0.8 + Math.random() * height * 0.12
+      : height * 0.58 + Math.random() * height * 0.24;
+  ember.speed = fromForge ? 8 + Math.random() * 16 : 6 + Math.random() * 10;
+  ember.drift = (Math.random() - 0.5) * (fromForge ? 8 : 4);
+  ember.phase = Math.random() * Math.PI * 2;
+  ember.wiggle = 0.35 + Math.random() * 0.95;
+  ember.life = 0.55 + Math.random() * 0.95;
+  ember.alpha = fromForge ? 0.24 + Math.random() * 0.36 : 0.16 + Math.random() * 0.22;
+  ember.t = Math.random();
+}
+
+function useForgeSparkEngine(canvasRef) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Respect prefers-reduced-motion
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (reducedMotionQuery.matches) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let embers = [];
+    let animationId = 0;
+    let lastTs = 0;
+    let isRunning = false;
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.floor(rect.width || window.innerWidth || 1));
+      height = Math.max(1, Math.floor(rect.height || window.innerHeight || 1));
+      dpr = clamp(window.devicePixelRatio || 1, 1, 1.75);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!embers.length) {
+        const total = Math.floor(lerp(MIN_EMBERS, MAX_EMBERS, Math.random()));
+        embers = Array.from({ length: total }, () => {
+          const ember = {};
+          resetEmber(ember, true, width, height);
+          return ember;
+        });
+      }
+    }
+
+    function draw(ts) {
+      if (!isRunning || !ctx) return;
+      if (!lastTs) lastTs = ts;
+      const dt = Math.min((ts - lastTs) / 1000, 0.033);
+      lastTs = ts;
+
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = 0; i < embers.length; i++) {
+        const ember = embers[i];
+        ember.y -= ember.speed * dt;
+        ember.x += (ember.drift + Math.sin(ts * 0.0012 + ember.phase) * ember.wiggle * 3.8) * dt;
+        ember.life -= dt * 0.22;
+        ember.alpha = Math.max(0, ember.alpha - dt * 0.024);
+
+        if (ember.y < -10 || ember.life <= 0 || ember.alpha <= 0) {
+          resetEmber(ember, false, width, height);
+        }
+
+        const fadeTop = clamp((height - ember.y) / (height * 0.9), 0, 1);
+        const alpha = ember.alpha * (1 - fadeTop * 0.88);
+        if (alpha <= 0.01) continue;
+
+        ctx.beginPath();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = emberColor(ember.t, alpha);
+        ctx.shadowColor = emberColor(ember.t, alpha * 0.6);
+        ctx.shadowBlur = 3;
+        ctx.arc(ember.x, ember.y, ember.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Forge glow at base of anvil
+      const forgeGlow = ctx.createRadialGradient(
+        width * 0.5, height * 0.82, 8,
+        width * 0.5, height * 0.82, height * 0.2
+      );
+      forgeGlow.addColorStop(0, 'rgba(255,132,46,0.18)');
+      forgeGlow.addColorStop(0.52, 'rgba(255,120,40,0.09)');
+      forgeGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = forgeGlow;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.shadowBlur = 0;
+      animationId = requestAnimationFrame(draw);
+    }
+
+    function start() {
+      resize();
+      lastTs = 0;
+      isRunning = true;
+      window.addEventListener('resize', resize);
+      animationId = requestAnimationFrame(draw);
+    }
+
+    // Retry until canvas has real dimensions (handles PWA cold-boot)
+    function tryStart() {
+      const rect = canvas.getBoundingClientRect();
+      if ((rect.width || 0) > 1 && (rect.height || 0) > 1) {
+        start();
+      } else {
+        requestAnimationFrame(tryStart);
+      }
+    }
+
+    requestAnimationFrame(tryStart);
+
+    function onVisibilityChange() {
+      if (document.hidden) return;
+      if (!isRunning) {
+        lastTs = 0;
+        isRunning = true;
+        animationId = requestAnimationFrame(draw);
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pageshow', onVisibilityChange);
+
+    return () => {
+      isRunning = false;
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', resize);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pageshow', onVisibilityChange);
+      if (ctx) ctx.clearRect(0, 0, width, height);
+    };
+  }, [canvasRef]);
+}
+
 export default function LoginScreen() {
-  const controllerRef = useRef(null);
-  const signInButtonRef = useRef(null);
-  const signUpButtonRef = useRef(null);
-  const nativeActionRef = useRef({
-    type: '',
-    stamp: 0,
-  });
   const auth = useRuntimeStore((state) => state.auth);
   const setAuthState = useRuntimeStore((state) => state.setAuthState);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [buildLabel] = useState(() => getBuildLabel());
+  const canvasRef = useRef(null);
 
   useEffect(() => {
-    if (typeof window.createLoginSparksController !== 'function') return;
-    const controller = window.createLoginSparksController();
-    controller.start();
-    controllerRef.current = controller;
     window.__IRONFORGE_LOGIN_DEBUG__?.render?.();
-    return () => {
-      controller.stop();
-      controllerRef.current = null;
-    };
   }, []);
 
-  useEffect(() => {
-    const signInButton = signInButtonRef.current;
-    const signUpButton = signUpButtonRef.current;
-
-    if (!(signInButton instanceof HTMLButtonElement)) return undefined;
-    if (!(signUpButton instanceof HTMLButtonElement)) return undefined;
-
-    function shouldSkipNativeAction(type) {
-      const now = Date.now();
-      const last = nativeActionRef.current;
-      if (last.type === type && now - last.stamp < 500) {
-        return true;
-      }
-      nativeActionRef.current = {
-        type,
-        stamp: now,
-      };
-      return false;
-    }
-
-    function handleNativeSignIn(event) {
-      if (auth.pendingAction !== null) return;
-      event.preventDefault();
-      if (shouldSkipNativeAction('sign_in')) return;
-      void runSignIn();
-    }
-
-    function handleNativeSignUp(event) {
-      if (auth.pendingAction !== null) return;
-      event.preventDefault();
-      if (shouldSkipNativeAction('sign_up')) return;
-      void runSignUp();
-    }
-
-    signInButton.addEventListener('touchend', handleNativeSignIn);
-    signUpButton.addEventListener('touchend', handleNativeSignUp);
-
-    return () => {
-      signInButton.removeEventListener('touchend', handleNativeSignIn);
-      signUpButton.removeEventListener('touchend', handleNativeSignUp);
-    };
-  }, [auth.pendingAction, email, password]);
+  useForgeSparkEngine(canvasRef);
 
   function clearAuthMessage() {
     if (!auth.message) return;
@@ -137,7 +255,7 @@ export default function LoginScreen() {
   const isBusy = auth.pendingAction !== null;
   const statusMessage = auth.message || '';
   const statusToneClass =
-    auth.messageTone === 'error' ? 'text-red-300' : 'text-accent';
+    auth.messageTone === 'error' ? 'text-red-300' : 'text-[#ffb07a]';
   const signInLabel =
     auth.pendingAction === 'sign_in'
       ? t('login.signing_in', 'Signing in...')
@@ -153,126 +271,105 @@ export default function LoginScreen() {
       data-ui="auth-screen"
       className="relative min-h-[100dvh] overflow-hidden bg-[#090b10] text-white"
       style={{
-        backgroundImage: `linear-gradient(180deg, rgba(8,11,16,0.20) 0%, rgba(7,9,14,0.84) 82%), url(${loginHeroImage})`,
+        backgroundImage: `linear-gradient(180deg, rgba(8,11,16,0.05) 0%, rgba(5,7,11,0.55) 60%, rgba(4,6,10,0.88) 100%), url(${loginHeroImage})`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center center',
+        backgroundPosition: 'center top',
         backgroundRepeat: 'no-repeat',
       }}
     >
+      {/* Spark particle canvas */}
       <canvas
+        ref={canvasRef}
         id="sparks"
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-10 h-full w-full"
       />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,140,72,0.18),transparent_42%),linear-gradient(180deg,rgba(5,7,11,0.05),rgba(5,7,11,0.72))]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_58%)]" />
 
-      <div className="relative z-20 flex min-h-[100dvh] flex-col justify-end px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-[max(22px,env(safe-area-inset-top))] sm:px-6">
-        <div className="mx-auto w-full max-w-sm">
-          <div className="mb-6 rounded-[28px] border border-white/10 bg-black/30 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/55">
-                  {t('login.kicker', 'Forge Protocol')}
-                </div>
-                <h1 className="mt-2 text-[34px] font-semibold leading-none tracking-[-0.04em] text-white">
-                  Ironforge
-                </h1>
-                <p className="mt-3 max-w-[26ch] text-sm leading-6 text-white/72">
-                  {t(
-                    'login.subtitle',
-                    'Sign in to sync your training plan, workouts, and coaching progress across devices.'
-                  )}
-                </p>
-              </div>
-              <div
-                aria-hidden="true"
-                className="h-16 w-12 rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.02))] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
-              />
+      {/* Ambient forge glow behind logo */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[55%] bg-[radial-gradient(ellipse_60%_45%_at_50%_22%,rgba(255,130,40,0.13),transparent_70%)]" />
+
+      {/* Bottom vignette — dark enough to ground the form but lets canvas glow bleed through */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[55%] bg-[linear-gradient(0deg,rgba(4,6,10,0.92)_0%,rgba(4,6,10,0.68)_40%,transparent_100%)]" />
+
+      {/* Absolutely positioned between logo bottom (~42%) and anvil top (~67%) */}
+      <div className="pointer-events-none absolute inset-0 z-20" />
+      <div className="absolute z-20 w-full px-5 sm:px-6" style={{ top: '42%', bottom: '33%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="w-full max-w-xs pointer-events-auto">
+
+          <form className="space-y-2" onSubmit={handleSignIn}>
+            {/* Email */}
+            <input
+              className="h-11 w-full rounded-xl border border-white/12 bg-black/40 px-4 text-center text-[14px] text-white placeholder:text-white/35 outline-none backdrop-blur-sm transition-colors focus:border-[#ff8a3d]/60 focus:bg-black/50 focus:ring-0 disabled:opacity-60"
+              type="email"
+              id="login-email"
+              placeholder={t('login.email_placeholder', 'Email')}
+              autoComplete="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.currentTarget.value);
+                clearAuthMessage();
+              }}
+              disabled={isBusy}
+            />
+
+            {/* Password */}
+            <input
+              className="h-11 w-full rounded-xl border border-white/12 bg-black/40 px-4 text-center text-[14px] text-white placeholder:text-white/35 outline-none backdrop-blur-sm transition-colors focus:border-[#ff8a3d]/60 focus:bg-black/50 focus:ring-0 disabled:opacity-60"
+              type="password"
+              id="login-password"
+              placeholder="Password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.currentTarget.value);
+                clearAuthMessage();
+              }}
+              disabled={isBusy}
+            />
+
+            {/* Status message */}
+            <div
+              id="login-error"
+              className={`min-h-[16px] text-center text-[12px] ${statusToneClass}`}
+            >
+              {statusMessage}
             </div>
 
-            <form className="space-y-3" onSubmit={handleSignIn}>
-              <label className="block">
-                <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55">
-                  {t('login.email', 'Email')}
-                </span>
-                <input
-                  className="h-14 w-full rounded-2xl border border-white/10 bg-white/8 px-4 text-base text-white outline-none transition focus:border-[#ff8a3d] focus:ring-2 focus:ring-[#ff8a3d]/30"
-                  type="email"
-                  id="login-email"
-                  placeholder={t('login.email', 'Email')}
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => {
-                    setEmail(event.currentTarget.value);
-                    clearAuthMessage();
-                  }}
-                  disabled={isBusy}
-                />
-              </label>
+            <pre
+              id="login-debug"
+              hidden
+              aria-live="polite"
+              className="hidden max-h-44 overflow-auto rounded-xl border border-white/10 bg-black/45 p-3 text-left font-mono text-[11px] leading-5 text-slate-200"
+            />
 
-              <label className="block">
-                <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55">
-                  {t('login.password', 'Password')}
-                </span>
-                <input
-                  className="h-14 w-full rounded-2xl border border-white/10 bg-white/8 px-4 text-base text-white outline-none transition focus:border-[#ff8a3d] focus:ring-2 focus:ring-[#ff8a3d]/30"
-                  type="password"
-                  id="login-password"
-                  placeholder={t('login.password', 'Password')}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => {
-                    setPassword(event.currentTarget.value);
-                    clearAuthMessage();
-                  }}
-                  disabled={isBusy}
-                />
-              </label>
+            {/* Sign In — primary */}
+            <button
+              type="submit"
+              disabled={isBusy}
+              data-ui="auth-sign-in"
+              className="h-11 w-full rounded-xl bg-[linear-gradient(90deg,#d45f20_0%,#ff8c3a_100%)] text-[14px] font-semibold tracking-wide text-white shadow-[0_8px_28px_rgba(220,100,30,0.35)] transition active:scale-[0.985] disabled:opacity-60"
+            >
+              {signInLabel}
+            </button>
 
-              <div
-                id="login-error"
-                className={`min-h-[20px] text-sm ${statusToneClass}`}
-              >
-                {statusMessage}
-              </div>
+            {/* Create Account — ghost */}
+            <button
+              type="button"
+              onClick={handleSignUp}
+              disabled={isBusy}
+              data-ui="auth-sign-up"
+              className="h-11 w-full rounded-xl border border-white/15 bg-transparent text-[14px] font-semibold tracking-wide text-white/75 transition hover:border-white/25 hover:text-white active:scale-[0.985] disabled:opacity-60"
+            >
+              {signUpLabel}
+            </button>
+          </form>
 
-              <pre
-                id="login-debug"
-                hidden
-                aria-live="polite"
-                className="hidden max-h-44 overflow-auto rounded-2xl border border-white/10 bg-black/45 p-3 text-left font-mono text-[11px] leading-5 text-slate-200"
-              />
-
-              <button
-                ref={signInButtonRef}
-                type="submit"
-                disabled={isBusy}
-                data-ui="auth-sign-in"
-                data-shell-action="login-with-email"
-                className="h-14 w-full rounded-2xl bg-[linear-gradient(90deg,#df6a2e_0%,#ff9147_100%)] text-base font-semibold text-white shadow-[0_18px_44px_rgba(255,122,58,0.28)] transition active:scale-[0.99] disabled:opacity-70"
-              >
-                {signInLabel}
-              </button>
-
-              <button
-                ref={signUpButtonRef}
-                type="button"
-                onClick={handleSignUp}
-                disabled={isBusy}
-                data-ui="auth-sign-up"
-                data-shell-action="signup-with-email"
-                className="h-14 w-full rounded-2xl border border-[#ff8a3d]/55 bg-white/5 text-base font-semibold text-[#ffb07a] transition active:scale-[0.99] disabled:opacity-70"
-              >
-                {signUpLabel}
-              </button>
-            </form>
-
-            <div className="mt-5 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.18em] text-white/42">
-              <span>{t('login.stack_label', 'React Auth')}</span>
-              {buildLabel ? <span>{buildLabel}</span> : null}
-            </div>
+          {/* Footer meta */}
+          <div className="mt-3 flex items-center justify-center gap-4 text-[9px] uppercase tracking-[0.2em] text-white/25">
+            <span>{t('login.stack_label', 'React Auth')}</span>
+            {buildLabel ? <span>{buildLabel}</span> : null}
           </div>
+
         </div>
       </div>
     </div>
