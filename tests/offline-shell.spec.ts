@@ -30,7 +30,10 @@ test('offline shell boots after the service worker is installed', async ({ page 
   await page.reload({ waitUntil: 'domcontentloaded' });
 
   await page.waitForFunction(
-    () => typeof window.showPage === 'function' && typeof window.loadData === 'function'
+    () =>
+      typeof window.showPage === 'function' &&
+      typeof window.loadData === 'function' &&
+      typeof window.__IRONFORGE_SET_AUTH_STATE__ === 'function'
   );
 
   await page.evaluate(() => {
@@ -43,6 +46,13 @@ test('offline shell boots after the service worker is installed', async ({ page 
     window.showLoginScreen = suppressLoginUi;
     window.hideLoginScreen = suppressLoginUi;
     window.maybeOpenOnboarding = () => {};
+    window.__IRONFORGE_SET_AUTH_STATE__?.({
+      phase: 'signed_in',
+      isLoggedIn: true,
+      pendingAction: null,
+      message: '',
+      messageTone: '',
+    });
     window.__IRONFORGE_E2E__?.app?.setCurrentUser?.({
       id: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user',
       email: 'e2e@example.com',
@@ -56,6 +66,13 @@ test('offline shell boots after the service worker is installed', async ({ page 
     await window.__IRONFORGE_E2E__?.app?.loadData?.({
       allowCloudSync: false,
       userId: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user',
+    });
+    window.__IRONFORGE_SET_AUTH_STATE__?.({
+      phase: 'signed_in',
+      isLoggedIn: true,
+      pendingAction: null,
+      message: '',
+      messageTone: '',
     });
   });
 

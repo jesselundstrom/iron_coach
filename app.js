@@ -2210,10 +2210,18 @@ function updateLanguageDependentUI() {
 window.updateLanguageDependentUI = updateLanguageDependentUI;
 
 // INIT
-initAuth();
+if (window.__IRONFORGE_AUTH_RUNTIME__?.bootstrap) {
+  window.__IRONFORGE_AUTH_RUNTIME__.bootstrap();
+}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    if (window.__IRONFORGE_DISABLE_LEGACY_SW__ === true) {
+      window.__IRONFORGE_LOGIN_DEBUG__?.trace?.(
+        'service worker register delegated to app shell'
+      );
+      return;
+    }
     window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('service worker register start', {
       scope: './',
     });

@@ -112,8 +112,30 @@ declare global {
       updateLanguageDependentUI?: () => void;
     };
     __IRONFORGE_ACTIVE_SETTINGS_TAB__?: string;
+    __IRONFORGE_AUTH_RUNTIME__?: {
+      bootstrap?: () => Promise<void>;
+      loginWithEmail?: (credentials?: {
+        email?: string;
+        password?: string;
+      }) => Promise<void>;
+      signUpWithEmail?: (credentials?: {
+        email?: string;
+        password?: string;
+      }) => Promise<void>;
+      logout?: () => Promise<void>;
+      showLoginScreen?: () => void;
+      hideLoginScreen?: () => void;
+    };
     __IRONFORGE_APP_VERSION__?: string;
     __IRONFORGE_APP_SHELL_READY__?: boolean;
+    __IRONFORGE_DISABLE_LEGACY_SW__?: boolean;
+    __IRONFORGE_PWA_UPDATE_RUNTIME__?: {
+      register?: () => Promise<void>;
+      applyUpdate?: () => void;
+      setWaitingWorkerForTest?: (
+        worker: { postMessage: (message: unknown) => void } | null
+      ) => void;
+    };
     __IRONFORGE_RUNTIME_BRIDGE__?: {
       navigateToPage?: (page: string) => void;
       setActiveSettingsTab?: (tab: string) => void;
@@ -147,6 +169,14 @@ declare global {
     syncRuntimeStoreFromLegacy?: () => void;
     syncWorkoutSessionBridge?: () => void;
     syncSettingsBridge?: () => void;
+    __IRONFORGE_SET_AUTH_LOGGED_IN__?: (isLoggedIn: boolean) => void;
+    __IRONFORGE_SET_AUTH_STATE__?: (partial: {
+      phase?: 'booting' | 'signed_out' | 'signed_in';
+      isLoggedIn?: boolean;
+      pendingAction?: 'sign_in' | 'sign_up' | 'sign_out' | null;
+      message?: string;
+      messageTone?: '' | 'info' | 'error';
+    }) => void;
     getOnboardingDefaultDraft?: () => Record<string, unknown> | null;
     buildOnboardingRecommendation?: (
       draft?: Record<string, unknown>
@@ -218,6 +248,37 @@ declare global {
     __IRONFORGE_LEGACY_RUNTIME_ACCESS__?: {
       read?: (name: string) => unknown;
       write?: (name: string, value: unknown) => void;
+    };
+    __IRONFORGE_APPLY_AUTH_SESSION__?: (
+      session: Record<string, unknown> | null,
+      options?: Record<string, unknown>
+    ) => Promise<void> | void;
+    __IRONFORGE_REPORT_AUTH_SESSION_ERROR__?: (error: unknown) => void;
+    __IRONFORGE_SUPABASE__?: {
+      auth?: {
+        getSession?: () => Promise<unknown>;
+        onAuthStateChange?: (
+          callback: (event: string, session: unknown | null) => void
+        ) => unknown;
+        signInWithPassword?: (credentials: {
+          email: string;
+          password: string;
+        }) => Promise<unknown>;
+        signUp?: (credentials: {
+          email: string;
+          password: string;
+        }) => Promise<unknown>;
+        signOut?: () => Promise<unknown>;
+      };
+    };
+    __IRONFORGE_SUPABASE_URL__?: string;
+    __IRONFORGE_SUPABASE_PUBLISHABLE_KEY__?: string;
+    supabase?: {
+      createClient?: (
+        url: string,
+        key: string,
+        options?: Record<string, unknown>
+      ) => unknown;
     };
     __IRONFORGE_WORKOUT_RUNTIME__?: {
       getWorkoutStartSnapshotSignature?: (

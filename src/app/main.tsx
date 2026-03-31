@@ -23,6 +23,8 @@ import { installDashboardStore } from '../stores/dashboard-store';
 import { installHistoryStore } from '../stores/history-store';
 import { installNutritionStore } from '../stores/nutrition-store';
 import { installTestStoresBridge } from './services/test-stores';
+import { installAuthRuntime } from './services/auth-runtime';
+import { installPwaUpdateRuntime } from './services/pwa-update-runtime';
 
 function LegacyRuntimeBridge() {
   useEffect(() => startLegacyRuntimeBridge(), []);
@@ -66,6 +68,11 @@ if (mountNode) {
   window.__IRONFORGE_SET_AUTH_LOGGED_IN__ = (isLoggedIn: boolean) => {
     useRuntimeStore.getState().setAuthLoggedIn(isLoggedIn);
   };
+  window.__IRONFORGE_SET_AUTH_STATE__ = (
+    partial: Partial<ReturnType<typeof useRuntimeStore.getState>['auth']>
+  ) => {
+    useRuntimeStore.getState().setAuthState(partial);
+  };
 
   installLegacyI18nStoreBridge();
   installLegacyDataStoreBridge();
@@ -79,6 +86,8 @@ if (mountNode) {
   installNutritionStore();
   installTestStoresBridge();
   installAppRuntimeBridge();
+  installAuthRuntime();
+  installPwaUpdateRuntime();
   prepareLegacyShellMount();
   syncRuntimeStoreFromLegacy();
   createRoot(mountNode).render(<App />);

@@ -21,6 +21,13 @@ async function bootSignedInApp(page: Page) {
 
     window.showLoginScreen = suppressLoginUi;
     window.hideLoginScreen = suppressLoginUi;
+    window.__IRONFORGE_SET_AUTH_STATE__?.({
+      phase: 'signed_in',
+      isLoggedIn: true,
+      pendingAction: null,
+      message: '',
+      messageTone: '',
+    });
     currentUser = {
       id: window.__IRONFORGE_TEST_USER_ID__ || 'e2e-user',
       email: 'e2e@example.com',

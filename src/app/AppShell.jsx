@@ -2,6 +2,7 @@ import { Component, useEffect, useMemo, useRef } from 'react';
 import { useRuntimeStore } from './store/runtime-store.ts';
 import { t } from './services/i18n.ts';
 import LoginScreen from './LoginScreen.jsx';
+import { applyPendingPwaUpdate } from './services/pwa-update-runtime.ts';
 import OnboardingFlow from './OnboardingFlow.jsx';
 import { DashboardIsland } from '../dashboard-island/main.jsx';
 import { HistoryIsland } from '../history-island/main.jsx';
@@ -353,8 +354,44 @@ function PageShell({ id, active, children }) {
   );
 }
 
+function AppUpdateBanner({ updateReady, applyingUpdate }) {
+  if (!updateReady && !applyingUpdate) return null;
+
+  return (
+    <div
+      className="toast toast-info show"
+      id="app-update-toast"
+      style={{
+        top: 16,
+        bottom: 'auto',
+        pointerEvents: 'auto',
+      }}
+    >
+      <span>
+        {applyingUpdate
+          ? t('pwa.update.applying', 'Updating Ironforge...')
+          : t(
+              'pwa.update.available',
+              'A new version of Ironforge is ready.'
+            )}
+      </span>
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        disabled={applyingUpdate}
+        onClick={() => applyPendingPwaUpdate()}
+      >
+        {applyingUpdate
+          ? t('pwa.update.refreshing', 'Refreshing...')
+          : t('pwa.update.refresh', 'Refresh')}
+      </button>
+    </div>
+  );
+}
+
 export default function AppShell() {
-  const isLoggedIn = useRuntimeStore((state) => state.auth.isLoggedIn);
+  const auth = useRuntimeStore((state) => state.auth);
+  const serviceWorker = useRuntimeStore((state) => state.serviceWorker);
   const activePage = useRuntimeStore((state) => state.navigation.activePage);
   const activeSettingsTab = useRuntimeStore(
     (state) => state.navigation.activeSettingsTab
@@ -439,12 +476,24 @@ export default function AppShell() {
     runPageActivationSideEffects(activePage);
   }, [activePage]);
 
-  if (!isLoggedIn) {
-    return <LoginScreen />;
+  if (auth.phase !== 'signed_in') {
+    return (
+      <>
+        <AppUpdateBanner
+          updateReady={serviceWorker.updateReady}
+          applyingUpdate={serviceWorker.applyingUpdate}
+        />
+        <LoginScreen />
+      </>
+    );
   }
 
   return (
     <div className="app" id="app-root">
+      <AppUpdateBanner
+        updateReady={serviceWorker.updateReady}
+        applyingUpdate={serviceWorker.applyingUpdate}
+      />
       <div
         className={`toast${toast?.variant ? ` toast-${toast.variant}` : ''}${
           toast?.visible ? ' show' : ''

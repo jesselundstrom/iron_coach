@@ -643,7 +643,13 @@ async function callNutritionCoach(
     );
   }
 
-  const sessionResult = await runtimeWindow?.__IRONFORGE_SUPABASE__?.auth?.getSession?.();
+  const sessionResult = (await runtimeWindow?.__IRONFORGE_SUPABASE__?.auth?.getSession?.()) as {
+    data?: {
+      session?: {
+        access_token?: string;
+      } | null;
+    } | null;
+  } | null;
   const accessToken = sessionResult?.data?.session?.access_token || '';
   if (!accessToken) {
     throw new Error(tr('nutrition.error.auth_required', 'Sign in to use Nutrition Coach.'));

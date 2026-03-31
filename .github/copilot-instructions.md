@@ -49,6 +49,8 @@
 
 ## Runtime Compatibility Rules
 - `core/ui-shell.js`, `window.showPage(...)`, `window.showToast(...)`, `window.showConfirm(...)`, and similar globals remain compatibility surfaces until their callers are fully migrated.
+- React-owned auth/session orchestration now lives in `src/app/services/auth-runtime.ts`.
+- Legacy auth globals such as `window.loginWithEmail`, `window.signUpWithEmail`, `window.logout`, `window.showLoginScreen`, and `window.hideLoginScreen` remain temporary compatibility delegates and should not regain primary auth ownership.
 - `window.PROGRAMS`, `window.EXERCISE_LIBRARY`, `window.workouts`, `window.profile`, `window.schedule`, and `window.activeWorkout` may remain temporarily for untouched legacy code and Playwright compatibility.
 - `window.renderHistory`, `window.switchHistoryTab`, `window.switchHistoryStatsRange`, and `window.toggleHeatmap` are provided by `src/stores/history-store.ts`.
 - `window.setSelectedNutritionAction`, `window.submitNutritionMessage`, `window.submitNutritionTextMessage`, `window.handleNutritionPhoto`, `window.retryLastNutritionMessage`, `window.clearNutritionHistory`, `window.clearNutritionLocalData`, and `window.setNutritionSessionContext` are provided by `src/stores/nutrition-store.ts`.
@@ -65,6 +67,7 @@
 - Avoid large HTML rewrites unless the task requires them.
 - Keep controls usable on small screens and ensure new UI works with touch input.
 - Keep Settings simple-first: expose clear everyday controls in the main view, and keep technical program tuning behind a separate advanced setup path instead of pushing all knobs into the default UI.
+- Installed-PWA updates now use a waiting-service-worker prompt flow from the React shell instead of immediate replacement; when changing update behavior, preserve the explicit user-confirmed refresh path.
 
 ## CSS and Tailwind
 - Tailwind CSS v4 is installed and configured via `src/styles/tailwind.css`.

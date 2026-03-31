@@ -44,6 +44,11 @@ type LegacyDataSnapshot = Omit<
 >;
 
 type LegacyDataWindow = Window & {
+  __IRONFORGE_AUTH_RUNTIME__?: {
+    loginWithEmail?: () => Promise<unknown> | unknown;
+    signUpWithEmail?: () => Promise<unknown> | unknown;
+    logout?: () => Promise<unknown> | unknown;
+  };
   currentUser?: Record<string, unknown> | null;
   workouts?: Array<Record<string, unknown>>;
   schedule?: Record<string, unknown> | null;
@@ -293,17 +298,29 @@ export const dataStore: StoreApi<LegacyDataStoreState> =
     return cloneJson(getLegacyWindow()?.getActiveWorkoutDraftCache?.() || null);
   },
   loginWithEmail: async () => {
-    const result = await getLegacyWindow()?.loginWithEmail?.();
+    const runtimeWindow = getLegacyWindow();
+    const result = await (
+      runtimeWindow?.__IRONFORGE_AUTH_RUNTIME__?.loginWithEmail ||
+      runtimeWindow?.loginWithEmail
+    )?.();
     syncStoreFromLegacy();
     return result;
   },
   signUpWithEmail: async () => {
-    const result = await getLegacyWindow()?.signUpWithEmail?.();
+    const runtimeWindow = getLegacyWindow();
+    const result = await (
+      runtimeWindow?.__IRONFORGE_AUTH_RUNTIME__?.signUpWithEmail ||
+      runtimeWindow?.signUpWithEmail
+    )?.();
     syncStoreFromLegacy();
     return result;
   },
   logout: async () => {
-    const result = await getLegacyWindow()?.logout?.();
+    const runtimeWindow = getLegacyWindow();
+    const result = await (
+      runtimeWindow?.__IRONFORGE_AUTH_RUNTIME__?.logout ||
+      runtimeWindow?.logout
+    )?.();
     syncStoreFromLegacy();
     return result;
   },

@@ -2820,6 +2820,7 @@ async function applyAuthSession(session, options) {
     wasLoggedIn,
   });
   currentUser = sessionUser;
+  window.currentUser = currentUser || null;
   if (currentUser && !wasLoggedIn) {
     logAuthTrace('applyAuthSession loading user data', {
       userId: currentUser.id || '',
@@ -2838,8 +2839,14 @@ async function applyAuthSession(session, options) {
   if (!currentUser && wasLoggedIn) {
     logAuthTrace('applyAuthSession logout branch');
     teardownRealtimeSync();
+    if (typeof clearNutritionLocalData === 'function') {
+      clearNutritionLocalData({ includeScoped: true, includeLegacy: true });
+    }
     resetRuntimeState();
     showLoginScreen();
+    if (typeof notifySettingsAccountIsland === 'function')
+      notifySettingsAccountIsland();
+    updateDashboard();
     return;
   }
   if (!currentUser) {
@@ -2874,48 +2881,30 @@ function reportAuthSessionError(error) {
 }
 
 async function initAuth() {
-  logAuthTrace('initAuth getSession start');
-  const {
-    data: { session },
-  } = await _SB.auth.getSession();
-  logAuthTrace('initAuth getSession resolved', {
-    hasSession: !!session,
-    userId: session?.user?.id || '',
-  });
-  try {
-    await applyAuthSession(session, { wasLoggedIn: false });
-  } catch (error) {
-    reportAuthSessionError(error);
-    if (!currentUser) showLoginScreen();
+  logAuthTrace('initAuth delegated to auth runtime');
+  if (window.__IRONFORGE_AUTH_RUNTIME__?.bootstrap) {
+    await window.__IRONFORGE_AUTH_RUNTIME__.bootstrap();
   }
-
-  _SB.auth.onAuthStateChange((event, session) => {
-    const wasLoggedIn = !!currentUser;
-    logAuthTrace('onAuthStateChange received', {
-      event,
-      hasSession: !!session,
-      userId: session?.user?.id || '',
-      wasLoggedIn,
-    });
-    // Supabase auth callbacks should stay synchronous; defer the real work so
-    // follow-up auth operations do not get trapped behind the callback lock.
-    window.setTimeout(() => {
-      void applyAuthSession(session, { wasLoggedIn }).catch((error) => {
-        reportAuthSessionError(error);
-        if (!currentUser) showLoginScreen();
-      });
-    }, 0);
-  });
 }
 
 function showLoginScreen() {
   logAuthTrace('showLoginScreen');
+  window.__IRONFORGE_SET_AUTH_STATE__?.({
+    phase: 'signed_out',
+    isLoggedIn: false,
+    pendingAction: null,
+  });
   window.__IRONFORGE_SET_AUTH_LOGGED_IN__?.(false);
   renderSyncStatus();
 }
 
 function hideLoginScreen() {
   logAuthTrace('hideLoginScreen', { userId: currentUser?.id || '' });
+  window.__IRONFORGE_SET_AUTH_STATE__?.({
+    phase: 'signed_in',
+    isLoggedIn: true,
+    pendingAction: null,
+  });
   window.__IRONFORGE_SET_AUTH_LOGGED_IN__?.(true);
   const el = document.getElementById('account-email');
   if (el) el.textContent = currentUser?.email ?? '';
@@ -2925,88 +2914,27 @@ function hideLoginScreen() {
 }
 
 async function loginWithEmail() {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  logAuthTrace('loginWithEmail start', {
-    hasEmail: !!email,
-    hasPassword: !!password,
-  });
-  errEl.style.color = 'var(--accent)';
-  errEl.textContent = 'Signing in...';
-  try {
-    const { data, error } = await _SB.auth.signInWithPassword({ email, password });
-    logAuthTrace('loginWithEmail resolved', {
-      hasError: !!error,
-      error: error?.message || '',
-    });
-    if (!error) {
-      // Drive navigation directly from the session returned here so we are not
-      // dependent on onAuthStateChange firing — which is unreliable in iOS PWA
-      // (standalone) contexts.  applyAuthSession is idempotent: if the event
-      // fires afterwards currentUser is already set so it becomes a no-op.
-      if (data?.session) {
-        await applyAuthSession(data.session, { wasLoggedIn: false });
-      }
-      return;
-    }
-    errEl.style.color = '#f87171';
-    errEl.textContent = error.message;
-  } catch (error) {
-    logAuthTrace('loginWithEmail threw', {
-      message: error instanceof Error ? error.message : String(error),
-    });
-    errEl.style.color = '#f87171';
-    errEl.textContent =
-      error instanceof Error ? error.message : 'Unable to sign in right now.';
+  logAuthTrace('legacy loginWithEmail delegate');
+  if (window.__IRONFORGE_AUTH_RUNTIME__?.loginWithEmail) {
+    return await window.__IRONFORGE_AUTH_RUNTIME__.loginWithEmail();
   }
+  throw new Error('Auth runtime is not ready.');
 }
 
 async function signUpWithEmail() {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  logAuthTrace('signUpWithEmail start', {
-    hasEmail: !!email,
-    passwordLength: password.length,
-  });
-  if (password.length < 6) {
-    logAuthTrace('signUpWithEmail rejected short password', {
-      passwordLength: password.length,
-    });
-    errEl.style.color = '#f87171';
-    errEl.textContent = 'Password must be at least 6 characters.';
-    return;
+  logAuthTrace('legacy signUpWithEmail delegate');
+  if (window.__IRONFORGE_AUTH_RUNTIME__?.signUpWithEmail) {
+    return await window.__IRONFORGE_AUTH_RUNTIME__.signUpWithEmail();
   }
-  errEl.style.color = 'var(--accent)';
-  errEl.textContent = 'Creating account...';
-  const { error } = await _SB.auth.signUp({ email, password });
-  logAuthTrace('signUpWithEmail resolved', {
-    hasError: !!error,
-    error: error?.message || '',
-  });
-  if (error) {
-    errEl.style.color = '#f87171';
-    errEl.textContent = error.message;
-  } else {
-    errEl.style.color = 'var(--accent)';
-    errEl.textContent =
-      'Account created! Check your email to confirm, then sign in.';
-  }
+  throw new Error('Auth runtime is not ready.');
 }
 
 async function logout() {
-  teardownRealtimeSync();
-  await _SB.auth.signOut();
-  if (typeof clearNutritionLocalData === 'function') {
-    clearNutritionLocalData({ includeScoped: true, includeLegacy: true });
+  logAuthTrace('legacy logout delegate');
+  if (window.__IRONFORGE_AUTH_RUNTIME__?.logout) {
+    return await window.__IRONFORGE_AUTH_RUNTIME__.logout();
   }
-  currentUser = null;
-  resetRuntimeState();
-  renderSyncStatus();
-  if (typeof notifySettingsAccountIsland === 'function')
-    notifySettingsAccountIsland();
-  updateDashboard();
+  throw new Error('Auth runtime is not ready.');
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -3016,6 +2944,8 @@ window.addEventListener('pagehide', () => {
   void flushPendingCloudSync();
 });
 
+window.__IRONFORGE_APPLY_AUTH_SESSION__ = applyAuthSession;
+window.__IRONFORGE_REPORT_AUTH_SESSION_ERROR__ = reportAuthSessionError;
 window.loginWithEmail = loginWithEmail;
 window.signUpWithEmail = signUpWithEmail;
 window.logout = logout;

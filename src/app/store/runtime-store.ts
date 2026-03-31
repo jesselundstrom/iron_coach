@@ -17,7 +17,15 @@ import type {
 
 type RuntimeStore = {
   auth: {
+    phase: 'booting' | 'signed_out' | 'signed_in';
     isLoggedIn: boolean;
+    pendingAction: 'sign_in' | 'sign_up' | 'sign_out' | null;
+    message: string;
+    messageTone: '' | 'info' | 'error';
+  };
+  serviceWorker: {
+    updateReady: boolean;
+    applyingUpdate: boolean;
   };
   navigation: {
     activePage: AppPage;
@@ -58,7 +66,11 @@ type RuntimeStore = {
   setSettingsProgramView: (view: SettingsProgramView | null) => void;
   setSettingsScheduleView: (view: SettingsScheduleView | null) => void;
   setExerciseCatalogView: (view: ExerciseCatalogView | null) => void;
+  setAuthState: (partial: Partial<RuntimeStore['auth']>) => void;
   setAuthLoggedIn: (isLoggedIn: boolean) => void;
+  setServiceWorkerState: (
+    partial: Partial<RuntimeStore['serviceWorker']>
+  ) => void;
   bumpLanguageVersion: () => void;
 };
 
@@ -101,7 +113,15 @@ const defaultToast: ToastSnapshot = {
 
 export const useRuntimeStore = create<RuntimeStore>((set) => ({
   auth: {
+    phase: 'booting',
     isLoggedIn: false,
+    pendingAction: null,
+    message: '',
+    messageTone: '',
+  },
+  serviceWorker: {
+    updateReady: false,
+    applyingUpdate: false,
   },
   navigation: {
     activePage: 'dashboard',
@@ -243,7 +263,31 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
         view,
       },
     })),
-  setAuthLoggedIn: (isLoggedIn) => set(() => ({ auth: { isLoggedIn } })),
+  setAuthState: (partial) =>
+    set((state) => ({
+      auth: {
+        ...state.auth,
+        ...partial,
+      },
+    })),
+  setAuthLoggedIn: (isLoggedIn) =>
+    set((state) => ({
+      auth: {
+        ...state.auth,
+        phase: isLoggedIn ? 'signed_in' : 'signed_out',
+        isLoggedIn,
+        pendingAction: null,
+        message: '',
+        messageTone: '',
+      },
+    })),
+  setServiceWorkerState: (partial) =>
+    set((state) => ({
+      serviceWorker: {
+        ...state.serviceWorker,
+        ...partial,
+      },
+    })),
   bumpLanguageVersion: () =>
     set((state) => ({
       ui: {
