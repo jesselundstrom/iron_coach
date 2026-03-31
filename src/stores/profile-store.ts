@@ -11,65 +11,42 @@ type ProfileStoreState = {
   profile: Profile | null;
   schedule: SportSchedule | null;
   syncFromDataStore: () => { profile: Profile | null; schedule: SportSchedule | null };
-  setProfile: (profile: Record<string, unknown> | null) => Profile | null;
-  setSchedule: (schedule: Record<string, unknown> | null) => SportSchedule | null;
-  updateProfile: (patch: Record<string, unknown>) => Profile | null;
-  updateSchedule: (patch: Record<string, unknown>) => SportSchedule | null;
+  setProfile: (profile: Record<string, unknown> | null) => Promise<Profile | null>;
+  setSchedule: (
+    schedule: Record<string, unknown> | null
+  ) => Promise<SportSchedule | null>;
+  updateProfile: (patch: Record<string, unknown>) => Promise<Profile | null>;
+  updateSchedule: (patch: Record<string, unknown>) => Promise<SportSchedule | null>;
 };
 
-type ProfileWindow = Window & {
-  profile?: Record<string, unknown> | null;
-  schedule?: Record<string, unknown> | null;
-  syncSettingsBridge?: () => void;
-  getCanonicalProgramId?: (programId?: string | null) => string | null;
-};
-
-let bridgeInstalled = false;
-let unsubscribeDataStore: (() => void) | null = null;
 let profileStoreRef: StoreApi<ProfileStoreState> | null = null;
+let unsubscribeDataStore: (() => void) | null = null;
 
 function cloneJson<T>(value: T): T {
   if (value === undefined || value === null) return value;
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function getProfileWindow(): ProfileWindow | null {
-  if (typeof window === 'undefined') return null;
-  return window as unknown as ProfileWindow;
-}
-
-function resolveLocaleFromWindow() {
-  if (typeof window === 'undefined') return 'en';
-  return window.I18N?.getLanguage?.() || 'en';
-}
-
 function normalizeProfileForStore(profileLike: Record<string, unknown> | null) {
-  const nextProfile = cloneJson(profileLike || null);
-  if (!nextProfile || typeof nextProfile !== 'object') return null;
-  const runtimeWindow = getProfileWindow();
-  return normalizeProfileState({
-    ...nextProfile,
-    activeProgram:
-      runtimeWindow?.getCanonicalProgramId?.(nextProfile.activeProgram as
-        | string
-        | null
-        | undefined) || nextProfile.activeProgram,
-  }) as Profile;
+  if (!profileLike || typeof profileLike !== 'object') return null;
+  return normalizeProfileState(cloneJson(profileLike)) as Profile;
 }
 
 function normalizeScheduleForStore(scheduleLike: Record<string, unknown> | null) {
-  const nextSchedule = cloneJson(scheduleLike || null);
-  if (!nextSchedule || typeof nextSchedule !== 'object') return null;
-  return normalizeScheduleState(nextSchedule, {
-    locale: resolveLocaleFromWindow(),
+  if (!scheduleLike || typeof scheduleLike !== 'object') return null;
+  return normalizeScheduleState(cloneJson(scheduleLike), {
+    locale: 'en',
   }) as SportSchedule;
 }
 
 function syncStoreFromDataStore() {
-  const dataState = dataStore.getState();
   const snapshot = {
-    profile: normalizeProfileForStore(dataState.profile),
-    schedule: normalizeScheduleForStore(dataState.schedule),
+    profile: normalizeProfileForStore(
+      dataStore.getState().profile as Record<string, unknown> | null
+    ),
+    schedule: normalizeScheduleForStore(
+      dataStore.getState().schedule as Record<string, unknown> | null
+    ),
   };
   profileStoreRef?.setState((state) => ({
     ...state,
@@ -78,100 +55,57 @@ function syncStoreFromDataStore() {
   return snapshot;
 }
 
-function writeBackToLegacy(
-  profile: Profile | null,
-  schedule: SportSchedule | null
-) {
-  const runtimeWindow = getProfileWindow();
-  if (!runtimeWindow) return;
-  runtimeWindow.profile = cloneJson(profile);
-  runtimeWindow.schedule = cloneJson(schedule);
-  dataStore.getState().syncFromLegacy();
-  runtimeWindow.syncSettingsBridge?.();
-}
-
 export const profileStore: StoreApi<ProfileStoreState> =
   createStore<ProfileStoreState>((set) => ({
     profile: normalizeProfileForStore(dataStore.getState().profile),
     schedule: normalizeScheduleForStore(dataStore.getState().schedule),
     syncFromDataStore: () => syncStoreFromDataStore(),
-    setProfile: (profile) => {
-      const nextProfile = normalizeProfileForStore(profile);
-      const currentSchedule =
-        profileStoreRef?.getState().schedule ||
-        normalizeScheduleForStore(dataStore.getState().schedule);
+    setProfile: async (profile) => {
+      await dataStore.getState().setProfileState(profile);
+      const next = normalizeProfileForStore(dataStore.getState().profile);
       set((state) => ({
         ...state,
-        profile: nextProfile,
+        profile: next,
       }));
-      writeBackToLegacy(nextProfile, currentSchedule);
-      return nextProfile;
+      return next;
     },
-    setSchedule: (schedule) => {
-      const nextSchedule = normalizeScheduleForStore(schedule);
-      const currentProfile =
-        profileStoreRef?.getState().profile ||
-        normalizeProfileForStore(dataStore.getState().profile);
+    setSchedule: async (schedule) => {
+      await dataStore.getState().setScheduleState(schedule);
+      const next = normalizeScheduleForStore(dataStore.getState().schedule);
       set((state) => ({
         ...state,
-        schedule: nextSchedule,
+        schedule: next,
       }));
-      writeBackToLegacy(currentProfile, nextSchedule);
-      return nextSchedule;
+      return next;
     },
-    updateProfile: (patch) => {
-      const current = cloneJson(
-        profileStoreRef?.getState().profile || dataStore.getState().profile || {}
-      ) as Record<string, unknown>;
-      const nextProfile = normalizeProfileForStore({
-        ...current,
-        ...patch,
-      });
-      const currentSchedule =
-        profileStoreRef?.getState().schedule ||
-        normalizeScheduleForStore(dataStore.getState().schedule);
+    updateProfile: async (patch) => {
+      const next = await dataStore.getState().updateProfileState(patch);
+      const normalized = normalizeProfileForStore(next);
       set((state) => ({
         ...state,
-        profile: nextProfile,
+        profile: normalized,
       }));
-      writeBackToLegacy(nextProfile, currentSchedule);
-      return nextProfile;
+      return normalized;
     },
-    updateSchedule: (patch) => {
-      const current = cloneJson(
-        profileStoreRef?.getState().schedule || dataStore.getState().schedule || {}
-      ) as Record<string, unknown>;
-      const nextSchedule = normalizeScheduleForStore({
-        ...current,
-        ...patch,
-      });
-      const currentProfile =
-        profileStoreRef?.getState().profile ||
-        normalizeProfileForStore(dataStore.getState().profile);
+    updateSchedule: async (patch) => {
+      const next = await dataStore.getState().updateScheduleState(patch);
+      const normalized = normalizeScheduleForStore(next);
       set((state) => ({
         ...state,
-        schedule: nextSchedule,
+        schedule: normalized,
       }));
-      writeBackToLegacy(currentProfile, nextSchedule);
-      return nextSchedule;
+      return normalized;
     },
   }));
 
 profileStoreRef = profileStore;
 
-export function installLegacyProfileStoreBridge() {
-  if (bridgeInstalled) return;
-  bridgeInstalled = true;
+export function installProfileStore() {
   syncStoreFromDataStore();
+  unsubscribeDataStore?.();
   unsubscribeDataStore = dataStore.subscribe(() => {
     syncStoreFromDataStore();
   });
-}
-
-export function disposeLegacyProfileStoreBridge() {
-  unsubscribeDataStore?.();
-  unsubscribeDataStore = null;
-  bridgeInstalled = false;
 }
 
 export function getProfileStateSnapshot() {

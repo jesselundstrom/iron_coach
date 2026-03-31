@@ -16,7 +16,6 @@ import { dataStore } from './data-store';
 import { i18nStore } from './i18n-store';
 import { profileStore } from './profile-store';
 import { programStore } from './program-store';
-import { useNutritionStore } from './nutrition-store';
 
 type DashboardStoreState = {
   activeDayIndex: number | null;
@@ -51,7 +50,6 @@ let unsubscribeDataStore: (() => void) | null = null;
 let unsubscribeProfileStore: (() => void) | null = null;
 let unsubscribeProgramStore: (() => void) | null = null;
 let unsubscribeI18nStore: (() => void) | null = null;
-let unsubscribeNutritionStore: (() => void) | null = null;
 let suppressDashboardRecompute = false;
 
 function getDashboardWindow(): DashboardWindow | null {
@@ -73,7 +71,7 @@ function computeView(state: Pick<DashboardStoreState, 'activeDayIndex'>) {
       schedule: profileStore.getState().schedule,
     }),
     activeDayIndex: state.activeDayIndex,
-    nutrition: useNutritionStore.getState().dashboardSummary,
+    nutrition: null,
   });
 }
 
@@ -188,31 +186,22 @@ export function installDashboardStore() {
     unsubscribeI18nStore = i18nStore.subscribe(() => {
       maybeRecomputeDashboardStore();
     });
-    unsubscribeNutritionStore = useNutritionStore.subscribe(() => {
-      maybeRecomputeDashboardStore();
-    });
   }
 
   syncDashboardStoreWindowBindings();
 }
-
-export const installLegacyDashboardStoreBridge = installDashboardStore;
 
 export function disposeDashboardStore() {
   unsubscribeDataStore?.();
   unsubscribeProfileStore?.();
   unsubscribeProgramStore?.();
   unsubscribeI18nStore?.();
-  unsubscribeNutritionStore?.();
   unsubscribeDataStore = null;
   unsubscribeProfileStore = null;
   unsubscribeProgramStore = null;
   unsubscribeI18nStore = null;
-  unsubscribeNutritionStore = null;
   storeInstalled = false;
 }
-
-export const disposeLegacyDashboardStoreBridge = disposeDashboardStore;
 
 export function getDashboardStoreSnapshot() {
   return useDashboardStore.getState().view;

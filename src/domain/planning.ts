@@ -20,18 +20,9 @@ import type {
   SportSchedule,
   WorkoutRecord,
 } from './types';
-import {
-  getActiveProgram,
-  getActiveProgramId,
-  getActiveProgramState,
-  getEffectiveProgramFrequency,
-  getProgramById,
-  getProgramCapabilities as getRegistryProgramCapabilities,
-  getProgramDifficultyMeta as getRegistryProgramDifficultyMeta,
-  getRegisteredPrograms,
-} from '../core/program-registry.js';
 import { dataStore } from '../stores/data-store';
 import { profileStore } from '../stores/profile-store';
+import { programStore } from '../stores/program-store';
 
 type MutableRecord = Record<string, unknown>;
 
@@ -105,10 +96,6 @@ type PlanningWindow = Window & {
   getWeekStart?: (date: Date) => Date;
   getRecentDisplayMuscleLoads?: (days?: number) => Record<string, number>;
   getTrainingGoalLabel?: (goal?: unknown) => string;
-  __IRONFORGE_GET_LEGACY_RUNTIME_STATE__?: () => Record<string, unknown> | null;
-  workouts?: WorkoutRecord[];
-  profile?: Record<string, unknown> | null;
-  schedule?: Record<string, unknown> | null;
 };
 
 const PROGRAM_ID_ALIASES: Record<string, string> = {
@@ -190,13 +177,9 @@ function getDefaultTrainingGoalLabel(goal?: unknown) {
 }
 
 function getStoredProfileRecord() {
-  const runtimeWindow = getPlanningWindow();
-  const legacyRuntime = runtimeWindow?.__IRONFORGE_GET_LEGACY_RUNTIME_STATE__?.() || null;
   return (
     cloneJson(
-      (legacyRuntime?.profile as MutableRecord | null) ||
-        runtimeWindow?.profile ||
-        (profileStore.getState().profile as MutableRecord | null) ||
+      (profileStore.getState().profile as MutableRecord | null) ||
         (dataStore.getState().profile as MutableRecord | null) ||
         null
     ) || {}
@@ -204,13 +187,9 @@ function getStoredProfileRecord() {
 }
 
 function getStoredScheduleRecord() {
-  const runtimeWindow = getPlanningWindow();
-  const legacyRuntime = runtimeWindow?.__IRONFORGE_GET_LEGACY_RUNTIME_STATE__?.() || null;
   return (
     cloneJson(
-      (legacyRuntime?.schedule as MutableRecord | null) ||
-        runtimeWindow?.schedule ||
-        (profileStore.getState().schedule as MutableRecord | null) ||
+      (profileStore.getState().schedule as MutableRecord | null) ||
         (dataStore.getState().schedule as MutableRecord | null) ||
         null
     ) || {}
@@ -218,14 +197,56 @@ function getStoredScheduleRecord() {
 }
 
 function getStoredWorkouts() {
-  const runtimeWindow = getPlanningWindow();
-  const legacyRuntime = runtimeWindow?.__IRONFORGE_GET_LEGACY_RUNTIME_STATE__?.() || null;
   return cloneJson(
-    ((legacyRuntime?.workouts as WorkoutRecord[]) ||
-      runtimeWindow?.workouts ||
-      dataStore.getState().workouts ||
-      []) as WorkoutRecord[]
+    (dataStore.getState().workouts || []) as WorkoutRecord[]
   );
+}
+
+function getStoredPrograms() {
+  return cloneJson(programStore.getState().programs || []);
+}
+
+function getStoredActiveProgramId() {
+  return programStore.getState().activeProgramId || null;
+}
+
+function getStoredActiveProgram() {
+  return cloneJson(
+    (programStore.getState().activeProgram as MutableRecord | null) || null
+  );
+}
+
+function getStoredActiveProgramState() {
+  return cloneJson(
+    (programStore.getState().activeProgramState as Record<string, unknown> | null) ||
+      null
+  );
+}
+
+function getProgramById(programId?: unknown) {
+  return cloneJson(
+    (programStore
+      .getState()
+      .getProgramById(String(programId || '').trim() || null) as MutableRecord | null) ||
+      null
+  );
+}
+
+function getProgramCapabilitiesFromStore(programId?: string | null) {
+  return programStore.getState().getProgramCapabilities(programId);
+}
+
+function getProgramDifficultyMetaFromStore(programId?: string | null) {
+  return programStore.getState().getProgramDifficultyMeta(programId);
+}
+
+function getEffectiveProgramFrequencyFromStore(
+  programId?: string | null,
+  profileLike?: Profile | Record<string, unknown> | null
+) {
+  return programStore
+    .getState()
+    .getEffectiveProgramFrequency(programId, profileLike);
 }
 
 export function getFatigueConfig() {
@@ -860,12 +881,12 @@ export function buildPlanningContext(input?: PlanningContextInput) {
     : getStoredWorkouts();
   const activeProgram =
     (next.activeProgram as MutableRecord | null) ||
-    (getActiveProgram() as MutableRecord | null) ||
+    getStoredActiveProgram() ||
     (getProgramById(profileLike.activeProgram || 'forge') as MutableRecord | null) ||
     null;
   const rawActiveProgramState =
     (next.activeProgramState as Record<string, unknown> | null) ||
-    (getActiveProgramState() as Record<string, unknown> | null) ||
+    getStoredActiveProgramState() ||
     null;
   const activeProgramState = getPlanningProgramState(activeProgram, rawActiveProgramState);
   const fatigue =
@@ -874,9 +895,12 @@ export function buildPlanningContext(input?: PlanningContextInput) {
   const preferences = normalizeTrainingPreferences(profileLike);
   const coaching = normalizeCoachingProfile(profileLike);
   const activeProgramId = getCanonicalProgramId(
-    activeProgram?.id || profileLike.activeProgram || getActiveProgramId() || 'forge'
+    activeProgram?.id || profileLike.activeProgram || getStoredActiveProgramId() || 'forge'
   );
-  const effectiveFrequency = getEffectiveProgramFrequency(activeProgramId, profileLike);
+  const effectiveFrequency = getEffectiveProgramFrequencyFromStore(
+    activeProgramId,
+    profileLike
+  );
   const sportLoad = getPlanSportLoad(scheduleLike, workoutList, next.sportContext || null);
   const adherence = getPlanningAdherenceSignals(activeProgramId, workoutList);
   const progression = getPlanningProgressSignals(activeProgramState);
@@ -1168,12 +1192,12 @@ export function getWeekPlanPreview(
   const program =
     programLike ||
     ((context?.activeProgram as Record<string, unknown> | null) ||
-      (getActiveProgram() as Record<string, unknown> | null));
+      getStoredActiveProgram());
   const state = getPlanningProgramState(
     program,
     programState ||
       ((context?.activeProgramState as Record<string, unknown> | null) ||
-        (getActiveProgramState() as Record<string, unknown> | null))
+        getStoredActiveProgramState())
   );
   const scheduleData =
     (scheduleLike as MutableRecord | null) ||
@@ -1805,7 +1829,7 @@ export function getInitialPlanRecommendation(input?: Record<string, unknown>) {
     cloneJson((next.schedule as MutableRecord | null) || getStoredScheduleRecord()) || {};
   const preferences = normalizeTrainingPreferences(profileLike);
   const coaching = normalizeCoachingProfile(profileLike);
-  const programs = getRegisteredPrograms();
+  const programs = getStoredPrograms();
   const ranked = (programs.length
     ? programs
     : ['casualfullbody', 'forge', 'stronglifts5x5', 'wendler531', 'hypertrophysplit'].map(
@@ -1815,7 +1839,7 @@ export function getInitialPlanRecommendation(input?: Record<string, unknown>) {
     .map((program) => ({
       program,
       score:
-        (getRegistryProgramCapabilities(program.id)?.recommendationScore?.(
+        (getProgramCapabilitiesFromStore(String(program.id || ''))?.recommendationScore?.(
           Number(preferences.trainingDaysPerWeek) || 3,
           preferences
         ) || 0) +
@@ -1924,12 +1948,12 @@ export function buildOnboardingRecommendation(draft?: Record<string, unknown>) {
 }
 
 export function getProgramCapabilities(programId?: string | null) {
-  return { ...(getRegistryProgramCapabilities(programId) || {}) };
+  return { ...(getProgramCapabilitiesFromStore(programId) || {}) };
 }
 
 export function getProgramDifficultyMeta(programId?: string | null) {
   return (
-    cloneJson(getRegistryProgramDifficultyMeta(programId) || null) || {
+    cloneJson(getProgramDifficultyMetaFromStore(programId) || null) || {
       key: 'intermediate',
       labelKey: 'program.difficulty.intermediate',
       fallback: 'Intermediate',

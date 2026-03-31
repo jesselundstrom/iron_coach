@@ -65,7 +65,7 @@ const PROGRAM_ID_ALIASES: Record<string, string> = {
   w531: 'wendler531',
 };
 
-let bridgeInstalled = false;
+let storeInstalled = false;
 let unsubscribeProfileStore: (() => void) | null = null;
 let unsubscribeDataStore: (() => void) | null = null;
 let programStoreRef: StoreApi<ProgramStoreState> | null = null;
@@ -232,7 +232,7 @@ function resolveActiveProgramId(
   return Object.keys(registry || {})[0] || preferredId || null;
 }
 
-function readLegacyProgramSnapshot(): ProgramStoreSnapshot {
+function readProgramSnapshot(): ProgramStoreSnapshot {
   const registry = getTypedRegistry();
   const profileLike = getProfileLike();
   const activeProgramId = resolveActiveProgramId(registry, profileLike);
@@ -252,7 +252,7 @@ function readLegacyProgramSnapshot(): ProgramStoreSnapshot {
 }
 
 function syncStoreFromLegacy() {
-  const snapshot = readLegacyProgramSnapshot();
+  const snapshot = readProgramSnapshot();
   programStoreRef?.setState((state) => ({
     ...state,
     ...snapshot,
@@ -262,7 +262,7 @@ function syncStoreFromLegacy() {
 
 export const programStore: StoreApi<ProgramStoreState> =
   createStore<ProgramStoreState>(() => ({
-    ...readLegacyProgramSnapshot(),
+    ...readProgramSnapshot(),
     syncFromLegacy: () => syncStoreFromLegacy(),
     getProgramById: (programId) => {
       const registry = (programStoreRef?.getState().registry ||
@@ -302,9 +302,9 @@ export const programStore: StoreApi<ProgramStoreState> =
 
 programStoreRef = programStore;
 
-export function installLegacyProgramStoreBridge() {
-  if (bridgeInstalled) return;
-  bridgeInstalled = true;
+export function installProgramStore() {
+  if (storeInstalled) return;
+  storeInstalled = true;
 
   syncStoreFromLegacy();
   unsubscribeProfileStore = profileStore.subscribe(() => {
@@ -320,7 +320,7 @@ export function installLegacyProgramStoreBridge() {
   }
 }
 
-export function disposeLegacyProgramStoreBridge() {
+export function disposeProgramStore() {
   unsubscribeProfileStore?.();
   unsubscribeDataStore?.();
   unsubscribeProfileStore = null;
@@ -329,7 +329,7 @@ export function disposeLegacyProgramStoreBridge() {
     window.removeEventListener('visibilitychange', syncStoreFromLegacy);
     window.removeEventListener('focus', syncStoreFromLegacy);
   }
-  bridgeInstalled = false;
+  storeInstalled = false;
 }
 
 export function getProgramStoreSnapshot() {

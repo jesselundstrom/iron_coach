@@ -1,4 +1,3 @@
-import type { DashboardNutritionSummary } from './nutrition-view';
 import {
   buildDashboardPlanStructuredSnapshot,
   getDashboardDayDetailData,
@@ -48,7 +47,7 @@ export type DashboardViewModel = {
     sections: Array<Record<string, any>>;
   };
   recovery: Record<string, any>;
-  nutrition: DashboardNutritionSummary;
+  nutrition: Record<string, unknown> | null;
   trainingMaxesTitle: string;
   trainingMaxes: Array<Record<string, any>>;
 };
@@ -61,7 +60,7 @@ export type BuildDashboardViewInput = {
   activeProgramState: Record<string, any> | null;
   fatigue: Record<string, any>;
   activeDayIndex: number | null;
-  nutrition: DashboardNutritionSummary;
+  nutrition: Record<string, unknown> | null;
 };
 
 type DashboardWindow = Window & {

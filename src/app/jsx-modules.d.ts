@@ -552,10 +552,12 @@ declare global {
         setLanguage?: (
           locale: string,
           options?: { persist?: boolean; notify?: boolean }
-        ) => string;
+        ) => string | void;
       };
       profile?: {
-        update?: (patch: Record<string, unknown>) => Record<string, unknown> | null;
+        update?: (
+          patch: Record<string, unknown>
+        ) => Promise<Record<string, unknown> | null>;
         setSportReadinessCheckEnabled?: (enabled: boolean) => void;
       };
       workout?: {

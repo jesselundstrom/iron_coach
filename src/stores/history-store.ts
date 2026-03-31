@@ -166,8 +166,6 @@ export function installHistoryStore() {
   syncHistoryStoreWindowBindings();
 }
 
-export const installLegacyHistoryStoreBridge = installHistoryStore;
-
 export function disposeHistoryStore() {
   unsubscribeDataStore?.();
   unsubscribeProfileStore?.();
@@ -179,8 +177,6 @@ export function disposeHistoryStore() {
   unsubscribeI18nStore = null;
   storeInstalled = false;
 }
-
-export const disposeLegacyHistoryStoreBridge = disposeHistoryStore;
 
 export function getHistoryStoreSnapshot() {
   return useHistoryStore.getState().view;

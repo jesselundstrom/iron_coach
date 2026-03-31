@@ -181,7 +181,7 @@ export default function LoginScreen() {
                 <p className="mt-3 max-w-[26ch] text-sm leading-6 text-white/72">
                   {t(
                     'login.subtitle',
-                    'Sign in to sync training, nutrition, and recovery across your devices.'
+                    'Sign in to sync your training plan, workouts, and coaching progress across devices.'
                   )}
                 </p>
               </div>
