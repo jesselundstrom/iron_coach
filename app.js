@@ -452,36 +452,6 @@ function bindLegacyShellActions() {
         }
         break;
       }
-      case 'login-with-email':
-        event.preventDefault();
-        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('shell action login-with-email');
-        if (typeof window.loginWithEmail === 'function') {
-          const email =
-            document.getElementById('login-email') instanceof HTMLInputElement
-              ? document.getElementById('login-email').value.trim()
-              : '';
-          const password =
-            document.getElementById('login-password') instanceof HTMLInputElement
-              ? document.getElementById('login-password').value
-              : '';
-          window.loginWithEmail({ email, password });
-        }
-        break;
-      case 'signup-with-email':
-        event.preventDefault();
-        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('shell action signup-with-email');
-        if (typeof window.signUpWithEmail === 'function') {
-          const email =
-            document.getElementById('login-email') instanceof HTMLInputElement
-              ? document.getElementById('login-email').value.trim()
-              : '';
-          const password =
-            document.getElementById('login-password') instanceof HTMLInputElement
-              ? document.getElementById('login-password').value
-              : '';
-          window.signUpWithEmail({ email, password });
-        }
-        break;
       default:
         break;
     }

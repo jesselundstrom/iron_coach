@@ -4,7 +4,16 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-function preserveClassicScripts() {
+const BUILD_STAMP = Date.now().toString(36);
+
+function withCacheBust(scriptTag, buildStamp) {
+  return scriptTag.replace(/src=(["'])([^"']+)\1/, (_match, quote, src) => {
+    const separator = src.includes('?') ? '&' : '?';
+    return `src=${quote}${src}${separator}v=${buildStamp}${quote}`;
+  });
+}
+
+function preserveClassicScripts(buildStamp) {
   const marker = '<!--ironforge-legacy-scripts-->';
   const scriptPattern =
     /[ \t]*<script\b(?:(?!type=["']module["'])[^>])*\ssrc=["'][^"']+["'][^>]*><\/script>\s*/g;
@@ -40,7 +49,7 @@ function preserveClassicScripts() {
       const matches = sourceHtml.match(scriptPattern) || [];
       if (!matches.length) return;
       const preservedScripts = matches
-        .map((script) => script.trim())
+        .map((script) => withCacheBust(script.trim(), buildStamp))
         .join('\n    ');
       const builtHtml = fs.readFileSync(distIndexPath, 'utf8');
       fs.writeFileSync(
@@ -79,7 +88,12 @@ export default defineConfig({
   // GitHub Pages serves this project from /ironforge/, so built asset URLs
   // need that prefix in production while local dev still runs from /.
   base: '/',
-  plugins: [preserveClassicScripts(), tailwindcss(), react(), copyLegacyRuntime()],
+  plugins: [
+    preserveClassicScripts(BUILD_STAMP),
+    tailwindcss(),
+    react(),
+    copyLegacyRuntime(),
+  ],
   build: {
     // The vanilla shell remains the app entry. Vite only bundles module assets
     // that the existing index.html scripts into the page.
