@@ -135,9 +135,9 @@ export function syncDashboardStoreWindowBindings() {
   };
   runtimeWindow.updateDashboard = () => {
     suppressDashboardRecompute = true;
-    dataStore.getState().refreshSnapshot();
-    profileStore.getState().refreshSnapshot();
-    programStore.getState().refreshSnapshot();
+    dataStore.getState().syncFromLegacy();
+    profileStore.getState().syncFromDataStore();
+    programStore.getState().syncFromLegacy();
     suppressDashboardRecompute = false;
     return recomputeDashboardStore();
   };

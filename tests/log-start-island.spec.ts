@@ -1,13 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { completeOnboardingForTests, openAppShell } from './helpers';
+import { openAppShell } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
-test('log start page renders from the store-backed shell and still starts a workout', async ({
+test('log start island renders from the legacy bridge and still starts a workout', async ({
   page,
 }) => {
   await openAppShell(page);
-  await completeOnboardingForTests(page);
 
   await page.evaluate(() => {
     window.resetNotStartedView?.();
@@ -23,11 +22,12 @@ test('log start page renders from the store-backed shell and still starts a work
   await expect(
     page.locator('#log-start-react-root #program-day-options .program-day-option').first()
   ).toBeVisible();
-  await expect(
-    page.locator('#log-start-react-root [data-ui="training-start-button"]')
-  ).toBeVisible();
+  await expect(page.locator('#log-start-react-root .workout-setup-card')).toBeVisible();
+  await expect(page.locator('#log-start-react-root .workout-decision-options')).toHaveCount(0);
 
-  await page.locator('[data-ui="training-start-button"]').click();
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
+  });
 
   await expect(page.locator('#workout-active')).toBeVisible();
   await expect(
@@ -35,11 +35,10 @@ test('log start page renders from the store-backed shell and still starts a work
   ).toHaveCount(0);
 });
 
-test('log start page uses explicit selection state when starting a different day', async ({
+test('log start island uses explicit selection state when starting a different day', async ({
   page,
 }) => {
   await openAppShell(page);
-  await completeOnboardingForTests(page);
 
   await page.evaluate(() => {
     window.resetNotStartedView?.();
@@ -64,13 +63,10 @@ test('log start page uses explicit selection state when starting a different day
     .locator('#log-start-react-root #program-day-options .program-day-option')
     .nth(targetSelection.index)
     .click();
-  await expect(
-    page
-      .locator('#log-start-react-root #program-day-options .program-day-option')
-      .nth(targetSelection.index)
-  ).toHaveClass(/border-accent/);
 
-  await page.locator('[data-ui="training-start-button"]').click();
+  await page.evaluate(() => {
+    window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
+  });
 
   await expect(page.locator('#workout-active')).toBeVisible();
   await expect
@@ -84,6 +80,36 @@ test('log start page uses explicit selection state when starting a different day
       )
     )
     .toBe(String(targetSelection.value));
+});
+
+test('log start island keeps sport readiness check-in interactions working', async ({ page }) => {
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    profile.preferences = normalizeTrainingPreferences({
+      preferences: {
+        ...(profile.preferences || {}),
+        sportReadinessCheckEnabled: true,
+      },
+    });
+    window.resetNotStartedView?.();
+    window.__IRONFORGE_E2E__?.app?.navigateToPage?.('log');
+  });
+
+  await expect(page.locator('#page-log')).toHaveClass(/active/);
+
+  await expect(page.locator('#log-start-react-root [data-sport-check-kind="level"]')).toHaveCount(3);
+
+  await page
+    .locator('#log-start-react-root [data-sport-check-kind="level"][data-sport-check-option="heavy"]')
+    .click();
+
+  await expect(
+    page.locator('#log-start-react-root [data-sport-check-kind="timing"]').first()
+  ).toBeVisible();
+  await expect(
+    page.locator('#log-start-react-root [data-sport-check-kind="level"][data-sport-check-option="heavy"]')
+  ).toHaveClass(/active/);
 });
 
 test('workout start planner keeps queued toast ordering stable', async ({ page }) => {

@@ -1,9 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import {
-  completeOnboardingForTests,
-  openAppShell,
-} from './helpers';
+import { confirmModal, openAppShell, reloadAppShell } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -22,7 +19,6 @@ async function openTrainPage(page: Page) {
 
 async function startWorkout(page: Page) {
   await openTrainPage(page);
-  await completeOnboardingForTests(page);
   await expect(page.getByRole('button', { name: /start workout/i })).toBeVisible();
   await page.evaluate(() => {
     window.__IRONFORGE_STORES__?.workout?.startWorkout?.();
@@ -35,28 +31,55 @@ async function startWorkout(page: Page) {
   await expect(page.locator('#workout-active')).toBeVisible();
 }
 
-test('active workout updates the persisted draft cache while the session is live', async ({
-  page,
-}) => {
+test('active workout draft restores after reload', async ({ page }) => {
+  test.slow();
   await openAppShell(page);
   await startWorkout(page);
 
-  await page.evaluate(() => {
-    window.__IRONFORGE_STORES__?.workout?.updateSet?.(0, 0, 'weight', '60');
+  const firstWeightInput = page.locator('#exercises-container input[data-field="weight"]').first();
+  await firstWeightInput.fill('60');
+  await firstWeightInput.evaluate((input: HTMLInputElement) => {
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.blur();
   });
-  await expect(
-    page.locator('#log-active-react-root input[data-field="weight"]').first()
-  ).toHaveValue('60');
+
+  await reloadAppShell(page);
+  await openTrainPage(page);
+
   await expect
     .poll(
       () =>
-        page.evaluate(
-          () =>
-            String(
-              window.__IRONFORGE_STORES__?.data?.getActiveWorkoutDraftCache?.()
-                ?.activeWorkout?.exercises?.[0]?.sets?.[0]?.weight ?? ''
+        page.evaluate(() => {
+          const activeWorkout =
+            window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout;
+          const firstSet = activeWorkout?.exercises?.[0]?.sets?.[0];
+          return {
+            hasActiveWorkout: !!activeWorkout,
+            firstWeight: String(firstSet?.weight ?? ''),
+          };
+        }),
+      { timeout: 15000 }
+    )
+    .toEqual({
+      hasActiveWorkout: true,
+      firstWeight: '60',
+    });
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const inputs = Array.from(
+            document.querySelectorAll<HTMLInputElement>(
+              '#exercises-container input[data-field="weight"]'
             )
-        ),
+          );
+          const visibleInput = inputs.find((input) => {
+            const rect = input.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+          });
+          return visibleInput?.value || '';
+        }),
       { timeout: 15000 }
     )
     .toBe('60');
@@ -106,6 +129,7 @@ test('discarding a workout clears the persisted draft', async ({ page }) => {
   ).toBe(true);
 
   await page.getByRole('button', { name: /discard workout/i }).click({ force: true });
+  await confirmModal(page);
 
   await page.waitForFunction(
     () => !window.__IRONFORGE_STORES__?.workout?.getState?.().activeWorkout

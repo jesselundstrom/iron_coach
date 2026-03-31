@@ -1,54 +1,49 @@
-# Ironforge Post-Cutover Consolidation
+# Ironforge Post-Migration Consolidation
 
 ## Summary
 
-The runtime cutover is done, but the repo still carries naming and test debt from the migration period. This document tracks cleanup after the cutover, with the assumption that the shipped app is the Training Core only.
+The visible-shell migration is complete, but the runtime still has two active mental models:
 
-Current end-state target:
+- React + Zustand own the shipped shell and several migrated page/store surfaces.
+- Legacy scripts still own or mirror parts of runtime state, settings snapshot assembly, and compatibility globals.
 
-- the shipped runtime lives in `src/`
-- compatibility code is narrow and clearly marked
-- Playwright defaults to typed test harness seams
-- docs and filenames match current product scope
+This document tracks the cleanup that comes after the migration itself. The end-state is:
 
-## Active Consolidation Priorities
+- the app runtime lives in `src/`
+- legacy scripts provide only narrow compatibility adapters for untouched surfaces
+- Playwright targets the typed E2E/store harness by default instead of incidental globals
 
-### 1. Keep Training Core scope explicit
+## Current Consolidation Direction
 
-- Active shipped pages are `dashboard`, `log`, `history`, and `settings`.
-- Nutrition and removed legacy-shell surfaces should not appear in active runtime docs or verification gates.
-- Obsolete specs for deleted pages, deleted overlay contracts, or removed globals should be rewritten or deleted promptly.
+### 1. `app.js` should be a compat shell, not a runtime owner
 
-### 2. Replace stale migration naming
+- Runtime state access, onboarding defaults, language refresh coordination, and settings view snapshot assembly should live in typed services under `src/app/services/`.
+- `app.js` may still expose globals, but those globals should delegate to typed runtime ownership instead of computing state themselves.
 
-- Prefer `compat` over `legacy` when a file or seam exists only to support untouched compatibility behavior.
-- Keep `legacy` wording only for historical payloads, old imported snapshots, or intentionally preserved bridge semantics.
-- Active page and spec naming should use `page`, `settings`, `dashboard`, `history`, or `log` terminology instead of `island` unless the code is genuinely about a compatibility seam.
+### 2. Keep bridges narrow and explicit
 
-### 3. Keep bridges narrow and explicit
+- Prefer typed store/service entry points first.
+- Keep `window.*` bridges only for genuinely unmigrated callers and focused test compatibility.
+- Avoid adding new generic “read/write everything” bridge patterns.
 
-- Prefer typed store or service entry points first.
-- Keep `window.*` bindings small, deliberate, and easy to delete later.
-- Avoid introducing new broad runtime bridges or generic sync helpers.
+### 3. Typed program ownership is authoritative
 
-### 4. Treat performance cleanup as part of runtime hardening
+- `src/programs/index.ts` is the active registry source of truth.
+- Legacy program/planning helpers should progressively call typed registry/planning surfaces instead of re-owning logic in parallel.
 
-- Signed-in pages should stay split out of the login/bootstrap path.
-- If Vite warns about oversized entry chunks, prefer low-risk route or vendor chunking before deeper architectural changes.
+### 4. Tests should move toward the typed harness
 
-### 5. Keep PWA validation in the release loop
+- Prefer `window.__IRONFORGE_E2E__` for navigation, data seeding, and runtime patching.
+- Prefer `window.__IRONFORGE_STORES__` only when a store-backed seam is the behavior under test.
+- Keep direct legacy-global coverage small and intentional.
 
-- When changing shell boot paths, caching, manifests, or chunking, run one installed-PWA pass on iPhone and Android against the public `manifest.json` and `sw.js`.
-- Record any device-specific regressions in a short follow-up note instead of letting them live only in chat history.
+## First Implemented Consolidation Slice
 
-## Default Verification Gate
+The first consolidation slice moves these responsibilities out of `app.js` runtime ownership and into typed runtime code:
 
-For consolidation slices that affect runtime behavior:
+- legacy runtime state getters/setters
+- settings page snapshot assembly
+- onboarding default draft/recommendation helpers
+- language refresh coordination for migrated shell surfaces
 
-1. `npm run lint`
-2. `npm run typecheck`
-3. `npm run build`
-4. targeted Playwright for touched surfaces
-5. `npm run test:e2e:ci`
-
-Manual device validation is still required for PWA-specific changes when the slice touches install or update behavior.
+`app.js` still exposes the compatibility globals, but those globals now delegate into the typed app runtime bridge.

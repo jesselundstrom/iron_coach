@@ -19,7 +19,6 @@ import { installPwaUpdateRuntime } from './services/pwa-update-runtime';
 import { installAppConfigGlobals } from './services/app-config';
 import { installRuntimeHelpers } from './services/runtime-helpers';
 import { installLoginDebug } from './services/login-debug';
-import { installWorkoutRuntimeBridge } from './services/workout-runtime';
 
 function RouteInitializer() {
   const location = useLocation();
@@ -65,6 +64,5 @@ if (mountNode) {
   installTestStoresBridge();
   installAuthRuntime();
   installPwaUpdateRuntime();
-  installWorkoutRuntimeBridge();
   createRoot(mountNode).render(<App />);
 }

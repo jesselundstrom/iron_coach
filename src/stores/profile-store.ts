@@ -10,7 +10,7 @@ import { dataStore } from './data-store';
 type ProfileStoreState = {
   profile: Profile | null;
   schedule: SportSchedule | null;
-  refreshSnapshot: () => { profile: Profile | null; schedule: SportSchedule | null };
+  syncFromDataStore: () => { profile: Profile | null; schedule: SportSchedule | null };
   setProfile: (profile: Record<string, unknown> | null) => Promise<Profile | null>;
   setSchedule: (
     schedule: Record<string, unknown> | null
@@ -59,7 +59,7 @@ export const profileStore: StoreApi<ProfileStoreState> =
   createStore<ProfileStoreState>((set) => ({
     profile: normalizeProfileForStore(dataStore.getState().profile),
     schedule: normalizeScheduleForStore(dataStore.getState().schedule),
-    refreshSnapshot: () => syncStoreFromDataStore(),
+    syncFromDataStore: () => syncStoreFromDataStore(),
     setProfile: async (profile) => {
       await dataStore.getState().setProfileState(profile);
       const next = normalizeProfileForStore(dataStore.getState().profile);
@@ -109,5 +109,5 @@ export function installProfileStore() {
 }
 
 export function getProfileStateSnapshot() {
-  return profileStore.getState().refreshSnapshot();
+  return profileStore.getState().syncFromDataStore();
 }

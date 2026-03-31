@@ -41,7 +41,7 @@
 }
 
 @import "./base.css";
-@import "./compat-ui.css";
+@import "./legacy-ui.css";
 @import "tailwindcss/utilities.css" layer(utilities) source("../..");
 @import "./animations.css";
-@import "./compat-state.css";
+@import "./legacy-state.css";

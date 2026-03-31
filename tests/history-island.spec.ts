@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { completeOnboardingForTests, confirmModal, openAppShell } from './helpers';
+import { confirmModal, openAppShell } from './helpers';
 
-test('history page renders read-only cards and refreshes from store-owned data', async ({ page }) => {
+test('history island renders read-only cards and refreshes from store-owned data', async ({ page }) => {
   await openAppShell(page);
 
   await page.evaluate(async () => {
@@ -81,7 +81,7 @@ test('history page renders read-only cards and refreshes from store-owned data',
     .toBe(2);
 });
 
-test('history page switches to stats without leaving the shared shell', async ({ page }) => {
+test('history island switches to stats without leaving the legacy shell', async ({ page }) => {
   await openAppShell(page);
 
   await page.evaluate(async () => {
@@ -214,7 +214,6 @@ test('history stats show range controls, extra charts, and milestones for progre
   page,
 }) => {
   await openAppShell(page);
-  await completeOnboardingForTests(page);
 
   await page.evaluate(async () => {
     const forgeState = (window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge') || {
@@ -313,6 +312,7 @@ test('history stats show range controls, extra charts, and milestones for progre
   await expect(page.locator('#stats-e1rm-wrap')).toContainText(/Estimated 1RM|Arvioitu 1RM/i);
   await expect(page.locator('#stats-tm-wrap')).toContainText(/Training Max Trend|Treenimaksimin trendi/i);
   await expect(page.locator('#stats-strength-wrap')).toHaveCount(1);
+  await expect(page.locator('.stats-milestone-badge')).toHaveCount(2);
 
   await page.click('.stats-range-btn[data-range="all"]');
   await expect(page.locator('.stats-range-btn.active')).toContainText(/All|Kaikki/i);
@@ -397,7 +397,7 @@ test('history stats keep front squat and sumo deadlift out of the main lift tren
   expect(liftCounts.ohp).toBe(1);
 });
 
-test('history compatibility helpers still delegate to the typed store view', async ({
+test('history compatibility globals still delegate to the typed store view', async ({
   page,
 }) => {
   await openAppShell(page);
@@ -451,11 +451,10 @@ test('history compatibility helpers still delegate to the typed store view', asy
   await expect(page.locator('.stats-range-btn.active')).toContainText(/All|Kaikki/i);
 });
 
-test('history delete removes the workout through the current typed runtime', async ({
+test('history delete undo preserves legacy-only profile fields that are not yet synced into the typed store', async ({
   page,
 }) => {
   await openAppShell(page);
-  await completeOnboardingForTests(page);
 
   await page.evaluate(async () => {
     await window.__IRONFORGE_E2E__?.app?.seedData?.({
@@ -491,6 +490,25 @@ test('history delete removes the workout through the current typed runtime', asy
       schedule: window.schedule || null,
     });
 
+    window.__IRONFORGE_E2E__?.app?.setLegacyRuntimeState?.({
+      profile: {
+        ...(window.profile || {}),
+        activeProgram: 'forge',
+        programs: {
+          ...(((window.profile || {}) as Record<string, unknown>).programs as
+            | Record<string, unknown>
+            | undefined),
+          forge: {
+            week: 1,
+            lastCompletedDay: 1,
+          },
+        },
+        legacyOnlyBridgeField: {
+          keep: 'yes',
+        },
+      },
+    });
+
     window.__IRONFORGE_E2E__?.app?.navigateToPage?.('history');
   });
 
@@ -499,11 +517,22 @@ test('history delete removes the workout through the current typed runtime', asy
   await page.locator('.hist-delete-btn').first().click({ force: true });
   await confirmModal(page);
 
-  await expect(page.locator('#toast')).toContainText(/workout deleted|treeni poistettu/i);
+  await expect(page.locator('#toast')).toContainText(/session deleted|sessio poistettu/i);
+  await page.evaluate(() => {
+    const undoAction =
+      window.__IRONFORGE_STORES__?.runtime?.getState?.().ui?.toast?.undoAction;
+    if (typeof undoAction === 'function') {
+      undoAction();
+    }
+  });
 
   await expect
     .poll(() =>
       page.evaluate(() => ({
+        legacyField:
+          ((window.profile as Record<string, any> | null)?.legacyOnlyBridgeField as
+            | Record<string, unknown>
+            | undefined)?.keep || null,
         workoutIds: Array.isArray(window.workouts)
           ? window.workouts.map((workout) => String(workout?.id || ''))
           : [],
@@ -511,6 +540,7 @@ test('history delete removes the workout through the current typed runtime', asy
       { timeout: 15000 }
     )
     .toEqual({
-      workoutIds: [],
+      legacyField: 'yes',
+      workoutIds: ['601'],
     });
 });

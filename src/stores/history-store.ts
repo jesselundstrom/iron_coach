@@ -91,9 +91,9 @@ export function syncHistoryStoreWindowBindings() {
     useHistoryStore.getState().toggleHeatmap();
   };
   runtimeWindow.renderHistory = () => {
-    dataStore.getState().refreshSnapshot();
-    profileStore.getState().refreshSnapshot();
-    programStore.getState().refreshSnapshot();
+    dataStore.getState().syncFromLegacy();
+    profileStore.getState().syncFromDataStore();
+    programStore.getState().syncFromLegacy();
     recomputeStoreView();
   };
   delete runtimeWindow.syncHistoryBridge;
