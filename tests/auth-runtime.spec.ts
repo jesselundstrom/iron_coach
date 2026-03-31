@@ -176,6 +176,35 @@ test('standalone sign-in uses the shared auth-owned Supabase client', async ({
   await expect(page.locator('#app-root')).toBeVisible();
 });
 
+test('legacy login capture yields once the auth runtime is ready', async ({
+  page,
+}) => {
+  await openApp(page);
+
+  await page.waitForFunction(
+    () => window.__IRONFORGE_AUTH_RUNTIME_READY__ === true
+  );
+
+  const bubbled = await page.evaluate(async () => {
+    const button = document.querySelector('[data-ui="auth-sign-in"]');
+    if (!(button instanceof HTMLButtonElement)) return false;
+
+    let didBubble = false;
+    const listener = () => {
+      didBubble = true;
+    };
+
+    document.body.addEventListener('click', listener, { once: true });
+    button.click();
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    document.body.removeEventListener('click', listener);
+
+    return didBubble;
+  });
+
+  expect(bubbled).toBe(true);
+});
+
 test('stale standalone bootstrap cannot overwrite an in-flight sign-in', async ({
   page,
 }) => {

@@ -548,13 +548,19 @@ function tr(key, fallback, params) {
 refreshDayNames();
 
 // LOGIN SPARKS CANVAS
-const loginSparks =
-  typeof window.createLoginSparksController === 'function'
-    ? window.createLoginSparksController()
-    : { start() {}, stop() {} };
+let loginSparks = null;
 
-window.startLoginSparks = () => loginSparks.start();
-window.stopLoginSparks = () => loginSparks.stop();
+function getLoginSparksController() {
+  if (loginSparks) return loginSparks;
+  if (typeof window.createLoginSparksController !== 'function') return null;
+  const canvas = document.getElementById('sparks');
+  if (!(canvas instanceof HTMLCanvasElement)) return null;
+  loginSparks = window.createLoginSparksController();
+  return loginSparks;
+}
+
+window.startLoginSparks = () => getLoginSparksController()?.start?.();
+window.stopLoginSparks = () => loginSparks?.stop?.();
 
 function playForgeBurst(canvas, options) {
   const target = canvas instanceof HTMLCanvasElement ? canvas : null;

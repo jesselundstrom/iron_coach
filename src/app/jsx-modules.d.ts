@@ -112,6 +112,7 @@ declare global {
       updateLanguageDependentUI?: () => void;
     };
     __IRONFORGE_ACTIVE_SETTINGS_TAB__?: string;
+    __IRONFORGE_AUTH_RUNTIME_READY__?: boolean;
     __IRONFORGE_AUTH_RUNTIME__?: {
       bootstrap?: () => Promise<void>;
       loginWithEmail?: (credentials?: {

@@ -132,6 +132,7 @@ declare global {
 
   interface Window {
     __IRONFORGE_APP_SHELL_READY__?: boolean;
+    __IRONFORGE_AUTH_RUNTIME_READY__?: boolean;
     __importWorkoutXssTriggered?: boolean;
     __sportNameXssTriggered?: boolean;
     syncRuntimeStoreFromLegacy?: () => void;

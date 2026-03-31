@@ -35,6 +35,10 @@
     }
   }
 
+  function isAuthRuntimeReady() {
+    return window.__IRONFORGE_AUTH_RUNTIME_READY__ === true;
+  }
+
   function fallbackSignIn(email, password) {
     var sb = window.__IRONFORGE_SUPABASE__;
     if (!sb || !sb.auth || typeof sb.auth.signInWithPassword !== 'function') {
@@ -104,6 +108,11 @@
     var action = btn.dataset && btn.dataset.shellAction;
     if (action !== 'login-with-email' && action !== 'signup-with-email') return;
 
+    if (isAuthRuntimeReady()) {
+      trace('yielding to auth runtime', { action: action });
+      return;
+    }
+
     trace('capture click', { action: action });
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -121,20 +130,6 @@
 
     if (action === 'login-with-email') {
       showInfo('Signing in...');
-      if (typeof window.loginWithEmail === 'function') {
-        trace('delegating to window.loginWithEmail');
-        runAction(function () {
-          return window.loginWithEmail({ email: email, password: password });
-        }).catch(function (error) {
-          trace('window.loginWithEmail threw', {
-            message: error && error.message ? error.message : String(error),
-          });
-          showError(
-            error && error.message ? error.message : 'Unable to sign in right now.'
-          );
-        });
-        return;
-      }
       fallbackSignIn(email, password);
       return;
     }
@@ -146,27 +141,9 @@
     }
 
     showInfo('Creating account...');
-    if (typeof window.signUpWithEmail === 'function') {
-      trace('delegating to window.signUpWithEmail');
-      runAction(function () {
-        return window.signUpWithEmail({ email: email, password: password });
-      }).catch(function (error) {
-        trace('window.signUpWithEmail threw', {
-          message: error && error.message ? error.message : String(error),
-        });
-        showError(error && error.message ? error.message : 'Sign up failed.');
-      });
-      return;
-    }
-
     fallbackSignUp(email, password);
   }
 
-  function handleLoginTouch(event) {
-    handleLoginClick(event);
-  }
-
   document.addEventListener('click', handleLoginClick, true);
-  document.addEventListener('touchend', handleLoginTouch, true);
   trace('login handler loaded');
 })();

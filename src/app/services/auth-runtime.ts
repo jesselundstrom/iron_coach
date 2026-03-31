@@ -77,6 +77,7 @@ type RuntimeWindow = Window & {
   __IRONFORGE_LOGIN_DEBUG__?: {
     trace?: (message: string, details?: Record<string, unknown>) => void;
   };
+  __IRONFORGE_AUTH_RUNTIME_READY__?: boolean;
   __IRONFORGE_AUTH_RUNTIME__?: AuthRuntime;
   loginWithEmail?: (credentials?: AuthCredentials) => Promise<void>;
   signUpWithEmail?: (credentials?: AuthCredentials) => Promise<void>;
@@ -106,6 +107,10 @@ function trace(message: string, details?: Record<string, unknown>) {
   try {
     getRuntimeWindow()?.__IRONFORGE_LOGIN_DEBUG__?.trace?.(message, details);
   } catch (_error) {}
+}
+
+function markAuthRuntimeReady(runtimeWindow: RuntimeWindow) {
+  runtimeWindow.__IRONFORGE_AUTH_RUNTIME_READY__ = true;
 }
 
 function isStandaloneDisplayMode(runtimeWindow: RuntimeWindow) {
@@ -735,6 +740,7 @@ export function installAuthRuntime() {
   const runtimeWindow = getRuntimeWindow();
   if (!runtimeWindow) return null;
   if (authRuntimeInstance) {
+    markAuthRuntimeReady(runtimeWindow);
     runtimeWindow.__IRONFORGE_AUTH_RUNTIME__ = authRuntimeInstance;
     runtimeWindow.__IRONFORGE_GET_SUPABASE_CLIENT__ =
       authRuntimeInstance.getSupabaseClient;
@@ -757,6 +763,7 @@ export function installAuthRuntime() {
     getSupabaseClient: ensureSupabaseClient,
   };
 
+  markAuthRuntimeReady(runtimeWindow);
   runtimeWindow.__IRONFORGE_AUTH_RUNTIME__ = authRuntimeInstance;
   runtimeWindow.__IRONFORGE_GET_SUPABASE_CLIENT__ =
     authRuntimeInstance.getSupabaseClient;
