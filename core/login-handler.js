@@ -123,7 +123,9 @@
       showInfo('Signing in...');
       if (typeof window.loginWithEmail === 'function') {
         trace('delegating to window.loginWithEmail');
-        runAction(window.loginWithEmail).catch(function (error) {
+        runAction(function () {
+          return window.loginWithEmail({ email: email, password: password });
+        }).catch(function (error) {
           trace('window.loginWithEmail threw', {
             message: error && error.message ? error.message : String(error),
           });
@@ -146,7 +148,9 @@
     showInfo('Creating account...');
     if (typeof window.signUpWithEmail === 'function') {
       trace('delegating to window.signUpWithEmail');
-      runAction(window.signUpWithEmail).catch(function (error) {
+      runAction(function () {
+        return window.signUpWithEmail({ email: email, password: password });
+      }).catch(function (error) {
         trace('window.signUpWithEmail threw', {
           message: error && error.message ? error.message : String(error),
         });
@@ -158,6 +162,11 @@
     fallbackSignUp(email, password);
   }
 
+  function handleLoginTouch(event) {
+    handleLoginClick(event);
+  }
+
   document.addEventListener('click', handleLoginClick, true);
+  document.addEventListener('touchend', handleLoginTouch, true);
   trace('login handler loaded');
 })();

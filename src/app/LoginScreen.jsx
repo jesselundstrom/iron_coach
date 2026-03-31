@@ -249,6 +249,7 @@ export default function LoginScreen() {
                 type="submit"
                 disabled={isBusy}
                 data-ui="auth-sign-in"
+                data-shell-action="login-with-email"
                 className="h-14 w-full rounded-2xl bg-[linear-gradient(90deg,#df6a2e_0%,#ff9147_100%)] text-base font-semibold text-white shadow-[0_18px_44px_rgba(255,122,58,0.28)] transition active:scale-[0.99] disabled:opacity-70"
               >
                 {signInLabel}
@@ -260,6 +261,7 @@ export default function LoginScreen() {
                 onClick={handleSignUp}
                 disabled={isBusy}
                 data-ui="auth-sign-up"
+                data-shell-action="signup-with-email"
                 className="h-14 w-full rounded-2xl border border-[#ff8a3d]/55 bg-white/5 text-base font-semibold text-[#ffb07a] transition active:scale-[0.99] disabled:opacity-70"
               >
                 {signUpLabel}
