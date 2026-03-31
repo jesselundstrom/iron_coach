@@ -61,6 +61,34 @@ test('failed sign-in keeps the login screen visible', async ({ page }) => {
   );
 });
 
+test('login stays usable while auth bootstrap is still checking the session', async ({
+  page,
+}) => {
+  await openApp(page);
+
+  await page.waitForFunction(
+    () => typeof window.__IRONFORGE_SET_AUTH_STATE__ === 'function'
+  );
+
+  await page.evaluate(() => {
+    window.__IRONFORGE_SET_AUTH_STATE__?.({
+      phase: 'booting',
+      isLoggedIn: false,
+      pendingAction: null,
+      message: '',
+      messageTone: '',
+    });
+  });
+
+  await expect(page.locator('#login-error')).toHaveText(
+    /checking your session/i
+  );
+  await expect(page.locator('#login-email')).toBeEnabled();
+  await expect(page.locator('#login-password')).toBeEnabled();
+  await expect(page.getByRole('button', { name: /sign in/i })).toBeEnabled();
+  await expect(page.locator('#login-screen img')).toBeVisible();
+});
+
 test('logout returns to the login screen', async ({ page }) => {
   await openAppShell(page);
 

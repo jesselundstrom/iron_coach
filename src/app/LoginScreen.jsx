@@ -5,6 +5,7 @@ import {
   loginWithEmailPassword,
   signUpWithEmailPassword,
 } from './services/auth-runtime.ts';
+import loginHeroImage from '../../assets/ironforge_bg.webp';
 
 export default function LoginScreen() {
   const controllerRef = useRef(null);
@@ -70,7 +71,7 @@ export default function LoginScreen() {
   }
 
   const isBooting = auth.phase === 'booting';
-  const isBusy = isBooting || auth.pendingAction !== null;
+  const isBusy = auth.pendingAction !== null;
   const statusMessage =
     auth.message ||
     (isBooting
@@ -92,7 +93,23 @@ export default function LoginScreen() {
   return (
     <div className="login-page" id="login-screen">
       <canvas id="sparks" aria-hidden="true" />
-      <div className="login-hero" aria-hidden="true" />
+      <div className="login-hero" aria-hidden="true">
+        <img
+          src={loginHeroImage}
+          alt=""
+          loading="eager"
+          fetchPriority="high"
+          style={{
+            width: 'min(100%, 320px)',
+            maxHeight: '100%',
+            objectFit: 'contain',
+            filter:
+              'drop-shadow(0 16px 36px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 20px rgba(245, 130, 31, 0.18))',
+            userSelect: 'none',
+            WebkitUserDrag: 'none',
+          }}
+        />
+      </div>
       <div className="login-wrap">
         <div className="login-form">
           <input

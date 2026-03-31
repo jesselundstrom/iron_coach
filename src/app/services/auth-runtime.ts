@@ -158,12 +158,12 @@ async function applySessionWithSideEffects(
 ) {
   const runtimeWindow = getRuntimeWindow();
   const sessionUser = (session?.user as unknown as MutableRecord | null) || null;
-  await runtimeWindow?.__IRONFORGE_APPLY_AUTH_SESSION__?.(session, options);
   useRuntimeStore.getState().setAuthState({
     phase: sessionUser ? 'signed_in' : 'signed_out',
     isLoggedIn: !!sessionUser,
     pendingAction: null,
   });
+  await runtimeWindow?.__IRONFORGE_APPLY_AUTH_SESSION__?.(session, options);
 }
 
 function reportAuthError(error: unknown) {
