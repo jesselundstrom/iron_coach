@@ -9,6 +9,12 @@ import loginHeroImage from '../../assets/ironforge_bg.webp';
 
 export default function LoginScreen() {
   const controllerRef = useRef(null);
+  const signInButtonRef = useRef(null);
+  const signUpButtonRef = useRef(null);
+  const nativeActionRef = useRef({
+    type: '',
+    stamp: 0,
+  });
   const auth = useRuntimeStore((state) => state.auth);
   const setAuthState = useRuntimeStore((state) => state.setAuthState);
   const [email, setEmail] = useState('');
@@ -19,19 +25,62 @@ export default function LoginScreen() {
     const controller = window.createLoginSparksController();
     controller.start();
     controllerRef.current = controller;
+    window.__IRONFORGE_LOGIN_DEBUG__?.render?.();
     return () => {
       controller.stop();
       controllerRef.current = null;
     };
   }, []);
 
+  useEffect(() => {
+    const signInButton = signInButtonRef.current;
+    const signUpButton = signUpButtonRef.current;
+
+    if (!(signInButton instanceof HTMLButtonElement)) return undefined;
+    if (!(signUpButton instanceof HTMLButtonElement)) return undefined;
+
+    function shouldSkipNativeAction(type) {
+      const now = Date.now();
+      const last = nativeActionRef.current;
+      if (last.type === type && now - last.stamp < 500) {
+        return true;
+      }
+      nativeActionRef.current = {
+        type,
+        stamp: now,
+      };
+      return false;
+    }
+
+    function handleNativeSignIn(event) {
+      if (auth.pendingAction !== null) return;
+      event.preventDefault();
+      if (shouldSkipNativeAction('sign_in')) return;
+      void runSignIn();
+    }
+
+    function handleNativeSignUp(event) {
+      if (auth.pendingAction !== null) return;
+      event.preventDefault();
+      if (shouldSkipNativeAction('sign_up')) return;
+      void runSignUp();
+    }
+
+    signInButton.addEventListener('touchend', handleNativeSignIn);
+    signUpButton.addEventListener('touchend', handleNativeSignUp);
+
+    return () => {
+      signInButton.removeEventListener('touchend', handleNativeSignIn);
+      signUpButton.removeEventListener('touchend', handleNativeSignUp);
+    };
+  }, [auth.pendingAction, email, password]);
+
   function clearAuthMessage() {
     if (!auth.message) return;
     setAuthState({ message: '', messageTone: '' });
   }
 
-  async function handleSignIn(event) {
-    event.preventDefault();
+  async function runSignIn() {
     if (!email.trim() || !password) {
       setAuthState({
         message: t(
@@ -45,8 +94,7 @@ export default function LoginScreen() {
     await loginWithEmailPassword({ email, password });
   }
 
-  async function handleSignUp(event) {
-    event.preventDefault();
+  async function runSignUp() {
     if (!email.trim() || !password) {
       setAuthState({
         message: t(
@@ -68,6 +116,16 @@ export default function LoginScreen() {
       return;
     }
     await signUpWithEmailPassword({ email, password });
+  }
+
+  async function handleSignIn(event) {
+    event.preventDefault();
+    await runSignIn();
+  }
+
+  async function handleSignUp(event) {
+    event.preventDefault();
+    await runSignUp();
   }
 
   const isBusy = auth.pendingAction !== null;
@@ -100,7 +158,7 @@ export default function LoginScreen() {
       <canvas id="sparks" aria-hidden="true" />
       <div className="login-hero" aria-hidden="true" />
       <div className="login-wrap">
-        <div className="login-form">
+        <form className="login-form" onSubmit={handleSignIn}>
           <input
             className="login-input"
             type="email"
@@ -151,21 +209,22 @@ export default function LoginScreen() {
           />
           <button
             className="btn-primary"
-            type="button"
-            onClick={handleSignIn}
+            ref={signInButtonRef}
+            type="submit"
             disabled={isBusy}
           >
             {signInLabel}
           </button>
           <button
             className="btn-secondary"
+            ref={signUpButtonRef}
             type="button"
             onClick={handleSignUp}
             disabled={isBusy}
           >
             {signUpLabel}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
