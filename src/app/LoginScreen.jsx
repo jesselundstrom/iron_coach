@@ -273,7 +273,15 @@ export default function LoginScreen() {
       });
       return;
     }
-    await loginWithEmailPassword({ email: resolvedEmail, password: resolvedPassword });
+    try {
+      await loginWithEmailPassword({ email: resolvedEmail, password: resolvedPassword });
+    } catch (err) {
+      setAuthState({
+        message: err instanceof Error ? err.message : t('login.sign_in_error', 'Unable to sign in right now.'),
+        messageTone: 'error',
+        pendingAction: null,
+      });
+    }
   }
 
   async function runSignUp() {
@@ -295,7 +303,15 @@ export default function LoginScreen() {
       });
       return;
     }
-    await signUpWithEmailPassword({ email: resolvedEmail, password: resolvedPassword });
+    try {
+      await signUpWithEmailPassword({ email: resolvedEmail, password: resolvedPassword });
+    } catch (err) {
+      setAuthState({
+        message: err instanceof Error ? err.message : t('login.sign_up_error', 'Unable to create account right now.'),
+        messageTone: 'error',
+        pendingAction: null,
+      });
+    }
   }
 
   async function handleSignIn(event) {

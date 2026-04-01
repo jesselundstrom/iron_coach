@@ -653,13 +653,7 @@ export async function bootstrapAuthRuntime() {
 
 export async function loginWithEmailPassword(credentials?: AuthCredentials) {
   const mutationId = beginMutation('sign_in');
-  const supabaseClient = ensureSupabaseClient();
-  const authApi = supabaseClient.auth;
   const { email, password } = normalizeCredentials(credentials);
-
-  if (!authApi?.signInWithPassword) {
-    throw new Error('Supabase auth is not available.');
-  }
 
   trace('auth runtime sign-in start', {
     mutationId,
@@ -683,6 +677,12 @@ export async function loginWithEmailPassword(credentials?: AuthCredentials) {
   }
 
   try {
+    const supabaseClient = ensureSupabaseClient();
+    const authApi = supabaseClient.auth;
+
+    if (!authApi?.signInWithPassword) {
+      throw new Error('Supabase auth is not available.');
+    }
     const result = (await authApi.signInWithPassword({
       email,
       password,
@@ -751,13 +751,7 @@ export async function loginWithEmailPassword(credentials?: AuthCredentials) {
 
 export async function signUpWithEmailPassword(credentials?: AuthCredentials) {
   const mutationId = beginMutation('sign_up');
-  const supabaseClient = ensureSupabaseClient();
-  const authApi = supabaseClient.auth;
   const { email, password } = normalizeCredentials(credentials);
-
-  if (!authApi?.signUp) {
-    throw new Error('Supabase auth is not available.');
-  }
 
   trace('auth runtime sign-up start', {
     mutationId,
@@ -781,6 +775,12 @@ export async function signUpWithEmailPassword(credentials?: AuthCredentials) {
   }
 
   try {
+    const supabaseClient = ensureSupabaseClient();
+    const authApi = supabaseClient.auth;
+
+    if (!authApi?.signUp) {
+      throw new Error('Supabase auth is not available.');
+    }
     const result = (await authApi.signUp({
       email,
       password,
