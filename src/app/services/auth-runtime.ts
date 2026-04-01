@@ -189,8 +189,14 @@ function ensureSupabaseClient(): SupabaseClientLike {
     runtimeWindow.__IRONFORGE_SUPABASE_PUBLISHABLE_KEY__ || ''
   ).trim();
 
-  if (!createClient || !baseUrl || !publishableKey) {
-    throw new Error('Supabase auth is not ready.');
+  if (!createClient) {
+    throw new Error('Supabase SDK not loaded (window.supabase missing).');
+  }
+  if (!baseUrl) {
+    throw new Error('Supabase URL not set (app.js may not have run).');
+  }
+  if (!publishableKey) {
+    throw new Error('Supabase key not set (app.js may not have run).');
   }
 
   const options = isStandaloneDisplayMode(runtimeWindow)
