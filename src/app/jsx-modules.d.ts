@@ -112,7 +112,9 @@ declare global {
       updateLanguageDependentUI?: () => void;
     };
     __IRONFORGE_ACTIVE_SETTINGS_TAB__?: string;
-    __IRONFORGE_AUTH_RUNTIME_READY__?: boolean;
+    setupRealtimeSync?: () => void;
+    teardownRealtimeSync?: () => void;
+    resetRuntimeState?: () => void;
     __IRONFORGE_AUTH_RUNTIME__?: {
       bootstrap?: () => Promise<void>;
       loginWithEmail?: (credentials?: {
@@ -191,7 +193,7 @@ declare global {
     syncSettingsBridge?: () => void;
     __IRONFORGE_SET_AUTH_LOGGED_IN__?: (isLoggedIn: boolean) => void;
     __IRONFORGE_SET_AUTH_STATE__?: (partial: {
-      phase?: 'booting' | 'signed_out' | 'signed_in';
+      phase?: 'booting' | 'signed_out' | 'signed_in' | 'loading';
       isLoggedIn?: boolean;
       pendingAction?: 'sign_in' | 'sign_up' | 'sign_out' | null;
       message?: string;
@@ -273,11 +275,6 @@ declare global {
       read?: (name: string) => unknown;
       write?: (name: string, value: unknown) => void;
     };
-    __IRONFORGE_APPLY_AUTH_SESSION__?: (
-      session: Record<string, unknown> | null,
-      options?: Record<string, unknown>
-    ) => Promise<void> | void;
-    __IRONFORGE_REPORT_AUTH_SESSION_ERROR__?: (error: unknown) => void;
     __IRONFORGE_SUPABASE__?: {
       auth?: {
         getSession?: () => Promise<unknown>;

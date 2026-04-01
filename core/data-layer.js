@@ -2944,8 +2944,8 @@ window.addEventListener('pagehide', () => {
   void flushPendingCloudSync();
 });
 
-window.__IRONFORGE_APPLY_AUTH_SESSION__ = applyAuthSession;
-window.__IRONFORGE_REPORT_AUTH_SESSION_ERROR__ = reportAuthSessionError;
-window.loginWithEmail = loginWithEmail;
-window.signUpWithEmail = signUpWithEmail;
-window.logout = logout;
+// Auth-runtime now owns login/signup/logout directly.
+// Expose lifecycle helpers that auth-runtime calls via window.*:
+window.setupRealtimeSync = setupRealtimeSync;
+window.teardownRealtimeSync = teardownRealtimeSync;
+window.resetRuntimeState = resetRuntimeState;

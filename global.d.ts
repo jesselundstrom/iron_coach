@@ -132,7 +132,24 @@ declare global {
 
   interface Window {
     __IRONFORGE_APP_SHELL_READY__?: boolean;
-    __IRONFORGE_AUTH_RUNTIME_READY__?: boolean;
+    __IRONFORGE_AUTH_RUNTIME__?: {
+      bootstrap?: () => Promise<void>;
+      loginWithEmail?: (credentials?: {
+        email?: string;
+        password?: string;
+      }) => Promise<void>;
+      signUpWithEmail?: (credentials?: {
+        email?: string;
+        password?: string;
+      }) => Promise<void>;
+      logout?: () => Promise<void>;
+      showLoginScreen?: () => void;
+      hideLoginScreen?: () => void;
+      getSupabaseClient?: () => unknown;
+    };
+    setupRealtimeSync?: () => void;
+    teardownRealtimeSync?: () => void;
+    resetRuntimeState?: () => void;
     __importWorkoutXssTriggered?: boolean;
     __sportNameXssTriggered?: boolean;
     syncRuntimeStoreFromLegacy?: () => void;

@@ -17,7 +17,7 @@ import type {
 
 type RuntimeStore = {
   auth: {
-    phase: 'booting' | 'signed_out' | 'signed_in';
+    phase: 'booting' | 'signed_out' | 'signed_in' | 'loading';
     isLoggedIn: boolean;
     pendingAction: 'sign_in' | 'sign_up' | 'sign_out' | null;
     message: string;

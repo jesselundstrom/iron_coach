@@ -476,7 +476,7 @@ export default function AppShell() {
     runPageActivationSideEffects(activePage);
   }, [activePage]);
 
-  if (auth.phase !== 'signed_in') {
+  if (auth.phase !== 'signed_in' && auth.phase !== 'loading') {
     return (
       <>
         <AppUpdateBanner
@@ -484,6 +484,20 @@ export default function AppShell() {
           applyingUpdate={serviceWorker.applyingUpdate}
         />
         <LoginScreen />
+      </>
+    );
+  }
+
+  if (auth.phase === 'loading') {
+    return (
+      <>
+        <AppUpdateBanner
+          updateReady={serviceWorker.updateReady}
+          applyingUpdate={serviceWorker.applyingUpdate}
+        />
+        <div className="flex min-h-[100dvh] items-center justify-center bg-[#090b10] text-white/50 text-sm">
+          Loading...
+        </div>
       </>
     );
   }

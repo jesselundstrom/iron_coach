@@ -94,7 +94,7 @@ test('failed sign-in keeps the login screen visible', async ({ page }) => {
   );
 });
 
-test('sign-in remains successful even if legacy auth hydration throws', async ({
+test('sign-in remains successful even if loadData throws', async ({
   page,
 }) => {
   await openApp(page);
@@ -104,9 +104,8 @@ test('sign-in remains successful even if legacy auth hydration throws', async ({
   );
 
   await page.evaluate(() => {
-    window.loadData = async () => {};
-    window.__IRONFORGE_APPLY_AUTH_SESSION__ = async () => {
-      throw new Error('Legacy hydration failed');
+    window.loadData = async () => {
+      throw new Error('Data load failed');
     };
     if (window.__IRONFORGE_SUPABASE__?.auth) {
       window.__IRONFORGE_SUPABASE__.auth.signInWithPassword = async ({
@@ -216,13 +215,13 @@ test('standalone sign-in uses the shared auth-owned Supabase client', async ({
   await expect(page.locator('#app-root')).toBeVisible();
 });
 
-test('legacy login capture yields once the auth runtime is ready', async ({
+test('sign-in button click bubbles normally', async ({
   page,
 }) => {
   await openApp(page);
 
   await page.waitForFunction(
-    () => window.__IRONFORGE_AUTH_RUNTIME_READY__ === true
+    () => typeof window.__IRONFORGE_AUTH_RUNTIME__?.bootstrap === 'function'
   );
 
   const bubbled = await page.evaluate(async () => {
@@ -243,69 +242,6 @@ test('legacy login capture yields once the auth runtime is ready', async ({
   });
 
   expect(bubbled).toBe(true);
-});
-
-test('legacy fallback creates a standalone Supabase client before auth runtime is ready', async ({
-  page,
-}) => {
-  await openApp(page, { standalone: true });
-
-  await page.evaluate(() => {
-    const runtimeWindow = window as Window & {
-      __fallbackLoginCalled?: number;
-      __IRONFORGE_AUTH_RUNTIME_READY__?: boolean;
-      __IRONFORGE_AUTH_RUNTIME__?: Record<string, unknown>;
-      __IRONFORGE_SUPABASE__?: unknown;
-      loadData?: () => Promise<void>;
-      supabase?: {
-        createClient?: (...args: unknown[]) => {
-          auth: {
-            signInWithPassword: (credentials: {
-              email: string;
-              password: string;
-            }) => Promise<unknown>;
-          };
-        };
-      };
-    };
-
-    runtimeWindow.__fallbackLoginCalled = 0;
-    runtimeWindow.__IRONFORGE_AUTH_RUNTIME_READY__ = false;
-    delete runtimeWindow.__IRONFORGE_AUTH_RUNTIME__;
-    delete runtimeWindow.__IRONFORGE_SUPABASE__;
-    runtimeWindow.loadData = async () => {};
-    runtimeWindow.supabase = {
-      createClient: () => ({
-        auth: {
-          signInWithPassword: async () => {
-            runtimeWindow.__fallbackLoginCalled =
-              (runtimeWindow.__fallbackLoginCalled || 0) + 1;
-            return {
-              data: {
-                session: {
-                  user: {
-                    id: 'fallback-user',
-                    email: 'fallback@example.com',
-                  },
-                },
-              },
-              error: null,
-            };
-          },
-        },
-      }),
-    };
-  });
-
-  await page.locator('#login-email').fill('fallback@example.com');
-  await page.locator('#login-password').fill('hunter22');
-  await page.locator('[data-ui="auth-sign-in"]').dispatchEvent('touchend');
-
-  await page.waitForFunction(
-    () =>
-      (window as Window & { __fallbackLoginCalled?: number })
-        .__fallbackLoginCalled === 1
-  );
 });
 
 test('stale standalone bootstrap cannot overwrite an in-flight sign-in', async ({

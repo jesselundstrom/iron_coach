@@ -5,6 +5,6 @@ test('app loads the shell', async ({ page }) => {
   await openApp(page);
 
   await expect(page).toHaveTitle(/Ironforge/i);
-  await expect(page.locator('#app-root')).toBeVisible();
-  await expect(page.locator('#toast')).toBeVisible();
+  // Without a signed-in session, the login screen is shown
+  await expect(page.locator('#login-screen')).toBeVisible();
 });

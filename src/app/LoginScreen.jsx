@@ -295,7 +295,7 @@ export default function LoginScreen() {
     await runSignUp();
   }
 
-  const isBusy = auth.pendingAction !== null;
+  const isBusy = auth.pendingAction !== null || auth.phase === 'loading';
   const statusMessage = auth.message || '';
   const statusToneClass =
     auth.messageTone === 'error' ? 'text-red-300' : 'text-[#ffb07a]';
@@ -391,7 +391,6 @@ export default function LoginScreen() {
               type="submit"
               disabled={isBusy}
               data-ui="auth-sign-in"
-              data-shell-action="login-with-email"
               className="h-11 w-full rounded-xl bg-[linear-gradient(90deg,#d45f20_0%,#ff8c3a_100%)] text-[14px] font-semibold tracking-wide text-white shadow-[0_8px_28px_rgba(220,100,30,0.35)] transition active:scale-[0.985] disabled:opacity-60"
             >
               {signInLabel}
@@ -402,7 +401,6 @@ export default function LoginScreen() {
               onClick={handleSignUp}
               disabled={isBusy}
               data-ui="auth-sign-up"
-              data-shell-action="signup-with-email"
               className="h-11 w-full rounded-xl border border-white/15 bg-transparent text-[14px] font-semibold tracking-wide text-white/75 transition hover:border-white/25 hover:text-white active:scale-[0.985] disabled:opacity-60"
             >
               {signUpLabel}
