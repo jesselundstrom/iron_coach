@@ -1712,7 +1712,9 @@ select optgroup {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
   border-left: 2px solid transparent;
-  transition: background 0.25s ease, border-color 0.25s ease;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease;
 }
 .set-row.is-done {
   background: rgba(245, 130, 31, 0.06);
@@ -1770,7 +1772,10 @@ select optgroup {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.25s, box-shadow 0.25s, border-color 0.25s;
+  transition:
+    background 0.25s,
+    box-shadow 0.25s,
+    border-color 0.25s;
   color: white;
   position: relative;
   overflow: visible;
@@ -2260,7 +2265,9 @@ select optgroup {
   color: #f5821f;
   cursor: pointer;
   margin-bottom: 16px;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 .exercise-guide-open-btn:active {
   background: rgba(245, 130, 31, 0.12);
@@ -2382,7 +2389,9 @@ select optgroup {
   border-radius: 10px;
   padding: 10px 8px;
   text-align: center;
-  transition: background 0.25s, border-color 0.25s;
+  transition:
+    background 0.25s,
+    border-color 0.25s;
 }
 .set-input-cell.is-done {
   background: rgba(245, 130, 31, 0.08);
@@ -2440,7 +2449,10 @@ select optgroup {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s;
 }
 .exercise-add-set-btn:active {
   background: rgba(255, 255, 255, 0.07);
@@ -4231,7 +4243,9 @@ select optgroup {
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Bonus session card (extends workout-session-card) Ã¢â€â‚¬Ã¢â€â‚¬ */
 .bonus-session-card {
   cursor: pointer;
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
   -webkit-tap-highlight-color: transparent;
 }
 .bonus-session-card:active,
@@ -5705,6 +5719,7 @@ select optgroup {
   width: 100%;
   max-width: none;
   min-height: var(--app-vh);
+  max-height: var(--app-vh);
   border-radius: 0;
   border-top: none;
   padding: 0;
@@ -5717,20 +5732,23 @@ select optgroup {
     linear-gradient(180deg, rgba(15, 15, 18, 0.96), rgba(7, 7, 10, 0.98));
   box-shadow: none;
   transform: none;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 #summary-modal .modal-handle {
   display: none;
 }
 #summary-modal .summary-modal-content,
 #summary-modal .summary-celebration {
-  min-height: var(--app-vh);
+  min-height: 100%;
 }
 #summary-modal .summary-celebration {
   position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   padding: calc(var(--sat) + 32px) 20px calc(var(--sab) + 28px);
   isolation: isolate;
 }
@@ -5891,6 +5909,68 @@ select optgroup {
   animation:
     summaryForgeReveal 0.3s ease 0.7s forwards,
     summaryForgeButtonGlow 1.8s ease-in-out 0.9s infinite;
+}
+@media (max-width: 420px), (max-height: 760px) {
+  #summary-modal .summary-celebration {
+    padding: calc(var(--sat) + 18px) 12px calc(var(--sab) + 14px);
+  }
+
+  #summary-modal .summary-shell {
+    gap: 8px;
+    padding: 24px 16px 16px;
+    border-radius: 24px;
+  }
+
+  #summary-modal .summary-title {
+    font-size: clamp(28px, 8.4vw, 44px);
+  }
+
+  #summary-modal .summary-program {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  #summary-modal .summary-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0 4px;
+  }
+
+  #summary-modal .summary-stat {
+    border-radius: 15px;
+    padding: 11px 8px 10px;
+  }
+
+  #summary-modal .summary-stat-value {
+    font-size: clamp(22px, 7vw, 32px);
+  }
+
+  #summary-modal .summary-stat-label {
+    margin-top: 6px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+
+  #summary-modal .summary-coach-note {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  #summary-modal .summary-notes-shell,
+  #summary-modal .summary-feedback {
+    gap: 8px;
+  }
+
+  #summary-modal .summary-notes-textarea {
+    min-height: 88px;
+  }
+
+  #summary-modal .summary-nutrition-action,
+  #summary-modal .summary-action {
+    width: 100%;
+    min-width: 0;
+    margin-top: 8px;
+  }
 }
 @keyframes summaryForgeReveal {
   from {
@@ -7410,23 +7490,39 @@ select optgroup {
   padding: 16px 14px;
   border-radius: 18px;
   background:
-    radial-gradient(ellipse 120% 80% at 10% 50%, rgba(255, 255, 255, 0.04), transparent 70%),
+    radial-gradient(
+      ellipse 120% 80% at 10% 50%,
+      rgba(255, 255, 255, 0.04),
+      transparent 70%
+    ),
     rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.07);
 }
 .stats-hero.is-positive {
   background:
-    radial-gradient(ellipse 120% 80% at 10% 50%, rgba(76, 175, 121, 0.1), transparent 70%),
+    radial-gradient(
+      ellipse 120% 80% at 10% 50%,
+      rgba(76, 175, 121, 0.1),
+      transparent 70%
+    ),
     rgba(255, 255, 255, 0.02);
 }
 .stats-hero.is-caution {
   background:
-    radial-gradient(ellipse 120% 80% at 10% 50%, rgba(245, 158, 11, 0.1), transparent 70%),
+    radial-gradient(
+      ellipse 120% 80% at 10% 50%,
+      rgba(245, 158, 11, 0.1),
+      transparent 70%
+    ),
     rgba(255, 255, 255, 0.02);
 }
 .stats-hero.is-neutral {
   background:
-    radial-gradient(ellipse 120% 80% at 10% 50%, rgba(74, 143, 232, 0.08), transparent 70%),
+    radial-gradient(
+      ellipse 120% 80% at 10% 50%,
+      rgba(74, 143, 232, 0.08),
+      transparent 70%
+    ),
     rgba(255, 255, 255, 0.02);
 }
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Arc gauge Ã¢â€â‚¬Ã¢â€â‚¬ */
@@ -10217,4 +10313,3 @@ select optgroup {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-

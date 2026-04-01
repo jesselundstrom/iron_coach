@@ -9,8 +9,9 @@ test('rpe prompt renders through the React shell and resolves the selected value
   await openAppShell(page);
 
   await page.evaluate(() => {
-    (window as typeof window & { __testRpeValue?: number | null }).__testRpeValue =
-      undefined;
+    (
+      window as typeof window & { __testRpeValue?: number | null }
+    ).__testRpeValue = undefined;
     window.__IRONFORGE_E2E__?.workout?.showRPEPicker?.(
       'Bench Press',
       0,
@@ -126,7 +127,10 @@ test('summary prompt renders through the React shell and resolves feedback plus 
   );
 
   await page.locator('#summary-notes-textarea').fill('Felt great on bench.');
-  await page.locator('.summary-feedback-btn').filter({ hasText: 'Good' }).click();
+  await page
+    .locator('.summary-feedback-btn')
+    .filter({ hasText: 'Good' })
+    .click();
   await page.locator('.summary-action').click();
 
   await expect
@@ -149,5 +153,62 @@ test('summary prompt renders through the React shell and resolves feedback plus 
       notes: 'Felt great on bench.',
       goToNutrition: false,
     });
+  await expect(page.locator('#summary-modal')).not.toHaveClass(/active/);
+});
+
+test('summary prompt keeps the finish action reachable on a short mobile viewport', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 660 });
+  await openAppShell(page);
+
+  await page.evaluate(() => {
+    void window.__IRONFORGE_E2E__?.workout?.showSessionSummary?.({
+      duration: 3600,
+      exerciseCount: 5,
+      completedSets: 18,
+      totalSets: 20,
+      tonnage: 6400,
+      rpe: 9,
+      prCount: 2,
+      isBonus: false,
+      programLabel: 'Forge · Day 3',
+      coachNote:
+        'Strong finish. Log a quick note if anything felt off so the next session stays sharp.',
+    });
+  });
+
+  await expect(page.locator('#summary-modal')).toHaveClass(/active/);
+
+  const layout = await page.evaluate(() => {
+    const sheet = document.querySelector('#summary-modal .summary-sheet');
+    const action = document.querySelector('#summary-modal .summary-action');
+    if (!(sheet instanceof HTMLElement) || !(action instanceof HTMLElement)) {
+      return null;
+    }
+
+    const sheetRectBefore = sheet.getBoundingClientRect();
+    const actionRectBefore = action.getBoundingClientRect();
+    const initiallyVisible =
+      actionRectBefore.bottom <= sheetRectBefore.bottom + 1;
+
+    const beforeScrollTop = sheet.scrollTop;
+    sheet.scrollTop = sheet.scrollHeight;
+
+    const sheetRectAfter = sheet.getBoundingClientRect();
+    const actionRectAfter = action.getBoundingClientRect();
+
+    return {
+      initiallyVisible,
+      scrolled: sheet.scrollTop > beforeScrollTop,
+      visibleAfterScroll: actionRectAfter.bottom <= sheetRectAfter.bottom + 1,
+    };
+  });
+
+  expect(layout).not.toBeNull();
+  expect(layout?.initiallyVisible || layout?.scrolled).toBe(true);
+  expect(layout?.visibleAfterScroll).toBe(true);
+
+  await page.locator('.summary-action').click();
   await expect(page.locator('#summary-modal')).not.toHaveClass(/active/);
 });
