@@ -41,9 +41,10 @@
 
   function isStandaloneDisplayMode() {
     return (
-      window.matchMedia &&
-      window.matchMedia('(display-mode: standalone)').matches
-    ) || window.navigator.standalone === true;
+      (window.matchMedia &&
+        window.matchMedia('(display-mode: standalone)').matches) ||
+      window.navigator.standalone === true
+    );
   }
 
   function noOpSupabaseLock(_name, _acquireTimeout, handler) {
@@ -100,7 +101,10 @@
       );
     }
 
-    if (window.__IRONFORGE_AUTH_RUNTIME__ && window.__IRONFORGE_AUTH_RUNTIME__.bootstrap) {
+    if (
+      window.__IRONFORGE_AUTH_RUNTIME__ &&
+      window.__IRONFORGE_AUTH_RUNTIME__.bootstrap
+    ) {
       trace('bootstrapping auth runtime after fallback sign in');
       return Promise.resolve(window.__IRONFORGE_AUTH_RUNTIME__.bootstrap());
     }
@@ -121,7 +125,10 @@
       showError('SB not ready. Keys: ' + (keys.join(',') || 'none'));
       return Promise.resolve();
     }
-    trace('fallback sign in start', { hasEmail: !!email, hasPassword: !!password });
+    trace('fallback sign in start', {
+      hasEmail: !!email,
+      hasPassword: !!password,
+    });
     return sb.auth
       .signInWithPassword({ email: email, password: password })
       .then(function (result) {
@@ -150,7 +157,10 @@
       showError('SB not ready.');
       return Promise.resolve();
     }
-    trace('fallback sign up start', { hasEmail: !!email, hasPassword: !!password });
+    trace('fallback sign up start', {
+      hasEmail: !!email,
+      hasPassword: !!password,
+    });
     return sb.auth
       .signUp({ email: email, password: password })
       .then(function (result) {
@@ -161,7 +171,9 @@
         if (result && result.error) {
           showError(result.error.message);
         } else {
-          showInfo('Account created! Check your email to confirm, then sign in.');
+          showInfo(
+            'Account created! Check your email to confirm, then sign in.'
+          );
         }
       })
       .catch(function (error) {
@@ -191,12 +203,16 @@
     event.stopImmediatePropagation();
 
     var email = (document.getElementById('login-email') || {}).value || '';
-    var password = (document.getElementById('login-password') || {}).value || '';
+    var password =
+      (document.getElementById('login-password') || {}).value || '';
     email = String(email).trim();
     password = String(password);
 
     if (!email || !password) {
-      trace('missing credentials', { hasEmail: !!email, hasPassword: !!password });
+      trace('missing credentials', {
+        hasEmail: !!email,
+        hasPassword: !!password,
+      });
       showError('Enter your email and password.');
       return;
     }

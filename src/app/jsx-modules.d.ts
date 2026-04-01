@@ -179,7 +179,9 @@ declare global {
       setLogActiveView?: (view: Record<string, unknown> | null) => void;
       setSettingsAccountView?: (view: Record<string, unknown> | null) => void;
       setSettingsBodyView?: (view: Record<string, unknown> | null) => void;
-      setSettingsPreferencesView?: (view: Record<string, unknown> | null) => void;
+      setSettingsPreferencesView?: (
+        view: Record<string, unknown> | null
+      ) => void;
       setSettingsProgramView?: (view: Record<string, unknown> | null) => void;
       setSettingsScheduleView?: (view: Record<string, unknown> | null) => void;
       setExerciseCatalogView?: (view: Record<string, unknown> | null) => void;
@@ -208,7 +210,9 @@ declare global {
     hasRegisteredPrograms?: () => boolean;
     registerProgram?: (program: Record<string, unknown>) => void;
     getProgramById?: (programId: string) => Record<string, unknown> | null;
-    getProgramInitialState?: (programId: string) => Record<string, unknown> | null;
+    getProgramInitialState?: (
+      programId: string
+    ) => Record<string, unknown> | null;
     getExerciseLibrary?: () => Record<string, unknown> | null;
     hasExerciseLibrary?: () => boolean;
     resolveRegisteredExerciseId?: (input: unknown) => string | null;
@@ -223,7 +227,9 @@ declare global {
       locale?: string
     ) => Record<string, unknown> | null;
     mapExerciseMuscleToDisplayGroup?: (muscle: unknown) => string | null;
-    listRegisteredExercises?: (options?: Record<string, unknown>) => Array<Record<string, unknown>>;
+    listRegisteredExercises?: (
+      options?: Record<string, unknown>
+    ) => Array<Record<string, unknown>>;
     searchRegisteredExercises?: (
       query?: string,
       filters?: Record<string, unknown>
@@ -344,10 +350,7 @@ declare global {
         input?: Record<string, unknown>,
         deps?: Record<string, unknown>
       ) => Record<string, unknown>;
-      sanitizeSetValue?: (
-        field: unknown,
-        raw: unknown
-      ) => string | number;
+      sanitizeSetValue?: (field: unknown, raw: unknown) => string | number;
       applySetUpdateMutation?: (
         input?: Record<string, unknown>,
         deps?: Record<string, unknown>
@@ -397,7 +400,10 @@ declare global {
         deps?: Record<string, unknown>
       ) => IronforgeWorkoutTeardownPlanResult;
     };
-    __IRONFORGE_GET_LEGACY_RUNTIME_STATE__?: () => Record<string, unknown> | null;
+    __IRONFORGE_GET_LEGACY_RUNTIME_STATE__?: () => Record<
+      string,
+      unknown
+    > | null;
     __IRONFORGE_SET_LEGACY_RUNTIME_STATE__?: (
       partial: Record<string, unknown>
     ) => void;
@@ -437,7 +443,9 @@ declare global {
     renderHistory?: () => void;
     getDashboardLabels?: () => Record<string, string>;
     getDashboardWeekLegendItems?: () => Array<Record<string, unknown>>;
-    getDashboardDayDetailData?: (index: number) => Array<Record<string, unknown>>;
+    getDashboardDayDetailData?: (
+      index: number
+    ) => Array<Record<string, unknown>>;
     getDashboardRecoverySnapshot?: (
       fatigue: Record<string, unknown>
     ) => Record<string, unknown>;
@@ -556,7 +564,9 @@ declare global {
         ) => string;
       };
       profile?: {
-        update?: (patch: Record<string, unknown>) => Record<string, unknown> | null;
+        update?: (
+          patch: Record<string, unknown>
+        ) => Record<string, unknown> | null;
         setSportReadinessCheckEnabled?: (enabled: boolean) => void;
       };
       workout?: {

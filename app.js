@@ -250,17 +250,18 @@ function syncWorkoutSessionBridge() {
   });
 }
 
-window.getLiveWorkoutSessionSnapshot = function getLiveWorkoutSessionSnapshot() {
-  return {
-    activeWorkout,
-    restDuration: Number(restDuration || 0),
-    restEndsAt: Number(restEndsAt || 0),
-    restSecondsLeft: Number(restSecondsLeft || 0),
-    restTotal: Number(restTotal || 0),
-    currentUser,
-    restBarActive: restBarActive === true,
+window.getLiveWorkoutSessionSnapshot =
+  function getLiveWorkoutSessionSnapshot() {
+    return {
+      activeWorkout,
+      restDuration: Number(restDuration || 0),
+      restEndsAt: Number(restEndsAt || 0),
+      restSecondsLeft: Number(restSecondsLeft || 0),
+      restTotal: Number(restTotal || 0),
+      currentUser,
+      restBarActive: restBarActive === true,
+    };
   };
-};
 
 window.syncWorkoutSessionBridge = syncWorkoutSessionBridge;
 
@@ -347,8 +348,12 @@ function getPreviousSets(exercise) {
 function getSuggested(exercise) {
   const previousSets = getPreviousSets(exercise);
   if (!previousSets?.length) return null;
-  const max = Math.max(...previousSets.map((set) => parseFloat(set.weight) || 0));
-  return previousSets.every((set) => set.done) ? Math.round((max + 2.5) * 2) / 2 : max;
+  const max = Math.max(
+    ...previousSets.map((set) => parseFloat(set.weight) || 0)
+  );
+  return previousSets.every((set) => set.done)
+    ? Math.round((max + 2.5) * 2) / 2
+    : max;
 }
 
 function getScheduleSportNameValue(scheduleLike) {
@@ -917,13 +922,10 @@ function restDone() {
   playBeep();
   if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
     persistActiveWorkoutDraft();
-  restHideTimeout = setTimeout(
-    () => {
-      setRestBarActiveState(false);
-      syncWorkoutSessionBridge();
-    },
-    3000
-  );
+  restHideTimeout = setTimeout(() => {
+    setRestBarActiveState(false);
+    syncWorkoutSessionBridge();
+  }, 3000);
   syncWorkoutSessionBridge();
 }
 function skipRest() {
@@ -1040,9 +1042,13 @@ function getSettingsAccountUiStateSnapshot() {
 }
 window.getSettingsAccountUiStateSnapshot = getSettingsAccountUiStateSnapshot;
 function showSettingsTab(name, el) {
-  const nextTab = ['schedule', 'preferences', 'program', 'account', 'body'].includes(
-    name
-  )
+  const nextTab = [
+    'schedule',
+    'preferences',
+    'program',
+    'account',
+    'body',
+  ].includes(name)
     ? name
     : 'schedule';
   _settingsTab = nextTab;
@@ -1244,58 +1250,53 @@ function getProgramSwitcherSnapshotData() {
       : typeof getRegisteredPrograms === 'function'
         ? getRegisteredPrograms()
         : []
-  ).map(
-    (program) => {
-      const compatibility = getProgramFrequencyCompatibility(
-        program.id,
-        profile
-      );
-      const difficulty =
-        typeof getProgramDifficultyMeta === 'function'
-          ? getProgramDifficultyMeta(program.id)
-          : {
-              key: 'intermediate',
-              labelKey: 'program.difficulty.intermediate',
-              fallback: 'Intermediate',
-            };
-      const effectiveLabel =
-        typeof getTrainingDaysPerWeekLabel === 'function'
-          ? getTrainingDaysPerWeekLabel(compatibility.effective)
-          : compatibility.effective + ' sessions / week';
-      return {
-        id: program.id,
-        icon: program.icon || '🏋️',
-        name:
-          window.I18N && I18N.t
-            ? I18N.t('program.' + program.id + '.name', null, program.name)
-            : program.name,
-        description:
-          window.I18N && I18N.t
-            ? I18N.t(
-                'program.' + program.id + '.description',
-                null,
-                program.description || ''
-              )
-            : program.description || '',
-        fitLabel: compatibility.supportsExact
-          ? tr('program.frequency_card.fit', 'Fits {value}', {
-              value: requestedLabel,
-            })
-          : tr('program.frequency_card.fallback', 'Uses {value}', {
-              value: effectiveLabel,
-            }),
-        fitTone: compatibility.supportsExact ? 'ok' : 'fallback',
-        difficultyKey: difficulty.key,
-        difficultyTone: difficulty.key,
-        difficultyLabel:
-          window.I18N && I18N.t
-            ? I18N.t(difficulty.labelKey, null, difficulty.fallback)
-            : difficulty.fallback,
-        active: program.id === active,
-        activeLabel: tr('program.active', 'Active'),
-      };
-    }
-  );
+  ).map((program) => {
+    const compatibility = getProgramFrequencyCompatibility(program.id, profile);
+    const difficulty =
+      typeof getProgramDifficultyMeta === 'function'
+        ? getProgramDifficultyMeta(program.id)
+        : {
+            key: 'intermediate',
+            labelKey: 'program.difficulty.intermediate',
+            fallback: 'Intermediate',
+          };
+    const effectiveLabel =
+      typeof getTrainingDaysPerWeekLabel === 'function'
+        ? getTrainingDaysPerWeekLabel(compatibility.effective)
+        : compatibility.effective + ' sessions / week';
+    return {
+      id: program.id,
+      icon: program.icon || '🏋️',
+      name:
+        window.I18N && I18N.t
+          ? I18N.t('program.' + program.id + '.name', null, program.name)
+          : program.name,
+      description:
+        window.I18N && I18N.t
+          ? I18N.t(
+              'program.' + program.id + '.description',
+              null,
+              program.description || ''
+            )
+          : program.description || '',
+      fitLabel: compatibility.supportsExact
+        ? tr('program.frequency_card.fit', 'Fits {value}', {
+            value: requestedLabel,
+          })
+        : tr('program.frequency_card.fallback', 'Uses {value}', {
+            value: effectiveLabel,
+          }),
+      fitTone: compatibility.supportsExact ? 'ok' : 'fallback',
+      difficultyKey: difficulty.key,
+      difficultyTone: difficulty.key,
+      difficultyLabel:
+        window.I18N && I18N.t
+          ? I18N.t(difficulty.labelKey, null, difficulty.fallback)
+          : difficulty.fallback,
+      active: program.id === active,
+      activeLabel: tr('program.active', 'Active'),
+    };
+  });
   return {
     helper: tr(
       'program.frequency_filter.showing',
@@ -1561,7 +1562,9 @@ function parseOnboardingExerciseIds(text) {
 }
 
 function getOnboardingDefaultDraft() {
-  return window.__IRONFORGE_APP_RUNTIME__?.getOnboardingDefaultDraft?.() || null;
+  return (
+    window.__IRONFORGE_APP_RUNTIME__?.getOnboardingDefaultDraft?.() || null
+  );
 }
 window.getOnboardingDefaultDraft = getOnboardingDefaultDraft;
 
@@ -1668,15 +1671,12 @@ function maybeOpenOnboarding(options) {
   const coaching = normalizeCoachingProfile(profile);
   if (
     !opts.force &&
-    (coaching.onboardingCompleted === true ||
-      coaching.onboardingSeen === true)
+    (coaching.onboardingCompleted === true || coaching.onboardingSeen === true)
   ) {
     closeOnboardingModal();
     return;
   }
-  if (
-    typeof hasRegisteredPrograms === 'function' && !hasRegisteredPrograms()
-  ) {
+  if (typeof hasRegisteredPrograms === 'function' && !hasRegisteredPrograms()) {
     _onboardingRetryTimer = setTimeout(() => maybeOpenOnboarding(opts), 120);
     return;
   }
@@ -1872,14 +1872,18 @@ function saveTrainingPreferences(options) {
   const equipmentAccess =
     document.getElementById('training-equipment')?.value ||
     prefs.equipmentAccess;
-  const sportReadinessCheckEnabled =
-    Object.prototype.hasOwnProperty.call(opts, 'sportReadinessCheckEnabledOverride')
-      ? opts.sportReadinessCheckEnabledOverride === true
-      : document.getElementById('training-sport-check')?.checked === true;
-  const warmupSetsEnabled =
-    Object.prototype.hasOwnProperty.call(opts, 'warmupSetsEnabledOverride')
-      ? opts.warmupSetsEnabledOverride === true
-      : document.getElementById('training-warmup-sets')?.checked === true;
+  const sportReadinessCheckEnabled = Object.prototype.hasOwnProperty.call(
+    opts,
+    'sportReadinessCheckEnabledOverride'
+  )
+    ? opts.sportReadinessCheckEnabledOverride === true
+    : document.getElementById('training-sport-check')?.checked === true;
+  const warmupSetsEnabled = Object.prototype.hasOwnProperty.call(
+    opts,
+    'warmupSetsEnabledOverride'
+  )
+    ? opts.warmupSetsEnabledOverride === true
+    : document.getElementById('training-warmup-sets')?.checked === true;
   const detailedView = Object.prototype.hasOwnProperty.call(
     opts,
     'detailedViewOverride'
@@ -1989,7 +1993,8 @@ function saveSchedule(nextValues) {
     const cb = document.getElementById('sport-legs-heavy');
     if (cb) schedule.sportLegsHeavy = cb.checked;
   }
-  if (typeof normalizeScheduleState === 'function') normalizeScheduleState(schedule);
+  if (typeof normalizeScheduleState === 'function')
+    normalizeScheduleState(schedule);
   if (!activeWorkout) resetNotStartedView();
   saveScheduleData();
   if (isSettingsScheduleIslandActive()) notifySettingsScheduleIsland();
@@ -2040,10 +2045,7 @@ function importData(event) {
       : 5 * 1024 * 1024;
   if (Number(file.size) > maxBackupBytes) {
     showToast(
-      tr(
-        'import.file_too_large',
-        'Backup file is too large to import safely'
-      ),
+      tr('import.file_too_large', 'Backup file is too large to import safely'),
       'var(--orange)'
     );
     event.target.value = '';
@@ -2070,7 +2072,10 @@ function importData(event) {
             };
       if (!validation?.ok) {
         showToast(
-          tr(validation?.errorKey || 'import.invalid_file', validation?.fallback || 'Invalid backup file'),
+          tr(
+            validation?.errorKey || 'import.invalid_file',
+            validation?.fallback || 'Invalid backup file'
+          ),
           'var(--orange)'
         );
         return;
@@ -2181,10 +2186,9 @@ async function clearAllData() {
     coaching: getDefaultCoachingProfile(),
   };
   settingsAccountUiState = { dangerOpen: false, dangerInput: '' };
-  (
-    typeof getRegisteredPrograms === 'function'
-      ? getRegisteredPrograms()
-      : []
+  (typeof getRegisteredPrograms === 'function'
+    ? getRegisteredPrograms()
+    : []
   ).forEach((prog) => {
     profile.programs[prog.id] = prog.getInitialState();
   });

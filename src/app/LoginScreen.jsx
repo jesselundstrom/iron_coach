@@ -39,7 +39,9 @@ function resetEmber(ember, initial, width, height) {
   const originX = width * 0.5;
   const spread = fromForge ? width * 0.32 : width * 0.72;
 
-  ember.size = fromForge ? 0.8 + Math.random() * 1.8 : 0.6 + Math.random() * 1.2;
+  ember.size = fromForge
+    ? 0.8 + Math.random() * 1.8
+    : 0.6 + Math.random() * 1.2;
   ember.x = fromForge
     ? originX + (Math.random() - 0.5) * spread
     : Math.random() * width;
@@ -55,7 +57,9 @@ function resetEmber(ember, initial, width, height) {
   ember.phase = Math.random() * Math.PI * 2;
   ember.wiggle = 0.35 + Math.random() * 0.95;
   ember.life = 0.55 + Math.random() * 0.95;
-  ember.alpha = fromForge ? 0.24 + Math.random() * 0.36 : 0.16 + Math.random() * 0.22;
+  ember.alpha = fromForge
+    ? 0.24 + Math.random() * 0.36
+    : 0.16 + Math.random() * 0.22;
   ember.t = Math.random();
 }
 
@@ -65,7 +69,9 @@ function useForgeSparkEngine(canvasRef) {
     if (!canvas) return;
 
     // Respect prefers-reduced-motion
-    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const reducedMotionQuery = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    );
     if (reducedMotionQuery.matches) return;
 
     const ctx = canvas.getContext('2d');
@@ -112,7 +118,10 @@ function useForgeSparkEngine(canvasRef) {
       for (let i = 0; i < embers.length; i++) {
         const ember = embers[i];
         ember.y -= ember.speed * dt;
-        ember.x += (ember.drift + Math.sin(ts * 0.0012 + ember.phase) * ember.wiggle * 3.8) * dt;
+        ember.x +=
+          (ember.drift +
+            Math.sin(ts * 0.0012 + ember.phase) * ember.wiggle * 3.8) *
+          dt;
         ember.life -= dt * 0.22;
         ember.alpha = Math.max(0, ember.alpha - dt * 0.024);
 
@@ -135,8 +144,12 @@ function useForgeSparkEngine(canvasRef) {
 
       // Forge glow at base of anvil
       const forgeGlow = ctx.createRadialGradient(
-        width * 0.5, height * 0.82, 8,
-        width * 0.5, height * 0.82, height * 0.2
+        width * 0.5,
+        height * 0.82,
+        8,
+        width * 0.5,
+        height * 0.82,
+        height * 0.2
       );
       forgeGlow.addColorStop(0, 'rgba(255,132,46,0.18)');
       forgeGlow.addColorStop(0.52, 'rgba(255,120,40,0.09)');
@@ -243,10 +256,7 @@ export default function LoginScreen() {
   async function runSignIn() {
     if (!email.trim() || !password) {
       setAuthState({
-        message: t(
-          'login.enter_credentials',
-          'Enter your email and password.'
-        ),
+        message: t('login.enter_credentials', 'Enter your email and password.'),
         messageTone: 'error',
       });
       return;
@@ -257,10 +267,7 @@ export default function LoginScreen() {
   async function runSignUp() {
     if (!email.trim() || !password) {
       setAuthState({
-        message: t(
-          'login.enter_credentials',
-          'Enter your email and password.'
-        ),
+        message: t('login.enter_credentials', 'Enter your email and password.'),
         messageTone: 'error',
       });
       return;
@@ -326,9 +333,17 @@ export default function LoginScreen() {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[55%] bg-[linear-gradient(0deg,rgba(4,6,10,0.92)_0%,rgba(4,6,10,0.68)_40%,transparent_100%)]" />
 
       <div className="pointer-events-none absolute inset-0 z-20" />
-      <div className="absolute z-20 w-full px-5 sm:px-6" style={{ top: '42%', bottom: '33%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        className="absolute z-20 w-full px-5 sm:px-6"
+        style={{
+          top: '42%',
+          bottom: '33%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <div className="w-full max-w-xs pointer-events-auto">
-
           <form className="space-y-2" onSubmit={handleSignIn}>
             <input
               className="h-11 w-full rounded-xl border border-white/12 bg-black/40 px-4 text-center text-[14px] text-white placeholder:text-white/35 outline-none backdrop-blur-sm transition-colors focus:border-[#ff8a3d]/60 focus:bg-black/50 focus:ring-0 disabled:opacity-60"

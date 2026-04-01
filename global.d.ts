@@ -147,13 +147,15 @@ declare global {
     handleNutritionPhoto: (event: Event) => void;
     submitNutritionTextMessage: (text: string) => void;
     setSelectedNutritionAction: (actionId: string) => void;
-    setNutritionSessionContext: (ctx?: {
-      duration?: number;
-      exerciseCount?: number;
-      tonnage?: number;
-      rpe?: number;
-      [key: string]: unknown;
-    } | null) => void;
+    setNutritionSessionContext: (
+      ctx?: {
+        duration?: number;
+        exerciseCount?: number;
+        tonnage?: number;
+        rpe?: number;
+        [key: string]: unknown;
+      } | null
+    ) => void;
     clearNutritionLocalData: (options?: {
       includeScoped?: boolean;
       includeLegacy?: boolean;
