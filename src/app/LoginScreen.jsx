@@ -253,26 +253,39 @@ export default function LoginScreen() {
     setAuthState({ message: '', messageTone: '' });
   }
 
+  // iOS autofill sometimes fills the DOM without triggering React's onChange.
+  // Reading directly from the DOM ensures we catch autofilled values.
+  function resolveCredentials() {
+    const emailEl = document.getElementById('login-email');
+    const passwordEl = document.getElementById('login-password');
+    return {
+      resolvedEmail: (email || emailEl?.value || '').trim(),
+      resolvedPassword: password || passwordEl?.value || '',
+    };
+  }
+
   async function runSignIn() {
-    if (!email.trim() || !password) {
+    const { resolvedEmail, resolvedPassword } = resolveCredentials();
+    if (!resolvedEmail || !resolvedPassword) {
       setAuthState({
         message: t('login.enter_credentials', 'Enter your email and password.'),
         messageTone: 'error',
       });
       return;
     }
-    await loginWithEmailPassword({ email, password });
+    await loginWithEmailPassword({ email: resolvedEmail, password: resolvedPassword });
   }
 
   async function runSignUp() {
-    if (!email.trim() || !password) {
+    const { resolvedEmail, resolvedPassword } = resolveCredentials();
+    if (!resolvedEmail || !resolvedPassword) {
       setAuthState({
         message: t('login.enter_credentials', 'Enter your email and password.'),
         messageTone: 'error',
       });
       return;
     }
-    if (password.length < 6) {
+    if (resolvedPassword.length < 6) {
       setAuthState({
         message: t(
           'login.password_short',
@@ -282,7 +295,7 @@ export default function LoginScreen() {
       });
       return;
     }
-    await signUpWithEmailPassword({ email, password });
+    await signUpWithEmailPassword({ email: resolvedEmail, password: resolvedPassword });
   }
 
   async function handleSignIn(event) {
