@@ -17,7 +17,7 @@
     try {
       if (window.localStorage.getItem(DEBUG_FLAG_KEY) === '1') return true;
     } catch (_error) {}
-    return isStandaloneDisplayMode();
+    return false;
   }
 
   function ensurePanel() {
