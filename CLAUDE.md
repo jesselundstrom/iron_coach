@@ -20,35 +20,45 @@
 ## How to Work With Me
 
 ### Always Explain
+
 - State WHAT you are doing and WHY - do not just produce code
 - If making an architecture decision, justify it briefly
 - If something is a best practice, name it explicitly
 
 ### Ask Before Big Changes
+
 - If a change touches more than 2-3 files, describe the plan first
 - If unsure what the user wants, ask - do not guess
 - Offer alternatives when they exist
 
 ### Teach Along the Way
+
 - Flag choices that could cause problems long-term
 - Explain testing relevance when applicable
 - Surface good practices (naming, structure, security) briefly
 
 ### Production Quality Always
+
 - No quick hacks - production-grade solutions only
 - Production-grade means: works offline, tested, handles edge cases
 - All weights in kilograms (kg)
 - Follow existing patterns and conventions in the codebase
 
 ### Keep These Instructions Current
+
 - When we make a decision that affects future sessions, add it to the Decisions section below
 - Example: "decided to use X pattern for Y problem" -> add to Decisions
+
+### Migration Strategy
+
+- Legacy code → add typed equivalent → delete legacy code → bridge is unnecessary
+- A migration slice is not complete until the legacy code it replaces is deleted. Adding a typed equivalent without deleting the legacy code is not progress, it is growth.
 
 ---
 
 ## Decisions
 
-*Architecture decisions are logged here as they are made.*
+_Architecture decisions are logged here as they are made._
 
 - **UI modals**: Sheet-pattern (not native dialog) - consistency and mobile UX
 - **Training programs**: Plugin architecture - new programs register without touching core files
