@@ -164,6 +164,12 @@ function RestTimerBar({ session }) {
   const ratio = total > 0 ? remaining / total : 0;
   const circumference = 119.4;
   const dashOffset = circumference * (1 - ratio);
+  const timerClassName =
+    remaining <= 0 && total > 0
+      ? 'rest-timer-count done'
+      : remaining > 0 && remaining <= 10
+        ? 'rest-timer-count warning'
+        : 'rest-timer-count';
 
   return (
     <div
@@ -198,7 +204,7 @@ function RestTimerBar({ session }) {
         <div className="rest-timer-label" data-i18n="workout.rest_timer">
           {t('workout.rest_timer', 'Rest timer')}
         </div>
-        <div className="rest-timer-count" id="rest-timer-count">
+        <div className={timerClassName} id="rest-timer-count">
           {formatRestTimerText(remaining || session.restDuration)}
         </div>
       </div>

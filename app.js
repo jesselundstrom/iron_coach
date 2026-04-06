@@ -74,12 +74,10 @@ let profile = {
 let activeWorkout = null,
   workoutTimer = null,
   workoutSeconds = 0;
-let restInterval = null,
-  restSecondsLeft = 0,
+let restSecondsLeft = 0,
   restTotal = 0,
   restDuration = 120,
   restEndsAt = 0,
-  restHideTimeout = null,
   restBarActive = false;
 let pendingRPECallback = null;
 let pendingRPEPromptState = null;
@@ -93,6 +91,54 @@ const IS_E2E_TEST_ENV =
 if (IS_E2E_TEST_ENV) {
   document.documentElement.classList.add('test-env');
 }
+
+Object.defineProperties(window, {
+  restDuration: {
+    configurable: true,
+    get() {
+      return restDuration;
+    },
+    set(value) {
+      restDuration = Number(value) || 0;
+    },
+  },
+  restTotal: {
+    configurable: true,
+    get() {
+      return restTotal;
+    },
+    set(value) {
+      restTotal = Number(value) || 0;
+    },
+  },
+  restEndsAt: {
+    configurable: true,
+    get() {
+      return restEndsAt;
+    },
+    set(value) {
+      restEndsAt = Number(value) || 0;
+    },
+  },
+  restSecondsLeft: {
+    configurable: true,
+    get() {
+      return restSecondsLeft;
+    },
+    set(value) {
+      restSecondsLeft = Number(value) || 0;
+    },
+  },
+  restBarActive: {
+    configurable: true,
+    get() {
+      return restBarActive;
+    },
+    set(value) {
+      restBarActive = value === true;
+    },
+  },
+});
 
 function cloneLegacyRuntimeStateValue(value) {
   if (value === undefined || value === null) return value;
@@ -115,6 +161,16 @@ function readLegacyRuntimeField(name) {
       return cloneLegacyRuntimeStateValue(profile);
     case 'activeWorkout':
       return cloneLegacyRuntimeStateValue(activeWorkout);
+    case 'restDuration':
+      return restDuration;
+    case 'restTotal':
+      return restTotal;
+    case 'restEndsAt':
+      return restEndsAt;
+    case 'restSecondsLeft':
+      return restSecondsLeft;
+    case 'restBarActive':
+      return restBarActive;
     default:
       return undefined;
   }
@@ -142,6 +198,26 @@ function writeLegacyRuntimeField(name, value) {
     case 'activeWorkout':
       activeWorkout = nextValue || null;
       window.activeWorkout = cloneLegacyRuntimeStateValue(activeWorkout);
+      break;
+    case 'restDuration':
+      restDuration = Number(nextValue) || 0;
+      window.restDuration = restDuration;
+      break;
+    case 'restTotal':
+      restTotal = Number(nextValue) || 0;
+      window.restTotal = restTotal;
+      break;
+    case 'restEndsAt':
+      restEndsAt = Number(nextValue) || 0;
+      window.restEndsAt = restEndsAt;
+      break;
+    case 'restSecondsLeft':
+      restSecondsLeft = Number(nextValue) || 0;
+      window.restSecondsLeft = restSecondsLeft;
+      break;
+    case 'restBarActive':
+      restBarActive = nextValue === true;
+      window.restBarActive = restBarActive;
       break;
     default:
       break;
@@ -242,65 +318,46 @@ function isStoreBackedSettingsSurfaceActive() {
 
 function setRestBarActiveState(nextActive) {
   restBarActive = nextActive === true;
-  document
-    .getElementById('rest-timer-bar')
-    ?.classList.toggle('active', restBarActive);
+  window.restBarActive = restBarActive;
+  if (typeof window.syncWorkoutSessionBridge === 'function') {
+    window.syncWorkoutSessionBridge();
+  }
 }
 
 window.setRestBarActiveState = setRestBarActiveState;
 
-function syncWorkoutSessionBridge() {
-  const bridge = getRuntimeBridge();
-  if (!bridge || typeof bridge.setWorkoutSessionState !== 'function') return;
-  bridge.setWorkoutSessionState({
+function buildLiveWorkoutSessionSnapshot() {
+  return getWorkoutRestRuntime()?.buildWorkoutSessionSnapshot?.({
     activeWorkout,
-    restDuration: Number(restDuration || 0),
-    restEndsAt: Number(restEndsAt || 0),
-    restSecondsLeft: Number(restSecondsLeft || 0),
-    restTotal: Number(restTotal || 0),
+    restDuration,
+    restEndsAt,
+    restSecondsLeft,
+    restTotal,
     currentUser,
-    restBarActive: restBarActive === true,
-    rpeOpen: pendingRPEPromptState?.open === true,
-    rpePrompt:
-      pendingRPEPromptState && typeof pendingRPEPromptState === 'object'
-        ? { ...pendingRPEPromptState }
-        : null,
-    summaryOpen:
-      typeof window.getSessionSummaryPromptSnapshot === 'function' &&
-      window.getSessionSummaryPromptSnapshot()?.open === true,
+    restBarActive,
+    rpePrompt: pendingRPEPromptState,
     summaryPrompt:
       typeof window.getSessionSummaryPromptSnapshot === 'function'
         ? window.getSessionSummaryPromptSnapshot()
         : null,
-    sportCheckOpen:
-      typeof window.getSportCheckPromptSnapshot === 'function' &&
-      window.getSportCheckPromptSnapshot()?.open === true,
     sportCheckPrompt:
       typeof window.getSportCheckPromptSnapshot === 'function'
         ? window.getSportCheckPromptSnapshot()
         : null,
-    exerciseGuideOpen:
-      typeof window.getExerciseGuidePromptSnapshot === 'function' &&
-      window.getExerciseGuidePromptSnapshot()?.open === true,
     exerciseGuidePrompt:
       typeof window.getExerciseGuidePromptSnapshot === 'function'
         ? window.getExerciseGuidePromptSnapshot()
         : null,
-  });
+  }) || null;
 }
 
-window.getLiveWorkoutSessionSnapshot =
-  function getLiveWorkoutSessionSnapshot() {
-    return {
-      activeWorkout,
-      restDuration: Number(restDuration || 0),
-      restEndsAt: Number(restEndsAt || 0),
-      restSecondsLeft: Number(restSecondsLeft || 0),
-      restTotal: Number(restTotal || 0),
-      currentUser,
-      restBarActive: restBarActive === true,
-    };
-  };
+function syncWorkoutSessionBridge() {
+  const bridge = getRuntimeBridge();
+  if (!bridge || typeof bridge.setWorkoutSessionState !== 'function') return;
+  const snapshot = buildLiveWorkoutSessionSnapshot();
+  if (!snapshot) return;
+  bridge.setWorkoutSessionState(snapshot);
+}
 
 window.syncWorkoutSessionBridge = syncWorkoutSessionBridge;
 
@@ -873,6 +930,10 @@ function getSportRecentHours() {
 // Data/auth lifecycle functions moved to core/data-layer.js.
 
 // REST TIMER
+function getWorkoutRestRuntime() {
+  return window.__IRONFORGE_WORKOUT_RUNTIME__ || null;
+}
+
 function getSelectedRestDuration() {
   const inputValue = parseInt(
     document.getElementById('rest-duration')?.value,
@@ -883,104 +944,59 @@ function getSelectedRestDuration() {
 }
 
 function updateRestDuration(nextValue) {
-  const parsedValue =
-    nextValue !== undefined && nextValue !== null
-      ? parseInt(nextValue, 10)
-      : getSelectedRestDuration();
-  restDuration = Number.isFinite(parsedValue) ? parsedValue : 0;
-  const restSelect = document.getElementById('rest-duration');
-  if (restSelect) restSelect.value = String(restDuration);
-  if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
-    persistActiveWorkoutDraft();
   if (
-    typeof isLogActiveIslandActive === 'function' &&
-    isLogActiveIslandActive()
-  )
-    notifyLogActiveIsland();
-  syncWorkoutSessionBridge();
+    typeof window.updateRestDuration === 'function' &&
+    window.updateRestDuration !== updateRestDuration
+  ) {
+    return window.updateRestDuration(nextValue);
+  }
 }
 window.getSelectedRestDuration = getSelectedRestDuration;
-function clearRestInterval() {
-  if (restInterval) {
-    clearInterval(restInterval);
-    restInterval = null;
-  }
-}
-function clearRestHideTimer() {
-  if (restHideTimeout) {
-    clearTimeout(restHideTimeout);
-    restHideTimeout = null;
-  }
-}
 function syncRestTimer() {
-  if (!restEndsAt) return;
-  restSecondsLeft = Math.max(0, Math.ceil((restEndsAt - Date.now()) / 1000));
-  if (restSecondsLeft <= 0) {
-    restDone();
-    return;
+  if (
+    typeof window.syncRestTimer === 'function' &&
+    window.syncRestTimer !== syncRestTimer
+  ) {
+    return window.syncRestTimer();
   }
-  updateRestDisplay();
+  const restLifecyclePlan = getWorkoutRestRuntime()?.buildWorkoutRestLifecyclePlan?.(
+    {
+      mode: 'sync',
+      restDuration,
+      restTotal,
+      restEndsAt,
+      restSecondsLeft,
+      profileDefaultRest: profile.defaultRest,
+      now: Date.now(),
+    },
+    {}
+  );
+  if (!restLifecyclePlan?.timerState) return;
+  restDuration = Number(restLifecyclePlan.timerState.restDuration || 0);
+  restTotal = Number(restLifecyclePlan.timerState.restTotal || 0);
+  restEndsAt = Number(restLifecyclePlan.timerState.restEndsAt || 0);
+  restSecondsLeft = Number(restLifecyclePlan.timerState.restSecondsLeft || 0);
+  restBarActive = restLifecyclePlan.timerState.restBarActive === true;
+  if (typeof window.syncWorkoutSessionBridge === 'function') {
+    window.syncWorkoutSessionBridge();
+  }
 }
 function startRestTimer() {
-  if (!restDuration) {
-    skipRest();
-    return;
+  if (
+    typeof window.startRestTimer === 'function' &&
+    window.startRestTimer !== startRestTimer
+  ) {
+    return window.startRestTimer();
   }
-  clearRestInterval();
-  clearRestHideTimer();
-  restTotal = restDuration;
-  restEndsAt = Date.now() + restDuration * 1000;
-  setRestBarActiveState(true);
-  syncRestTimer();
-  if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
-    persistActiveWorkoutDraft();
-  restInterval = setInterval(syncRestTimer, 250);
-  syncWorkoutSessionBridge();
-}
-function updateRestDisplay() {
-  const m = Math.floor(restSecondsLeft / 60),
-    s = restSecondsLeft % 60;
-  const el = document.getElementById('rest-timer-count');
-  if (!el) return;
-  el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-  el.className = 'rest-timer-count' + (restSecondsLeft <= 10 ? ' warning' : '');
-  const offset = restTotal ? 119.4 * (1 - restSecondsLeft / restTotal) : 119.4;
-  document
-    .getElementById('timer-arc')
-    .setAttribute('stroke-dashoffset', offset);
-  syncWorkoutSessionBridge();
-}
-function restDone() {
-  clearRestInterval();
-  clearRestHideTimer();
-  restEndsAt = 0;
-  restSecondsLeft = 0;
-  const el = document.getElementById('rest-timer-count');
-  el.className = 'rest-timer-count done';
-  el.textContent = tr('dashboard.badge.go', 'GO');
-  playBeep();
-  if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
-    persistActiveWorkoutDraft();
-  restHideTimeout = setTimeout(() => {
-    setRestBarActiveState(false);
-    syncWorkoutSessionBridge();
-  }, 3000);
-  syncWorkoutSessionBridge();
 }
 function skipRest() {
-  clearRestInterval();
-  clearRestHideTimer();
-  restEndsAt = 0;
-  restSecondsLeft = 0;
-  setRestBarActiveState(false);
-  if (activeWorkout && typeof persistActiveWorkoutDraft === 'function')
-    persistActiveWorkoutDraft();
-  syncWorkoutSessionBridge();
+  if (
+    typeof window.skipRest === 'function' &&
+    window.skipRest !== skipRest
+  ) {
+    return window.skipRest();
+  }
 }
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) syncRestTimer();
-});
-window.addEventListener('pageshow', syncRestTimer);
 function playBeep() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();

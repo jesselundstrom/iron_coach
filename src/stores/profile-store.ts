@@ -162,9 +162,10 @@ function publishToLegacy(
   if (writeLegacyRuntimeValue) {
     writeLegacyRuntimeValue('profile', cloneJson(profile));
     writeLegacyRuntimeValue('schedule', cloneJson(schedule));
+  } else {
+    runtimeWindow.profile = cloneJson(profile);
+    runtimeWindow.schedule = cloneJson(schedule);
   }
-  runtimeWindow.profile = cloneJson(profile);
-  runtimeWindow.schedule = cloneJson(schedule);
   syncProfileDataStore(profile, schedule);
   runtimeWindow.syncSettingsBridge?.();
 }

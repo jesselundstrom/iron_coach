@@ -58,6 +58,8 @@
 - `window.updateDashboard`, `window.toggleDayDetail`, `window.wasSportRecently`, and `window.wasHockeyRecently` are provided by `src/stores/dashboard-store.ts`.
 - Typed dashboard/history/nutrition surfaces should prefer the explicit legacy runtime setter/getter in `app.js` over `window.eval(...)` when a compatibility write is still required.
 - When migrating a surface, prefer thin delegators and compatibility writes over big-bang removal.
+- A migrated slice is only complete when the legacy branch it replaced is removed in the same change.
+- Surface-level compatibility delegates may remain temporarily for untouched callers, but do not keep duplicate legacy logic after a slice has a typed owner.
 - Remove bridge/shim code only after the typed runtime owns that surface and the relevant tests no longer depend on the legacy contract.
 - Do not introduce new page-by-page React migration guidance; the visible-surface cutover is already complete.
 
@@ -120,6 +122,7 @@
 - User-facing muscle-load UI should use the display-group mapping from the exercise-library surface instead of inventing separate dashboard-only muscle labels.
 - Keep new program objects compatible with the existing integration points: id, name, description, icon, session options, session building, state advancement, and settings hooks.
 - When migrating program settings UI, preserve behavior first and refactor the rendering model later.
+- For migrated execution paths, pass explicit runtime context into program hooks instead of relying on ambient training-frequency, current-week, or per-session readiness globals. If a workout/program caller already has that data, thread it through the program contract rather than reading it again from `window.*`.
 
 ## Nutrition And AI Coaching
 - Live nutrition runtime ownership lives in `src/stores/nutrition-store.ts` and `src/app/services/nutrition-coach.ts`.
@@ -160,9 +163,12 @@
 ## Change Strategy
 - Fix root causes instead of layering on narrow patches when feasible.
 - Avoid unrelated refactors.
+- The current stabilization cycle is under a hard feature freeze.
+- Allowed work in this cycle: bug fixes, ownership-reduction migration work, tests required by migration, and minimal UX fixes needed to land a migration slice.
+- Not allowed in this cycle: new features, new `window.*` contracts, new program settings, new stores outside the active workout/runtime migration path, or wrapper-only convergence work.
 - If adding a feature, update all affected layers, translations, and UI states.
 - Prefer finishing requested development work end-to-end instead of only listing suggested next steps. If the repo needs tooling, tests, config, or small supporting changes to make the solution real, add them directly unless the user explicitly wants planning only.
-- For meaningful behavior or UI changes, add or update automated tests when feasible. Prefer Playwright for user flows and deterministic validation paths over flaky network-dependent tests. If you skip test coverage, say why.
+- For meaningful behavior or UI changes, add or update automated tests when feasible. Prefer Playwright for user flows and Vitest for extracted pure logic, runtime contracts, and other deterministic validation paths. If you skip test coverage, say why.
 - Keep tests small, readable, and purpose-driven. One user flow per test is preferred over giant all-in-one scripts.
 - Before closing meaningful work, run the relevant verification commands from the current toolchain such as `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run build`, and targeted `npm.cmd run test:e2e` coverage when applicable.
 - CI uses `npm run test:e2e:ci` for the deterministic single-worker Playwright gate; local development can still use `npm run test:e2e`.

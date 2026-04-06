@@ -464,21 +464,87 @@ function recomputeProgramStateFromWorkouts(programId) {
       : prog.getInitialState
         ? prog.getInitialState()
         : {};
-  if (prog.migrateState) state = prog.migrateState(state);
+  const buildReplayContext = (workout, stateForContext) => {
+    const savedContext =
+      workout?.sessionSnapshot &&
+      typeof workout.sessionSnapshot === 'object' &&
+      workout.sessionSnapshot.buildContext &&
+      typeof workout.sessionSnapshot.buildContext === 'object'
+        ? JSON.parse(JSON.stringify(workout.sessionSnapshot.buildContext))
+        : null;
+    const runtime = {
+      ...(savedContext?.programRuntime &&
+      typeof savedContext.programRuntime === 'object'
+        ? savedContext.programRuntime
+        : {}),
+    };
+    const savedDaysPerWeek = Number(
+      runtime.daysPerWeek ??
+        workout?.programMeta?.daysPerWeek ??
+        workout?.programStateUsedForBuild?.daysPerWeek ??
+        workout?.programStateBefore?.daysPerWeek
+    );
+    if (Number.isFinite(savedDaysPerWeek) && savedDaysPerWeek > 0) {
+      runtime.daysPerWeek = savedDaysPerWeek;
+    }
+    const workoutWeekStart =
+      typeof getWeekStart === 'function' && workout?.date
+        ? getWeekStart(new Date(workout.date))
+        : null;
+    if (
+      workoutWeekStart &&
+      Number.isFinite(workoutWeekStart.getTime()) &&
+      !runtime.weekStartDate
+    ) {
+      runtime.weekStartDate = workoutWeekStart.toISOString();
+    }
+    if (savedContext) {
+      savedContext.programRuntime = runtime;
+      return savedContext;
+    }
+    return typeof getProgramSessionBuildContext === 'function'
+      ? getProgramSessionBuildContext({
+          prog,
+          state: stateForContext,
+          sessionModeBundle: {
+            selectedSessionMode:
+              workout?.runnerState?.selectedSessionMode || 'auto',
+            effectiveSessionMode:
+              workout?.runnerState?.effectiveSessionMode || 'normal',
+          },
+          preview: false,
+          programRuntime: runtime,
+        })
+      : { programRuntime: runtime };
+  };
+  const initialContext = buildReplayContext(programWorkouts[0] || null, state);
+  if (prog.migrateState) state = prog.migrateState(state, initialContext);
 
   programWorkouts.forEach((w, idx) => {
+    const progressionContext = buildReplayContext(w, state);
     const exercises = stripWarmupSetsFromExercises(
       Array.isArray(w.exercises) ? w.exercises : []
     );
     if (prog.adjustAfterSession)
-      state = prog.adjustAfterSession(exercises, state, w.programOption);
+      state = prog.adjustAfterSession(
+        exercises,
+        state,
+        w.programOption,
+        progressionContext
+      );
     if (prog.advanceState) {
       const wd = new Date(w.date);
-      const sow = getWeekStart(wd);
+      const runtimeWeekStart = progressionContext?.programRuntime?.weekStartDate
+        ? new Date(progressionContext.programRuntime.weekStartDate)
+        : null;
+      const sow =
+        runtimeWeekStart && Number.isFinite(runtimeWeekStart.getTime())
+          ? runtimeWeekStart
+          : getWeekStart(wd);
       const sessionsThisWeek = programWorkouts
         .slice(0, idx + 1)
         .filter((sw) => new Date(sw.date) >= sow).length;
-      state = prog.advanceState(state, sessionsThisWeek);
+      state = prog.advanceState(state, sessionsThisWeek, progressionContext);
     }
   });
 
@@ -1032,7 +1098,12 @@ function getProgramPreviewSession(
     null;
   const buildContext =
     typeof getProgramSessionBuildContext === 'function'
-      ? getProgramSessionBuildContext({ preview: true, sessionModeBundle })
+      ? getProgramSessionBuildContext({
+          prog,
+          state,
+          preview: true,
+          sessionModeBundle,
+        })
       : { preview: true };
   const buildState =
     typeof getProgramSessionStateForBuild === 'function'
@@ -1061,7 +1132,12 @@ function getProgramPreviewSession(
 function getProgramPreviewBuildState(prog, state, sessionModeBundle) {
   const buildContext =
     typeof getProgramSessionBuildContext === 'function'
-      ? getProgramSessionBuildContext({ preview: true, sessionModeBundle })
+      ? getProgramSessionBuildContext({
+          prog,
+          state,
+          preview: true,
+          sessionModeBundle,
+        })
       : { preview: true };
   return typeof getProgramSessionStateForBuild === 'function'
     ? getProgramSessionStateForBuild(prog, state, buildContext)
@@ -1089,9 +1165,14 @@ function getProgramPreviewExerciseMeta(exercise) {
   return { pattern, weight };
 }
 
-function getProgramPreviewHeaderChips(prog, state, session) {
+function getProgramPreviewHeaderChips(prog, state, session, buildContext) {
   const chips = [];
-  const bi = prog.getBlockInfo ? prog.getBlockInfo(state) : null;
+  const previewContext =
+    buildContext ||
+    (typeof getProgramSessionBuildContext === 'function'
+      ? getProgramSessionBuildContext({ prog, state, preview: true })
+      : null);
+  const bi = prog.getBlockInfo ? prog.getBlockInfo(state, previewContext) : null;
   if (bi?.pct) chips.push(`${bi.pct}% 1RM`);
   const primary = (session || []).find((ex) => !ex.isAccessory) || session?.[0];
   if (primary) {
@@ -1115,7 +1196,12 @@ function renderProgramSessionPreview(prog, selectedOption, snapshot) {
   }
   const previewState = snapshot?.buildState || {};
   const session = Array.isArray(snapshot?.exercises) ? snapshot.exercises : [];
-  const chips = getProgramPreviewHeaderChips(prog, previewState, session);
+  const chips = getProgramPreviewHeaderChips(
+    prog,
+    previewState,
+    session,
+    snapshot?.buildContext || null
+  );
   const title =
     cleanProgramOptionLabel(selectedOption.label) ||
     trProg('workout.training_day', 'Training Day');
@@ -1263,9 +1349,6 @@ function updateProgramDisplay() {
     typeof getSelectedWorkoutStartOption === 'function'
       ? getSelectedWorkoutStartOption()
       : document.getElementById('program-day-select')?.value || '';
-  const rawOptions = prog.getSessionOptions
-    ? prog.getSessionOptions(state, workouts, schedule)
-    : [];
   const manualSportContext =
     typeof getPendingSportReadinessContext === 'function'
       ? getPendingSportReadinessContext()
@@ -1274,6 +1357,35 @@ function updateProgramDisplay() {
     getAutomaticSportPreferenceContext(schedule, workouts),
     manualSportContext
   );
+  const decisionBundle =
+    typeof getWorkoutStartDecisionBundle === 'function'
+      ? getWorkoutStartDecisionBundle({ prog, state, sportContext })
+      : {
+          planningContext:
+            typeof buildPlanningContext === 'function'
+              ? buildPlanningContext({
+                  profile,
+                  schedule,
+                  workouts,
+                  activeProgram: prog,
+                  activeProgramState: state,
+                  fatigue:
+                    typeof computeFatigue === 'function'
+                      ? computeFatigue()
+                      : null,
+                  sportContext,
+                })
+              : null,
+          trainingDecision: null,
+          effectiveDecision: null,
+        };
+  const programBuildContext =
+    typeof getProgramSessionBuildContext === 'function'
+      ? getProgramSessionBuildContext({ prog, state, sessionModeBundle: decisionBundle })
+      : null;
+  const rawOptions = prog.getSessionOptions
+    ? prog.getSessionOptions(state, workouts, schedule, programBuildContext)
+    : [];
   const options = applyPreferenceRecommendation(
     prog,
     rawOptions,
@@ -1324,28 +1436,6 @@ function updateProgramDisplay() {
       .join('');
   }
   const info = document.getElementById('program-week-display');
-  const decisionBundle =
-    typeof getWorkoutStartDecisionBundle === 'function'
-      ? getWorkoutStartDecisionBundle({ prog, state, sportContext })
-      : {
-          planningContext:
-            typeof buildPlanningContext === 'function'
-              ? buildPlanningContext({
-                  profile,
-                  schedule,
-                  workouts,
-                  activeProgram: prog,
-                  activeProgramState: state,
-                  fatigue:
-                    typeof computeFatigue === 'function'
-                      ? computeFatigue()
-                      : null,
-                  sportContext,
-                })
-              : null,
-          trainingDecision: null,
-          effectiveDecision: null,
-        };
   const planningContext = decisionBundle.planningContext;
   const trainingDecision =
     decisionBundle.trainingDecision ||
@@ -1367,7 +1457,10 @@ function updateProgramDisplay() {
       : null;
   const previewState = startSnapshot?.buildState || state;
   if (info && prog.getBlockInfo) {
-    const bi = prog.getBlockInfo(previewState);
+    const bi = prog.getBlockInfo(
+      previewState,
+      startSnapshot?.buildContext || programBuildContext
+    );
     const progName = trProg('program.' + prog.id + '.name', prog.name);
     info.textContent = [progName, bi.name, bi.weekLabel]
       .filter(Boolean)

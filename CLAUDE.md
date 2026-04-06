@@ -51,8 +51,10 @@
 
 ### Migration Strategy
 
-- Legacy code → add typed equivalent → delete legacy code → bridge is unnecessary
+- Legacy code -> add typed equivalent -> delete legacy code -> bridge is unnecessary
 - A migration slice is not complete until the legacy code it replaces is deleted. Adding a typed equivalent without deleting the legacy code is not progress, it is growth.
+- A surface can still keep compatibility delegates for untouched callers while other sub-behaviors migrate, but any completed slice must delete the replaced legacy branch in the same change.
+- Wrapper-only convergence work is not a completed migration outcome.
 
 ---
 
@@ -62,7 +64,9 @@ _Architecture decisions are logged here as they are made._
 
 - **UI modals**: Sheet-pattern (not native dialog) - consistency and mobile UX
 - **Training programs**: Plugin architecture - new programs register without touching core files
-- **Testing**: Playwright e2e - test like a real user, no unit tests
+- **Testing**: Hybrid validation
+  - Playwright covers real user journeys and regression smoke
+  - Vitest covers extracted pure logic, runtime contracts, and store-adjacent invariants
 - **Nutrition coaching**: Anthropic API (Claude) runs through a Supabase Edge Function with an Ironforge-managed server-side key, signed-in access, and daily per-user caps
 - **Nutrition flow**: Guided daily actions with an optional short note, not an open-ended rolling chat
 - **Recovery/readiness**: Fatigue engine (muscular, CNS, overall) is a core coaching pillar
@@ -83,3 +87,6 @@ _Architecture decisions are logged here as they are made._
   - Migrate incrementally with compatibility shims until the typed runtime fully owns each surface
   - Preserve localStorage/Supabase compatibility, offline behavior, and i18n during every phase
   - Use `docs/migration-ts-zustand.md` as the migration source of truth
+- **Stabilization cycle**: current migration work is under a hard freeze for new feature scope
+  - Allowed: bug fixes, ownership-reduction migration work, tests needed to land a migration slice, and minimal UX fixes required by that slice
+  - Not allowed: new features, new `window.*` contracts, new program settings, new stores outside the approved migration path, or wrapper-only convergence changes

@@ -111,6 +111,7 @@ export type WorkoutRecord = {
   programOption?: string;
   programStateBefore?: Record<string, unknown> | null;
   programStateUsedForBuild?: Record<string, unknown> | null;
+  sessionSnapshot?: WorkoutStartSnapshot | null;
   duration?: number;
   durationSignal?: string | null;
   rpe?: number | null;
@@ -152,7 +153,7 @@ export type WorkoutStartSnapshot = {
   programLabel?: string;
   effectiveDecision?: PlanningDecision | null;
   trainingDecision?: PlanningDecision | null;
-  changes?: Array<Record<string, unknown>>;
+  changes?: Array<Record<string, unknown> | string>;
   equipmentHint?: string;
   commentary?: WorkoutCommentary | Record<string, unknown> | null;
   [key: string]: unknown;

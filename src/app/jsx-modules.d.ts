@@ -69,6 +69,239 @@ declare global {
     updateDashboard: boolean;
     discardToast: string;
   };
+  type IronforgeWorkoutSessionBootstrapInput = {
+    programId?: string;
+    selectedOption?: string;
+    programMode?: string | null;
+    programLabel?: string;
+    sportContext?: Record<string, unknown> | null;
+    trainingDecision?: Record<string, unknown> | null;
+    planningContext?: Record<string, unknown> | null;
+    commentary?: Record<string, unknown> | null;
+    effectiveDecision?: Record<string, unknown> | null;
+    selectedSessionMode?: string;
+    effectiveSessionMode?: string;
+    sportAwareLowerBody?: boolean;
+    sessionDescription?: string;
+    sessionSnapshot?: Record<string, unknown> | null;
+    exercises?: Array<Record<string, unknown>>;
+    startTime?: number;
+    isBonus?: boolean;
+  };
+  type IronforgeWorkoutSessionBootstrapResult = {
+    program: string;
+    type: string;
+    programOption?: string;
+    programDayNum?: number;
+    programMode?: unknown;
+    programLabel: string;
+    sportContext?: Record<string, unknown>;
+    planningDecision?: Record<string, unknown>;
+    planningContext?: Record<string, unknown>;
+    commentary?: Record<string, unknown>;
+    runnerState?: Record<string, unknown>;
+    sessionDescription: string;
+    sessionSnapshot?: Record<string, unknown> | null;
+    rewardState: Record<string, unknown>;
+    exercises: Array<Record<string, unknown>>;
+    startTime: number;
+    isBonus?: boolean;
+  };
+  type IronforgeWorkoutStartPlanInput = {
+    prog?: Record<string, unknown> | null;
+    state?: Record<string, unknown> | null;
+    selectedOption?: string;
+    sportContext?: Record<string, unknown> | null;
+    workouts?: Array<Record<string, unknown>> | null;
+    schedule?: Record<string, unknown> | null;
+    profile?: Record<string, unknown> | null;
+    pendingSessionMode?: string | null;
+    pendingEnergyLevel?: string | null;
+  };
+  type IronforgeWorkoutStartPlanResult = {
+    activeWorkout: IronforgeWorkoutSessionBootstrapResult | null;
+    startSnapshot: Record<string, unknown> | null;
+    startPresentation: IronforgeWorkoutStartPresentationResult | null;
+  };
+  type IronforgeWorkoutSummaryPromptInput = {
+    summaryData?: Record<string, unknown> | null;
+    canLogNutrition?: boolean;
+    seed?: number;
+  };
+  type IronforgeWorkoutSummaryPromptState = {
+    open: boolean;
+    seed: number;
+    kicker: string;
+    title: string;
+    programLabel: string;
+    coachNote: string;
+    notesLabel: string;
+    notesPlaceholder: string;
+    feedbackLabel: string;
+    feedbackOptions: Array<{
+      value: string;
+      label: string;
+    }>;
+    nutritionLabel: string;
+    doneLabel: string;
+    notes: string;
+    feedback: string | null;
+    canLogNutrition: boolean;
+    stats: Array<{
+      key: string;
+      accent: string;
+      label: string;
+      initialText: string;
+    }>;
+    summaryData: Record<string, unknown>;
+  };
+  type IronforgeWorkoutRestTimerInput = {
+    restDuration?: unknown;
+    restTotal?: unknown;
+    restEndsAt?: unknown;
+    restSecondsLeft?: unknown;
+    profileDefaultRest?: unknown;
+    now?: unknown;
+  };
+  type IronforgeWorkoutRestTimerResult = {
+    restDuration: number;
+    restTotal: number;
+    restEndsAt: number;
+    restSecondsLeft: number;
+    restBarActive: boolean;
+    shouldSkip: boolean;
+    isComplete: boolean;
+  };
+  type IronforgeWorkoutRestDisplayInput = {
+    restSecondsLeft?: unknown;
+    restTotal?: unknown;
+  };
+  type IronforgeWorkoutRestDisplayResult = {
+    text: string;
+    className: string;
+    arcOffset: number;
+  };
+  type IronforgeWorkoutRestLifecycleInput = IronforgeWorkoutRestTimerInput & {
+    mode?: 'sync' | 'complete' | 'skip' | string;
+  };
+  type IronforgeWorkoutRestLifecyclePlan = {
+    timerState: IronforgeWorkoutRestTimerResult;
+    displayState: IronforgeWorkoutRestDisplayResult;
+    shouldComplete: boolean;
+    shouldPlayBeep: boolean;
+    hideDelayMs: number;
+  };
+  type IronforgeWorkoutRestHostDeps = {
+    setInterval?: (callback: () => void, delay?: number) => unknown;
+    clearInterval?: (handle: unknown) => void;
+    setTimeout?: (callback: () => void, delay?: number) => unknown;
+    clearTimeout?: (handle: unknown) => void;
+  };
+  type IronforgeWorkoutSessionSnapshotInput = {
+    activeWorkout?: unknown;
+    restDuration?: unknown;
+    restEndsAt?: unknown;
+    restSecondsLeft?: unknown;
+    restTotal?: unknown;
+    currentUser?: unknown;
+    restBarActive?: unknown;
+    rpePrompt?: Record<string, unknown> | null;
+    summaryPrompt?: Record<string, unknown> | null;
+    sportCheckPrompt?: Record<string, unknown> | null;
+    exerciseGuidePrompt?: Record<string, unknown> | null;
+  };
+  type IronforgeWorkoutSessionSnapshotResult = {
+    activeWorkout: unknown;
+    restDuration: number;
+    restEndsAt: number;
+    restSecondsLeft: number;
+    restTotal: number;
+    currentUser: unknown;
+    restBarActive: boolean;
+    rpeOpen: boolean;
+    rpePrompt: Record<string, unknown> | null;
+    summaryOpen: boolean;
+    summaryPrompt: Record<string, unknown> | null;
+    sportCheckOpen: boolean;
+    sportCheckPrompt: Record<string, unknown> | null;
+    exerciseGuideOpen: boolean;
+    exerciseGuidePrompt: Record<string, unknown> | null;
+  };
+  type IronforgeWorkoutMutationInput = {
+    exercise?: Record<string, unknown> | null;
+    exercises?: Array<Record<string, unknown>> | null;
+    setIndex?: number | string | null;
+    exerciseIndex?: number | string | null;
+    field?: string | null;
+    rawValue?: unknown;
+  };
+  type IronforgeWorkoutMutationResult = {
+    exercise?: Record<string, unknown> | null;
+    exercises?: Array<Record<string, unknown>> | null;
+    set?: Record<string, unknown> | null;
+    sanitizedValue?: string | number;
+    shouldRefreshDoneSet?: boolean;
+    propagatedSetIndexes?: number[];
+    isNowDone?: boolean;
+    newSetIndex?: number;
+    removed?: Record<string, unknown> | null;
+  } | null;
+  type IronforgeWorkoutProgramMetaInput = {
+    prog?: Record<string, unknown> | null;
+    progressionSourceState?: Record<string, unknown> | null;
+    buildContext?: Record<string, unknown> | null;
+  };
+  type IronforgeWorkoutProgramMetaResult = {
+    programMeta: Record<string, unknown>;
+    error?: unknown;
+  };
+  type IronforgeWorkoutProgressionToastInput = {
+    activeWorkout?: Record<string, unknown> | null;
+    prog?: Record<string, unknown> | null;
+    programName?: string;
+    advancedState?: Record<string, unknown> | null;
+    newState?: Record<string, unknown> | null;
+    programHookFailed?: boolean;
+    buildContext?: Record<string, unknown> | null;
+  };
+  type IronforgeWorkoutFinishPlanInput = {
+    prog?: Record<string, unknown> | null;
+    activeWorkout?: Record<string, unknown> | null;
+    state?: Record<string, unknown> | null;
+    workouts?: Array<Record<string, unknown>> | null;
+    sessionRPE?: unknown;
+    duration?: unknown;
+    prCount?: unknown;
+    workoutId?: unknown;
+    workoutDate?: unknown;
+    programName?: string;
+  };
+  type IronforgeWorkoutFinishPlanResult = {
+    savedWorkout: IronforgeWorkoutSavePlan;
+    summaryData: Record<string, unknown>;
+    progressionResult: IronforgeWorkoutProgressionResult;
+    finishTeardownPlan: IronforgeWorkoutTeardownPlanResult;
+    progressionToast: IronforgeWorkoutToastPlan | null;
+    advancedState: Record<string, unknown>;
+    newState: Record<string, unknown>;
+    programHookFailed: boolean;
+    tmAdjustments: Array<Record<string, unknown>>;
+    totalSets: number;
+    stateBeforeSession: Record<string, unknown> | null;
+    progressionSourceState: Record<string, unknown> | null;
+    programMetaError?: unknown;
+  };
+  type IronforgeWorkoutFinishPersistenceInput = {
+    prog?: Record<string, unknown> | null;
+    finishPlan?: IronforgeWorkoutFinishPlanResult | null;
+    workouts?: Array<Record<string, unknown>> | null;
+  };
+  type IronforgeWorkoutPostOutcomeEffectsInput = {
+    postWorkoutOutcome?: IronforgePostWorkoutOutcomeResult | null;
+    summaryData?: Record<string, unknown> | null;
+  };
+  type IronforgeWorkoutSavePlan = Record<string, unknown>;
+  type IronforgeWorkoutProgressionResult = Record<string, unknown>;
   interface Window {
     I18N?: {
       t?: (
@@ -307,7 +540,6 @@ declare global {
     getWorkoutStartSnapshot?: (
       input?: Record<string, unknown>
     ) => Record<string, unknown> | null;
-    getLiveWorkoutSessionSnapshot?: () => Record<string, unknown> | null;
     getCachedWorkoutStartSnapshot?: () => Record<string, unknown> | null;
     clearWorkoutStartSnapshot?: () => void;
     saveWorkouts?: (...args: unknown[]) => Promise<unknown> | unknown;
@@ -375,10 +607,23 @@ declare global {
         input?: Record<string, unknown>,
         deps?: Record<string, unknown>
       ) => string;
+      getCachedWorkoutStartSnapshot?: () => Record<string, unknown> | null;
+      setCachedWorkoutStartSnapshot?: (
+        snapshot?: Record<string, unknown> | null
+      ) => Record<string, unknown> | null;
+      clearWorkoutStartSnapshot?: () => void;
+      resolveWorkoutStartSnapshot?: (
+        input?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Record<string, unknown> | null;
       buildWorkoutStartSnapshot?: (
         input?: Record<string, unknown>,
         deps?: Record<string, unknown>
       ) => Record<string, unknown> | null;
+      buildWorkoutStartPlan?: (
+        input?: IronforgeWorkoutStartPlanInput,
+        deps?: Record<string, unknown>
+      ) => IronforgeWorkoutStartPlanResult;
       buildSessionSummaryStats?: (
         summaryData?: Record<string, unknown>,
         deps?: Record<string, unknown>
@@ -392,30 +637,30 @@ declare global {
         deps?: Record<string, unknown>
       ) => Record<string, unknown>;
       buildBonusActiveWorkout?: (
-        input?: Record<string, unknown>,
+        input?: IronforgeWorkoutSessionBootstrapInput,
         deps?: Record<string, unknown>
-      ) => Record<string, unknown>;
+      ) => IronforgeWorkoutSessionBootstrapResult;
       buildPlannedActiveWorkout?: (
-        input?: Record<string, unknown>,
+        input?: IronforgeWorkoutSessionBootstrapInput,
         deps?: Record<string, unknown>
-      ) => Record<string, unknown>;
+      ) => IronforgeWorkoutSessionBootstrapResult;
       sanitizeSetValue?: (field: unknown, raw: unknown) => string | number;
       applySetUpdateMutation?: (
-        input?: Record<string, unknown>,
+        input?: IronforgeWorkoutMutationInput,
         deps?: Record<string, unknown>
-      ) => Record<string, unknown> | null;
+      ) => IronforgeWorkoutMutationResult;
       toggleWorkoutSetCompletion?: (
-        input?: Record<string, unknown>,
+        input?: IronforgeWorkoutMutationInput,
         deps?: Record<string, unknown>
-      ) => Record<string, unknown> | null;
+      ) => IronforgeWorkoutMutationResult;
       appendWorkoutSet?: (
-        input?: Record<string, unknown>,
+        input?: IronforgeWorkoutMutationInput,
         deps?: Record<string, unknown>
-      ) => Record<string, unknown> | null;
+      ) => IronforgeWorkoutMutationResult;
       removeWorkoutExercise?: (
-        input?: Record<string, unknown>,
+        input?: IronforgeWorkoutMutationInput,
         deps?: Record<string, unknown>
-      ) => Record<string, unknown> | null;
+      ) => IronforgeWorkoutMutationResult;
       sanitizeWorkoutExercisesForSave?: (
         input?: Record<string, unknown>,
         deps?: Record<string, unknown>
@@ -424,10 +669,26 @@ declare global {
         stateBefore?: Record<string, unknown> | null,
         stateAfter?: Record<string, unknown> | null
       ) => Array<Record<string, unknown>>;
+      resolveWorkoutProgramMeta?: (
+        input?: IronforgeWorkoutProgramMetaInput,
+        deps?: Record<string, unknown>
+      ) => IronforgeWorkoutProgramMetaResult;
       buildWorkoutProgressionResult?: (
         input?: Record<string, unknown>,
         deps?: Record<string, unknown>
-      ) => Record<string, unknown>;
+      ) => IronforgeWorkoutProgressionResult;
+      buildWorkoutProgressionToast?: (
+        input?: IronforgeWorkoutProgressionToastInput,
+        deps?: Record<string, unknown>
+      ) => IronforgeWorkoutToastPlan | null;
+      buildWorkoutFinishPlan?: (
+        input?: IronforgeWorkoutFinishPlanInput,
+        deps?: Record<string, unknown>
+      ) => IronforgeWorkoutFinishPlanResult | null;
+      commitWorkoutFinishPersistence?: (
+        input?: IronforgeWorkoutFinishPersistenceInput,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
       buildCoachNote?: (
         input?: Record<string, unknown>,
         deps?: Record<string, unknown>
@@ -440,10 +701,62 @@ declare global {
         input?: IronforgePostWorkoutOutcomeInput,
         deps?: Record<string, unknown>
       ) => IronforgePostWorkoutOutcomeResult;
+      applyPostWorkoutOutcomeEffects?: (
+        input?: IronforgeWorkoutPostOutcomeEffectsInput,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
       buildWorkoutStartPresentation?: (
         input?: IronforgeWorkoutStartPresentationInput,
         deps?: Record<string, unknown>
       ) => IronforgeWorkoutStartPresentationResult;
+      buildSessionSummaryPromptState?: (
+        input?: IronforgeWorkoutSummaryPromptInput,
+        deps?: Record<string, unknown>
+      ) => IronforgeWorkoutSummaryPromptState;
+      clearWorkoutRestIntervalHost?: (
+        deps?: IronforgeWorkoutRestHostDeps
+      ) => void;
+      clearWorkoutRestHideHost?: (
+        deps?: IronforgeWorkoutRestHostDeps
+      ) => void;
+      scheduleWorkoutRestIntervalHost?: (
+        callback: () => void,
+        deps?: IronforgeWorkoutRestHostDeps
+      ) => void;
+      scheduleWorkoutRestHideHost?: (
+        callback: () => void,
+        delay?: number,
+        deps?: IronforgeWorkoutRestHostDeps
+      ) => void;
+      buildWorkoutRestLifecyclePlan?: (
+        input?: IronforgeWorkoutRestLifecycleInput,
+        deps?: Record<string, unknown>
+      ) => IronforgeWorkoutRestLifecyclePlan;
+      buildWorkoutRestDisplayState?: (
+        input?: IronforgeWorkoutRestDisplayInput,
+        deps?: Record<string, unknown>
+      ) => IronforgeWorkoutRestDisplayResult;
+      buildWorkoutSessionSnapshot?: (
+        input?: IronforgeWorkoutSessionSnapshotInput
+      ) => IronforgeWorkoutSessionSnapshotResult;
+      resolveWorkoutRestDuration?: (
+        input?: IronforgeWorkoutRestTimerInput
+      ) => number;
+      restoreWorkoutRestTimer?: (
+        input?: IronforgeWorkoutRestTimerInput
+      ) => IronforgeWorkoutRestTimerResult;
+      startWorkoutRestTimer?: (
+        input?: IronforgeWorkoutRestTimerInput
+      ) => IronforgeWorkoutRestTimerResult;
+      syncWorkoutRestTimer?: (
+        input?: IronforgeWorkoutRestTimerInput
+      ) => IronforgeWorkoutRestTimerResult;
+      completeWorkoutRestTimer?: (
+        input?: IronforgeWorkoutRestTimerInput
+      ) => IronforgeWorkoutRestTimerResult;
+      skipWorkoutRestTimer?: (
+        input?: IronforgeWorkoutRestTimerInput
+      ) => IronforgeWorkoutRestTimerResult;
       buildWorkoutTeardownPlan?: (
         input?: IronforgeWorkoutTeardownPlanInput,
         deps?: Record<string, unknown>

@@ -49,7 +49,10 @@ type ForgePlugin = Omit<
   ProgramPlugin<ForgeState>,
   'getAuxSwapOptions' | 'getBackSwapOptions' | 'onAuxSwap' | 'onBackSwap'
 > & {
-  getSessionModeRecommendation?: (state: ForgeState) => string;
+  getSessionModeRecommendation?: (
+    state: ForgeState,
+    context?: ProgramSessionBuildContext
+  ) => string;
   getSessionCharacter?: (
     selectedOption: string,
     state: ForgeState
@@ -270,6 +273,8 @@ const INTERNAL = {
   },
 };
 
+let warnedMissingForgeRuntime = false;
+
 function cloneJson<T>(value: T): T {
   if (value === undefined || value === null) return value;
   return JSON.parse(JSON.stringify(value)) as T;
@@ -291,6 +296,32 @@ function getForgeWindow(): ForgeWindow | null {
 
 function trForge(key: string, fallback: string, params?: Record<string, unknown>) {
   return getForgeWindow()?.I18N?.t?.(key, params, fallback) || fallback;
+}
+
+function getForgeProgramRuntime(context?: ProgramSessionBuildContext | null) {
+  const runtime =
+    context?.programRuntime && typeof context.programRuntime === 'object'
+      ? (context.programRuntime as Record<string, unknown>)
+      : null;
+  if (!runtime && import.meta.env.DEV && !warnedMissingForgeRuntime) {
+    warnedMissingForgeRuntime = true;
+    console.warn(
+      '[forge] Missing explicit programRuntime context; falling back to legacy runtime globals.'
+    );
+  }
+  const daysPerWeek = Number(runtime?.daysPerWeek);
+  const weekStartDate = String(runtime?.weekStartDate || '');
+  const parsedWeekStart = weekStartDate ? new Date(weekStartDate) : null;
+  return {
+    daysPerWeek:
+      Number.isFinite(daysPerWeek) && daysPerWeek > 0
+        ? daysPerWeek
+        : getForgeDaysPerWeek(),
+    weekStart:
+      parsedWeekStart && Number.isFinite(parsedWeekStart.getTime())
+        ? parsedWeekStart
+        : getWeekStart(new Date()),
+  };
 }
 
 function getForgeDaysPerWeek() {
@@ -684,14 +715,18 @@ function adjustTrainingMax(
   return tm;
 }
 
-function migrateForgeState(rawState: Record<string, unknown> | null | undefined): ForgeState {
+function migrateForgeState(
+  rawState: Record<string, unknown> | null | undefined,
+  context?: ProgramSessionBuildContext | null
+): ForgeState {
   if (!rawState || typeof rawState !== 'object') return createInitialState();
   const initial = createInitialState();
   const state = cloneJson(rawState) as Partial<ForgeState>;
   const skipPeakBlock = state.skipPeakBlock === true;
+  const runtime = getForgeProgramRuntime(context);
   return {
     week: normalizeForgeWeek(state.week, skipPeakBlock),
-    daysPerWeek: getForgeDaysPerWeek(),
+    daysPerWeek: runtime.daysPerWeek,
     mode: state.mode === 'rtf' || state.mode === 'rir' ? state.mode : 'sets',
     rounding: Number(state.rounding) > 0 ? Number(state.rounding) : 2.5,
     skipPeakBlock,
@@ -778,7 +813,8 @@ export const forgeProgram: ForgePlugin = {
   icon: '⚒️',
   legLifts: LEG_LIFTS,
   getInitialState: () => createInitialState(),
-  migrateState: (state: Record<string, unknown>) => migrateForgeState(state),
+  migrateState: (state: Record<string, unknown>, context?: ProgramSessionBuildContext) =>
+    migrateForgeState(state, context),
   getCapabilities: () => ({
     difficulty: 'advanced',
     frequencyRange: { min: 2, max: 6 },
@@ -792,10 +828,15 @@ export const forgeProgram: ForgePlugin = {
   getSessionOptions: (
     rawState: ForgeState,
     workouts: WorkoutRecord[],
-    schedule: SportSchedule
+    schedule: SportSchedule,
+    context?: ProgramSessionBuildContext
   ): SessionOption[] => {
-    const state = migrateForgeState(cloneJson(rawState) as Record<string, unknown>);
-    const freq = getForgeDaysPerWeek();
+    const state = migrateForgeState(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
+    const runtime = getForgeProgramRuntime(context);
+    const freq = runtime.daysPerWeek;
     const week = state.week || 1;
     const todayDow = new Date().getDay();
     const sportDays = Array.isArray(schedule?.sportDays) ? schedule.sportDays : [];
@@ -816,7 +857,7 @@ export const forgeProgram: ForgePlugin = {
       .filter(
         (workout: WorkoutRecord) =>
           (workout.program === 'forge' || (!workout.program && workout.type === 'forge')) &&
-          new Date(workout.date) >= getWeekStart(new Date())
+          new Date(workout.date) >= runtime.weekStart
       )
       .map((workout: WorkoutRecord) => workout.programDayNum);
 
@@ -860,10 +901,13 @@ export const forgeProgram: ForgePlugin = {
     rawState: ForgeState,
     context?: ProgramSessionBuildContext
   ): WorkoutExercise[] => {
-    const state = migrateForgeState(cloneJson(rawState) as Record<string, unknown>);
+    const state = migrateForgeState(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const dayNum = parseInt(String(selectedOption || '1'), 10) || 1;
     const week = state.week || 1;
-    const freq = getForgeDaysPerWeek();
+    const freq = getForgeProgramRuntime(context).daysPerWeek;
     const mode = state.mode || 'sets';
     const effectiveSessionMode =
       context?.effectiveSessionMode === 'light' ? 'light' : 'normal';
@@ -957,7 +1001,10 @@ export const forgeProgram: ForgePlugin = {
     rawState: ForgeState,
     context?: ProgramSessionBuildContext
   ) => {
-    const state = migrateForgeState(cloneJson(rawState) as Record<string, unknown>);
+    const state = migrateForgeState(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const dayNum = parseInt(String(selectedOption || '1'), 10) || 1;
     const week = state.week || 1;
     const effectiveSessionMode =
@@ -978,12 +1025,21 @@ export const forgeProgram: ForgePlugin = {
       }
     )}`;
   },
-  getSessionModeRecommendation: (rawState: ForgeState) => {
-    const state = migrateForgeState(cloneJson(rawState) as Record<string, unknown>);
+  getSessionModeRecommendation: (
+    rawState: ForgeState,
+    context?: ProgramSessionBuildContext
+  ) => {
+    const state = migrateForgeState(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     return INTERNAL.deloadWeeks.includes(state.week || 1) ? 'light' : 'normal';
   },
-  getBlockInfo: (rawState: ForgeState) => {
-    const state = migrateForgeState(cloneJson(rawState) as Record<string, unknown>);
+  getBlockInfo: (rawState: ForgeState, context?: ProgramSessionBuildContext) => {
+    const state = migrateForgeState(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const week = state.week || 1;
     const pct = Math.round((INTERNAL.mainIntensity[week] || 0) * 100);
     const isDeload = INTERNAL.deloadWeeks.includes(week);
@@ -1116,8 +1172,16 @@ export const forgeProgram: ForgePlugin = {
       { week, total: totalWeeks, block, hint: modeHint }
     );
   },
-  adjustAfterSession: (exercises: WorkoutExercise[], rawState: ForgeState) => {
-    const state = migrateForgeState(cloneJson(rawState) as Record<string, unknown>);
+  adjustAfterSession: (
+    exercises: WorkoutExercise[],
+    rawState: ForgeState,
+    _selectedOption?: string,
+    context?: ProgramSessionBuildContext
+  ) => {
+    const state = migrateForgeState(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const nextState = cloneJson(state);
     const week = normalizeForgeWeek(state.week, state.skipPeakBlock);
     const mode = state.mode || 'sets';
@@ -1164,9 +1228,16 @@ export const forgeProgram: ForgePlugin = {
 
     return nextState;
   },
-  advanceState: (rawState: ForgeState, sessionsThisWeek?: number) => {
-    const state = migrateForgeState(cloneJson(rawState) as Record<string, unknown>);
-    if ((sessionsThisWeek || 0) >= getForgeDaysPerWeek()) {
+  advanceState: (
+    rawState: ForgeState,
+    sessionsThisWeek?: number,
+    context?: ProgramSessionBuildContext
+  ) => {
+    const state = migrateForgeState(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
+    if ((sessionsThisWeek || 0) >= getForgeProgramRuntime(context).daysPerWeek) {
       return {
         ...state,
         week: getForgeNextWeek(state.week, state.skipPeakBlock),

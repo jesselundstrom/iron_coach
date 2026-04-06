@@ -18,6 +18,11 @@ export type ProgramSessionBuildContext = {
   effectiveDecision?: PlanningDecision | null;
   effectiveSessionMode?: string | null;
   energyBoost?: boolean;
+  programRuntime?: {
+    daysPerWeek?: number | null;
+    weekStartDate?: string | null;
+    sessionReadiness?: string | null;
+  } | null;
   [key: string]: unknown;
 };
 
@@ -49,7 +54,8 @@ export interface ProgramPlugin<TState extends Record<string, unknown>> {
   getSessionOptions?: (
     state: TState,
     workouts: WorkoutRecord[],
-    schedule: SportSchedule
+    schedule: SportSchedule,
+    context?: ProgramSessionBuildContext
   ) => SessionOption[];
   buildSession?: (
     selectedOption: string,
@@ -61,15 +67,26 @@ export interface ProgramPlugin<TState extends Record<string, unknown>> {
     state: TState,
     context?: ProgramSessionBuildContext
   ) => string;
-  getBlockInfo?: (state: TState) => Record<string, unknown> | null;
+  getBlockInfo?: (
+    state: TState,
+    context?: ProgramSessionBuildContext
+  ) => Record<string, unknown> | null;
   adjustAfterSession?: (
     exercises: WorkoutExercise[],
     state: TState,
-    selectedOption?: string
+    selectedOption?: string,
+    context?: ProgramSessionBuildContext
   ) => TState;
-  advanceState?: (state: TState, sessionsThisWeek?: number) => TState;
+  advanceState?: (
+    state: TState,
+    sessionsThisWeek?: number,
+    context?: ProgramSessionBuildContext
+  ) => TState;
   dateCatchUp?: (state: TState) => TState;
-  migrateState?: (state: Record<string, unknown>) => TState;
+  migrateState?: (
+    state: Record<string, unknown>,
+    context?: ProgramSessionBuildContext
+  ) => TState;
   renderSettings?: ProgramSettingsRenderer<TState>;
   renderSimpleSettings?: ProgramSettingsRenderer<TState>;
   saveSettings?: (state: TState) => TState;

@@ -64,6 +64,15 @@ Ironforge's visible UI migration is complete. The shipped app shell already runs
 
 The remaining migration target is the legacy business/runtime layer in `app.js`, `core/*.js`, and `programs/*.js`. That work now centers on ownership cleanup: reducing multi-writer state, shrinking compatibility bridges, and moving the remaining business logic behind typed store/domain seams while preserving current behavior, current data formats, and the current Playwright suite.
 
+Current migration rules:
+
+- A surface may still expose compatibility delegates while untouched callers remain.
+- A migration slice is only complete when the legacy logic it replaced is deleted in the same change.
+- Wrapper-only convergence does not count as migration progress.
+- Hybrid testing is now required: Playwright for user flows, Vitest for extracted pure logic and runtime-contract behavior.
+- For the current workout finish-flow extraction, `showRPEPicker(...)` and `showSessionSummary(...)` remain deliberate UI orchestration deferrals. Slice 3 closes when typed runtime code owns finish persistence sequencing and the replaced legacy sequencing is deleted.
+- For Slice 5 program-workout integration, migrated workout/preview/progression callers must pass explicit program runtime context into program hooks. Training frequency, current-week boundary, and per-session readiness should not be reintroduced as hidden ambient inputs on migrated execution paths.
+
 Recent consolidation progress:
 
 - `core/data-layer.js` now acts as loader/persister for startup and merge flows, while typed bootstrap normalization lives in `src/domain/profile-bootstrap.ts`.
@@ -71,6 +80,7 @@ Recent consolidation progress:
 - `profileStore` now has an atomic bootstrap hydrate path for `profile + schedule` together instead of relying on sequential store writes during typed bootstrap ownership.
 - workout local-cache writes and workout-table CRUD/merge helpers now live behind `window.__IRONFORGE_WORKOUT_PERSISTENCE_RUNTIME__`, with legacy callers delegating into that typed surface.
 - `window.__IRONFORGE_SYNC_RUNTIME__` now owns `loadData`, cloud pull/push orchestration, pending flush, and realtime subscription/timer flow, with legacy wrappers delegating into that typed surface.
+- Forge and Wendler session build/progression hooks now accept explicit runtime context from the workout/program callers, and migrated start/preview/finish flows no longer rely on ambient training-frequency or session-readiness globals during active execution.
 
 Current migration sequencing for the remaining `core/data-layer.js` ownership work:
 
@@ -115,6 +125,8 @@ Current migration sequencing for the remaining `core/data-layer.js` ownership wo
 - Type strategy: Introduce a fresh typed domain model, but preserve persisted wire/storage shapes
 - Safety rule: Every phase must keep the app functional and compatible with the existing Playwright suite
 - First milestone: Foundation only, no behavior change
+- Stabilization rule: the current cycle allows bug fixes, ownership-reduction migration work, required migration tests, and minimal UX fixes needed to land a slice
+- Freeze rule: do not add new features, new `window.*` contracts, new program settings, new stores outside the approved runtime migration path, or wrapper-only convergence work
 
 ## Target Structure
 

@@ -158,6 +158,7 @@ export function normalizeActiveWorkout(
       typeof workout.sessionDescription === 'string'
         ? workout.sessionDescription
         : undefined,
+    sessionSnapshot: normalizeWorkoutStartSnapshot(workout.sessionSnapshot),
   };
 }
 
@@ -202,10 +203,15 @@ export function normalizeWorkoutStartSnapshot(
     changes: Array.isArray(snapshot.changes)
       ? snapshot.changes
           .filter(
-            (change): change is Record<string, unknown> =>
-              !!change && typeof change === 'object'
+            (
+              change
+            ): change is Record<string, unknown> | string =>
+              !!change &&
+              (typeof change === 'object' || typeof change === 'string')
           )
-          .map((change) => cloneJson(change))
+          .map((change) =>
+            typeof change === 'string' ? change : cloneJson(change)
+          )
       : [],
     equipmentHint:
       typeof snapshot.equipmentHint === 'string'

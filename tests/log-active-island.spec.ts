@@ -47,12 +47,32 @@ test('log active island keeps set completion and rest timer controls working', a
     const state = window.__IRONFORGE_STORES__?.workout?.getState?.();
     return {
       restDuration: state?.restDuration,
+      restEndsAt: state?.restEndsAt,
+      restSecondsLeft: state?.restSecondsLeft,
       done: state?.activeWorkout?.exercises?.[0]?.sets?.[0]?.done,
     };
   });
 
   expect(interactionResult.restDuration).toBe(180);
+  expect(Number(interactionResult.restEndsAt)).toBeGreaterThan(0);
+  expect(Number(interactionResult.restSecondsLeft)).toBeGreaterThan(0);
   expect(interactionResult.done).toBe(true);
+
+  await page.getByRole('button', { name: 'Skip' }).click({ force: true });
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const state = window.__IRONFORGE_STORES__?.workout?.getState?.();
+        return {
+          restEndsAt: state?.restEndsAt,
+          restSecondsLeft: state?.restSecondsLeft,
+        };
+      })
+    )
+    .toEqual({
+      restEndsAt: 0,
+      restSecondsLeft: 0,
+    });
 });
 
 test('log active island keeps weight edits and done toggles in sync with the visible UI', async ({

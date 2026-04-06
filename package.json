@@ -11,6 +11,7 @@
     "guard:migration": "node scripts/check-migrated-workout-surface.cjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ci": "playwright test --workers=1",
     "typecheck": "tsc --noEmit",
@@ -39,7 +40,8 @@
     "globals": "^17.4.0",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.1.2"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

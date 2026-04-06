@@ -65,8 +65,14 @@ type W531Plugin = Omit<
   ProgramPlugin<W531State>,
   'getAuxSwapOptions' | 'getBackSwapOptions' | 'onAuxSwap'
 > & {
-  getWorkoutMeta?: (state: W531State) => Record<string, unknown>;
-  getSessionModeRecommendation?: (state: W531State) => string;
+  getWorkoutMeta?: (
+    state: W531State,
+    context?: ProgramSessionBuildContext
+  ) => Record<string, unknown>;
+  getSessionModeRecommendation?: (
+    state: W531State,
+    context?: ProgramSessionBuildContext
+  ) => string;
   getSessionCharacter?: (
     selectedOption: string,
     state: W531State
@@ -270,6 +276,7 @@ const INTERNAL = {
 };
 
 let readinessMode: W531Readiness = 'default';
+let warnedMissingW531Runtime = false;
 
 function cloneJson<T>(value: T): T {
   if (value === undefined || value === null) return value;
@@ -292,6 +299,37 @@ function getW531Window(): W531Window | null {
 
 function trW531(key: string, fallback: string, params?: Record<string, unknown>) {
   return getW531Window()?.I18N?.t?.(key, params, fallback) || fallback;
+}
+
+function getW531ProgramRuntime(context?: ProgramSessionBuildContext | null) {
+  const runtime =
+    context?.programRuntime && typeof context.programRuntime === 'object'
+      ? (context.programRuntime as Record<string, unknown>)
+      : null;
+  if (!runtime && import.meta.env.DEV && !warnedMissingW531Runtime) {
+    warnedMissingW531Runtime = true;
+    console.warn(
+      '[wendler531] Missing explicit programRuntime context; falling back to legacy runtime globals.'
+    );
+  }
+  const daysPerWeek = Number(runtime?.daysPerWeek);
+  const weekStartDate = String(runtime?.weekStartDate || '');
+  const sessionReadiness = String(runtime?.sessionReadiness || '');
+  const parsedWeekStart = weekStartDate ? new Date(weekStartDate) : null;
+  return {
+    daysPerWeek:
+      Number.isFinite(daysPerWeek) && daysPerWeek > 0
+        ? daysPerWeek
+        : getW531DaysPerWeek(),
+    weekStart:
+      parsedWeekStart && Number.isFinite(parsedWeekStart.getTime())
+        ? parsedWeekStart
+        : getWeekStart(new Date()),
+    sessionReadiness:
+      sessionReadiness === 'light' || sessionReadiness === 'none'
+        ? sessionReadiness
+        : 'default',
+  } as const;
 }
 
 function normalizeW531Week(rawWeek: unknown) {
@@ -406,15 +444,19 @@ function cloneTriumvirateState(source: W531Triumvirate | null | undefined): W531
   };
 }
 
-function migrateW531State(rawState: Record<string, unknown> | null | undefined): W531State {
+function migrateW531State(
+  rawState: Record<string, unknown> | null | undefined,
+  context?: ProgramSessionBuildContext | null
+): W531State {
   const initial = createInitialState();
   const state = cloneJson(rawState || {}) as Partial<W531State>;
   const main = Array.isArray(state.lifts?.main) ? state.lifts.main : initial.lifts.main;
+  const runtime = getW531ProgramRuntime(context);
 
   return {
     week: normalizeW531Week(state.week),
     cycle: Number.isFinite(Number(state.cycle)) ? Number(state.cycle) : 1,
-    daysPerWeek: getW531DaysPerWeek(),
+    daysPerWeek: runtime.daysPerWeek,
     season: state.season === 'in' ? 'in' : 'off',
     rounding: Number(state.rounding) > 0 ? Number(state.rounding) : 2.5,
     testWeekPending: state.testWeekPending === true,
@@ -621,7 +663,8 @@ export const wendler531Program: W531Plugin = {
   icon: '💪',
   legLifts: LEG_LIFTS,
   getInitialState: () => createInitialState(),
-  migrateState: (state: Record<string, unknown>) => migrateW531State(state),
+  migrateState: (state: Record<string, unknown>, context?: ProgramSessionBuildContext) =>
+    migrateW531State(state, context),
   getCapabilities: () => ({
     difficulty: 'intermediate',
     frequencyRange: { min: 2, max: 4 },
@@ -635,16 +678,21 @@ export const wendler531Program: W531Plugin = {
   getTrainingDaysRange: () => ({ min: 2, max: 4 }),
   getSessionOptions: (
     rawState: W531State,
-    workouts: WorkoutRecord[]
+    workouts: WorkoutRecord[],
+    _schedule: SportSchedule,
+    context?: ProgramSessionBuildContext
   ): SessionOption[] => {
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const week = state.week || 1;
-    const freq = getW531DaysPerWeek();
+    const runtime = getW531ProgramRuntime(context);
+    const freq = runtime.daysPerWeek;
     const season = state.season || 'off';
     const lifts = state.lifts.main || createInitialState().lifts.main;
     const scheme = INTERNAL.weekScheme[week] || INTERNAL.weekScheme[1];
-    const now = new Date();
-    const sow = getWeekStart(now);
+    const sow = runtime.weekStart;
     const doneNums = (workouts || [])
       .filter(
         (workout: WorkoutRecord) =>
@@ -711,10 +759,14 @@ export const wendler531Program: W531Plugin = {
     context?: ProgramSessionBuildContext
   ): WorkoutExercise[] => {
     installW531WindowHelpers();
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const dayNum = parseInt(String(selectedOption || '1'), 10) || 1;
     const week = state.week || 1;
-    const freq = getW531DaysPerWeek();
+    const runtime = getW531ProgramRuntime(context);
+    const freq = runtime.daysPerWeek;
     const season = state.season || 'off';
     const rounding = state.rounding || 2.5;
     const requestedSessionMode = String(context?.sessionMode || 'auto');
@@ -730,7 +782,7 @@ export const wendler531Program: W531Plugin = {
     const isDeload = scheme.isDeload && !state.testWeekPending;
     const isTest = week === 4 && !!state.testWeekPending;
     const previewMode = context?.preview === true;
-    let readiness = readinessMode;
+    let readiness = runtime.sessionReadiness || readinessMode;
     if (requestedSessionMode === 'normal') readiness = 'default';
     else if (requestedSessionMode === 'light') readiness = 'light';
     if (!previewMode) readinessMode = 'default';
@@ -903,11 +955,14 @@ export const wendler531Program: W531Plugin = {
     rawState: W531State,
     context?: ProgramSessionBuildContext
   ) => {
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const dayNum = parseInt(String(selectedOption || '1'), 10) || 1;
     const week = state.week || 1;
     const cycle = state.cycle || 1;
-    const freq = getW531DaysPerWeek();
+    const freq = getW531ProgramRuntime(context).daysPerWeek;
     const season = state.season || 'off';
     const effectiveSessionMode =
       context?.effectiveSessionMode === 'light' ? 'light' : 'normal';
@@ -925,16 +980,28 @@ export const wendler531Program: W531Plugin = {
     const tag = isTest ? trW531('program.w531.tm_test', 'TM Test') : getW531SchemeName(schemeWeek);
     return `${icon} C${cycle} W${schemeWeek} · ${names} [${tag}]`;
   },
-  getSessionModeRecommendation: (rawState: W531State) => {
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
+  getSessionModeRecommendation: (
+    rawState: W531State,
+    context?: ProgramSessionBuildContext
+  ) => {
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const scheme = INTERNAL.weekScheme[state.week] || INTERNAL.weekScheme[1];
-    if ((scheme.isDeload && !state.testWeekPending) || readinessMode !== 'default') {
+    if (
+      (scheme.isDeload && !state.testWeekPending) ||
+      getW531ProgramRuntime(context).sessionReadiness !== 'default'
+    ) {
       return 'light';
     }
     return 'normal';
   },
-  getBlockInfo: (rawState: W531State) => {
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
+  getBlockInfo: (rawState: W531State, context?: ProgramSessionBuildContext) => {
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const week = state.week || 1;
     const cycle = state.cycle || 1;
     const season = state.season || 'off';
@@ -1065,8 +1132,16 @@ export const wendler531Program: W531Plugin = {
       { cycle, scheme: schemeName }
     );
   },
-  adjustAfterSession: (exercises: WorkoutExercise[], rawState: W531State) => {
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
+  adjustAfterSession: (
+    exercises: WorkoutExercise[],
+    rawState: W531State,
+    _selectedOption?: string,
+    context?: ProgramSessionBuildContext
+  ) => {
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     const nextState = cloneJson(state);
     const week = normalizeW531Week(state.week);
     const season = state.season || 'off';
@@ -1124,10 +1199,14 @@ export const wendler531Program: W531Plugin = {
   },
   advanceState: (
     rawState: W531State,
-    sessionsThisWeek?: number
+    sessionsThisWeek?: number,
+    context?: ProgramSessionBuildContext
   ): W531State => {
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
-    const freq = getW531DaysPerWeek();
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
+    const freq = getW531ProgramRuntime(context).daysPerWeek;
     const week = state.week || 1;
     const cycle = state.cycle || 1;
     const needed = getWeekSessions(freq);
@@ -1188,17 +1267,21 @@ export const wendler531Program: W531Plugin = {
   },
   dateCatchUp: (rawState: W531State) =>
     migrateW531State(cloneJson(rawState) as Record<string, unknown>),
-  getWorkoutMeta: (rawState: W531State) => {
-    const state = migrateW531State(cloneJson(rawState) as Record<string, unknown>);
+  getWorkoutMeta: (rawState: W531State, context?: ProgramSessionBuildContext) => {
+    const state = migrateW531State(
+      cloneJson(rawState) as Record<string, unknown>,
+      context
+    );
     return {
       week: state.week || 1,
       cycle: state.cycle || 1,
       season: state.season || 'off',
       testWeekPending: !!state.testWeekPending,
       weekSessionIndex: normalizeWeekSessionIndex(state.weekSessionIndex),
-      daysPerWeek: getW531DaysPerWeek(),
+      daysPerWeek: getW531ProgramRuntime(context).daysPerWeek,
     };
   },
+  getSessionReadiness: () => readinessMode,
   getAuxSwapOptions: (exercise) => {
     if (!exercise || exercise.auxSlotIdx === undefined || Number(exercise.auxSlotIdx) < 0) {
       return null;
