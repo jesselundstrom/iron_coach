@@ -129,6 +129,108 @@ function bootstrapProfileRuntimeState(input) {
   return fallbackBootstrapProfileRuntimeState(opts);
 }
 
+function getWorkoutPersistenceRuntime() {
+  return window.__IRONFORGE_WORKOUT_PERSISTENCE_RUNTIME__ || null;
+}
+
+function getSyncRuntime() {
+  return window.__IRONFORGE_SYNC_RUNTIME__ || null;
+}
+
+function getSyncRuntimeDeps() {
+  return {
+    readState: () => ({
+      currentUser,
+      workouts,
+      schedule,
+      profile,
+      activeWorkout,
+      cloudSyncEnabled: isCloudSyncEnabled(),
+    }),
+    writeState: (partial) => {
+      if (!partial || typeof partial !== 'object') return;
+      if (Object.prototype.hasOwnProperty.call(partial, 'currentUser')) {
+        currentUser = partial.currentUser || null;
+        window.currentUser = currentUser || null;
+      }
+      if (Object.prototype.hasOwnProperty.call(partial, 'workouts')) {
+        workouts = Array.isArray(partial.workouts) ? partial.workouts : [];
+        window.workouts = cloneJson(workouts);
+      }
+      if (Object.prototype.hasOwnProperty.call(partial, 'schedule')) {
+        schedule = partial.schedule || null;
+        window.schedule = cloneJson(schedule);
+      }
+      if (Object.prototype.hasOwnProperty.call(partial, 'profile')) {
+        profile = partial.profile || null;
+        window.profile = cloneJson(profile);
+      }
+      if (Object.prototype.hasOwnProperty.call(partial, 'activeWorkout')) {
+        activeWorkout = partial.activeWorkout || null;
+        window.activeWorkout = cloneJson(activeWorkout);
+      }
+    },
+    setCloudSyncEnabled: (value) => {
+      cloudSyncEnabled = value !== false;
+    },
+    setRestDuration: (value) => {
+      restDuration = Number(value) || 120;
+    },
+    loadLocalData,
+    pullWorkoutsFromTable,
+    bootstrapProfileRuntimeState,
+    setLanguage: (language) => {
+      if (window.I18N && I18N.setLanguage) {
+        I18N.setLanguage(language, { persist: true, notify: false });
+        return I18N.getLanguage();
+      }
+      return String(language || '');
+    },
+    restoreActiveWorkoutDraft:
+      typeof restoreActiveWorkoutDraft === 'function'
+        ? restoreActiveWorkoutDraft
+        : null,
+    getActiveWorkoutDraftCache,
+    clearActiveWorkoutDraft:
+      typeof clearActiveWorkoutDraft === 'function'
+        ? clearActiveWorkoutDraft
+        : () => {},
+    saveWorkouts,
+    upsertWorkoutRecords,
+    saveScheduleData,
+    saveProfileData,
+    buildExerciseIndex,
+    applyTranslations:
+      window.I18N && I18N.applyTranslations
+        ? () => I18N.applyTranslations(document)
+        : null,
+    renderSyncStatus,
+    updateDashboard,
+    maybeOpenOnboarding:
+      typeof maybeOpenOnboarding === 'function' ? maybeOpenOnboarding : null,
+    isCloudSyncEnabled,
+    isBrowserOffline,
+    setSyncStatus,
+    fetchLegacyProfileBlob,
+    pullProfileDocuments,
+    applyLegacyProfileBlob,
+    updateLegacyProfileStamp,
+    getProfileDocumentsSupported: () => profileDocumentsSupported,
+    upsertProfileDocuments,
+    getAllProfileDocumentKeys,
+    finalizeProfileBootstrapAfterCloudPull,
+    persistLocalProfileCache,
+    persistLocalScheduleCache,
+    persistLocalWorkoutsCache,
+    refreshSyncedUI,
+    clearDocKeysDirty,
+    uniqueDocKeys,
+    getDirtyDocKeys,
+    pushLegacyProfileBlob,
+    supabaseClient: _SB,
+  };
+}
+
 function fallbackBootstrapProfileRuntimeState(input) {
   const opts = input || {};
   const nextProfile = cloneJson(opts.profile || {}) || {};
@@ -1954,6 +2056,15 @@ function cleanupLegacyProfileFields(profileLike) {
 function persistLocalWorkoutsCache() {
   const userId = getLocalCacheUserId();
   if (!userId) return;
+  const runtime = getWorkoutPersistenceRuntime();
+  if (typeof runtime?.persistLocalWorkoutsCache === 'function') {
+    runtime.persistLocalWorkoutsCache({
+      userId,
+      currentUser,
+      workouts,
+    });
+    return;
+  }
   writeLocalCacheJson(
     getLocalCacheKey(LOCAL_CACHE_KEYS.workouts, userId),
     workouts,
@@ -2115,7 +2226,7 @@ function resolveProfileSaveDocKeys(options) {
   ]);
 }
 
-async function loadData(options) {
+async function legacyLoadData(options) {
   const opts = options || {};
   const allowCloudSync = opts.allowCloudSync !== false;
   cloudSyncEnabled = allowCloudSync;
@@ -2125,7 +2236,7 @@ async function loadData(options) {
   });
   // Pull profile/schedule from cloud and workouts from the dedicated workouts table.
   const cloudResult = allowCloudSync
-    ? await pullFromCloud()
+    ? await legacyPullFromCloud()
     : { usedCloud: false };
   const tableResult = allowCloudSync
     ? await pullWorkoutsFromTable(workouts)
@@ -2176,7 +2287,25 @@ async function loadData(options) {
   if (typeof maybeOpenOnboarding === 'function') maybeOpenOnboarding();
 }
 
+async function loadData(options) {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.loadData === 'function') {
+    await runtime.loadData(options, getSyncRuntimeDeps());
+    return;
+  }
+  await legacyLoadData(options);
+}
+
 async function saveWorkouts() {
+  const runtime = getWorkoutPersistenceRuntime();
+  if (typeof runtime?.saveWorkouts === 'function') {
+    runtime.saveWorkouts({
+      userId: getLocalCacheUserId(),
+      currentUser,
+      workouts,
+    });
+    return;
+  }
   persistLocalWorkoutsCache();
 }
 async function saveScheduleData(options) {
@@ -2445,6 +2574,23 @@ function toWorkoutRow(workout) {
 }
 
 async function upsertWorkoutRecord(workout, options) {
+  const runtime = getWorkoutPersistenceRuntime();
+  if (typeof runtime?.upsertWorkoutRecord === 'function') {
+    await runtime.upsertWorkoutRecord(
+      {
+        workout,
+        currentUser,
+        cloudSyncEnabled: isCloudSyncEnabled(),
+        options,
+      },
+      {
+        supabaseClient: _SB,
+        runSupabaseWrite,
+        logWarn,
+      }
+    );
+    return;
+  }
   if (!currentUser || !workout || !isCloudSyncEnabled()) return;
   await runSupabaseWrite(
     _SB.from('workouts').upsert(toWorkoutRow(workout), {
@@ -2456,6 +2602,23 @@ async function upsertWorkoutRecord(workout, options) {
 }
 
 async function upsertWorkoutRecords(items, options) {
+  const runtime = getWorkoutPersistenceRuntime();
+  if (typeof runtime?.upsertWorkoutRecords === 'function') {
+    await runtime.upsertWorkoutRecords(
+      {
+        workouts: items,
+        currentUser,
+        cloudSyncEnabled: isCloudSyncEnabled(),
+        options,
+      },
+      {
+        supabaseClient: _SB,
+        runSupabaseWrite,
+        logWarn,
+      }
+    );
+    return;
+  }
   if (
     !currentUser ||
     !Array.isArray(items) ||
@@ -2475,6 +2638,23 @@ async function upsertWorkoutRecords(items, options) {
 }
 
 async function softDeleteWorkoutRecord(workoutId, options) {
+  const runtime = getWorkoutPersistenceRuntime();
+  if (typeof runtime?.softDeleteWorkoutRecord === 'function') {
+    await runtime.softDeleteWorkoutRecord(
+      {
+        workoutId,
+        currentUser,
+        cloudSyncEnabled: isCloudSyncEnabled(),
+        options,
+      },
+      {
+        supabaseClient: _SB,
+        runSupabaseWrite,
+        logWarn,
+      }
+    );
+    return;
+  }
   if (
     !currentUser ||
     workoutId === undefined ||
@@ -2494,6 +2674,23 @@ async function softDeleteWorkoutRecord(workoutId, options) {
 }
 
 async function replaceWorkoutTableSnapshot(items, options) {
+  const runtime = getWorkoutPersistenceRuntime();
+  if (typeof runtime?.replaceWorkoutTableSnapshot === 'function') {
+    await runtime.replaceWorkoutTableSnapshot(
+      {
+        workouts: items,
+        currentUser,
+        cloudSyncEnabled: isCloudSyncEnabled(),
+        options,
+      },
+      {
+        supabaseClient: _SB,
+        runSupabaseWrite,
+        logWarn,
+      }
+    );
+    return;
+  }
   if (!currentUser || !isCloudSyncEnabled()) return;
   const opts = options || {};
   const nextItems = Array.isArray(items) ? items : [];
@@ -2530,6 +2727,38 @@ async function replaceWorkoutTableSnapshot(items, options) {
 }
 
 async function pullWorkoutsFromTable(fallbackWorkouts) {
+  const runtime = getWorkoutPersistenceRuntime();
+  if (typeof runtime?.pullWorkoutsFromTable === 'function') {
+    const result = await runtime.pullWorkoutsFromTable(
+      {
+        fallbackWorkouts,
+        currentUser,
+        cloudSyncEnabled: isCloudSyncEnabled(),
+      },
+      {
+        supabaseClient: _SB,
+        runSupabaseWrite,
+        logWarn,
+      }
+    );
+    if (
+      result.shouldMarkWorkoutTableReady &&
+      !isWorkoutTableReady(profile)
+    ) {
+      profile.syncMeta = {
+        ...(profile.syncMeta || {}),
+        workoutsTableReady: true,
+      };
+      await saveProfileData({ docKeys: [PROFILE_CORE_DOC_KEY] });
+    }
+    return {
+      usedTable: result.usedTable === true,
+      didBackfill: result.didBackfill === true,
+      workouts: Array.isArray(result.workouts)
+        ? result.workouts
+        : fallbackWorkouts,
+    };
+  }
   if (!currentUser || !isCloudSyncEnabled())
     return { usedTable: false, didBackfill: false };
   try {
@@ -2731,7 +2960,7 @@ async function pushLegacyProfileBlob() {
   }
 }
 
-async function pushToCloud(options) {
+async function legacyPushToCloud(options) {
   if (!currentUser || !isCloudSyncEnabled() || isApplyingRemoteSync)
     return false;
   if (isBrowserOffline()) {
@@ -2747,7 +2976,7 @@ async function pushToCloud(options) {
   if (writeResult.ok) {
     let resolvedStaleRejects = true;
     if (writeResult.staleDocKeys.length) {
-      resolvedStaleRejects = await resolveStaleProfileDocumentRejects(
+      resolvedStaleRejects = await legacyResolveStaleProfileDocumentRejects(
         writeResult.staleDocKeys
       );
     }
@@ -2757,7 +2986,15 @@ async function pushToCloud(options) {
   return pushLegacyProfileBlob();
 }
 
-async function flushPendingCloudSync() {
+async function pushToCloud(options) {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.pushToCloud === 'function') {
+    return await runtime.pushToCloud(options, getSyncRuntimeDeps());
+  }
+  return await legacyPushToCloud(options);
+}
+
+async function legacyFlushPendingCloudSync() {
   if (!currentUser || !isCloudSyncEnabled() || isApplyingRemoteSync)
     return false;
   if (isBrowserOffline()) {
@@ -2766,10 +3003,18 @@ async function flushPendingCloudSync() {
   }
   const dirtyDocKeys = getDirtyDocKeys();
   if (!dirtyDocKeys.length) return true;
-  return pushToCloud({ docKeys: dirtyDocKeys });
+  return legacyPushToCloud({ docKeys: dirtyDocKeys });
 }
 
-async function pullFromCloud(options) {
+async function flushPendingCloudSync() {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.flushPendingCloudSync === 'function') {
+    return await runtime.flushPendingCloudSync(getSyncRuntimeDeps());
+  }
+  return await legacyFlushPendingCloudSync();
+}
+
+async function legacyPullFromCloud(options) {
   const opts = options || {};
   if (!currentUser || !isCloudSyncEnabled()) return { usedCloud: false };
   setSyncStatus('syncing');
@@ -2810,7 +3055,15 @@ async function pullFromCloud(options) {
   };
 }
 
-async function resolveStaleProfileDocumentRejects(staleDocKeys) {
+async function pullFromCloud(options) {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.pullFromCloud === 'function') {
+    return await runtime.pullFromCloud(options, getSyncRuntimeDeps());
+  }
+  return await legacyPullFromCloud(options);
+}
+
+async function legacyResolveStaleProfileDocumentRejects(staleDocKeys) {
   const nextStaleDocKeys = uniqueDocKeys(staleDocKeys);
   if (
     !nextStaleDocKeys.length ||
@@ -2823,7 +3076,7 @@ async function resolveStaleProfileDocumentRejects(staleDocKeys) {
   clearDocKeysDirty(nextStaleDocKeys);
   const beforeProfile = JSON.stringify(profile || {});
   const beforeSchedule = JSON.stringify(schedule || {});
-  const pullResult = await pullFromCloud({ finalizeBootstrap: true });
+  const pullResult = await legacyPullFromCloud({ finalizeBootstrap: true });
   if (pullResult.requiresBootstrapFinalize) {
     finalizeProfileBootstrapAfterCloudPull();
   }
@@ -2836,6 +3089,17 @@ async function resolveStaleProfileDocumentRejects(staleDocKeys) {
     refreshSyncedUI({ toast: false });
   }
   return pullResult.usedCloud === true;
+}
+
+async function resolveStaleProfileDocumentRejects(staleDocKeys) {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.resolveStaleProfileDocumentRejects === 'function') {
+    return await runtime.resolveStaleProfileDocumentRejects(
+      staleDocKeys,
+      getSyncRuntimeDeps()
+    );
+  }
+  return await legacyResolveStaleProfileDocumentRejects(staleDocKeys);
 }
 
 function refreshSyncedUI(options) {
@@ -2886,7 +3150,7 @@ function refreshSyncedUI(options) {
   }
 }
 
-function teardownRealtimeSync() {
+function legacyTeardownRealtimeSync() {
   if (realtimeSyncTimer) {
     clearTimeout(realtimeSyncTimer);
     realtimeSyncTimer = null;
@@ -2897,7 +3161,16 @@ function teardownRealtimeSync() {
   syncRealtimeChannel = null;
 }
 
-async function applyRealtimeSync(reason) {
+function teardownRealtimeSync() {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.teardownRealtimeSync === 'function') {
+    runtime.teardownRealtimeSync(getSyncRuntimeDeps());
+    return;
+  }
+  legacyTeardownRealtimeSync();
+}
+
+async function legacyApplyRealtimeSync(reason) {
   if (!currentUser || !isCloudSyncEnabled() || isApplyingRemoteSync) return;
   if (isBrowserOffline()) {
     setSyncStatus('offline');
@@ -2910,7 +3183,7 @@ async function applyRealtimeSync(reason) {
     const beforeWorkouts = JSON.stringify(workouts || []);
     // Realtime fallback blob pulls do not get a later loadData() bootstrap pass,
     // so they must request a final typed catch-up after workouts finish loading.
-    const pullResult = await pullFromCloud({ finalizeBootstrap: true });
+    const pullResult = await legacyPullFromCloud({ finalizeBootstrap: true });
     const tableResult = await pullWorkoutsFromTable(workouts);
     if (tableResult.usedTable || tableResult.didBackfill)
       workouts = tableResult.workouts || workouts;
@@ -2932,17 +3205,35 @@ async function applyRealtimeSync(reason) {
   }
 }
 
-function scheduleRealtimeSync(reason) {
+async function applyRealtimeSync(reason) {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.applyRealtimeSync === 'function') {
+    await runtime.applyRealtimeSync(reason, getSyncRuntimeDeps());
+    return;
+  }
+  await legacyApplyRealtimeSync(reason);
+}
+
+function legacyScheduleRealtimeSync(reason) {
   if (!currentUser || !isCloudSyncEnabled()) return;
   if (isBrowserOffline()) return;
   if (realtimeSyncTimer) clearTimeout(realtimeSyncTimer);
   realtimeSyncTimer = setTimeout(() => {
-    applyRealtimeSync(reason);
+    legacyApplyRealtimeSync(reason);
   }, 150);
 }
 
-function setupRealtimeSync() {
-  teardownRealtimeSync();
+function scheduleRealtimeSync(reason) {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.scheduleRealtimeSync === 'function') {
+    runtime.scheduleRealtimeSync(reason, getSyncRuntimeDeps());
+    return;
+  }
+  legacyScheduleRealtimeSync(reason);
+}
+
+function legacySetupRealtimeSync() {
+  legacyTeardownRealtimeSync();
   if (
     !currentUser ||
     !isCloudSyncEnabled() ||
@@ -2960,7 +3251,7 @@ function setupRealtimeSync() {
         table: 'workouts',
         filter: `user_id=eq.${currentUser.id}`,
       },
-      () => scheduleRealtimeSync('workouts')
+      () => legacyScheduleRealtimeSync('workouts')
     )
     .on(
       'postgres_changes',
@@ -2970,7 +3261,7 @@ function setupRealtimeSync() {
         table: 'profile_documents',
         filter: `user_id=eq.${currentUser.id}`,
       },
-      () => scheduleRealtimeSync('profile-documents')
+      () => legacyScheduleRealtimeSync('profile-documents')
     )
     .on(
       'postgres_changes',
@@ -2980,9 +3271,18 @@ function setupRealtimeSync() {
         table: 'profiles',
         filter: `id=eq.${currentUser.id}`,
       },
-      () => scheduleRealtimeSync('legacy-profile')
+      () => legacyScheduleRealtimeSync('legacy-profile')
     )
     .subscribe();
+}
+
+function setupRealtimeSync() {
+  const runtime = getSyncRuntime();
+  if (typeof runtime?.setupRealtimeSync === 'function') {
+    runtime.setupRealtimeSync(getSyncRuntimeDeps());
+    return;
+  }
+  legacySetupRealtimeSync();
 }
 
 async function applyAuthSession(session, options) {

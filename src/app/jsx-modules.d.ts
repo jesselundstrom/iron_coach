@@ -129,6 +129,39 @@ declare global {
       ) => Record<string, unknown> | null;
       updateLanguageDependentUI?: () => void;
     };
+    __IRONFORGE_SYNC_RUNTIME__?: {
+      loadData?: (
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      pushToCloud?: (
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Promise<boolean>;
+      flushPendingCloudSync?: (deps?: Record<string, unknown>) => Promise<boolean>;
+      pullFromCloud?: (
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Promise<{
+        usedCloud: boolean;
+        usedDocs: boolean;
+        requiresBootstrapFinalize: boolean;
+      }>;
+      resolveStaleProfileDocumentRejects?: (
+        staleDocKeys?: string[],
+        deps?: Record<string, unknown>
+      ) => Promise<boolean>;
+      teardownRealtimeSync?: (deps?: Record<string, unknown>) => void;
+      applyRealtimeSync?: (
+        reason?: string,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      scheduleRealtimeSync?: (
+        reason?: string,
+        deps?: Record<string, unknown>
+      ) => void;
+      setupRealtimeSync?: (deps?: Record<string, unknown>) => void;
+    };
     __IRONFORGE_ACTIVE_SETTINGS_TAB__?: string;
     setupRealtimeSync?: () => void;
     teardownRealtimeSync?: () => void;
@@ -415,6 +448,43 @@ declare global {
         input?: IronforgeWorkoutTeardownPlanInput,
         deps?: Record<string, unknown>
       ) => IronforgeWorkoutTeardownPlanResult;
+    };
+    __IRONFORGE_WORKOUT_PERSISTENCE_RUNTIME__?: {
+      persistLocalWorkoutsCache?: (input?: {
+        userId?: string | null;
+        currentUser?: Record<string, unknown> | null;
+        workouts?: Array<Record<string, unknown>> | null;
+      }) => boolean;
+      saveWorkouts?: (input?: {
+        userId?: string | null;
+        currentUser?: Record<string, unknown> | null;
+        workouts?: Array<Record<string, unknown>> | null;
+      }) => boolean;
+      upsertWorkoutRecord?: (
+        input?: Record<string, unknown> | null,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      upsertWorkoutRecords?: (
+        input?: Record<string, unknown> | null,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      softDeleteWorkoutRecord?: (
+        input?: Record<string, unknown> | null,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      replaceWorkoutTableSnapshot?: (
+        input?: Record<string, unknown> | null,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      pullWorkoutsFromTable?: (
+        input?: Record<string, unknown> | null,
+        deps?: Record<string, unknown>
+      ) => Promise<{
+        usedTable: boolean;
+        didBackfill: boolean;
+        workouts: Array<Record<string, unknown>>;
+        shouldMarkWorkoutTableReady: boolean;
+      }>;
     };
     __IRONFORGE_GET_LEGACY_RUNTIME_STATE__?: () => Record<
       string,

@@ -20,6 +20,8 @@ Closeout checkpoints completed:
 - `core/nutrition-layer.js` is no longer part of the live page flow; its legacy globals are now provided by `src/stores/nutrition-store.ts`.
 - `core/dashboard-layer.js` is no longer part of the live page flow; dashboard helpers and compatibility delegates now live in typed runtime code.
 - bootstrap normalization for profile/program/schedule/workout startup data now runs through the typed runtime bridge and `src/domain/profile-bootstrap.ts` instead of being owned inline by `core/data-layer.js`.
+- workout persistence/table helpers now route through a typed workout-persistence runtime bridge, while `core/data-layer.js` still owns the surrounding sync/auth/profile-document orchestration for now.
+- load/bootstrap cloud pull-push orchestration and realtime sync subscription flow now route through a typed sync runtime bridge, while low-level profile-document merge helpers still live in `core/data-layer.js`.
 
 ## Visible Shell Complete
 
@@ -67,13 +69,16 @@ Recent consolidation progress:
 - `core/data-layer.js` now acts as loader/persister for startup and merge flows, while typed bootstrap normalization lives in `src/domain/profile-bootstrap.ts`.
 - `window.__IRONFORGE_APP_RUNTIME__.bootstrapProfileRuntime(...)` is now the typed bootstrap bridge for startup/profile-document/legacy-blob normalization.
 - `profileStore` now has an atomic bootstrap hydrate path for `profile + schedule` together instead of relying on sequential store writes during typed bootstrap ownership.
+- workout local-cache writes and workout-table CRUD/merge helpers now live behind `window.__IRONFORGE_WORKOUT_PERSISTENCE_RUNTIME__`, with legacy callers delegating into that typed surface.
+- `window.__IRONFORGE_SYNC_RUNTIME__` now owns `loadData`, cloud pull/push orchestration, pending flush, and realtime subscription/timer flow, with legacy wrappers delegating into that typed surface.
 
-The first milestone is intentionally conservative:
+Current migration sequencing for the remaining `core/data-layer.js` ownership work:
 
-- **Foundation first**
-- **No behavior change**
-- **No runtime ownership changes yet**
-- **Full verification stays green before moving to the next phase**
+- **Slice 1:** workouts ownership first
+- **Slice 2:** sync orchestration second
+- **Next focus:** reduce the remaining low-level merge helpers and shared mutable state in `core/data-layer.js`
+- **Keep profile/document merge behavior stable while these slices land**
+- **Reduce direct test dependence on `window.workouts` / `window.profile` / `window.schedule` as typed seams become available**
 
 ## Current Baseline
 

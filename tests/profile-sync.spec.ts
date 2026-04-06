@@ -3,6 +3,7 @@ import { openAppShell } from './helpers';
 
 declare const PROFILE_CORE_DOC_KEY: string;
 
+declare let workouts: Array<Record<string, any>>;
 declare let profile: Record<string, any>;
 declare let schedule: Record<string, any>;
 declare let cloudSyncEnabled: boolean;
@@ -33,6 +34,8 @@ declare function applyLegacyProfileBlob(
   options?: Record<string, any>
 ): void;
 declare function applyRealtimeSync(reason?: string): Promise<void>;
+declare function loadData(options?: Record<string, any>): Promise<void>;
+declare function setupRealtimeSync(): void;
 declare let fetchLegacyProfileBlob: () => Promise<Record<string, any>>;
 declare let pullProfileDocuments: (
   options?: Record<string, any>
@@ -40,6 +43,10 @@ declare let pullProfileDocuments: (
 declare let pullWorkoutsFromTable: (
   fallbackWorkouts?: Array<Record<string, any>>
 ) => Promise<Record<string, any>>;
+declare let saveProfileData: (
+  options?: Record<string, any>
+) => Promise<Record<string, any> | void>;
+declare function saveWorkouts(): Promise<void>;
 declare function saveSchedule(nextValues?: Record<string, any>): void;
 
 test('stale profile document does not overwrite newer local training frequency', async ({ page }) => {
@@ -519,6 +526,216 @@ test('bootstrap leaves plain legacy workouts untouched when no commentary migrat
 
   expect(result.changed.workouts).toBe(false);
   expect(result.workouts[0].commentary ?? null).toBe(null);
+});
+
+test('saveWorkouts delegates workout cache persistence to the typed runtime bridge', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(async () => {
+    const runtime = (window as any).__IRONFORGE_WORKOUT_PERSISTENCE_RUNTIME__;
+    const originalSaveWorkouts = runtime?.saveWorkouts;
+    const userId = 'workout-runtime-cache-user';
+    let calls = 0;
+    let delegatedUserId = '';
+    let cacheKey = '';
+
+    try {
+      (window as any).__IRONFORGE_TEST_USER_ID__ = userId;
+      workouts = [
+        {
+          id: 'bridge-workout-1',
+          date: '2026-03-12T10:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          exercises: [],
+        },
+      ];
+
+      runtime.saveWorkouts = (input?: Record<string, any>) => {
+        calls += 1;
+        delegatedUserId = String(input?.userId || '');
+        cacheKey =
+          window.getLocalCacheKey?.('ic_workouts', delegatedUserId) ||
+          `ic_workouts::${delegatedUserId}`;
+        if (cacheKey) {
+          localStorage.removeItem(cacheKey);
+        }
+        return originalSaveWorkouts?.call(runtime, input) ?? false;
+      };
+
+      await saveWorkouts();
+
+      return {
+        runtimePresent: !!runtime,
+        calls,
+        delegatedUserId,
+        cachedIds: JSON.parse(localStorage.getItem(cacheKey) || '[]').map(
+          (item: Record<string, any>) => String(item?.id || '')
+        ),
+      };
+    } finally {
+      if (runtime) {
+        runtime.saveWorkouts = originalSaveWorkouts;
+      }
+      delete (window as any).__IRONFORGE_TEST_USER_ID__;
+    }
+  });
+
+  expect(result.runtimePresent).toBe(true);
+  expect(result.calls).toBe(1);
+  expect(result.delegatedUserId).not.toBe('');
+  expect(result.cachedIds).toEqual(['bridge-workout-1']);
+});
+
+test('pullWorkoutsFromTable delegates table merge to the typed runtime and keeps the readiness side effect local', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(async () => {
+    const runtime = (window as any).__IRONFORGE_WORKOUT_PERSISTENCE_RUNTIME__;
+    const originalPullWorkoutsFromTable = runtime?.pullWorkoutsFromTable;
+    const originalSaveProfileData = saveProfileData;
+    let runtimeCalls = 0;
+    let saveProfileCalls = 0;
+
+    try {
+      profile.syncMeta = {
+        ...(profile.syncMeta || {}),
+      };
+      delete profile.syncMeta.workoutsTableReady;
+      saveProfileData = async () => {
+        saveProfileCalls += 1;
+      };
+      runtime.pullWorkoutsFromTable = async (_input?: Record<string, any>) => {
+        runtimeCalls += 1;
+        return {
+          usedTable: true,
+          didBackfill: true,
+          workouts: [
+            {
+              id: 'table-owned-1',
+              date: '2026-03-12T10:00:00.000Z',
+              program: 'forge',
+              type: 'forge',
+              exercises: [],
+            },
+          ],
+          shouldMarkWorkoutTableReady: true,
+        };
+      };
+
+      const pullResult = await pullWorkoutsFromTable([
+        {
+          id: 'fallback-owned-1',
+          date: '2026-03-10T10:00:00.000Z',
+          program: 'forge',
+          type: 'forge',
+          exercises: [],
+        },
+      ]);
+
+      return {
+        runtimePresent: !!runtime,
+        runtimeCalls,
+        saveProfileCalls,
+        workoutsTableReady: profile?.syncMeta?.workoutsTableReady === true,
+        workoutIds: Array.isArray(pullResult.workouts)
+          ? pullResult.workouts.map((item: Record<string, any>) =>
+              String(item?.id || '')
+            )
+          : [],
+      };
+    } finally {
+      if (runtime) {
+        runtime.pullWorkoutsFromTable = originalPullWorkoutsFromTable;
+      }
+      saveProfileData = originalSaveProfileData;
+    }
+  });
+
+  expect(result.runtimePresent).toBe(true);
+  expect(result.runtimeCalls).toBe(1);
+  expect(result.saveProfileCalls).toBe(1);
+  expect(result.workoutsTableReady).toBe(true);
+  expect(result.workoutIds).toEqual(['table-owned-1']);
+});
+
+test('loadData delegates orchestration to the typed sync runtime bridge', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(async () => {
+    const runtime = (window as any).__IRONFORGE_SYNC_RUNTIME__;
+    const originalLoadData = runtime?.loadData;
+    let calls = 0;
+
+    try {
+      runtime.loadData = async (options?: Record<string, any>, deps?: Record<string, any>) => {
+        calls += 1;
+        return (
+          (await originalLoadData?.call(runtime, options, deps)) ?? undefined
+        );
+      };
+
+      await loadData({
+        allowCloudSync: false,
+        userId: (window as any).__IRONFORGE_TEST_USER_ID__ || 'e2e-user',
+      });
+
+      return {
+        runtimePresent: !!runtime,
+        calls,
+        activeProgram:
+          (window as any).__IRONFORGE_STORES__?.profile?.getState?.().profile
+            ?.activeProgram || null,
+      };
+    } finally {
+      if (runtime) {
+        runtime.loadData = originalLoadData;
+      }
+    }
+  });
+
+  expect(result.runtimePresent).toBe(true);
+  expect(result.calls).toBe(1);
+  expect(result.activeProgram).toBe('forge');
+});
+
+test('setupRealtimeSync delegates subscription orchestration to the typed sync runtime bridge', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(() => {
+    const runtime = (window as any).__IRONFORGE_SYNC_RUNTIME__;
+    const originalSetupRealtimeSync = runtime?.setupRealtimeSync;
+    let calls = 0;
+
+    try {
+      runtime.setupRealtimeSync = (deps?: Record<string, any>) => {
+        calls += 1;
+        return originalSetupRealtimeSync?.call(runtime, deps);
+      };
+
+      setupRealtimeSync();
+
+      return {
+        runtimePresent: !!runtime,
+        calls,
+      };
+    } finally {
+      if (runtime) {
+        runtime.setupRealtimeSync = originalSetupRealtimeSync;
+      }
+    }
+  });
+
+  expect(result.runtimePresent).toBe(true);
+  expect(result.calls).toBe(1);
 });
 
 test('realtime legacy blob fallback finalizes active-program catch-up once', async ({

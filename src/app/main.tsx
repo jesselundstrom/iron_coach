@@ -12,6 +12,8 @@ import {
 } from './services/legacy-runtime';
 import { installAppRuntimeBridge } from './services/app-runtime';
 import { installPlanningWindowBindings } from './services/planning-runtime';
+import { installSyncRuntimeBridge } from './services/sync-runtime';
+import { installWorkoutPersistenceRuntimeBridge } from './services/workout-persistence-runtime';
 import { installWorkoutRuntimeBridge } from './services/workout-runtime';
 import { useRuntimeStore } from './store/runtime-store';
 import { installLegacyI18nStoreBridge } from '../stores/i18n-store';
@@ -80,6 +82,8 @@ if (mountNode) {
   installLegacyProgramStoreBridge();
   installLegacyWorkoutStoreBridge();
   installPlanningWindowBindings();
+  installSyncRuntimeBridge();
+  installWorkoutPersistenceRuntimeBridge();
   installWorkoutRuntimeBridge();
   installDashboardStore();
   installHistoryStore();

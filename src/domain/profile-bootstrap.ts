@@ -395,6 +395,12 @@ function normalizeWorkoutRecords(items?: Array<Record<string, unknown>> | null) 
   return { workouts, changed };
 }
 
+export function normalizeWorkoutRecordsForPersistence(
+  items?: Array<Record<string, unknown>> | null
+) {
+  return normalizeWorkoutRecords(items);
+}
+
 function normalizeImportedRestDuration(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 120;
