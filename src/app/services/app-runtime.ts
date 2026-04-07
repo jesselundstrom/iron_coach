@@ -25,6 +25,14 @@ type RuntimeApi = {
   buildSettingsProgramView: () => Record<string, unknown>;
   buildSettingsPreferencesView: () => Record<string, unknown>;
   buildSettingsBodyView: () => Record<string, unknown>;
+  getSettingsAccountUiStateSnapshot: () => {
+    dangerOpen: boolean;
+    dangerInput: string;
+  };
+  showSettingsTab: (tab?: string) => void;
+  showDangerConfirm: () => void;
+  checkDangerConfirm: (nextValue?: string) => void;
+  resetSettingsAccountUiState: () => void;
   getLegacyRuntimeState: () => Record<string, unknown>;
   setLegacyRuntimeState: (partial: Record<string, unknown>) => void;
   bootstrapProfileRuntime: (input?: {
@@ -90,6 +98,7 @@ type RuntimeWindow = Window & {
   buildOnboardingRecommendation?: (
     draft?: Record<string, unknown>
   ) => Record<string, unknown> | null;
+  showSettingsTab?: (tab?: string) => void;
   __IRONFORGE_GET_LEGACY_RUNTIME_STATE__?: () => Record<string, unknown>;
   __IRONFORGE_SET_LEGACY_RUNTIME_STATE__?: (
     partial: Record<string, unknown>
@@ -160,6 +169,66 @@ function getDefaultSettingsTab(): SettingsTab {
     String(useRuntimeStore.getState().navigation.activeSettingsTab || '').trim() ||
     'schedule';
   return isSettingsTab(raw) ? raw : 'schedule';
+}
+
+let settingsAccountUiState = {
+  dangerOpen: false,
+  dangerInput: '',
+};
+
+function getSettingsAccountUiStateSnapshot() {
+  return {
+    dangerOpen: settingsAccountUiState.dangerOpen === true,
+    dangerInput: String(settingsAccountUiState.dangerInput || ''),
+  };
+}
+
+function setSettingsAccountUiState(
+  patch?:
+    | Partial<{
+        dangerOpen: boolean;
+        dangerInput: string;
+      }>
+    | null
+) {
+  settingsAccountUiState = {
+    ...settingsAccountUiState,
+    ...(patch || {}),
+  };
+  syncSettingsAccountView();
+}
+
+function resetSettingsAccountUiState() {
+  settingsAccountUiState = {
+    dangerOpen: false,
+    dangerInput: '',
+  };
+  syncSettingsAccountView();
+}
+
+function showDangerConfirm() {
+  setSettingsAccountUiState({
+    dangerOpen: true,
+    dangerInput: '',
+  });
+}
+
+function checkDangerConfirm(nextValue?: string) {
+  setSettingsAccountUiState({
+    dangerInput: String(nextValue || ''),
+  });
+}
+
+function showSettingsTab(tab?: string) {
+  const runtimeWindow = getRuntimeWindow();
+  const nextTab = isSettingsTab(String(tab || '').trim())
+    ? (String(tab).trim() as SettingsTab)
+    : 'schedule';
+  useRuntimeStore.getState().setActiveSettingsTab(nextTab);
+  if (runtimeWindow) {
+    runtimeWindow.__IRONFORGE_ACTIVE_SETTINGS_TAB__ = nextTab;
+  }
+  syncSettingsBridge();
 }
 
 function getShortDayNames() {
@@ -375,7 +444,7 @@ function buildSettingsAccountView() {
   const currentUser = getCurrentUserRecord();
   const syncStatus = buildSyncStatusLabel();
   const nutritionReady = !!String(currentUser?.id || '').trim();
-  const uiState = getRuntimeWindow()?.getSettingsAccountUiStateSnapshot?.() || {};
+  const uiState = getSettingsAccountUiStateSnapshot();
 
   return {
     labels: {
@@ -925,7 +994,12 @@ function syncSettingsBodyView() {
 }
 
 function syncSettingsBridge() {
-  useRuntimeStore.getState().setActiveSettingsTab(getDefaultSettingsTab());
+  const nextTab = getDefaultSettingsTab();
+  const runtimeWindow = getRuntimeWindow();
+  useRuntimeStore.getState().setActiveSettingsTab(nextTab);
+  if (runtimeWindow) {
+    runtimeWindow.__IRONFORGE_ACTIVE_SETTINGS_TAB__ = nextTab;
+  }
   syncSettingsAccountView();
   syncSettingsScheduleView();
   syncSettingsProgramView();
@@ -1288,6 +1362,11 @@ export function installAppRuntimeBridge() {
     buildSettingsProgramView,
     buildSettingsPreferencesView,
     buildSettingsBodyView,
+    getSettingsAccountUiStateSnapshot,
+    showSettingsTab,
+    showDangerConfirm,
+    checkDangerConfirm,
+    resetSettingsAccountUiState,
     getLegacyRuntimeState,
     setLegacyRuntimeState,
     bootstrapProfileRuntime,
@@ -1304,8 +1383,11 @@ export function installAppRuntimeBridge() {
   };
 
   runtimeWindow.__IRONFORGE_APP_RUNTIME__ = api;
+  runtimeWindow.__IRONFORGE_ACTIVE_SETTINGS_TAB__ = getDefaultSettingsTab();
   runtimeWindow.__IRONFORGE_GET_LEGACY_RUNTIME_STATE__ = getLegacyRuntimeState;
   runtimeWindow.__IRONFORGE_SET_LEGACY_RUNTIME_STATE__ = setLegacyRuntimeState;
+  runtimeWindow.getSettingsAccountUiStateSnapshot = getSettingsAccountUiStateSnapshot;
+  runtimeWindow.showSettingsTab = showSettingsTab;
   runtimeWindow.syncSettingsBridge = syncSettingsBridge;
   runtimeWindow.getOnboardingDefaultDraft = getOnboardingDefaultDraft;
   runtimeWindow.buildOnboardingRecommendation = buildOnboardingRecommendation;

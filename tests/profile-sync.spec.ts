@@ -28,18 +28,9 @@ declare function buildStateFromProfileDocuments(
   profile: Record<string, any>;
   schedule: Record<string, any>;
 };
-declare function applyLegacyProfileBlob(
-  remoteProfile: Record<string, any>,
-  remoteSchedule: Record<string, any>,
-  options?: Record<string, any>
-): void;
 declare function applyRealtimeSync(reason?: string): Promise<void>;
 declare function loadData(options?: Record<string, any>): Promise<void>;
 declare function setupRealtimeSync(): void;
-declare let fetchLegacyProfileBlob: () => Promise<Record<string, any>>;
-declare let pullProfileDocuments: (
-  options?: Record<string, any>
- ) => Promise<Record<string, any>>;
 declare let pullWorkoutsFromTable: (
   fallbackWorkouts?: Array<Record<string, any>>
 ) => Promise<Record<string, any>>;
@@ -86,43 +77,6 @@ test('stale profile document does not overwrite newer local training frequency',
     ];
     const merged = buildStateFromProfileDocuments(rows, localProfile, schedule);
     return merged.profile.preferences.trainingDaysPerWeek;
-  });
-
-  expect(result).toBe(2);
-});
-
-test('stale legacy profile blob does not overwrite newer local training frequency', async ({
-  page,
-}) => {
-  await openAppShell(page);
-
-  const result = await page.evaluate(() => {
-    clearDocKeysDirty([PROFILE_CORE_DOC_KEY]);
-    profile.preferences = normalizeTrainingPreferences({
-      preferences: {
-        ...getDefaultTrainingPreferences(),
-        trainingDaysPerWeek: 2,
-      },
-    });
-    profile.syncMeta = {
-      ...(profile.syncMeta || {}),
-      profileUpdatedAt: '2026-03-12T10:00:00.000Z',
-    };
-    const remoteProfile = {
-      defaultRest: 120,
-      language: 'en',
-      preferences: {
-        ...getDefaultTrainingPreferences(),
-        trainingDaysPerWeek: 3,
-      },
-      coaching: getDefaultCoachingProfile(),
-      activeProgram: 'forge',
-      syncMeta: {
-        profileUpdatedAt: '2026-03-12T09:00:00.000Z',
-      },
-    };
-    applyLegacyProfileBlob(remoteProfile, schedule, {});
-    return profile.preferences.trainingDaysPerWeek;
   });
 
   expect(result).toBe(2);
@@ -478,6 +432,44 @@ test('legacy runtime rejects profile-owned writes when the profile store bridge 
   expect(result.canonicalActiveProgram).toBe('forge');
 });
 
+test('legacy sync callers fail visibly when the sync runtime bridge is unavailable', async ({
+  page,
+}) => {
+  await openAppShell(page);
+
+  const result = await page.evaluate(async () => {
+    const runtimeWindow = window as Window & Record<string, any>;
+    const previousRuntime = runtimeWindow.__IRONFORGE_SYNC_RUNTIME__;
+    const previousShowToast = runtimeWindow.showToast;
+    const toastMessages: string[] = [];
+    let errorMessage = '';
+
+    runtimeWindow.showToast = (message: string) => {
+      toastMessages.push(String(message || ''));
+    };
+
+    try {
+      delete runtimeWindow.__IRONFORGE_SYNC_RUNTIME__;
+      await loadData({ allowCloudSync: false });
+    } catch (error) {
+      errorMessage = String((error as Error)?.message || error || '');
+    } finally {
+      runtimeWindow.__IRONFORGE_SYNC_RUNTIME__ = previousRuntime;
+      runtimeWindow.showToast = previousShowToast;
+    }
+
+    return {
+      errorMessage,
+      toastMessages,
+    };
+  });
+
+  expect(result.errorMessage).toContain('Sync runtime is not ready for loadData');
+  expect(result.toastMessages).toContain(
+    'Sync is still starting. Please try again in a moment.'
+  );
+});
+
 test('blank schedule sport name survives normalization instead of reverting to the locale default', async ({
   page,
 }) => {
@@ -738,93 +730,6 @@ test('setupRealtimeSync delegates subscription orchestration to the typed sync r
   expect(result.calls).toBe(1);
 });
 
-test('realtime legacy blob fallback finalizes active-program catch-up once', async ({
-  page,
-}) => {
-  await openAppShell(page);
-
-  const result = await page.evaluate(async () => {
-    const daysAgo = (count: number) =>
-      new Date(Date.now() - count * 24 * 60 * 60 * 1000).toISOString();
-    const originalFetchLegacyProfileBlob = fetchLegacyProfileBlob;
-    const originalPullProfileDocuments = pullProfileDocuments;
-    const originalPullWorkoutsFromTable = pullWorkoutsFromTable;
-    const originalCloudSyncEnabled = cloudSyncEnabled;
-    let fetchCalls = 0;
-    let docsCalls = 0;
-
-    try {
-      cloudSyncEnabled = true;
-      clearDocKeysDirty(getAllProfileDocumentKeys(profile));
-      profile.syncMeta = {
-        ...(profile.syncMeta || {}),
-        profileUpdatedAt: '2026-03-10T09:00:00.000Z',
-      };
-      const remoteProfile = {
-        ...structuredClone(profile),
-        activeProgram: 'forge',
-        programs: {
-          ...(structuredClone(profile.programs || {}) as Record<string, any>),
-          forge: {
-            ...window.__IRONFORGE_E2E__?.program?.getInitialState?.('forge'),
-            week: 1,
-            weekStartDate: daysAgo(15),
-          },
-        },
-        syncMeta: {
-          ...(profile.syncMeta || {}),
-          profileUpdatedAt: '2026-03-12T10:00:00.000Z',
-        },
-      };
-
-      fetchLegacyProfileBlob = async () => {
-        fetchCalls += 1;
-        return {
-        usedCloud: true,
-        profile: remoteProfile,
-        schedule: structuredClone(schedule),
-        updatedAt: '2026-03-12T10:00:00.000Z',
-        };
-      };
-      pullProfileDocuments = async () => {
-        docsCalls += 1;
-        return {
-        usedDocs: false,
-        supported: false,
-        };
-      };
-      pullWorkoutsFromTable = async (items?: Array<Record<string, any>>) => ({
-        usedTable: false,
-        didBackfill: false,
-        workouts: items || [],
-      });
-
-      await applyRealtimeSync('test');
-
-      return {
-        fetchCalls,
-        docsCalls,
-        activeProgram: profile?.activeProgram ?? null,
-        legacyWeek: profile?.programs?.forge?.week ?? null,
-        storeWeek:
-          (window as any).__IRONFORGE_STORES__?.profile?.getState?.().profile?.programs
-            ?.forge?.week ?? null,
-      };
-    } finally {
-      cloudSyncEnabled = originalCloudSyncEnabled;
-      fetchLegacyProfileBlob = originalFetchLegacyProfileBlob;
-      pullProfileDocuments = originalPullProfileDocuments;
-      pullWorkoutsFromTable = originalPullWorkoutsFromTable;
-    }
-  });
-
-  expect(result.fetchCalls).toBe(1);
-  expect(result.docsCalls).toBe(1);
-  expect(result.activeProgram).toBe('forge');
-  expect(result.legacyWeek).toBeGreaterThan(1);
-  expect(result.storeWeek).toBe(result.legacyWeek);
-});
-
 test('loadData bootstraps legacy ats and flat forge state through the typed runtime', async ({
   page,
 }) => {
@@ -940,6 +845,10 @@ test('profile document merge canonicalizes program ids and fills typed defaults'
         syncMeta: {
           ...(profile.syncMeta || {}),
           profileUpdatedAt: '2026-03-12T09:00:00.000Z',
+          programUpdatedAt: {
+            ...((profile.syncMeta || {}).programUpdatedAt || {}),
+            wendler531: '2026-03-12T09:00:00.000Z',
+          },
         },
       },
       schedule
@@ -963,65 +872,6 @@ test('profile document merge canonicalizes program ids and fills typed defaults'
     expect.objectContaining({ cycle: 2, week: 3 })
   );
   expect(result.hasLegacyAlias).toBe(false);
-});
-
-test('legacy profile blob apply uses the typed bootstrap rules for program ownership', async ({
-  page,
-}) => {
-  await openAppShell(page);
-
-  const result = await page.evaluate(() => {
-    clearDocKeysDirty(getAllProfileDocumentKeys(profile));
-    profile.syncMeta = {
-      ...(profile.syncMeta || {}),
-      profileUpdatedAt: '2026-03-12T09:00:00.000Z',
-    };
-    applyLegacyProfileBlob(
-      {
-        defaultRest: 120,
-        language: 'en',
-        activeProgram: 'wendler531',
-        programs: {
-          wendler531: { cycle: 3, week: 2, daysPerWeek: 4 },
-        },
-        preferences: getDefaultTrainingPreferences(),
-        coaching: getDefaultCoachingProfile(),
-        syncMeta: {
-          profileUpdatedAt: '2026-03-12T10:00:00.000Z',
-          scheduleUpdatedAt: '2026-03-12T10:00:00.000Z',
-        },
-      },
-      {
-        sportName: 'Hockey',
-        hockeyDays: [2, 4],
-        sportIntensity: 'easy',
-        sportLegsHeavy: true,
-      },
-      {}
-    );
-
-    return {
-      activeProgram: profile.activeProgram,
-      wendlerState: profile.programs?.wendler531 || null,
-      hasLegacyAlias: Object.prototype.hasOwnProperty.call(
-        profile.programs || {},
-        'w531'
-      ),
-      normalizedSchedule: structuredClone(schedule),
-    };
-  });
-
-  expect(result.activeProgram).toBe('wendler531');
-  expect(result.wendlerState).toEqual(
-    expect.objectContaining({ cycle: 3, week: 2 })
-  );
-  expect(result.hasLegacyAlias).toBe(false);
-  expect(result.normalizedSchedule).toEqual({
-    sportName: 'Cardio',
-    sportDays: [2, 4],
-    sportIntensity: 'easy',
-    sportLegsHeavy: true,
-  });
 });
 
 test('remote profile document normalizes malformed body metrics before applying them', async ({

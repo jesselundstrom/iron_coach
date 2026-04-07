@@ -20,8 +20,10 @@ Closeout checkpoints completed:
 - `core/nutrition-layer.js` is no longer part of the live page flow; its legacy globals are now provided by `src/stores/nutrition-store.ts`.
 - `core/dashboard-layer.js` is no longer part of the live page flow; dashboard helpers and compatibility delegates now live in typed runtime code.
 - bootstrap normalization for profile/program/schedule/workout startup data now runs through the typed runtime bridge and `src/domain/profile-bootstrap.ts` instead of being owned inline by `core/data-layer.js`.
-- workout persistence/table helpers now route through a typed workout-persistence runtime bridge, while `core/data-layer.js` still owns the surrounding sync/auth/profile-document orchestration for now.
-- load/bootstrap cloud pull-push orchestration and realtime sync subscription flow now route through a typed sync runtime bridge, while low-level profile-document merge helpers still live in `core/data-layer.js`.
+- workout persistence/table helpers now route through a typed workout-persistence runtime bridge, with legacy callers delegating into that typed surface.
+- load/bootstrap cloud pull-push orchestration, profile-document save/pull/merge sequencing, and realtime sync subscription flow now route through a typed sync runtime bridge.
+- the live profile sync path no longer falls back to the legacy `profiles` blob table; `profile_documents` is now the only live profile/schedule sync source.
+- CI now includes a second migration guardrail that blocks new typed `src/` regressions back to `profiles` blob reads/writes and blob-era helper names.
 
 ## Visible Shell Complete
 
@@ -80,14 +82,28 @@ Recent consolidation progress:
 - `profileStore` now has an atomic bootstrap hydrate path for `profile + schedule` together instead of relying on sequential store writes during typed bootstrap ownership.
 - workout local-cache writes and workout-table CRUD/merge helpers now live behind `window.__IRONFORGE_WORKOUT_PERSISTENCE_RUNTIME__`, with legacy callers delegating into that typed surface.
 - `window.__IRONFORGE_SYNC_RUNTIME__` now owns `loadData`, cloud pull/push orchestration, pending flush, and realtime subscription/timer flow, with legacy wrappers delegating into that typed surface.
+- typed bootstrap/load now queues a one-time `profile_documents` backfill when blob-era profile/program normalization changes the canonical document state, and that backfill flushes through the existing sync runtime path when cloud sync is available.
+- guarded pre-bridge sync failures now replace silent no-op behavior for migrated sync callers, with deterministic error handling instead of invisible state loss.
 - Forge and Wendler session build/progression hooks now accept explicit runtime context from the workout/program callers, and migrated start/preview/finish flows no longer rely on ambient training-frequency or session-readiness globals during active execution.
+- `src/app/services/app-runtime.ts` now owns settings-tab selection, settings account danger-state snapshotting, onboarding default/recommendation globals, and language-refresh orchestration, while `app.js` keeps only thin compatibility delegators for untouched callers.
+
+Recent hardening and contraction notes:
+
+- `core/data-layer.js` now delegates document sync ownership to the typed sync runtime even for blob-era bootstrap upgrades; normalized document writes are no longer left as local-only state when the runtime can persist them.
+- Sync-runtime startup ordering is now a hard migration rule: pre-bridge calls must hand off safely or fail visibly, and that behavior is covered by targeted tests.
+- `app.js` is now below the current contraction gate and no longer owns the deleted Settings snapshot/view builders, onboarding default/recommendation wrappers, or the language-refresh global.
+
+Explicit deferrals for the current `app.js` contraction phase:
+
+- workout overlay/session bridge ownership
+- service worker / PWA update logic
+- `core/program-layer.js` contraction
 
 Current migration sequencing for the remaining `core/data-layer.js` ownership work:
 
-- **Slice 1:** workouts ownership first
-- **Slice 2:** sync orchestration second
-- **Next focus:** reduce the remaining low-level merge helpers and shared mutable state in `core/data-layer.js`
-- **Keep profile/document merge behavior stable while these slices land**
+- **Closeout target:** keep `core/data-layer.js` at thin compatibility-wrapper scope only
+- **Allowed remainder:** auth/session entrypoints, runtime reset/local-cache helpers, and compatibility exports still used by auth runtime or untouched legacy callers
+- **Keep profile/document merge behavior stable while follow-up cleanup lands**
 - **Reduce direct test dependence on `window.workouts` / `window.profile` / `window.schedule` as typed seams become available**
 
 ## Current Baseline

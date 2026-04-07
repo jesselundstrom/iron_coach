@@ -160,6 +160,7 @@ function SettingsAccountIsland() {
               id="danger-zone-input"
               className="danger-zone-input"
               placeholder="DELETE"
+              autoFocus
               autoComplete="off"
               spellCheck="false"
               value={formValues.dangerInput}

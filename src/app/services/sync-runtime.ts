@@ -1,3 +1,15 @@
+import { PROFILE_DOCUMENT_KEYS } from '../../domain/config';
+import {
+  buildStateFromProfileDocuments,
+  getAllProfileDocumentKeys,
+  programIdFromDocKey,
+  resolveProfileSaveDocKeys,
+  toProfileDocumentRows,
+  uniqueDocKeys,
+  type BuildStateFromProfileDocumentsInput,
+  type ProfileDocumentRow,
+} from './profile-documents';
+
 type MutableRecord = Record<string, unknown>;
 
 type RealtimeChannelLike = {
@@ -7,6 +19,27 @@ type RealtimeChannelLike = {
     callback: () => void
   ) => RealtimeChannelLike;
   subscribe: () => unknown;
+};
+
+type SupabaseResultLike = {
+  data?: unknown;
+  error?: unknown;
+};
+
+type SupabaseFilterLike = {
+  eq?: (column: string, value: unknown) => SupabaseFilterLike;
+  order?: (column: string, options?: Record<string, unknown>) => Promise<unknown>;
+};
+
+type SupabaseTableLike = {
+  select?: (columns: string) => SupabaseFilterLike;
+};
+
+type SupabaseClientLike = {
+  from?: (table: string) => SupabaseTableLike;
+  rpc?: (fn: string, args?: Record<string, unknown>) => Promise<unknown>;
+  channel?: (name: string) => RealtimeChannelLike;
+  removeChannel?: (channel: unknown) => void;
 };
 
 type SyncRuntimeState = {
@@ -22,6 +55,18 @@ type SyncCloudPullResult = {
   usedCloud: boolean;
   usedDocs: boolean;
   requiresBootstrapFinalize: boolean;
+};
+
+type SyncProfileDocumentPullResult = {
+  usedDocs: boolean;
+  supported: boolean;
+};
+
+type SyncProfileDocumentWriteResult = {
+  ok: boolean;
+  appliedDocKeys: string[];
+  staleDocKeys: string[];
+  rows: Array<Record<string, unknown>>;
 };
 
 type SyncRuntimeDeps = {
@@ -48,6 +93,7 @@ type SyncRuntimeDeps = {
     };
   };
   setLanguage?: (language?: string) => string;
+  getDefaultLanguage?: () => string;
   restoreActiveWorkoutDraft?: (
     draft?: Record<string, unknown> | null,
     options?: Record<string, unknown>
@@ -59,8 +105,6 @@ type SyncRuntimeDeps = {
     items?: Array<Record<string, unknown>>,
     options?: Record<string, unknown>
   ) => Promise<void>;
-  saveScheduleData: (options?: Record<string, unknown>) => Promise<void>;
-  saveProfileData: (options?: Record<string, unknown>) => Promise<void>;
   buildExerciseIndex: () => void;
   applyTranslations?: () => void;
   renderSyncStatus: () => void;
@@ -69,51 +113,57 @@ type SyncRuntimeDeps = {
   isCloudSyncEnabled: () => boolean;
   isBrowserOffline: () => boolean;
   setSyncStatus: (state: string) => void;
-  fetchLegacyProfileBlob: () => Promise<{
-    usedCloud: boolean;
-    profile?: MutableRecord;
-    schedule?: MutableRecord;
-    updatedAt?: string | null;
-  }>;
-  pullProfileDocuments: (options?: Record<string, unknown>) => Promise<{
-    usedDocs: boolean;
-    supported: boolean;
-  }>;
-  applyLegacyProfileBlob: (
-    remoteProfile?: MutableRecord,
-    remoteSchedule?: MutableRecord,
-    options?: Record<string, unknown>
-  ) => void;
-  updateLegacyProfileStamp: (updatedAt?: string | null) => void;
   getProfileDocumentsSupported: () => boolean | null;
-  upsertProfileDocuments: (
-    docKeys: string[],
-    profileLike?: MutableRecord | null,
-    scheduleLike?: MutableRecord | null,
-    options?: Record<string, unknown>
-  ) => Promise<{
-    ok: boolean;
-    staleDocKeys: string[];
-  }>;
-  getAllProfileDocumentKeys: (
-    profileLike?: MutableRecord | null
-  ) => string[];
-  finalizeProfileBootstrapAfterCloudPull: () => unknown;
+  setProfileDocumentsSupported: (value: boolean | null) => void;
   persistLocalProfileCache: () => void;
   persistLocalScheduleCache: () => void;
   persistLocalWorkoutsCache: () => void;
   refreshSyncedUI: (options?: Record<string, unknown>) => void;
+  markDocKeysDirty: (docKeys: string[]) => void;
   clearDocKeysDirty: (docKeys: string[]) => void;
-  uniqueDocKeys: (docKeys: string[]) => string[];
   getDirtyDocKeys: () => string[];
-  pushLegacyProfileBlob: () => Promise<boolean>;
-  supabaseClient?: {
-    channel?: (name: string) => RealtimeChannelLike;
-    removeChannel?: (channel: unknown) => void;
-  } | null;
+  getPendingBackfillDocKeys: () => string[];
+  markPendingBackfillDocKeys: (docKeys: string[]) => void;
+  clearPendingBackfillDocKeys: (docKeys?: string[]) => void;
+  updateServerDocStamp: (docKey: string, updatedAt?: string | null) => void;
+  isDocKeyDirty: (docKey: string) => boolean;
+  runSupabaseWrite: (
+    operationPromise: Promise<unknown>,
+    context: string,
+    options?: Record<string, unknown>
+  ) => Promise<{ ok: boolean; error?: unknown; data?: unknown }>;
+  logWarn?: (context: string, error: unknown) => void;
+  supabaseClient?: SupabaseClientLike | null;
 };
 
 type SyncRuntimeApi = {
+  resolveProfileSaveDocKeys: (
+    options?: Record<string, unknown>,
+    deps?: SyncRuntimeDeps
+  ) => string[];
+  buildStateFromProfileDocuments: (
+    input?: BuildStateFromProfileDocumentsInput,
+    deps?: SyncRuntimeDeps
+  ) => ReturnType<typeof buildStateFromProfileDocuments>;
+  saveScheduleData: (
+    options?: Record<string, unknown>,
+    deps?: SyncRuntimeDeps
+  ) => Promise<void>;
+  saveProfileData: (
+    options?: Record<string, unknown>,
+    deps?: SyncRuntimeDeps
+  ) => Promise<void>;
+  upsertProfileDocuments: (
+    docKeys?: string[],
+    profileLike?: MutableRecord | null,
+    scheduleLike?: MutableRecord | null,
+    options?: Record<string, unknown>,
+    deps?: SyncRuntimeDeps
+  ) => Promise<SyncProfileDocumentWriteResult>;
+  pullProfileDocuments: (
+    options?: Record<string, unknown>,
+    deps?: SyncRuntimeDeps
+  ) => Promise<SyncProfileDocumentPullResult>;
   loadData: (options?: Record<string, unknown>, deps?: SyncRuntimeDeps) => Promise<void>;
   pushToCloud: (options?: Record<string, unknown>, deps?: SyncRuntimeDeps) => Promise<boolean>;
   flushPendingCloudSync: (deps?: SyncRuntimeDeps) => Promise<boolean>;
@@ -163,8 +213,318 @@ function getState(deps?: SyncRuntimeDeps) {
   };
 }
 
-async function pullFromCloudInternal(
+function ensureProfileSyncMeta(profileLike?: MutableRecord | null) {
+  const target = profileLike && typeof profileLike === 'object' ? profileLike : {};
+  if (!target.syncMeta || typeof target.syncMeta !== 'object') {
+    target.syncMeta = {};
+  }
+  return target.syncMeta as MutableRecord;
+}
+
+function ensureProgramSyncMeta(profileLike?: MutableRecord | null) {
+  const syncMeta = ensureProfileSyncMeta(profileLike);
+  if (!syncMeta.programUpdatedAt || typeof syncMeta.programUpdatedAt !== 'object') {
+    syncMeta.programUpdatedAt = {};
+  }
+  return syncMeta.programUpdatedAt as MutableRecord;
+}
+
+function touchSectionSync(profileLike: MutableRecord, syncKey: string) {
+  ensureProfileSyncMeta(profileLike)[syncKey] = new Date().toISOString();
+}
+
+function touchProgramSync(profileLike: MutableRecord, programId: string) {
+  if (!programId) return;
+  ensureProgramSyncMeta(profileLike)[programId] = new Date().toISOString();
+}
+
+function getSupabaseResultError(result: unknown) {
+  return result && typeof result === 'object' && 'error' in result
+    ? ((result as SupabaseResultLike).error ?? null)
+    : null;
+}
+
+function getBootstrapBackfillDocKeys(input: {
+  previousProfile?: MutableRecord | null;
+  previousSchedule?: MutableRecord | null;
+  nextProfile?: MutableRecord | null;
+  nextSchedule?: MutableRecord | null;
+  profileChanged?: boolean;
+  scheduleChanged?: boolean;
+}) {
+  const docKeys: string[] = [];
+  if (input.profileChanged) {
+    docKeys.push(
+      ...getAllProfileDocumentKeys(input.nextProfile).filter(
+        (docKey) => docKey !== PROFILE_DOCUMENT_KEYS.schedule
+      )
+    );
+  }
+  if (
+    input.scheduleChanged ||
+    JSON.stringify(input.previousSchedule || null) !==
+      JSON.stringify(input.nextSchedule || null)
+  ) {
+    docKeys.push(PROFILE_DOCUMENT_KEYS.schedule);
+  }
+  return uniqueDocKeys(docKeys);
+}
+
+async function queueBootstrapBackfill(
+  docKeys: string[],
+  deps?: SyncRuntimeDeps
+) {
+  if (!deps || !docKeys.length) return;
+  const scheduleDocRequested = docKeys.includes(PROFILE_DOCUMENT_KEYS.schedule);
+  const profileDocKeys = docKeys.filter(
+    (docKey) => docKey !== PROFILE_DOCUMENT_KEYS.schedule
+  );
+  const programIds = profileDocKeys
+    .map((docKey) => programIdFromDocKey(docKey))
+    .filter(Boolean) as string[];
+
+  if (scheduleDocRequested) {
+    await saveScheduleDataInternal({ touchSync: true, push: false }, deps);
+  }
+  if (profileDocKeys.length) {
+    await saveProfileDataInternal(
+      {
+        docKeys: profileDocKeys,
+        programIds,
+        touchSync: true,
+        push: false,
+      },
+      deps
+    );
+  }
+  deps.markPendingBackfillDocKeys(docKeys);
+}
+
+function buildStateFromProfileDocumentsInternal(
+  input?: BuildStateFromProfileDocumentsInput,
+  deps?: SyncRuntimeDeps
+) {
+  const state = getState(deps);
+  return buildStateFromProfileDocuments({
+    ...input,
+    currentSchedule: state.schedule,
+    isDocKeyDirty: deps?.isDocKeyDirty,
+    bootstrapProfileRuntimeState:
+      input?.bootstrapProfileRuntimeState || deps?.bootstrapProfileRuntimeState || (() => ({
+        profile: {},
+        schedule: {},
+        workouts: [],
+      })),
+  });
+}
+
+async function upsertProfileDocumentsInternal(
+  docKeys?: string[],
+  profileLike?: MutableRecord | null,
+  scheduleLike?: MutableRecord | null,
   options?: Record<string, unknown>,
+  deps?: SyncRuntimeDeps
+): Promise<SyncProfileDocumentWriteResult> {
+  const state = getState(deps);
+  if (!deps || !state.currentUser || !deps.isCloudSyncEnabled()) {
+    return { ok: false, appliedDocKeys: [], staleDocKeys: [], rows: [] };
+  }
+  const supabase = deps.supabaseClient;
+  if (typeof supabase?.rpc !== 'function') {
+    deps.setProfileDocumentsSupported(false);
+    return { ok: false, appliedDocKeys: [], staleDocKeys: [], rows: [] };
+  }
+
+  const rows = toProfileDocumentRows({
+    docKeys,
+    profileLike,
+    scheduleLike,
+    defaultLanguage: deps.getDefaultLanguage?.(),
+  });
+  if (!rows.length) {
+    return { ok: true, appliedDocKeys: [], staleDocKeys: [], rows: [] };
+  }
+
+  const result = await deps.runSupabaseWrite(
+    supabase.rpc('upsert_profile_documents_if_newer', {
+      _docs: rows,
+    }),
+    'Failed to upsert profile documents',
+    options
+  );
+  deps.setProfileDocumentsSupported(result.ok);
+  if (!result.ok) {
+    return { ok: false, appliedDocKeys: [], staleDocKeys: [], rows: [] };
+  }
+
+  const returnedRows = Array.isArray(result.data)
+    ? (result.data as Array<Record<string, unknown>>)
+    : [];
+  const rowsByKey = new Map(
+    returnedRows.map((row) => [String(row?.doc_key || ''), row])
+  );
+  const appliedDocKeys: string[] = [];
+  const staleDocKeys: string[] = [];
+
+  rows.forEach((row) => {
+    const serverRow = rowsByKey.get(String(row.doc_key || ''));
+    if (serverRow) {
+      deps.updateServerDocStamp(
+        String(serverRow.doc_key || ''),
+        String(serverRow.updated_at || '') || null
+      );
+    }
+    if (!serverRow || serverRow.applied === false) {
+      staleDocKeys.push(row.doc_key);
+      return;
+    }
+    appliedDocKeys.push(row.doc_key);
+  });
+
+  deps.clearDocKeysDirty(appliedDocKeys);
+  deps.clearPendingBackfillDocKeys(appliedDocKeys);
+  return {
+    ok: true,
+    appliedDocKeys,
+    staleDocKeys,
+    rows: returnedRows,
+  };
+}
+
+async function pullProfileDocumentsInternal(
+  options?: Record<string, unknown>,
+  deps?: SyncRuntimeDeps
+): Promise<SyncProfileDocumentPullResult> {
+  const state = getState(deps);
+  if (!deps || !state.currentUser || !deps.isCloudSyncEnabled()) {
+    return { usedDocs: false, supported: false };
+  }
+  const supabase = deps.supabaseClient;
+  if (typeof supabase?.from !== 'function') {
+    deps.setProfileDocumentsSupported(false);
+    return { usedDocs: false, supported: false };
+  }
+
+  try {
+    const table = supabase.from('profile_documents');
+    const result = (await (table
+      .select?.('doc_key,payload,client_updated_at,updated_at')
+      .eq?.('user_id', state.currentUser.id))) as SupabaseResultLike;
+    const error = getSupabaseResultError(result);
+    if (error) {
+      if (deps.getProfileDocumentsSupported() !== false) {
+        deps.logWarn?.('Failed to pull profile documents', error);
+      }
+      deps.setProfileDocumentsSupported(false);
+      return { usedDocs: false, supported: false };
+    }
+
+    deps.setProfileDocumentsSupported(true);
+    const rows = Array.isArray(result.data)
+      ? (result.data as ProfileDocumentRow[])
+      : [];
+    if (!rows.length) {
+      return { usedDocs: false, supported: true };
+    }
+
+    const next = buildStateFromProfileDocumentsInternal(
+      {
+        rows,
+        fallbackProfile: (options?.legacyProfile as MutableRecord | null) || state.profile,
+        fallbackSchedule:
+          (options?.legacySchedule as MutableRecord | null) || state.schedule,
+        workoutItems: state.workouts,
+      },
+      deps
+    );
+    deps.writeState({
+      profile: cloneJson(next.profile),
+      schedule: cloneJson(next.schedule),
+    });
+
+    rows.forEach((row) => {
+      deps.updateServerDocStamp(
+        String(row?.doc_key || ''),
+        String(row?.updated_at || '') || null
+      );
+    });
+
+    const desiredDocKeys = getAllProfileDocumentKeys(next.profile);
+    const missingDocKeys = desiredDocKeys.filter(
+      (docKey) => !next.rowsByKey.has(docKey)
+    );
+    if (missingDocKeys.length) {
+      await upsertProfileDocumentsInternal(
+        missingDocKeys,
+        next.profile,
+        next.schedule,
+        { notifyUser: false },
+        deps
+      );
+    }
+
+    return { usedDocs: true, supported: true };
+  } catch (error) {
+    if (deps.getProfileDocumentsSupported() !== false) {
+      deps.logWarn?.('Failed to pull profile documents', error);
+    }
+    deps.setProfileDocumentsSupported(false);
+    return { usedDocs: false, supported: false };
+  }
+}
+
+async function saveScheduleDataInternal(
+  options?: Record<string, unknown>,
+  deps?: SyncRuntimeDeps
+) {
+  if (!deps) return;
+  const state = getState(deps);
+  const opts = options || {};
+  const nextProfile = cloneJson(state.profile || {}) || {};
+  if (opts.touchSync !== false) {
+    touchSectionSync(nextProfile, 'scheduleUpdatedAt');
+  }
+  deps.writeState({ profile: nextProfile });
+  deps.markDocKeysDirty([PROFILE_DOCUMENT_KEYS.schedule]);
+  deps.persistLocalScheduleCache();
+  deps.persistLocalProfileCache();
+  if (opts.push !== false && deps.isCloudSyncEnabled()) {
+    await pushToCloudInternal({ docKeys: [PROFILE_DOCUMENT_KEYS.schedule] }, deps);
+  }
+}
+
+async function saveProfileDataInternal(
+  options?: Record<string, unknown>,
+  deps?: SyncRuntimeDeps
+) {
+  if (!deps) return;
+  const state = getState(deps);
+  const opts = options || {};
+  const nextProfile = cloneJson(state.profile || {}) || {};
+  const docKeys = resolveProfileSaveDocKeys(
+    nextProfile,
+    opts as Record<string, unknown>
+  );
+  if (opts.touchSync !== false) {
+    if (Array.isArray(opts.programIds) && opts.programIds.length) {
+      opts.programIds.forEach((programId) =>
+        touchProgramSync(nextProfile, String(programId || ''))
+      );
+      touchSectionSync(nextProfile, 'profileUpdatedAt');
+    } else {
+      touchSectionSync(nextProfile, 'profileUpdatedAt');
+    }
+  }
+  deps.writeState({ profile: nextProfile });
+  deps.markDocKeysDirty(docKeys);
+  deps.persistLocalProfileCache();
+  if (opts.push !== false && deps.isCloudSyncEnabled()) {
+    await pushToCloudInternal({ docKeys }, deps);
+  }
+}
+
+async function pullFromCloudInternal(
+  _options?: Record<string, unknown>,
   deps?: SyncRuntimeDeps
 ): Promise<SyncCloudPullResult> {
   if (!deps) {
@@ -174,7 +534,6 @@ async function pullFromCloudInternal(
       requiresBootstrapFinalize: false,
     };
   }
-  const opts = options || {};
   const state = getState(deps);
   if (!state.currentUser || !deps.isCloudSyncEnabled()) {
     return {
@@ -185,11 +544,7 @@ async function pullFromCloudInternal(
   }
 
   deps.setSyncStatus('syncing');
-  const legacySnapshot = await deps.fetchLegacyProfileBlob();
-  const docsResult = await deps.pullProfileDocuments({
-    legacyProfile: legacySnapshot.profile,
-    legacySchedule: legacySnapshot.schedule,
-  });
+  const docsResult = await pullProfileDocumentsInternal(undefined, deps);
   if (docsResult.usedDocs) {
     deps.setSyncStatus('synced');
     return {
@@ -199,35 +554,13 @@ async function pullFromCloudInternal(
     };
   }
 
-  if (legacySnapshot.usedCloud) {
-    deps.applyLegacyProfileBlob(
-      legacySnapshot.profile || {},
-      legacySnapshot.schedule || {},
-      {
-        preferRemoteWhenUnset: true,
-      }
-    );
-    deps.updateLegacyProfileStamp(legacySnapshot.updatedAt || null);
-
-    if (deps.getProfileDocumentsSupported() !== false) {
-      const nextState = getState(deps);
-      await deps.upsertProfileDocuments(
-        deps.getAllProfileDocumentKeys(nextState.profile),
-        nextState.profile,
-        nextState.schedule,
-        { notifyUser: false }
-      );
-    }
-
-    deps.setSyncStatus('synced');
-    return {
-      usedCloud: true,
-      usedDocs: false,
-      requiresBootstrapFinalize: opts.finalizeBootstrap === true,
-    };
-  }
-
-  deps.setSyncStatus(deps.isBrowserOffline() ? 'offline' : 'synced');
+  deps.setSyncStatus(
+    deps.isBrowserOffline()
+      ? 'offline'
+      : docsResult.supported === false
+        ? 'error'
+        : 'synced'
+  );
   return {
     usedCloud: false,
     usedDocs: false,
@@ -240,7 +573,7 @@ async function resolveStaleProfileDocumentRejectsInternal(
   deps?: SyncRuntimeDeps
 ) {
   if (!deps) return false;
-  const nextStaleDocKeys = deps.uniqueDocKeys(staleDocKeys || []);
+  const nextStaleDocKeys = uniqueDocKeys(staleDocKeys || []);
   const state = getState(deps);
   if (
     !nextStaleDocKeys.length ||
@@ -254,13 +587,7 @@ async function resolveStaleProfileDocumentRejectsInternal(
   deps.clearDocKeysDirty(nextStaleDocKeys);
   const beforeProfile = JSON.stringify(state.profile || {});
   const beforeSchedule = JSON.stringify(state.schedule || {});
-  const pullResult = await pullFromCloudInternal(
-    { finalizeBootstrap: true },
-    deps
-  );
-  if (pullResult.requiresBootstrapFinalize) {
-    deps.finalizeProfileBootstrapAfterCloudPull();
-  }
+  const pullResult = await pullFromCloudInternal(undefined, deps);
   const nextState = getState(deps);
   const changed =
     beforeProfile !== JSON.stringify(nextState.profile || {}) ||
@@ -288,29 +615,35 @@ async function pushToCloudInternal(
   }
 
   const opts = options || {};
-  const docKeys =
+  const requestedDocKeys =
     (Array.isArray(opts.docKeys) ? (opts.docKeys as string[]) : null) ||
-    deps.getAllProfileDocumentKeys(state.profile);
+    getAllProfileDocumentKeys(state.profile);
+  const docKeys = uniqueDocKeys([
+    ...requestedDocKeys,
+    ...(deps.getPendingBackfillDocKeys?.() || []),
+  ]);
   deps.setSyncStatus('syncing');
-  const writeResult = await deps.upsertProfileDocuments(
+  const writeResult = await upsertProfileDocumentsInternal(
     docKeys,
     state.profile,
     state.schedule,
-    { notifyUser: false }
+    { notifyUser: false },
+    deps
   );
-  if (writeResult.ok) {
-    let resolvedStaleRejects = true;
-    if (writeResult.staleDocKeys.length) {
-      resolvedStaleRejects = await resolveStaleProfileDocumentRejectsInternal(
-        writeResult.staleDocKeys,
-        deps
-      );
-    }
-    deps.setSyncStatus(resolvedStaleRejects ? 'synced' : 'error');
-    return true;
+  if (!writeResult.ok) {
+    deps.setSyncStatus('error');
+    return false;
   }
 
-  return await deps.pushLegacyProfileBlob();
+  let resolvedStaleRejects = true;
+  if (writeResult.staleDocKeys.length) {
+    resolvedStaleRejects = await resolveStaleProfileDocumentRejectsInternal(
+      writeResult.staleDocKeys,
+      deps
+    );
+  }
+  deps.setSyncStatus(resolvedStaleRejects ? 'synced' : 'error');
+  return true;
 }
 
 async function flushPendingCloudSyncInternal(deps?: SyncRuntimeDeps) {
@@ -324,8 +657,12 @@ async function flushPendingCloudSyncInternal(deps?: SyncRuntimeDeps) {
     return false;
   }
   const dirtyDocKeys = deps.getDirtyDocKeys();
-  if (!dirtyDocKeys.length) return true;
-  return await pushToCloudInternal({ docKeys: dirtyDocKeys }, deps);
+  const docKeys = uniqueDocKeys([
+    ...dirtyDocKeys,
+    ...(deps.getPendingBackfillDocKeys?.() || []),
+  ]);
+  if (!docKeys.length) return true;
+  return await pushToCloudInternal({ docKeys }, deps);
 }
 
 async function loadDataInternal(
@@ -370,7 +707,7 @@ async function loadDataInternal(
     schedule: preBootstrapState.schedule,
     workouts: preBootstrapState.workouts,
   });
-  let nextProfile = cloneJson(bootstrapResult.profile);
+  const nextProfile = cloneJson(bootstrapResult.profile);
   if (typeof deps.setLanguage === 'function') {
     nextProfile.language = deps.setLanguage(String(nextProfile.language || ''));
   }
@@ -379,9 +716,20 @@ async function loadDataInternal(
     schedule: cloneJson(bootstrapResult.schedule),
     workouts: cloneJson(bootstrapResult.workouts),
   });
+  const bootstrapBackfillDocKeys = getBootstrapBackfillDocKeys({
+    previousProfile: preBootstrapState.profile,
+    previousSchedule: preBootstrapState.schedule,
+    nextProfile,
+    nextSchedule: bootstrapResult.schedule,
+    profileChanged: bootstrapResult.changed.profile,
+    scheduleChanged: bootstrapResult.changed.schedule,
+  });
 
   const postBootstrapState = getState(deps);
-  if (!postBootstrapState.activeWorkout && typeof deps.restoreActiveWorkoutDraft === 'function') {
+  if (
+    !postBootstrapState.activeWorkout &&
+    typeof deps.restoreActiveWorkoutDraft === 'function'
+  ) {
     const restored = deps.restoreActiveWorkoutDraft(
       deps.getActiveWorkoutDraftCache(),
       { toast: false }
@@ -396,11 +744,22 @@ async function loadDataInternal(
       await deps.upsertWorkoutRecords(nextState.workouts);
     }
   }
-  if (bootstrapResult.changed.schedule) {
-    await deps.saveScheduleData({ touchSync: true, push: false });
-  }
-  if (bootstrapResult.changed.profile) {
-    await deps.saveProfileData({ touchSync: true, push: false });
+  if (bootstrapBackfillDocKeys.length) {
+    await queueBootstrapBackfill(bootstrapBackfillDocKeys, deps);
+    if (
+      getState(deps).currentUser &&
+      deps.isCloudSyncEnabled() &&
+      !deps.isBrowserOffline()
+    ) {
+      await flushPendingCloudSyncInternal(deps);
+    }
+  } else {
+    if (bootstrapResult.changed.schedule) {
+      await saveScheduleDataInternal({ touchSync: true, push: false }, deps);
+    }
+    if (bootstrapResult.changed.profile) {
+      await saveProfileDataInternal({ touchSync: true, push: false }, deps);
+    }
   }
 
   const finalState = getState(deps);
@@ -433,10 +792,7 @@ async function applyRealtimeSyncInternal(
     const beforeSchedule = JSON.stringify(beforeState.schedule || {});
     const beforeWorkouts = JSON.stringify(beforeState.workouts || []);
 
-    const pullResult = await pullFromCloudInternal(
-      { finalizeBootstrap: true },
-      deps
-    );
+    await pullFromCloudInternal(undefined, deps);
     const pullState = getState(deps);
     const tableResult = await deps.pullWorkoutsFromTable(pullState.workouts);
     if (
@@ -444,9 +800,6 @@ async function applyRealtimeSyncInternal(
       Array.isArray(tableResult.workouts)
     ) {
       deps.writeState({ workouts: cloneJson(tableResult.workouts) });
-    }
-    if (pullResult.requiresBootstrapFinalize) {
-      deps.finalizeProfileBootstrapAfterCloudPull();
     }
 
     const nextState = getState(deps);
@@ -522,16 +875,6 @@ function setupRealtimeSyncInternal(deps?: SyncRuntimeDeps) {
       },
       () => scheduleRealtimeSyncInternal('profile-documents', deps)
     )
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'profiles',
-        filter: `id=eq.${String(state.currentUser.id || '')}`,
-      },
-      () => scheduleRealtimeSyncInternal('legacy-profile', deps)
-    )
     .subscribe();
 }
 
@@ -543,6 +886,16 @@ export function installSyncRuntimeBridge() {
   }
 
   const api: SyncRuntimeApi = {
+    resolveProfileSaveDocKeys: (options, deps) =>
+      resolveProfileSaveDocKeys(getState(deps).profile, options || {}),
+    buildStateFromProfileDocuments: (input, deps) =>
+      buildStateFromProfileDocumentsInternal(input, deps),
+    saveScheduleData: (options, deps) => saveScheduleDataInternal(options, deps),
+    saveProfileData: (options, deps) => saveProfileDataInternal(options, deps),
+    upsertProfileDocuments: (docKeys, profileLike, scheduleLike, options, deps) =>
+      upsertProfileDocumentsInternal(docKeys, profileLike, scheduleLike, options, deps),
+    pullProfileDocuments: (options, deps) =>
+      pullProfileDocumentsInternal(options, deps),
     loadData: (options, deps) => loadDataInternal(options, deps),
     pushToCloud: (options, deps) => pushToCloudInternal(options, deps),
     flushPendingCloudSync: (deps) => flushPendingCloudSyncInternal(deps),

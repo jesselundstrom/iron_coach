@@ -47,6 +47,10 @@ export function importData(event: Event) {
 }
 
 export function checkDangerConfirm(nextValue: string) {
+  if (typeof getAppRuntime()?.checkDangerConfirm === 'function') {
+    getAppRuntime()?.checkDangerConfirm?.(nextValue);
+    return;
+  }
   callLegacyWindowFunction('checkDangerConfirm', nextValue);
 }
 
@@ -55,6 +59,10 @@ export function clearAllData() {
 }
 
 export function showDangerConfirm() {
+  if (typeof getAppRuntime()?.showDangerConfirm === 'function') {
+    getAppRuntime()?.showDangerConfirm?.();
+    return;
+  }
   callLegacyWindowFunction('showDangerConfirm');
 }
 

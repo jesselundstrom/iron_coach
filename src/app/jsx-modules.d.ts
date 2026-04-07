@@ -330,6 +330,14 @@ declare global {
       buildSettingsProgramView?: () => Record<string, unknown>;
       buildSettingsPreferencesView?: () => Record<string, unknown>;
       buildSettingsBodyView?: () => Record<string, unknown>;
+      getSettingsAccountUiStateSnapshot?: () => {
+        dangerOpen: boolean;
+        dangerInput: string;
+      };
+      showSettingsTab?: (tab?: string) => void;
+      showDangerConfirm?: () => void;
+      checkDangerConfirm?: (nextValue?: string) => void;
+      resetSettingsAccountUiState?: () => void;
       getLegacyRuntimeState?: () => Record<string, unknown>;
       setLegacyRuntimeState?: (partial: Record<string, unknown>) => void;
       bootstrapProfileRuntime?: (input?: {
@@ -363,6 +371,45 @@ declare global {
       updateLanguageDependentUI?: () => void;
     };
     __IRONFORGE_SYNC_RUNTIME__?: {
+      resolveProfileSaveDocKeys?: (
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => string[];
+      buildStateFromProfileDocuments?: (
+        input?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => {
+        profile: Record<string, unknown>;
+        schedule: Record<string, unknown>;
+        rowsByKey: Map<string, Record<string, unknown>>;
+      };
+      saveScheduleData?: (
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      saveProfileData?: (
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Promise<void>;
+      upsertProfileDocuments?: (
+        docKeys?: string[],
+        profileLike?: Record<string, unknown> | null,
+        scheduleLike?: Record<string, unknown> | null,
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Promise<{
+        ok: boolean;
+        appliedDocKeys: string[];
+        staleDocKeys: string[];
+        rows: Array<Record<string, unknown>>;
+      }>;
+      pullProfileDocuments?: (
+        options?: Record<string, unknown>,
+        deps?: Record<string, unknown>
+      ) => Promise<{
+        usedDocs: boolean;
+        supported: boolean;
+      }>;
       loadData?: (
         options?: Record<string, unknown>,
         deps?: Record<string, unknown>
