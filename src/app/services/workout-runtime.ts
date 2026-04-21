@@ -1176,7 +1176,21 @@ export function buildWorkoutFinishPlan(
     },
     {
       parseLoggedRepCount: deps?.parseLoggedRepCount,
-      buildCoachNote,
+      buildCoachNote: (
+        summaryMeta: Record<string, unknown>,
+        stateBefore: Record<string, unknown> | null,
+        stateAfter: Record<string, unknown> | null,
+        workout: Record<string, unknown> | null
+      ) =>
+        buildCoachNote(
+          {
+            summaryData: summaryMeta,
+            stateBeforeSession: stateBefore,
+            advancedState: stateAfter,
+            workout,
+          },
+          { t: deps?.t }
+        ),
     }
   );
   const finishTeardownPlan = buildWorkoutTeardownPlan(

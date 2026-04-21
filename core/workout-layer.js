@@ -1094,7 +1094,6 @@ function normalizeEnergyLevel(value) {
 
 let pendingSportReadinessCallback = null;
 let pendingSportCheckPromptState = null;
-let pendingSummaryPromptState = null;
 let pendingSportReadinessLevel = 'none';
 let pendingSportReadinessTiming = 'none';
 let pendingSportReadinessTimingTouched = false;
@@ -1157,38 +1156,9 @@ function notifySportCheckOverlayShell() {
   }
 }
 
-function notifySummaryOverlayShell() {
-  if (typeof window.syncWorkoutSessionBridge === 'function') {
-    window.syncWorkoutSessionBridge();
-  }
-}
-
 function getSportCheckPromptSnapshot() {
   return pendingSportCheckPromptState
     ? { ...pendingSportCheckPromptState }
-    : null;
-}
-
-function getSessionSummaryPromptSnapshot() {
-  return pendingSummaryPromptState
-    ? {
-        ...pendingSummaryPromptState,
-        stats: Array.isArray(pendingSummaryPromptState.stats)
-          ? pendingSummaryPromptState.stats.map((stat) => ({ ...stat }))
-          : [],
-        feedbackOptions: Array.isArray(
-          pendingSummaryPromptState.feedbackOptions
-        )
-          ? pendingSummaryPromptState.feedbackOptions.map((option) => ({
-              ...option,
-            }))
-          : [],
-        summaryData:
-          pendingSummaryPromptState.summaryData &&
-          typeof pendingSummaryPromptState.summaryData === 'object'
-            ? { ...pendingSummaryPromptState.summaryData }
-            : null,
-      }
     : null;
 }
 
@@ -1197,7 +1167,6 @@ window.setSelectedWorkoutStartOption = setSelectedWorkoutStartOption;
 window.getSelectedBonusDuration = getSelectedBonusDuration;
 window.setSelectedBonusDuration = setSelectedBonusDuration;
 window.getSportCheckPromptSnapshot = getSportCheckPromptSnapshot;
-window.getSessionSummaryPromptSnapshot = getSessionSummaryPromptSnapshot;
 
 const baseWorkoutSessionBridgeSync =
   typeof window.syncWorkoutSessionBridge === 'function'
@@ -5024,83 +4993,6 @@ function startSessionSummaryCelebration(modal, summaryData) {
 }
 window.startSessionSummaryCelebration = startSessionSummaryCelebration;
 
-function showSessionSummary(summaryData) {
-  return new Promise((resolve) => {
-    const canLogNutrition =
-      typeof window.isNutritionCoachAvailable === 'function'
-        ? window.isNutritionCoachAvailable()
-        : !!currentUser;
-    pendingSummaryPromptState =
-      getWorkoutRuntime().buildSessionSummaryPromptState(
-        {
-          summaryData,
-          canLogNutrition,
-          seed: Date.now(),
-        },
-        {
-          t: i18nText,
-          formatDuration: formatWorkoutDuration,
-          formatTonnage: formatWorkoutTonnage,
-        }
-      );
-    notifySummaryOverlayShell();
-    window._summaryResolve = resolve;
-  });
-}
-function closeSummaryModal(goToNutrition) {
-  const modal = document.getElementById('summary-modal');
-  modal?.classList.remove('active', 'reduced-motion');
-  if (typeof window._summaryCleanup === 'function') window._summaryCleanup();
-  window._summaryCleanup = null;
-  const feedback =
-    pendingSummaryPromptState?.feedback || window._summaryFeedbackValue || null;
-  const notes = String(
-    pendingSummaryPromptState?.notes ||
-      document.getElementById('summary-notes-textarea')?.value ||
-      ''
-  )
-    .trim()
-    .slice(0, 500);
-  pendingSummaryPromptState = null;
-  notifySummaryOverlayShell();
-  window._summaryFeedbackValue = null;
-  if (window._summaryResolve) {
-    window._summaryResolve({
-      feedback,
-      notes,
-      goToNutrition: goToNutrition === true,
-    });
-    window._summaryResolve = null;
-  }
-}
-function setSummaryFeedback(value) {
-  window._summaryFeedbackValue = value;
-  if (pendingSummaryPromptState) {
-    pendingSummaryPromptState = {
-      ...pendingSummaryPromptState,
-      feedback: value,
-    };
-    notifySummaryOverlayShell();
-    if (typeof tryHaptic === 'function') tryHaptic([20]);
-    return;
-  }
-  document.querySelectorAll('.summary-feedback-btn').forEach((btn) => {
-    btn.classList.toggle('is-active', btn.dataset.feedback === value);
-  });
-  if (typeof tryHaptic === 'function') tryHaptic([20]);
-}
-
-function updateSummaryNotes(value) {
-  if (!pendingSummaryPromptState) return;
-  pendingSummaryPromptState = {
-    ...pendingSummaryPromptState,
-    notes: String(value || '').slice(0, 500),
-  };
-  notifySummaryOverlayShell();
-}
-
-window.updateSummaryNotes = updateSummaryNotes;
-
 function applyQuickWorkoutAdjustment(mode) {
   if (mode === 'shorten') {
     showShortenAdjustmentOptions();
@@ -5391,7 +5283,7 @@ async function finishWorkout() {
   applyWorkoutTeardownPlan(finishTeardownPlan, {
     renderTimer: true,
   });
-  const summaryResult = await showSessionSummary(summaryData);
+  const summaryResult = await window.showSessionSummary(summaryData);
   const postWorkoutOutcome = getWorkoutRuntime().buildPostWorkoutOutcome(
     {
       savedWorkout,

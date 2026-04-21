@@ -1,5 +1,6 @@
 import { workoutStore } from '../../stores/workout-store';
 import { useRuntimeStore } from '../store/runtime-store';
+import { buildSessionSummaryPromptState } from './workout-runtime';
 import { t } from './i18n';
 import { callLegacyWindowFunction, readLegacyWindowValue } from './legacy-call';
 
@@ -10,6 +11,12 @@ type WorkoutOverlaySnapshot = {
   summaryPrompt?: Record<string, unknown> | null;
   sportCheckPrompt?: Record<string, unknown> | null;
   exerciseGuidePrompt?: Record<string, unknown> | null;
+};
+
+type SummaryResult = {
+  feedback: string | null;
+  notes: string;
+  goToNutrition: boolean;
 };
 
 const RPE_FEEL_KEYS: Record<number, [string, string]> = {
@@ -32,6 +39,8 @@ let pendingRpeCallback: ((value: number | null) => void) | null = null;
 let pendingSportReadinessCallback:
   | ((context: Record<string, unknown> | null) => void)
   | null = null;
+let pendingSummaryResolve: ((result: SummaryResult | null) => void) | null =
+  null;
 
 function setWorkoutSessionState(partial: Record<string, unknown>) {
   const current = useRuntimeStore.getState().workoutSession.session;
@@ -52,6 +61,12 @@ function getSportCheckPromptSnapshot() {
   return prompt && typeof prompt === 'object' ? { ...prompt } : null;
 }
 
+function getSummaryPromptSnapshot() {
+  const prompt =
+    useRuntimeStore.getState().workoutSession.session.summaryPrompt;
+  return prompt && typeof prompt === 'object' ? { ...prompt } : null;
+}
+
 function readSportReadinessContext() {
   const getter = readLegacyWindowValue<() => Record<string, unknown> | null>(
     'getPendingSportReadinessContext'
@@ -62,6 +77,7 @@ function readSportReadinessContext() {
 export function getWorkoutOverlaySnapshot() {
   return {
     rpePrompt: getRpePromptSnapshot(),
+    summaryPrompt: getSummaryPromptSnapshot(),
     sportCheckPrompt: getSportCheckPromptSnapshot(),
   };
 }
@@ -76,6 +92,11 @@ export function installWorkoutOverlayBridge() {
     showSportReadinessCheck?: typeof showSportReadinessCheck;
     selectSportReadiness?: typeof selectSportReadiness;
     cancelSportReadinessCheck?: typeof cancelSportReadinessCheck;
+    showSessionSummary?: typeof showSessionSummary;
+    closeSummaryModal?: typeof closeSummaryModal;
+    setSummaryFeedback?: typeof setSummaryFeedback;
+    updateSummaryNotes?: typeof updateSummaryNotes;
+    _summaryCleanup?: (() => void) | null;
   };
   const legacyGetWorkoutOverlaySnapshot =
     typeof runtimeWindow.getWorkoutOverlaySnapshot === 'function'
@@ -96,6 +117,10 @@ export function installWorkoutOverlayBridge() {
   runtimeWindow.showSportReadinessCheck = showSportReadinessCheck;
   runtimeWindow.selectSportReadiness = selectSportReadiness;
   runtimeWindow.cancelSportReadinessCheck = cancelSportReadinessCheck;
+  runtimeWindow.showSessionSummary = showSessionSummary;
+  runtimeWindow.closeSummaryModal = closeSummaryModal;
+  runtimeWindow.setSummaryFeedback = setSummaryFeedback;
+  runtimeWindow.updateSummaryNotes = updateSummaryNotes;
 }
 
 export function openExerciseCatalogForAdd() {
@@ -126,7 +151,9 @@ export function setPendingSessionMode(
 }
 
 export function getSelectedBonusDuration() {
-  const getter = readLegacyWindowValue<() => string>('getSelectedBonusDuration');
+  const getter = readLegacyWindowValue<() => string>(
+    'getSelectedBonusDuration'
+  );
   return getter?.();
 }
 
@@ -291,23 +318,76 @@ export function cancelSportReadinessCheck() {
   });
 }
 
-export function showSessionSummary(summaryData: Record<string, unknown>) {
-  return callLegacyWindowFunction<Promise<unknown> | unknown>(
-    'showSessionSummary',
-    summaryData
-  );
+export function showSessionSummary(
+  summaryData: Record<string, unknown>
+): Promise<SummaryResult | null> {
+  return new Promise((resolve) => {
+    pendingSummaryResolve = resolve;
+    const isNutritionAvailable = readLegacyWindowValue<() => boolean>(
+      'isNutritionCoachAvailable'
+    );
+    const canLogNutrition =
+      typeof isNutritionAvailable === 'function'
+        ? isNutritionAvailable() === true
+        : !!readLegacyWindowValue('currentUser');
+    const promptState = buildSessionSummaryPromptState(
+      { summaryData, canLogNutrition, seed: Date.now() },
+      { t }
+    );
+    setWorkoutSessionState({
+      summaryOpen: true,
+      summaryPrompt: promptState,
+    });
+  });
 }
 
 export function updateSummaryNotes(value: string) {
-  callLegacyWindowFunction('updateSummaryNotes', value);
+  const prompt = useRuntimeStore.getState().workoutSession.session.summaryPrompt;
+  if (!prompt || typeof prompt !== 'object') return;
+  setWorkoutSessionState({
+    summaryPrompt: {
+      ...(prompt as Record<string, unknown>),
+      notes: String(value || '').slice(0, 500),
+    },
+  });
 }
 
 export function setSummaryFeedback(value: string) {
-  callLegacyWindowFunction('setSummaryFeedback', value);
+  const prompt = useRuntimeStore.getState().workoutSession.session.summaryPrompt;
+  if (!prompt || typeof prompt !== 'object') return;
+  setWorkoutSessionState({
+    summaryPrompt: {
+      ...(prompt as Record<string, unknown>),
+      feedback: value,
+    },
+  });
 }
 
 export function closeSummaryModal(goToNutrition?: boolean) {
-  callLegacyWindowFunction('closeSummaryModal', goToNutrition);
+  const rw = window as Window & {
+    _summaryCleanup?: (() => void) | null;
+  };
+  if (typeof rw._summaryCleanup === 'function') rw._summaryCleanup();
+  rw._summaryCleanup = null;
+  const prompt = useRuntimeStore.getState().workoutSession.session.summaryPrompt;
+  const feedback =
+    prompt && typeof prompt === 'object'
+      ? ((prompt as Record<string, unknown>).feedback as string | null) || null
+      : null;
+  const notes = String(
+    prompt && typeof prompt === 'object'
+      ? (prompt as Record<string, unknown>).notes || ''
+      : ''
+  )
+    .trim()
+    .slice(0, 500);
+  const resolve = pendingSummaryResolve;
+  pendingSummaryResolve = null;
+  setWorkoutSessionState({
+    summaryOpen: false,
+    summaryPrompt: null,
+  });
+  resolve?.({ feedback, notes, goToNutrition: goToNutrition === true });
 }
 
 export function runPageActivationSideEffects(page: string) {
@@ -322,7 +402,11 @@ export function startSessionSummaryCelebration(
   modal: HTMLElement | null,
   summaryData: Record<string, unknown> | null
 ) {
-  callLegacyWindowFunction('startSessionSummaryCelebration', modal, summaryData);
+  callLegacyWindowFunction(
+    'startSessionSummaryCelebration',
+    modal,
+    summaryData
+  );
 }
 
 export function startWorkout() {

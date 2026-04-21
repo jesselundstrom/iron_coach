@@ -947,7 +947,7 @@ declare global {
     clearExerciseCatalogFilters?: () => void;
     selectExerciseCatalogExercise?: (exerciseId: string) => void;
     closeNameModal?: () => void;
-    showSessionSummary?: () => Promise<unknown> | unknown;
+    showSessionSummary?: (summaryData: Record<string, unknown>) => Promise<unknown> | unknown;
     __IRONFORGE_STORES__?: {
       data?: {
         getState?: () => any;

@@ -12,15 +12,11 @@ test('rpe prompt renders through the React shell and resolves the selected value
     (
       window as typeof window & { __testRpeValue?: number | null }
     ).__testRpeValue = undefined;
-    window.showRPEPicker?.(
-      'Bench Press',
-      0,
-      (value: number | null) => {
-        (
-          window as typeof window & { __testRpeValue?: number | null }
-        ).__testRpeValue = value;
-      }
-    );
+    window.showRPEPicker?.('Bench Press', 0, (value: number | null) => {
+      (
+        window as typeof window & { __testRpeValue?: number | null }
+      ).__testRpeValue = value;
+    });
   });
 
   await expect(page.locator('#rpe-modal')).toHaveClass(/active/);
