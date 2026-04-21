@@ -79,8 +79,6 @@ let restSecondsLeft = 0,
   restDuration = 120,
   restEndsAt = 0,
   restBarActive = false;
-let pendingRPECallback = null;
-let pendingRPEPromptState = null;
 let exerciseIndex = {};
 let _appViewportSyncTimeout = null;
 let _appViewportBurstTimeouts = [];
@@ -343,13 +341,11 @@ function buildLiveWorkoutSessionSnapshot() {
       rpePrompt:
         overlaySnapshot && typeof overlaySnapshot === 'object'
           ? overlaySnapshot.rpePrompt || null
-          : pendingRPEPromptState,
+          : null,
       summaryPrompt:
         overlaySnapshot && typeof overlaySnapshot === 'object'
           ? overlaySnapshot.summaryPrompt || null
-          : typeof window.getSessionSummaryPromptSnapshot === 'function'
-            ? window.getSessionSummaryPromptSnapshot()
-            : null,
+          : null,
       sportCheckPrompt:
         overlaySnapshot && typeof overlaySnapshot === 'object'
           ? overlaySnapshot.sportCheckPrompt || null
@@ -376,20 +372,10 @@ function syncWorkoutSessionBridge() {
 
 window.syncWorkoutSessionBridge = syncWorkoutSessionBridge;
 
-function notifyRpeOverlayShell() {
-  syncWorkoutSessionBridge();
-}
-
 function getWorkoutOverlaySnapshot() {
   return {
-    rpePrompt:
-      pendingRPEPromptState && typeof pendingRPEPromptState === 'object'
-        ? { ...pendingRPEPromptState }
-        : null,
-    summaryPrompt:
-      typeof window.getSessionSummaryPromptSnapshot === 'function'
-        ? window.getSessionSummaryPromptSnapshot()
-        : null,
+    rpePrompt: null,
+    summaryPrompt: null,
     sportCheckPrompt:
       typeof window.getSportCheckPromptSnapshot === 'function'
         ? window.getSportCheckPromptSnapshot()
@@ -496,88 +482,6 @@ function applyStandaloneViewportLock() {
   );
 }
 
-function bindLegacyShellActions() {
-  if (document.body?.dataset.ironforgeShellActionsBound === '1') return;
-  if (document.body) {
-    document.body.dataset.ironforgeShellActionsBound = '1';
-  }
-  document.addEventListener('click', (event) => {
-    const target =
-      event.target instanceof Element
-        ? event.target.closest('[data-shell-action]')
-        : null;
-    if (!(target instanceof HTMLElement)) return;
-    const action = target.dataset.shellAction || '';
-    if (!action) return;
-    switch (action) {
-      case 'skip-rest':
-        event.preventDefault();
-        if (typeof window.skipRest === 'function') window.skipRest();
-        break;
-      case 'skip-rpe':
-        event.preventDefault();
-        if (typeof window.skipRPE === 'function') window.skipRPE();
-        break;
-      case 'confirm-cancel':
-        event.preventDefault();
-        if (typeof window.confirmCancel === 'function') window.confirmCancel();
-        break;
-      case 'confirm-ok':
-        event.preventDefault();
-        if (typeof window.confirmOk === 'function') window.confirmOk();
-        break;
-      case 'clear-exercise-catalog-filters':
-        event.preventDefault();
-        if (typeof window.clearExerciseCatalogFilters === 'function') {
-          window.clearExerciseCatalogFilters();
-        }
-        break;
-      case 'close-name-modal':
-        event.preventDefault();
-        if (typeof window.closeNameModal === 'function')
-          window.closeNameModal();
-        break;
-      case 'sport-readiness': {
-        event.preventDefault();
-        const readiness = target.dataset.sportReadiness || '';
-        if (readiness && typeof window.selectSportReadiness === 'function') {
-          window.selectSportReadiness(readiness);
-        }
-        break;
-      }
-      case 'cancel-sport-readiness':
-        event.preventDefault();
-        if (typeof window.cancelSportReadinessCheck === 'function') {
-          window.cancelSportReadinessCheck();
-        }
-        break;
-      case 'close-exercise-guide':
-        if (typeof window.closeExerciseGuide === 'function') {
-          window.closeExerciseGuide(event);
-        }
-        break;
-      case 'show-settings-tab': {
-        event.preventDefault();
-        const tab = target.dataset.settingsTab || '';
-        if (tab && typeof window.showSettingsTab === 'function') {
-          window.showSettingsTab(tab, target);
-        }
-        break;
-      }
-      case 'show-page': {
-        event.preventDefault();
-        const page = target.dataset.page || '';
-        if (page && typeof window.showPage === 'function') {
-          window.showPage(page, target);
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  });
-}
-
 function syncAppViewportHeight() {
   const viewport = window.visualViewport;
   const height = Math.round(
@@ -616,7 +520,6 @@ function isViewportSensitiveTarget(target) {
 }
 
 applyStandaloneViewportLock();
-bindLegacyShellActions();
 syncAppViewportHeight();
 window.addEventListener('resize', () => scheduleAppViewportHeightSync());
 window.addEventListener('orientationchange', () =>
@@ -1036,42 +939,6 @@ function playBeep() {
       o.stop(ctx.currentTime + d / 1000 + 0.25);
     });
   } catch (e) {}
-}
-
-// RPE MODAL
-function showRPEPicker(exName, setNum, cb) {
-  pendingRPECallback = cb;
-  pendingRPEPromptState = {
-    open: true,
-    title: tr('rpe.session_title', 'How hard was this session?'),
-    subtitle:
-      setNum < 0
-        ? tr(
-            'rpe.session_prompt',
-            'Rate overall session effort (6 = easy, 10 = max)'
-          )
-        : exName + ' - ' + tr('rpe.set', 'Set') + ' ' + (setNum + 1),
-    options: [6, 7, 8, 9, 10].map((value) => ({
-      value,
-      feel: RPE_FEELS[value] || '',
-      description: RPE_DESCS[value]
-        ? tr(RPE_DESCS[value][0], RPE_DESCS[value][1])
-        : '',
-    })),
-  };
-  notifyRpeOverlayShell();
-}
-function selectRPE(val) {
-  pendingRPEPromptState = null;
-  notifyRpeOverlayShell();
-  if (pendingRPECallback) pendingRPECallback(val);
-  pendingRPECallback = null;
-}
-function skipRPE() {
-  pendingRPEPromptState = null;
-  notifyRpeOverlayShell();
-  if (pendingRPECallback) pendingRPECallback(null);
-  pendingRPECallback = null;
 }
 
 // FATIGUE ENGINE
@@ -2012,35 +1879,4 @@ async function clearAllData() {
   if (typeof maybeOpenOnboarding === 'function')
     maybeOpenOnboarding({ force: true });
   showToast(tr('toast.all_data_cleared', 'All data cleared'), 'var(--accent)');
-}
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    if (window.__IRONFORGE_DISABLE_LEGACY_SW__ === true) {
-      window.__IRONFORGE_LOGIN_DEBUG__?.trace?.(
-        'service worker register delegated to app shell'
-      );
-      return;
-    }
-    window.__IRONFORGE_LOGIN_DEBUG__?.trace?.('service worker register start', {
-      scope: './',
-    });
-    navigator.serviceWorker
-      .register('./sw.js', { scope: './' })
-      .then(() => {
-        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.(
-          'service worker register done',
-          { scope: './' }
-        );
-      })
-      .catch((error) => {
-        window.__IRONFORGE_LOGIN_DEBUG__?.trace?.(
-          'service worker register failed',
-          {
-            message:
-              error instanceof Error ? error.message : String(error || ''),
-          }
-        );
-      });
-  });
 }

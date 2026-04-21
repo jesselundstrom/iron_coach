@@ -66,6 +66,8 @@ function App() {
 const mountNode = document.getElementById('app-shell-react-root');
 
 if (mountNode) {
+  // Tell app.js to skip its legacy SW registration — pwa-update-runtime.ts owns it.
+  (window as Window & { __IRONFORGE_DISABLE_LEGACY_SW__?: boolean }).__IRONFORGE_DISABLE_LEGACY_SW__ = true;
   // Bridge for legacy data-layer.js to drive React auth state.
   // Called by hideLoginScreen() / showLoginScreen() in data-layer.js.
   window.__IRONFORGE_SET_AUTH_LOGGED_IN__ = (isLoggedIn: boolean) => {
