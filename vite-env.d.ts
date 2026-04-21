@@ -34,6 +34,9 @@ declare global {
       setNumber: number,
       callback: (value: number | null) => void
     ) => void;
+    showSportReadinessCheck: (
+      callback: (context: Record<string, unknown> | null) => void
+    ) => void;
     resumeActiveWorkoutUI: (options?: { toast?: boolean }) => boolean;
     finishWorkout: () => Promise<void>;
   }

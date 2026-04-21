@@ -52,7 +52,7 @@ test('sport check prompt renders through the React shell and resolves the select
         __testSportContext?: Record<string, unknown> | null;
       }
     ).__testSportContext = undefined;
-    window.__IRONFORGE_E2E__?.workout?.showSportReadinessCheck?.(
+    window.showSportReadinessCheck?.(
       (context: Record<string, unknown> | null) => {
         (
           window as typeof window & {

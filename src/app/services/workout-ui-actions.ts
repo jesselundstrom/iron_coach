@@ -29,6 +29,9 @@ const RPE_DESC_KEYS: Record<number, [string, string]> = {
 };
 
 let pendingRpeCallback: ((value: number | null) => void) | null = null;
+let pendingSportReadinessCallback:
+  | ((context: Record<string, unknown> | null) => void)
+  | null = null;
 
 function setWorkoutSessionState(partial: Record<string, unknown>) {
   const current = useRuntimeStore.getState().workoutSession.session;
@@ -43,9 +46,23 @@ function getRpePromptSnapshot() {
   return prompt && typeof prompt === 'object' ? { ...prompt } : null;
 }
 
+function getSportCheckPromptSnapshot() {
+  const prompt =
+    useRuntimeStore.getState().workoutSession.session.sportCheckPrompt;
+  return prompt && typeof prompt === 'object' ? { ...prompt } : null;
+}
+
+function readSportReadinessContext() {
+  const getter = readLegacyWindowValue<() => Record<string, unknown> | null>(
+    'getPendingSportReadinessContext'
+  );
+  return getter?.() || null;
+}
+
 export function getWorkoutOverlaySnapshot() {
   return {
     rpePrompt: getRpePromptSnapshot(),
+    sportCheckPrompt: getSportCheckPromptSnapshot(),
   };
 }
 
@@ -56,6 +73,9 @@ export function installWorkoutOverlayBridge() {
     showRPEPicker?: typeof showRPEPicker;
     selectRPE?: typeof selectRPE;
     skipRPE?: typeof skipRPE;
+    showSportReadinessCheck?: typeof showSportReadinessCheck;
+    selectSportReadiness?: typeof selectSportReadiness;
+    cancelSportReadinessCheck?: typeof cancelSportReadinessCheck;
   };
   const legacyGetWorkoutOverlaySnapshot =
     typeof runtimeWindow.getWorkoutOverlaySnapshot === 'function'
@@ -65,10 +85,17 @@ export function installWorkoutOverlayBridge() {
   runtimeWindow.getWorkoutOverlaySnapshot = () => ({
     ...(legacyGetWorkoutOverlaySnapshot?.() || {}),
     rpePrompt: getRpePromptSnapshot(),
+    sportCheckPrompt:
+      getSportCheckPromptSnapshot() ||
+      legacyGetWorkoutOverlaySnapshot?.()?.sportCheckPrompt ||
+      null,
   });
   runtimeWindow.showRPEPicker = showRPEPicker;
   runtimeWindow.selectRPE = selectRPE;
   runtimeWindow.skipRPE = skipRPE;
+  runtimeWindow.showSportReadinessCheck = showSportReadinessCheck;
+  runtimeWindow.selectSportReadiness = selectSportReadiness;
+  runtimeWindow.cancelSportReadinessCheck = cancelSportReadinessCheck;
 }
 
 export function openExerciseCatalogForAdd() {
@@ -227,15 +254,41 @@ export function skipRPE() {
 export function showSportReadinessCheck(
   callback: (context: Record<string, unknown> | null) => void
 ) {
-  return callLegacyWindowFunction('showSportReadinessCheck', callback);
+  pendingSportReadinessCallback = callback;
+  const schedule = readLegacyWindowValue<Record<string, unknown>>('schedule');
+  const rawSportName = String(schedule?.sportName || '').trim();
+  const sportLabel = rawSportName || t('settings.sport_name_default', 'sport');
+  setWorkoutSessionState({
+    sportCheckOpen: true,
+    sportCheckPrompt: {
+      open: true,
+      title: t('workout.sport_check.title', 'Sport check-in'),
+      subtitle: t(
+        'workout.sport_check.sub',
+        'Have you had a leg-heavy {sport} session yesterday, or do you have one tomorrow?',
+        { sport: sportLabel.toLowerCase() }
+      ),
+    },
+  });
 }
 
 export function selectSportReadiness(signal: string) {
-  callLegacyWindowFunction('selectSportReadiness', signal);
+  const callback = pendingSportReadinessCallback;
+  pendingSportReadinessCallback = null;
+  setWorkoutSessionState({
+    sportCheckOpen: false,
+    sportCheckPrompt: null,
+  });
+  callLegacyWindowFunction('setPendingSportReadiness', signal);
+  callback?.(readSportReadinessContext());
 }
 
 export function cancelSportReadinessCheck() {
-  callLegacyWindowFunction('cancelSportReadinessCheck');
+  pendingSportReadinessCallback = null;
+  setWorkoutSessionState({
+    sportCheckOpen: false,
+    sportCheckPrompt: null,
+  });
 }
 
 export function showSessionSummary(summaryData: Record<string, unknown>) {
