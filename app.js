@@ -1489,147 +1489,21 @@ function saveRestTimer() {
   if (typeof getAppRuntime()?.saveRestTimer === 'function') {
     return getAppRuntime().saveRestTimer();
   }
-  profile = updateStoreOwnedProfile({
-    defaultRest: parseInt(document.getElementById('default-rest').value) || 120,
-  });
-  restDuration = profile.defaultRest;
-  saveProfileData({ docKeys: ['profile_core'] });
-  notifySettingsPreferencesIsland();
-  _showAutoSaveToast(tr('toast.rest_updated', 'Saved'), 'var(--blue)');
 }
 function saveBodyMetrics() {
   if (typeof getAppRuntime()?.saveBodyMetrics === 'function') {
     return getAppRuntime().saveBodyMetrics();
   }
-  const toNum = (id, parse) => {
-    const v = document.getElementById(id)?.value;
-    return v ? parse(v) : null;
-  };
-  const nextBodyMetrics = {
-    sex: document.getElementById('body-sex')?.value || null,
-    activityLevel: document.getElementById('body-activity')?.value || null,
-    weight: toNum('body-weight', parseFloat),
-    height: toNum('body-height', parseFloat),
-    age: toNum('body-age', parseInt),
-    targetWeight: toNum('body-target-weight', parseFloat),
-    bodyGoal: document.getElementById('body-goal')?.value || null,
-  };
-  profile = updateStoreOwnedProfile({
-    bodyMetrics: {
-      ...((profile?.bodyMetrics && typeof profile.bodyMetrics === 'object'
-        ? profile.bodyMetrics
-        : {}) || {}),
-      ...nextBodyMetrics,
-    },
-  });
-  if (typeof normalizeBodyMetrics === 'function') normalizeBodyMetrics(profile);
-  profile = setStoreOwnedProfile({ ...profile });
-  saveProfileData({ docKeys: ['profile_core'] });
-  notifySettingsBodyIsland();
-  showToast(tr('settings.body.saved', 'Saved'), 'var(--green)');
 }
 function saveTrainingPreferences(options) {
   if (typeof getAppRuntime()?.saveTrainingPreferences === 'function') {
     return getAppRuntime().saveTrainingPreferences(options);
   }
-  const opts = options || {};
-  const prefs = normalizeTrainingPreferences(profile);
-  const goal = document.getElementById('training-goal')?.value || prefs.goal;
-  const trainingDaysPerWeek =
-    parseInt(document.getElementById('training-days-per-week')?.value, 10) ||
-    prefs.trainingDaysPerWeek;
-  const sessionMinutes =
-    parseInt(document.getElementById('training-session-minutes')?.value, 10) ||
-    prefs.sessionMinutes;
-  const equipmentAccess =
-    document.getElementById('training-equipment')?.value ||
-    prefs.equipmentAccess;
-  const sportReadinessCheckEnabled = Object.prototype.hasOwnProperty.call(
-    opts,
-    'sportReadinessCheckEnabledOverride'
-  )
-    ? opts.sportReadinessCheckEnabledOverride === true
-    : document.getElementById('training-sport-check')?.checked === true;
-  const warmupSetsEnabled = Object.prototype.hasOwnProperty.call(
-    opts,
-    'warmupSetsEnabledOverride'
-  )
-    ? opts.warmupSetsEnabledOverride === true
-    : document.getElementById('training-warmup-sets')?.checked === true;
-  const detailedView = Object.prototype.hasOwnProperty.call(
-    opts,
-    'detailedViewOverride'
-  )
-    ? opts.detailedViewOverride === true
-    : prefs.detailedView;
-  const notes =
-    document.getElementById('training-preferences-notes')?.value || '';
-  const nextPreferences = normalizeTrainingPreferences({
-    ...profile,
-    preferences: {
-      ...prefs,
-      goal,
-      trainingDaysPerWeek,
-      sessionMinutes,
-      equipmentAccess,
-      sportReadinessCheckEnabled,
-      warmupSetsEnabled,
-      detailedView,
-      notes,
-    },
-  });
-  profile = updateStoreOwnedProfile({
-    preferences: nextPreferences,
-  });
-  saveProfileData({ docKeys: ['profile_core'] });
-  renderTrainingPreferencesSummary();
-  notifySettingsPreferencesIsland();
-  renderProgramBasics();
-  updateDashboard();
-  updateProgramDisplay();
-  if (typeof getActiveProgramFrequencyMismatch === 'function') {
-    const mismatch = getActiveProgramFrequencyMismatch(profile);
-    if (mismatch) {
-      showToast(
-        tr(
-          'program.frequency_notice.toast',
-          '{name} now uses {effective}. Open Program to switch for {requested}.',
-          {
-            name:
-              window.I18N && I18N.t
-                ? I18N.t(
-                    'program.' + mismatch.prog.id + '.name',
-                    null,
-                    mismatch.prog.name
-                  )
-                : mismatch.prog.name,
-            effective: mismatch.effectiveLabel,
-            requested: mismatch.requestedLabel,
-          }
-        ),
-        'var(--orange)'
-      );
-      return;
-    }
-  }
-  _showAutoSaveToast(tr('toast.preferences_saved', 'Saved'), 'var(--purple)');
 }
 function saveSimpleProgramSettings() {
   if (typeof getAppRuntime()?.saveSimpleProgramSettings === 'function') {
     return getAppRuntime().saveSimpleProgramSettings();
   }
-  const prog = getActiveProgram(),
-    state = getActiveProgramState();
-  if (!prog || !prog.saveSimpleSettings) return;
-  const newState = prog.saveSimpleSettings(state);
-  setProgramState(prog.id, newState);
-  saveProfileData({ programIds: [prog.id] });
-  renderProgramBasics();
-  notifySettingsProgramIsland();
-  updateProgramDisplay();
-  updateDashboard();
-  renderProgramStatusBar();
-  _showAutoSaveToast(tr('program.setup_saved', 'Saved'), 'var(--purple)');
 }
 function saveLanguageSetting() {
   if (typeof getAppRuntime()?.saveLanguageSetting === 'function') {
@@ -1639,21 +1513,6 @@ function saveLanguageSetting() {
         : undefined
     );
   }
-  const lang =
-    arguments.length && typeof arguments[0] === 'string'
-      ? arguments[0]
-      : document.getElementById('app-language')?.value || 'en';
-  if (window.I18N && I18N.setLanguage)
-    I18N.setLanguage(lang, { persist: true });
-  profile = updateStoreOwnedProfile({ language: lang });
-  saveProfileData({ docKeys: ['profile_core'] });
-  notifySettingsAccountIsland();
-  notifySettingsBodyIsland();
-  const msg =
-    window.I18N && I18N.t
-      ? I18N.t('settings.language.saved')
-      : 'Language updated';
-  showToast(msg, 'var(--blue)');
 }
 let _autoSaveToastTimer = null;
 function _showAutoSaveToast(msg, color) {
@@ -1664,35 +1523,6 @@ function saveSchedule(nextValues) {
   if (typeof getAppRuntime()?.saveSchedule === 'function') {
     return getAppRuntime().saveSchedule(nextValues);
   }
-  const nextSchedule = { ...(schedule || {}) };
-  if (nextValues && typeof nextValues === 'object') {
-    if ('sportName' in nextValues)
-      nextSchedule.sportName = String(nextValues.sportName || '').trim();
-    if ('sportLegsHeavy' in nextValues)
-      nextSchedule.sportLegsHeavy = nextValues.sportLegsHeavy !== false;
-    if ('sportIntensity' in nextValues)
-      nextSchedule.sportIntensity = nextValues.sportIntensity || 'hard';
-    if ('sportDays' in nextValues)
-      nextSchedule.sportDays = Array.isArray(nextValues.sportDays)
-        ? [...nextValues.sportDays]
-        : [];
-  } else {
-    const nameInp = document.getElementById('sport-name');
-    if (nameInp) nextSchedule.sportName = nameInp.value.trim();
-    const cb = document.getElementById('sport-legs-heavy');
-    if (cb) nextSchedule.sportLegsHeavy = cb.checked;
-  }
-  schedule = setStoreOwnedSchedule(nextSchedule);
-  if (typeof normalizeScheduleState === 'function')
-    normalizeScheduleState(schedule);
-  schedule = setStoreOwnedSchedule({ ...schedule });
-  if (!activeWorkout) resetNotStartedView();
-  saveScheduleData();
-  if (isSettingsScheduleIslandActive()) notifySettingsScheduleIsland();
-  updateProgramDisplay();
-  updateDashboard();
-  renderSportStatusBar();
-  _showAutoSaveToast(tr('toast.schedule_saved', 'Saved'), 'var(--blue)');
 }
 
 function renderBackupContext() {
@@ -1703,125 +1533,12 @@ function exportData() {
   if (typeof getAppRuntime()?.exportData === 'function') {
     return getAppRuntime().exportData();
   }
-  const data = {
-    version: 1,
-    exported: new Date().toISOString(),
-    workouts,
-    schedule,
-    profile,
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download =
-    'ironforge-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast(tr('toast.backup_exported', 'Backup exported!'), 'var(--green)');
 }
 
 function importData(event) {
   if (typeof getAppRuntime()?.importData === 'function') {
     return getAppRuntime().importData(event);
   }
-  const file = event.target.files[0];
-  if (!file) return;
-  const maxBackupBytes =
-    typeof getImportedBackupMaxBytes === 'function'
-      ? getImportedBackupMaxBytes()
-      : 5 * 1024 * 1024;
-  if (Number(file.size) > maxBackupBytes) {
-    showToast(
-      tr('import.file_too_large', 'Backup file is too large to import safely'),
-      'var(--orange)'
-    );
-    event.target.value = '';
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (typeof data !== 'object' || !data) {
-        showToast(
-          tr('import.invalid_file', 'Invalid backup file'),
-          'var(--orange)'
-        );
-        return;
-      }
-      const validation =
-        typeof validateImportedBackup === 'function'
-          ? validateImportedBackup(data)
-          : {
-              ok: false,
-              errorKey: 'import.invalid_file',
-              fallback: 'Invalid backup file',
-            };
-      if (!validation?.ok) {
-        showToast(
-          tr(
-            validation?.errorKey || 'import.invalid_file',
-            validation?.fallback || 'Invalid backup file'
-          ),
-          'var(--orange)'
-        );
-        return;
-      }
-      const validated = validation.value;
-      showConfirm(
-        tr('import.title', 'Import Data'),
-        tr(
-          'import.replace_with_backup',
-          'Replace all data with backup from {date}?',
-          {
-            date: validated.exported
-              ? new Date(validated.exported).toLocaleDateString()
-              : 'unknown',
-          }
-        ),
-        async () => {
-          if (validated.workouts) workouts = validated.workouts;
-          if (validated.schedule)
-            schedule = setStoreOwnedSchedule(validated.schedule);
-          if (validated.profile)
-            profile = setStoreOwnedProfile(validated.profile);
-          if (typeof normalizeScheduleState === 'function') {
-            normalizeScheduleState(schedule);
-          }
-          schedule = setStoreOwnedSchedule({ ...schedule });
-          cleanupLegacyProfileFields(profile);
-          if (typeof normalizeBodyMetrics === 'function')
-            normalizeBodyMetrics(profile);
-          normalizeTrainingPreferences(profile);
-          normalizeCoachingProfile(profile);
-          profile = setStoreOwnedProfile({ ...profile });
-          await replaceWorkoutTableSnapshot(workouts);
-          await saveWorkouts();
-          await saveScheduleData();
-          await saveProfileData({
-            docKeys: getAllProfileDocumentKeys(profile),
-          });
-          notifySettingsAccountIsland();
-          notifySettingsBodyIsland();
-          showToast(
-            tr('toast.data_imported', 'Data imported! Reloading...'),
-            'var(--green)'
-          );
-          setTimeout(() => location.reload(), 1000);
-        }
-      );
-    } catch (err) {
-      showToast(
-        tr('toast.could_not_read_file', 'Could not read file'),
-        'var(--orange)'
-      );
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
 }
 
 function showDangerConfirm() {
@@ -1838,45 +1555,4 @@ async function clearAllData() {
   if (typeof getAppRuntime()?.clearAllData === 'function') {
     return getAppRuntime().clearAllData();
   }
-  if (typeof clearLocalDataCache === 'function')
-    clearLocalDataCache({ includeScoped: true, includeLegacy: true });
-  else {
-    try {
-      localStorage.removeItem('ic_workouts');
-      localStorage.removeItem('ic_schedule');
-      localStorage.removeItem('ic_profile');
-    } catch (e) {}
-  }
-  workouts = [];
-  schedule = setStoreOwnedSchedule({
-    sportName: '',
-    sportDays: [],
-    sportIntensity: 'hard',
-    sportLegsHeavy: true,
-  });
-  profile = setStoreOwnedProfile({
-    defaultRest: 120,
-    activeProgram: 'forge',
-    programs: {},
-    language: window.I18N && I18N.getLanguage ? I18N.getLanguage() : 'en',
-    preferences: getDefaultTrainingPreferences(),
-    coaching: getDefaultCoachingProfile(),
-  });
-  window.__IRONFORGE_APP_RUNTIME__?.resetSettingsAccountUiState?.();
-  (typeof getRegisteredPrograms === 'function'
-    ? getRegisteredPrograms()
-    : []
-  ).forEach((prog) => {
-    setStoreOwnedProgramState(prog.id, prog.getInitialState());
-  });
-  await replaceWorkoutTableSnapshot([]);
-  await saveWorkouts();
-  await saveScheduleData();
-  await saveProfileData({ docKeys: getAllProfileDocumentKeys(profile) });
-  notifySettingsAccountIsland();
-  notifySettingsBodyIsland();
-  updateDashboard();
-  if (typeof maybeOpenOnboarding === 'function')
-    maybeOpenOnboarding({ force: true });
-  showToast(tr('toast.all_data_cleared', 'All data cleared'), 'var(--accent)');
 }
