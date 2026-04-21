@@ -12,7 +12,7 @@ test('rpe prompt renders through the React shell and resolves the selected value
     (
       window as typeof window & { __testRpeValue?: number | null }
     ).__testRpeValue = undefined;
-    window.__IRONFORGE_E2E__?.workout?.showRPEPicker?.(
+    window.showRPEPicker?.(
       'Bench Press',
       0,
       (value: number | null) => {

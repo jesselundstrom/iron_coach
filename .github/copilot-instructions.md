@@ -52,12 +52,14 @@
 - React-owned auth/session orchestration now lives in `src/app/services/auth-runtime.ts`.
 - Typed sync bootstrap/backfill ownership now lives in `src/app/services/sync-runtime.ts`.
 - Typed Settings/onboarding/language/account-data/program-save compatibility ownership now lives in `src/app/services/app-runtime.ts`.
+- Typed RPE prompt compatibility ownership now lives in `src/app/services/workout-ui-actions.ts` plus the shared runtime-store session snapshot.
 - Legacy auth globals such as `window.loginWithEmail`, `window.signUpWithEmail`, `window.logout`, `window.showLoginScreen`, and `window.hideLoginScreen` remain temporary compatibility delegates and should not regain primary auth ownership.
 - Legacy sync callers such as `window.loadData`, `window.pushToCloud`, `window.pullFromCloud`, and realtime sync wrappers must not silently no-op before `window.__IRONFORGE_SYNC_RUNTIME__` exists. Pre-bridge calls must either hand off safely after boot or fail with a guarded, user-safe error.
 - `window.PROGRAMS`, `window.EXERCISE_LIBRARY`, `window.workouts`, `window.profile`, `window.schedule`, and `window.activeWorkout` may remain temporarily for untouched legacy code and Playwright compatibility.
 - `window.renderHistory`, `window.switchHistoryTab`, `window.switchHistoryStatsRange`, and `window.toggleHeatmap` are provided by `src/stores/history-store.ts`.
 - `window.setSelectedNutritionAction`, `window.submitNutritionMessage`, `window.submitNutritionTextMessage`, `window.handleNutritionPhoto`, `window.retryLastNutritionMessage`, `window.clearNutritionHistory`, `window.clearNutritionLocalData`, and `window.setNutritionSessionContext` are provided by `src/stores/nutrition-store.ts`.
 - `window.computeFatigue` is a compatibility delegate installed from `src/app/services/planning-runtime.ts`.
+- `window.showRPEPicker`, `window.selectRPE`, and `window.skipRPE` remain compatibility delegates, but typed primary ownership now lives in `src/app/services/workout-ui-actions.ts` instead of `app.js`.
 - `window.showSettingsTab`, `window.getSettingsAccountUiStateSnapshot`, `window.getOnboardingDefaultDraft`, `window.buildOnboardingRecommendation`, `window.updateLanguageDependentUI`, and the settings/account/program-save delegation path are app-runtime-owned compatibility delegates. Do not move primary ownership for those surfaces back into `app.js`.
 - `window.updateDashboard`, `window.toggleDayDetail`, `window.wasSportRecently`, and `window.wasHockeyRecently` are provided by `src/stores/dashboard-store.ts`.
 - Typed dashboard/history/nutrition surfaces should prefer the explicit legacy runtime setter/getter in `app.js` over `window.eval(...)` when a compatibility write is still required.

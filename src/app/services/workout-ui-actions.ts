@@ -1,7 +1,75 @@
 import { workoutStore } from '../../stores/workout-store';
+import { useRuntimeStore } from '../store/runtime-store';
+import { t } from './i18n';
 import { callLegacyWindowFunction, readLegacyWindowValue } from './legacy-call';
 
 type EventLike = Event | { nativeEvent?: Event } | null | undefined;
+
+type WorkoutOverlaySnapshot = {
+  rpePrompt?: Record<string, unknown> | null;
+  summaryPrompt?: Record<string, unknown> | null;
+  sportCheckPrompt?: Record<string, unknown> | null;
+  exerciseGuidePrompt?: Record<string, unknown> | null;
+};
+
+const RPE_FEEL_KEYS: Record<number, [string, string]> = {
+  6: ['rpe.feel.6', 'Easy'],
+  7: ['rpe.feel.7', 'Moderate'],
+  8: ['rpe.feel.8', 'Hard'],
+  9: ['rpe.feel.9', 'Very Hard'],
+  10: ['rpe.feel.10', 'Max'],
+};
+
+const RPE_DESC_KEYS: Record<number, [string, string]> = {
+  6: ['rpe.desc.6', 'Could keep going easily'],
+  7: ['rpe.desc.7', 'Comfortable effort'],
+  8: ['rpe.desc.8', 'Challenging but controlled'],
+  9: ['rpe.desc.9', 'Maybe 1 rep left'],
+  10: ['rpe.desc.10', 'Nothing left'],
+};
+
+let pendingRpeCallback: ((value: number | null) => void) | null = null;
+
+function setWorkoutSessionState(partial: Record<string, unknown>) {
+  const current = useRuntimeStore.getState().workoutSession.session;
+  useRuntimeStore.getState().syncWorkoutSession({
+    ...current,
+    ...partial,
+  });
+}
+
+function getRpePromptSnapshot() {
+  const prompt = useRuntimeStore.getState().workoutSession.session.rpePrompt;
+  return prompt && typeof prompt === 'object' ? { ...prompt } : null;
+}
+
+export function getWorkoutOverlaySnapshot() {
+  return {
+    rpePrompt: getRpePromptSnapshot(),
+  };
+}
+
+export function installWorkoutOverlayBridge() {
+  if (typeof window === 'undefined') return;
+  const runtimeWindow = window as Window & {
+    getWorkoutOverlaySnapshot?: () => WorkoutOverlaySnapshot;
+    showRPEPicker?: typeof showRPEPicker;
+    selectRPE?: typeof selectRPE;
+    skipRPE?: typeof skipRPE;
+  };
+  const legacyGetWorkoutOverlaySnapshot =
+    typeof runtimeWindow.getWorkoutOverlaySnapshot === 'function'
+      ? runtimeWindow.getWorkoutOverlaySnapshot.bind(runtimeWindow)
+      : null;
+
+  runtimeWindow.getWorkoutOverlaySnapshot = () => ({
+    ...(legacyGetWorkoutOverlaySnapshot?.() || {}),
+    rpePrompt: getRpePromptSnapshot(),
+  });
+  runtimeWindow.showRPEPicker = showRPEPicker;
+  runtimeWindow.selectRPE = selectRPE;
+  runtimeWindow.skipRPE = skipRPE;
+}
 
 export function openExerciseCatalogForAdd() {
   callLegacyWindowFunction('openExerciseCatalogForAdd');
@@ -114,20 +182,46 @@ export function showRPEPicker(
   setNumber: number,
   callback: (value: number | null) => void
 ) {
-  return callLegacyWindowFunction(
-    'showRPEPicker',
-    exerciseName,
-    setNumber,
-    callback
-  );
+  pendingRpeCallback = callback;
+  setWorkoutSessionState({
+    rpeOpen: true,
+    rpePrompt: {
+      open: true,
+      title: t('rpe.session_title', 'How hard was this session?'),
+      subtitle:
+        setNumber < 0
+          ? t(
+              'rpe.session_prompt',
+              'Rate overall session effort (6 = easy, 10 = max)'
+            )
+          : `${exerciseName} - ${t('rpe.set', 'Set')} ${setNumber + 1}`,
+      options: [6, 7, 8, 9, 10].map((value) => ({
+        value,
+        feel: t(RPE_FEEL_KEYS[value][0], RPE_FEEL_KEYS[value][1]),
+        description: t(RPE_DESC_KEYS[value][0], RPE_DESC_KEYS[value][1]),
+      })),
+    },
+  });
 }
 
 export function selectRPE(value: number) {
-  callLegacyWindowFunction('selectRPE', value);
+  const callback = pendingRpeCallback;
+  pendingRpeCallback = null;
+  setWorkoutSessionState({
+    rpeOpen: false,
+    rpePrompt: null,
+  });
+  callback?.(value);
 }
 
 export function skipRPE() {
-  callLegacyWindowFunction('skipRPE');
+  const callback = pendingRpeCallback;
+  pendingRpeCallback = null;
+  setWorkoutSessionState({
+    rpeOpen: false,
+    rpePrompt: null,
+  });
+  callback?.(null);
 }
 
 export function showSportReadinessCheck(

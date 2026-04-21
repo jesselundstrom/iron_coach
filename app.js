@@ -327,6 +327,10 @@ function setRestBarActiveState(nextActive) {
 window.setRestBarActiveState = setRestBarActiveState;
 
 function buildLiveWorkoutSessionSnapshot() {
+  const overlaySnapshot =
+    typeof window.getWorkoutOverlaySnapshot === 'function'
+      ? window.getWorkoutOverlaySnapshot()
+      : null;
   return (
     getWorkoutRestRuntime()?.buildWorkoutSessionSnapshot?.({
       activeWorkout,
@@ -336,19 +340,28 @@ function buildLiveWorkoutSessionSnapshot() {
       restTotal,
       currentUser,
       restBarActive,
-      rpePrompt: pendingRPEPromptState,
+      rpePrompt:
+        overlaySnapshot && typeof overlaySnapshot === 'object'
+          ? overlaySnapshot.rpePrompt || null
+          : pendingRPEPromptState,
       summaryPrompt:
-        typeof window.getSessionSummaryPromptSnapshot === 'function'
-          ? window.getSessionSummaryPromptSnapshot()
-          : null,
+        overlaySnapshot && typeof overlaySnapshot === 'object'
+          ? overlaySnapshot.summaryPrompt || null
+          : typeof window.getSessionSummaryPromptSnapshot === 'function'
+            ? window.getSessionSummaryPromptSnapshot()
+            : null,
       sportCheckPrompt:
-        typeof window.getSportCheckPromptSnapshot === 'function'
-          ? window.getSportCheckPromptSnapshot()
-          : null,
+        overlaySnapshot && typeof overlaySnapshot === 'object'
+          ? overlaySnapshot.sportCheckPrompt || null
+          : typeof window.getSportCheckPromptSnapshot === 'function'
+            ? window.getSportCheckPromptSnapshot()
+            : null,
       exerciseGuidePrompt:
-        typeof window.getExerciseGuidePromptSnapshot === 'function'
-          ? window.getExerciseGuidePromptSnapshot()
-          : null,
+        overlaySnapshot && typeof overlaySnapshot === 'object'
+          ? overlaySnapshot.exerciseGuidePrompt || null
+          : typeof window.getExerciseGuidePromptSnapshot === 'function'
+            ? window.getExerciseGuidePromptSnapshot()
+            : null,
     }) || null
   );
 }
@@ -380,6 +393,10 @@ function getWorkoutOverlaySnapshot() {
     sportCheckPrompt:
       typeof window.getSportCheckPromptSnapshot === 'function'
         ? window.getSportCheckPromptSnapshot()
+        : null,
+    exerciseGuidePrompt:
+      typeof window.getExerciseGuidePromptSnapshot === 'function'
+        ? window.getExerciseGuidePromptSnapshot()
         : null,
   };
 }
@@ -1750,7 +1767,9 @@ function saveSimpleProgramSettings() {
 function saveLanguageSetting() {
   if (typeof getAppRuntime()?.saveLanguageSetting === 'function') {
     return getAppRuntime().saveLanguageSetting(
-      arguments.length && typeof arguments[0] === 'string' ? arguments[0] : undefined
+      arguments.length && typeof arguments[0] === 'string'
+        ? arguments[0]
+        : undefined
     );
   }
   const lang =
