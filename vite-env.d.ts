@@ -12,7 +12,12 @@ declare global {
     showPage: (name: string, btn?: Element | null) => void;
     showLoginScreen?: () => void;
     hideLoginScreen?: () => void;
-    maybeOpenOnboarding?: (options?: unknown) => void;
+    maybeOpenOnboarding?: (options?: Record<string, unknown>) => void;
+    completeOnboarding?: (draft?: Record<string, unknown>) => Promise<void>;
+    restartOnboarding?: () => void;
+    closeOnboardingModal?: () => void;
+    dismissOnboardingModal?: () => void;
+    notifyOnboardingIsland?: () => void;
     getIronforgeState?: () => {
       activeWorkout?: unknown;
       restDuration?: number;

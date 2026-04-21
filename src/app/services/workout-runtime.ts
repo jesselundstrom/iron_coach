@@ -534,7 +534,8 @@ function resolveProgramRuntimeWeekStart(
   fallbackDate?: Date
 ) {
   const runtime =
-    buildContext?.programRuntime && typeof buildContext.programRuntime === 'object'
+    buildContext?.programRuntime &&
+    typeof buildContext.programRuntime === 'object'
       ? (buildContext.programRuntime as MutableRecord)
       : null;
   const runtimeWeekStart = String(runtime?.weekStartDate || '');
@@ -544,7 +545,10 @@ function resolveProgramRuntimeWeekStart(
       return parsed;
     }
   }
-  const anchor = fallbackDate && Number.isFinite(fallbackDate.getTime()) ? fallbackDate : new Date();
+  const anchor =
+    fallbackDate && Number.isFinite(fallbackDate.getTime())
+      ? fallbackDate
+      : new Date();
   return getWeekStart?.(anchor) || anchor;
 }
 
@@ -559,7 +563,8 @@ export function sanitizeSetValue(field: unknown, raw: unknown) {
     const n = parseInt(String(raw ?? ''), 10);
     return Number.isNaN(n) ? '' : Math.max(0, Math.min(999, n));
   }
-  if (field === 'rir') return typeof raw === 'string' || typeof raw === 'number' ? raw : '';
+  if (field === 'rir')
+    return typeof raw === 'string' || typeof raw === 'number' ? raw : '';
   return typeof raw === 'string' || typeof raw === 'number' ? raw : '';
 }
 
@@ -590,12 +595,17 @@ export function applySetUpdateMutation(
 
   const propagatedSetIndexes: number[] = [];
   if (field === 'weight' && set.isWarmup !== true) {
-    for (let nextIndex = setIndex + 1; nextIndex < exercise.sets.length; nextIndex++) {
+    for (
+      let nextIndex = setIndex + 1;
+      nextIndex < exercise.sets.length;
+      nextIndex++
+    ) {
       const nextSet =
         exercise.sets[nextIndex] && typeof exercise.sets[nextIndex] === 'object'
           ? (exercise.sets[nextIndex] as MutableRecord)
           : null;
-      if (!nextSet || nextSet.done === true || nextSet.isWarmup === true) continue;
+      if (!nextSet || nextSet.done === true || nextSet.isWarmup === true)
+        continue;
       nextSet.weight = sanitizedValue;
       propagatedSetIndexes.push(nextIndex);
     }
@@ -654,7 +664,9 @@ export function appendWorkoutSet(
   }
   const sets = exercise.sets as Array<Record<string, unknown>>;
   const lastSet =
-    sets.length > 0 && sets[sets.length - 1] && typeof sets[sets.length - 1] === 'object'
+    sets.length > 0 &&
+    sets[sets.length - 1] &&
+    typeof sets[sets.length - 1] === 'object'
       ? (sets[sets.length - 1] as MutableRecord)
       : null;
   sets.push({
@@ -781,7 +793,12 @@ function buildProgramTmAdjustments(
     Object.keys(beforeLifts).forEach((key) => {
       const before = beforeLifts[key];
       const after = afterLifts?.[key];
-      if (!before || !after || typeof before !== 'object' || typeof after !== 'object') {
+      if (
+        !before ||
+        !after ||
+        typeof before !== 'object' ||
+        typeof after !== 'object'
+      ) {
         return;
       }
       const beforeRecord = before as MutableRecord;
@@ -824,20 +841,24 @@ export function buildWorkoutProgressionResult(
       ? (next.state as MutableRecord)
       : null;
   const progressionSourceState =
-    next.progressionSourceState && typeof next.progressionSourceState === 'object'
+    next.progressionSourceState &&
+    typeof next.progressionSourceState === 'object'
       ? (next.progressionSourceState as MutableRecord)
       : null;
   const workouts = Array.isArray(next.workouts)
     ? (next.workouts as Array<Record<string, unknown>>)
     : [];
   const stripWarmupSetsFromExercises = readFunction<
-    (exercises: Array<Record<string, unknown>>) => Array<Record<string, unknown>>
+    (
+      exercises: Array<Record<string, unknown>>
+    ) => Array<Record<string, unknown>>
   >(deps, 'stripWarmupSetsFromExercises');
   const getWeekStart = readFunction<(date: Date) => Date>(deps, 'getWeekStart');
   const buildContext =
     normalizeProgramBuildContext(
       next.buildContext ||
-        (activeWorkout?.sessionSnapshot as MutableRecord | undefined)?.buildContext
+        (activeWorkout?.sessionSnapshot as MutableRecord | undefined)
+          ?.buildContext
     ) || null;
 
   if (!prog || !activeWorkout || !state || !progressionSourceState) {
@@ -999,7 +1020,8 @@ export function buildWorkoutProgressionToast(
   const buildContext =
     normalizeProgramBuildContext(
       next.buildContext ||
-        (activeWorkout?.sessionSnapshot as MutableRecord | undefined)?.buildContext
+        (activeWorkout?.sessionSnapshot as MutableRecord | undefined)
+          ?.buildContext
     ) || null;
 
   if (!prog || !advancedState || !newState) return null;
@@ -1013,14 +1035,10 @@ export function buildWorkoutProgressionToast(
   ) {
     return {
       text:
-        t?.(
-          'workout.next_cycle',
-          '{program} - cycle {cycle} starts now.',
-          {
-            program: programName,
-            cycle: advancedState.cycle,
-          }
-        ) || '',
+        t?.('workout.next_cycle', '{program} - cycle {cycle} starts now.', {
+          program: programName,
+          cycle: advancedState.cycle,
+        }) || '',
       color: 'var(--purple)',
       delay: 500,
     };
@@ -1034,10 +1052,10 @@ export function buildWorkoutProgressionToast(
     try {
       const blockInfo =
         typeof prog.getBlockInfo === 'function'
-          ? (prog.getBlockInfo(
-              advancedState,
-              buildContext
-            ) as Record<string, unknown> | null)
+          ? (prog.getBlockInfo(advancedState, buildContext) as Record<
+              string,
+              unknown
+            > | null)
           : null;
       if (blockInfo?.name) {
         label = String(blockInfo.name);
@@ -1076,9 +1094,7 @@ export function buildWorkoutFinishPlan(
     next.state && typeof next.state === 'object'
       ? (next.state as MutableRecord)
       : {};
-  const workouts = Array.isArray(next.workouts)
-    ? next.workouts
-    : [];
+  const workouts = Array.isArray(next.workouts) ? next.workouts : [];
   const duration = Math.max(0, parseInt(String(next.duration || 0), 10) || 0);
   const prCount = Math.max(0, parseInt(String(next.prCount || 0), 10) || 0);
   const totalSets = Array.isArray(activeWorkout?.exercises)
@@ -1093,7 +1109,9 @@ export function buildWorkoutFinishPlan(
   const sessionSnapshot = normalizeWorkoutStartSnapshot(
     activeWorkout.sessionSnapshot
   );
-  const buildContext = normalizeProgramBuildContext(sessionSnapshot?.buildContext);
+  const buildContext = normalizeProgramBuildContext(
+    sessionSnapshot?.buildContext
+  );
   const stateBeforeSession = cloneJson(state || {});
   const progressionSourceState = sessionSnapshot?.buildState
     ? cloneJson(sessionSnapshot.buildState)
@@ -1154,8 +1172,7 @@ export function buildWorkoutFinishPlan(
   const programHookFailed = progressionResult?.programHookFailed === true;
 
   savedWorkout.programStateAfter =
-    progressionResult?.programStateAfter ||
-    cloneJson(advancedState);
+    progressionResult?.programStateAfter || cloneJson(advancedState);
   if (tmAdjustments.length) {
     savedWorkout.tmAdjustments = tmAdjustments;
   }
@@ -1236,7 +1253,9 @@ export function buildWorkoutFinishPlan(
 function formatWorkoutWeightValue(value: unknown) {
   const rounded = Math.round((Number(value) || 0) * 100) / 100;
   if (!Number.isFinite(rounded)) return '0';
-  return String(rounded).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  return String(rounded)
+    .replace(/\.00$/, '')
+    .replace(/(\.\d)0$/, '$1');
 }
 
 function buildTmAdjustmentCoachSummary(
@@ -1253,22 +1272,24 @@ function buildTmAdjustmentCoachSummary(
   const items = Array.isArray(adjustments) ? adjustments.slice(0, 2) : [];
   if (!items.length) return '';
   return items
-    .map((adj) =>
-      t?.(
-        adj.direction === 'up'
-          ? 'workout.coach_note.tm_adjustment_up'
-          : 'workout.coach_note.tm_adjustment_down',
-        adj.direction === 'up'
-          ? '{lift} TM ↑ {tm} kg (+{delta})'
-          : '{lift} TM ↓ {tm} kg (-{delta})',
-        {
-          lift: adj.lift,
-          tm: formatWeight?.(adj.newTM) || formatWorkoutWeightValue(adj.newTM),
-          delta:
-            formatWeight?.(Math.abs(readNumber(adj.delta))) ||
-            formatWorkoutWeightValue(Math.abs(readNumber(adj.delta))),
-        }
-      ) || ''
+    .map(
+      (adj) =>
+        t?.(
+          adj.direction === 'up'
+            ? 'workout.coach_note.tm_adjustment_up'
+            : 'workout.coach_note.tm_adjustment_down',
+          adj.direction === 'up'
+            ? '{lift} TM ↑ {tm} kg (+{delta})'
+            : '{lift} TM ↓ {tm} kg (-{delta})',
+          {
+            lift: adj.lift,
+            tm:
+              formatWeight?.(adj.newTM) || formatWorkoutWeightValue(adj.newTM),
+            delta:
+              formatWeight?.(Math.abs(readNumber(adj.delta))) ||
+              formatWorkoutWeightValue(Math.abs(readNumber(adj.delta))),
+          }
+        ) || ''
     )
     .join(' · ');
 }
@@ -1356,7 +1377,8 @@ function buildCoachNote(
 
   const completionRate =
     readNumber(summaryData.totalSets, 0) > 0
-      ? readNumber(summaryData.completedSets, 0) / readNumber(summaryData.totalSets, 0)
+      ? readNumber(summaryData.completedSets, 0) /
+        readNumber(summaryData.totalSets, 0)
       : 1;
   const rpe = readNumber(summaryData.rpe, 0);
 
@@ -1407,15 +1429,11 @@ function buildTmAdjustmentToast(
   if (items.length === 1) {
     const adj = items[0];
     return (
-      t?.(
-        'workout.tm_updated_single',
-        '{lift} TM updated: {old} → {next} kg',
-        {
-          lift: adj.lift,
-          old: formatWeight?.(adj.oldTM) || formatWorkoutWeightValue(adj.oldTM),
-          next: formatWeight?.(adj.newTM) || formatWorkoutWeightValue(adj.newTM),
-        }
-      ) || ''
+      t?.('workout.tm_updated_single', '{lift} TM updated: {old} → {next} kg', {
+        lift: adj.lift,
+        old: formatWeight?.(adj.oldTM) || formatWorkoutWeightValue(adj.oldTM),
+        next: formatWeight?.(adj.newTM) || formatWorkoutWeightValue(adj.newTM),
+      }) || ''
     );
   }
   const changes = items
@@ -1436,7 +1454,7 @@ function buildTmAdjustmentToast(
 export function buildPostWorkoutOutcome(
   input?: PostWorkoutOutcomeInput,
   deps?: Record<string, unknown>
-) : PostWorkoutOutcomeResult {
+): PostWorkoutOutcomeResult {
   const next = input || {};
   const savedWorkout =
     next.savedWorkout && typeof next.savedWorkout === 'object'
@@ -1507,16 +1525,15 @@ export async function commitWorkoutFinishPersistence(
     next.finishPlan && typeof next.finishPlan === 'object'
       ? (next.finishPlan as WorkoutFinishPlanResult)
       : null;
-  const workouts = Array.isArray(next.workouts)
-    ? next.workouts
-    : null;
+  const workouts = Array.isArray(next.workouts) ? next.workouts : null;
   const logWarn = readFunction<(scope: string, error: unknown) => void>(
     deps,
     'logWarn'
   );
-  const showToast = readFunction<
-    (text: string, color?: string) => void
-  >(deps, 'showToast');
+  const showToast = readFunction<(text: string, color?: string) => void>(
+    deps,
+    'showToast'
+  );
   const setTimer = readFunction<
     (callback: () => void, delay?: number) => unknown
   >(deps, 'setTimer');
@@ -1533,7 +1550,10 @@ export async function commitWorkoutFinishPersistence(
     deps,
     'saveWorkouts'
   );
-  const buildExerciseIndex = readFunction<() => void>(deps, 'buildExerciseIndex');
+  const buildExerciseIndex = readFunction<() => void>(
+    deps,
+    'buildExerciseIndex'
+  );
   const t = readFunction<
     (key: string, fallback: string, params?: Record<string, unknown>) => string
   >(deps, 't');
@@ -1549,8 +1569,9 @@ export async function commitWorkoutFinishPersistence(
   }
 
   if (finishPlan.progressionToast?.text) {
-    const schedule = setTimer || ((callback: () => void, delay?: number) =>
-      setTimeout(callback, delay));
+    const schedule =
+      setTimer ||
+      ((callback: () => void, delay?: number) => setTimeout(callback, delay));
     schedule(
       () =>
         showToast?.(
@@ -1603,18 +1624,20 @@ export async function applyPostWorkoutOutcomeEffects(
     deps,
     'saveWorkouts'
   );
-  const showToast = readFunction<
-    (text: string, color?: string) => void
-  >(deps, 'showToast');
+  const showToast = readFunction<(text: string, color?: string) => void>(
+    deps,
+    'showToast'
+  );
   const setTimer = readFunction<
     (callback: () => void, delay?: number) => unknown
   >(deps, 'setTimer');
   const setNutritionSessionContext = readFunction<
     (value?: Record<string, unknown> | null) => void
   >(deps, 'setNutritionSessionContext');
-  const getRuntimeBridge = readFunction<
-    () => Record<string, unknown> | null
-  >(deps, 'getRuntimeBridge');
+  const getRuntimeBridge = readFunction<() => Record<string, unknown> | null>(
+    deps,
+    'getRuntimeBridge'
+  );
   const showPage = readFunction<(page: string) => void>(deps, 'showPage');
 
   if (!postWorkoutOutcome) return;
@@ -1623,8 +1646,9 @@ export async function applyPostWorkoutOutcomeEffects(
     await saveWorkouts?.();
   }
   if (postWorkoutOutcome.tmAdjustmentToast) {
-    const schedule = setTimer || ((callback: () => void, delay?: number) =>
-      setTimeout(callback, delay));
+    const schedule =
+      setTimer ||
+      ((callback: () => void, delay?: number) => setTimeout(callback, delay));
     schedule(
       () => showToast?.(postWorkoutOutcome.tmAdjustmentToast, 'var(--blue)'),
       600
@@ -1632,7 +1656,9 @@ export async function applyPostWorkoutOutcomeEffects(
   }
   if (!postWorkoutOutcome.goToNutrition) return;
 
-  setNutritionSessionContext?.(postWorkoutOutcome.nutritionContext || summaryData);
+  setNutritionSessionContext?.(
+    postWorkoutOutcome.nutritionContext || summaryData
+  );
   const bridge = getRuntimeBridge?.();
   if (bridge && typeof bridge.navigateToPage === 'function') {
     bridge.navigateToPage('nutrition');
@@ -1644,7 +1670,7 @@ export async function applyPostWorkoutOutcomeEffects(
 function buildWorkoutStartPresentation(
   input?: WorkoutStartPresentationInput,
   deps?: Record<string, unknown>
-) : WorkoutStartPresentationResult {
+): WorkoutStartPresentationResult {
   const next = input || {};
   const t = readFunction<
     (key: string, fallback: string, params?: Record<string, unknown>) => string
@@ -1771,14 +1797,19 @@ function buildWorkoutStartPresentation(
   const sportLegsHeavy = schedule?.sportLegsHeavy !== false;
   const sportName = String(schedule?.sportName || 'Sport');
   const activeExerciseNames = Array.isArray(activeWorkout?.exercises)
-    ? (activeWorkout?.exercises as Array<Record<string, unknown>>).map((exercise) =>
-        String(exercise.name || '').toLowerCase()
+    ? (activeWorkout?.exercises as Array<Record<string, unknown>>).map(
+        (exercise) => String(exercise.name || '').toLowerCase()
       )
     : [];
   const hasLegs = legLifts.some((lift) =>
     activeExerciseNames.includes(String(lift || '').toLowerCase())
   );
-  if ((isSportDay || hadSportRecently) && !isDeload && sportLegsHeavy && hasLegs) {
+  if (
+    (isSportDay || hadSportRecently) &&
+    !isDeload &&
+    sportLegsHeavy &&
+    hasLegs
+  ) {
     queuedToasts.push({
       text:
         t?.(
@@ -1811,7 +1842,7 @@ function buildWorkoutStartPresentation(
 function buildWorkoutTeardownPlan(
   input?: WorkoutTeardownPlanInput,
   deps?: Record<string, unknown>
-) : WorkoutTeardownPlanResult {
+): WorkoutTeardownPlanResult {
   const next = input || {};
   const t = readFunction<
     (key: string, fallback: string, params?: Record<string, unknown>) => string
@@ -1831,9 +1862,7 @@ function buildWorkoutTeardownPlan(
   };
 }
 
-export function resolveWorkoutRestDuration(
-  input?: WorkoutRestTimerInput
-) {
+export function resolveWorkoutRestDuration(input?: WorkoutRestTimerInput) {
   const next = input || {};
   const parsed = readPositiveInt(next.restDuration, -1);
   if (parsed > 0 || parsed === 0) return parsed;
@@ -1899,8 +1928,7 @@ export function buildWorkoutRestDisplayState(
     : 119.4;
   return {
     text: `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`,
-    className:
-      'rest-timer-count' + (restSecondsLeft <= 10 ? ' warning' : ''),
+    className: 'rest-timer-count' + (restSecondsLeft <= 10 ? ' warning' : ''),
     arcOffset,
   };
 }
@@ -1947,17 +1975,19 @@ export function buildWorkoutSessionSnapshot(
 
 export function clearWorkoutRestIntervalHost(deps?: WorkoutRestHostDeps) {
   if (!workoutRestIntervalHost) return;
-  readTimerFunction<(handle: unknown) => void>(deps, 'clearInterval')?.(
-    workoutRestIntervalHost
-  );
+  readTimerFunction<(handle: unknown) => void>(
+    deps,
+    'clearInterval'
+  )?.(workoutRestIntervalHost);
   workoutRestIntervalHost = null;
 }
 
 export function clearWorkoutRestHideHost(deps?: WorkoutRestHostDeps) {
   if (!workoutRestHideHost) return;
-  readTimerFunction<(handle: unknown) => void>(deps, 'clearTimeout')?.(
-    workoutRestHideHost
-  );
+  readTimerFunction<(handle: unknown) => void>(
+    deps,
+    'clearTimeout'
+  )?.(workoutRestHideHost);
   workoutRestHideHost = null;
 }
 
@@ -1966,9 +1996,11 @@ export function scheduleWorkoutRestIntervalHost(
   deps?: WorkoutRestHostDeps
 ) {
   clearWorkoutRestIntervalHost(deps);
-  workoutRestIntervalHost = readTimerFunction<
-    (fn: () => void, delay?: number) => unknown
-  >(deps, 'setInterval')?.(callback, 250) ?? null;
+  workoutRestIntervalHost =
+    readTimerFunction<(fn: () => void, delay?: number) => unknown>(
+      deps,
+      'setInterval'
+    )?.(callback, 250) ?? null;
 }
 
 export function scheduleWorkoutRestHideHost(
@@ -1977,9 +2009,11 @@ export function scheduleWorkoutRestHideHost(
   deps?: WorkoutRestHostDeps
 ) {
   clearWorkoutRestHideHost(deps);
-  workoutRestHideHost = readTimerFunction<
-    (fn: () => void, delay?: number) => unknown
-  >(deps, 'setTimeout')?.(callback, delay) ?? null;
+  workoutRestHideHost =
+    readTimerFunction<(fn: () => void, delay?: number) => unknown>(
+      deps,
+      'setTimeout'
+    )?.(callback, delay) ?? null;
 }
 
 export function buildWorkoutRestLifecyclePlan(
@@ -2126,12 +2160,17 @@ export function buildSessionSummaryPromptState(
 
   return {
     open: true,
-    seed: Math.max(0, parseInt(String(next.seed || Date.now()), 10) || Date.now()),
-    kicker: t?.('workout.session_complete', 'Session Complete') || 'Session Complete',
+    seed: Math.max(
+      0,
+      parseInt(String(next.seed || Date.now()), 10) || Date.now()
+    ),
+    kicker:
+      t?.('workout.session_complete', 'Session Complete') || 'Session Complete',
     title: 'SESSION FORGED',
     programLabel: String(summaryData.programLabel || ''),
     coachNote: String(summaryData.coachNote || ''),
-    notesLabel: t?.('workout.summary.notes_label', 'Session notes') || 'Session notes',
+    notesLabel:
+      t?.('workout.summary.notes_label', 'Session notes') || 'Session notes',
     notesPlaceholder:
       t?.(
         'workout.summary.notes_placeholder',
@@ -2143,7 +2182,8 @@ export function buildSessionSummaryPromptState(
     feedbackOptions: [
       {
         value: 'too_hard',
-        label: t?.('workout.summary.feedback_too_hard', 'Too hard') || 'Too hard',
+        label:
+          t?.('workout.summary.feedback_too_hard', 'Too hard') || 'Too hard',
       },
       {
         value: 'good',
@@ -2151,14 +2191,13 @@ export function buildSessionSummaryPromptState(
       },
       {
         value: 'too_easy',
-        label: t?.('workout.summary.feedback_too_easy', 'Too easy') || 'Too easy',
+        label:
+          t?.('workout.summary.feedback_too_easy', 'Too easy') || 'Too easy',
       },
     ],
     nutritionLabel:
-      t?.(
-        'workout.summary.log_post_workout_meal',
-        'Log post-workout meal'
-      ) || 'Log post-workout meal',
+      t?.('workout.summary.log_post_workout_meal', 'Log post-workout meal') ||
+      'Log post-workout meal',
     doneLabel: t?.('common.done', 'Done') || 'Done',
     notes: '',
     feedback: null,
@@ -2230,11 +2269,15 @@ function getWorkoutStartSnapshotSignature(
   const sportContext =
     next.sportContext && typeof next.sportContext === 'object'
       ? {
-          sportLoadLevel:
-            String((next.sportContext as MutableRecord).sportLoadLevel || 'none'),
-          legsStress:
-            String((next.sportContext as MutableRecord).legsStress || 'none'),
-          sportName: String((next.sportContext as MutableRecord).sportName || ''),
+          sportLoadLevel: String(
+            (next.sportContext as MutableRecord).sportLoadLevel || 'none'
+          ),
+          legsStress: String(
+            (next.sportContext as MutableRecord).legsStress || 'none'
+          ),
+          sportName: String(
+            (next.sportContext as MutableRecord).sportName || ''
+          ),
         }
       : null;
 
@@ -2242,8 +2285,7 @@ function getWorkoutStartSnapshotSignature(
     (next.prog as MutableRecord | null) || getActiveProgram?.() || null;
   const state =
     (next.state as MutableRecord | null) || getActiveProgramState?.() || {};
-  const decisionBundle =
-    (next.decisionBundle as MutableRecord | null) || null;
+  const decisionBundle = (next.decisionBundle as MutableRecord | null) || null;
   const buildContext =
     getProgramSessionBuildContext?.({
       prog,
@@ -2261,8 +2303,8 @@ function getWorkoutStartSnapshotSignature(
       next.pendingSessionMode ||
       'auto',
     effectiveSessionMode:
-      (next.decisionBundle as MutableRecord | undefined)?.effectiveSessionMode ||
-      'normal',
+      (next.decisionBundle as MutableRecord | undefined)
+        ?.effectiveSessionMode || 'normal',
     energyLevel:
       (next.decisionBundle as MutableRecord | undefined)?.energyLevel ||
       normalizeEnergyLevel?.(next.pendingEnergyLevel) ||
@@ -2276,8 +2318,8 @@ function getWorkoutStartSnapshotSignature(
     programRuntime:
       buildContext && typeof buildContext === 'object'
         ? cloneJson(
-            ((buildContext as MutableRecord).programRuntime as MutableRecord | null) ||
-              {}
+            ((buildContext as MutableRecord)
+              .programRuntime as MutableRecord | null) || {}
           )
         : null,
   });
@@ -2389,23 +2431,29 @@ function buildWorkoutStartSnapshot(
   const buildState =
     getProgramSessionStateForBuild?.(prog, state, buildContext) || state || {};
   const rawExercises =
-    (prog.buildSession as (
-      option: string,
-      state: Record<string, unknown>,
-      context: Record<string, unknown> | null
-    ) => Array<Record<string, unknown>>)(selectedOption, buildState, buildContext) || [];
-  const builtExercises = cloneWorkoutExercises?.(
-    rawExercises.map((exercise) => withResolvedExerciseId?.(exercise) || exercise)
-  ) || [];
+    (
+      prog.buildSession as (
+        option: string,
+        state: Record<string, unknown>,
+        context: Record<string, unknown> | null
+      ) => Array<Record<string, unknown>>
+    )(selectedOption, buildState, buildContext) || [];
+  const builtExercises =
+    cloneWorkoutExercises?.(
+      rawExercises.map(
+        (exercise) => withResolvedExerciseId?.(exercise) || exercise
+      )
+    ) || [];
   const sessionPrefs =
-    applyTrainingPreferencesToExercises?.(builtExercises, next.sportContext as
-      | Record<string, unknown>
-      | undefined,
-    {
-      planningContext,
-      decision: effectiveDecision,
-      effectiveSessionMode: decisionBundle?.effectiveSessionMode,
-    }) || {};
+    applyTrainingPreferencesToExercises?.(
+      builtExercises,
+      next.sportContext as Record<string, unknown> | undefined,
+      {
+        planningContext,
+        decision: effectiveDecision,
+        effectiveSessionMode: decisionBundle?.effectiveSessionMode,
+      }
+    ) || {};
   const exercises =
     cloneWorkoutExercises?.(
       (sessionPrefs.exercises as Array<Record<string, unknown>> | undefined) ||
@@ -2425,7 +2473,13 @@ function buildWorkoutStartSnapshot(
       : { isDeload: false };
   const sessionDescription =
     typeof prog.getSessionDescription === 'function'
-      ? String(prog.getSessionDescription(selectedOption, buildState, buildContext) || '')
+      ? String(
+          prog.getSessionDescription(
+            selectedOption,
+            buildState,
+            buildContext
+          ) || ''
+        )
       : String(blockInfo?.modeDesc || blockInfo?.name || '');
 
   return normalizeWorkoutStartSnapshot({
@@ -2447,8 +2501,7 @@ function buildWorkoutStartSnapshot(
       : [],
     equipmentHint: String(sessionPrefs.equipmentHint || ''),
     commentary:
-      sessionPrefs.commentary &&
-      typeof sessionPrefs.commentary === 'object'
+      sessionPrefs.commentary && typeof sessionPrefs.commentary === 'object'
         ? sessionPrefs.commentary
         : undefined,
   });
@@ -2476,11 +2529,14 @@ export function buildWorkoutStartPlan(
   const t = readFunction<
     (key: string, fallback: string, params?: Record<string, unknown>) => string
   >(deps, 't');
-  const buildWorkoutRewardState = readFunction<
-    () => Record<string, unknown>
-  >(deps, 'buildWorkoutRewardState');
+  const buildWorkoutRewardState = readFunction<() => Record<string, unknown>>(
+    deps,
+    'buildWorkoutRewardState'
+  );
   const ensureWorkoutExerciseUiKeys = readFunction<
-    (exercises: Array<Record<string, unknown>>) => Array<Record<string, unknown>>
+    (
+      exercises: Array<Record<string, unknown>>
+    ) => Array<Record<string, unknown>>
   >(deps, 'ensureWorkoutExerciseUiKeys');
   const getProgramSessionBuildContext = readFunction<
     (value?: Record<string, unknown>) => Record<string, unknown> | null
@@ -2585,7 +2641,10 @@ export function buildWorkoutStartPlan(
   const decisionBundle =
     readFunction<
       (value?: Record<string, unknown>) => Record<string, unknown> | null
-    >(deps, 'getWorkoutStartDecisionBundle')?.({
+    >(
+      deps,
+      'getWorkoutStartDecisionBundle'
+    )?.({
       prog,
       state,
       sportContext,
@@ -2621,7 +2680,9 @@ export function buildWorkoutStartPlan(
     String(cachedSnapshot?.signature || '') === expectedSnapshotSignature
       ? cachedSnapshot
       : resolveWorkoutStartSnapshot(startSnapshotInput, deps);
-  const resolvedOption = String(startSnapshot?.selectedOption || selectedOption);
+  const resolvedOption = String(
+    startSnapshot?.selectedOption || selectedOption
+  );
   const effectiveDecision =
     startSnapshot?.effectiveDecision ||
     (decisionBundle?.effectiveDecision as MutableRecord | null) ||
@@ -2640,12 +2701,15 @@ export function buildWorkoutStartPlan(
     state ||
     {};
   const exercises = startSnapshot?.exercises
-    ? cloneWorkoutExercises?.(startSnapshot.exercises) || startSnapshot.exercises
+    ? cloneWorkoutExercises?.(startSnapshot.exercises) ||
+      startSnapshot.exercises
     : [];
   const programLabel =
     String(startSnapshot?.programLabel || '') ||
     (typeof prog.getSessionLabel === 'function'
-      ? String(prog.getSessionLabel(resolvedOption, buildState, buildContext) || '')
+      ? String(
+          prog.getSessionLabel(resolvedOption, buildState, buildContext) || ''
+        )
       : '');
   const blockInfo =
     typeof prog.getBlockInfo === 'function'
@@ -2655,7 +2719,11 @@ export function buildWorkoutStartPlan(
     String(startSnapshot?.sessionDescription || '') ||
     (typeof prog.getSessionDescription === 'function'
       ? String(
-          prog.getSessionDescription(resolvedOption, buildState, buildContext) || ''
+          prog.getSessionDescription(
+            resolvedOption,
+            buildState,
+            buildContext
+          ) || ''
         )
       : String(blockInfo?.modeDesc || blockInfo?.name || ''));
   const activeWorkout = buildPlannedActiveWorkout(
@@ -2663,9 +2731,7 @@ export function buildWorkoutStartPlan(
       programId: String(prog.id || ''),
       selectedOption: resolvedOption,
       programMode:
-        state &&
-        typeof state === 'object' &&
-        typeof state.mode === 'string'
+        state && typeof state === 'object' && typeof state.mode === 'string'
           ? state.mode
           : undefined,
       programLabel,
@@ -2693,8 +2759,10 @@ export function buildWorkoutStartPlan(
   const isSportDay =
     Array.isArray(schedule?.sportDays) && schedule.sportDays.includes(todayDow);
   const programName =
-    t?.('program.' + String(prog.id || '') + '.name', String(prog.name || 'Training')) ||
-    String(prog.name || 'Training');
+    t?.(
+      'program.' + String(prog.id || '') + '.name',
+      String(prog.name || 'Training')
+    ) || String(prog.name || 'Training');
 
   return {
     activeWorkout,
@@ -2874,7 +2942,8 @@ export function buildSavedWorkoutRecord(
         }
       : undefined,
     sessionSnapshot:
-      activeWorkout.sessionSnapshot && typeof activeWorkout.sessionSnapshot === 'object'
+      activeWorkout.sessionSnapshot &&
+      typeof activeWorkout.sessionSnapshot === 'object'
         ? normalizeWorkoutStartSnapshot(activeWorkout.sessionSnapshot)
         : undefined,
     isBonus: activeWorkout.isBonus === true,
@@ -2936,11 +3005,14 @@ export function buildBonusActiveWorkout(
   deps?: Record<string, unknown>
 ): WorkoutSessionBootstrapResult {
   const next = input || {};
-  const buildWorkoutRewardState = readFunction<
-    () => Record<string, unknown>
-  >(deps, 'buildWorkoutRewardState');
+  const buildWorkoutRewardState = readFunction<() => Record<string, unknown>>(
+    deps,
+    'buildWorkoutRewardState'
+  );
   const ensureWorkoutExerciseUiKeys = readFunction<
-    (exercises: Array<Record<string, unknown>>) => Array<Record<string, unknown>>
+    (
+      exercises: Array<Record<string, unknown>>
+    ) => Array<Record<string, unknown>>
   >(deps, 'ensureWorkoutExerciseUiKeys');
 
   return {
@@ -2974,11 +3046,14 @@ export function buildPlannedActiveWorkout(
   deps?: Record<string, unknown>
 ): WorkoutSessionBootstrapResult {
   const next = input || {};
-  const buildWorkoutRewardState = readFunction<
-    () => Record<string, unknown>
-  >(deps, 'buildWorkoutRewardState');
+  const buildWorkoutRewardState = readFunction<() => Record<string, unknown>>(
+    deps,
+    'buildWorkoutRewardState'
+  );
   const ensureWorkoutExerciseUiKeys = readFunction<
-    (exercises: Array<Record<string, unknown>>) => Array<Record<string, unknown>>
+    (
+      exercises: Array<Record<string, unknown>>
+    ) => Array<Record<string, unknown>>
   >(deps, 'ensureWorkoutExerciseUiKeys');
 
   return {

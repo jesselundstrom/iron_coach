@@ -884,28 +884,6 @@ function syncRestTimer() {
   ) {
     return window.syncRestTimer();
   }
-  const restLifecyclePlan =
-    getWorkoutRestRuntime()?.buildWorkoutRestLifecyclePlan?.(
-      {
-        mode: 'sync',
-        restDuration,
-        restTotal,
-        restEndsAt,
-        restSecondsLeft,
-        profileDefaultRest: profile.defaultRest,
-        now: Date.now(),
-      },
-      {}
-    );
-  if (!restLifecyclePlan?.timerState) return;
-  restDuration = Number(restLifecyclePlan.timerState.restDuration || 0);
-  restTotal = Number(restLifecyclePlan.timerState.restTotal || 0);
-  restEndsAt = Number(restLifecyclePlan.timerState.restEndsAt || 0);
-  restSecondsLeft = Number(restLifecyclePlan.timerState.restSecondsLeft || 0);
-  restBarActive = restLifecyclePlan.timerState.restBarActive === true;
-  if (typeof window.syncWorkoutSessionBridge === 'function') {
-    window.syncWorkoutSessionBridge();
-  }
 }
 function startRestTimer() {
   if (
@@ -1217,165 +1195,65 @@ function renderProgramStatusBar() {
 }
 
 /* ── Onboarding bridge (UI is in src/app/OnboardingFlow.jsx) ── */
+// Typed owner: src/app/services/app-runtime.ts (completeOnboarding, maybeOpenOnboarding, restartOnboarding, etc.)
+// The functions below are thin compatibility delegates; the typed implementations are installed
+// by installAppRuntimeBridge() at boot before any caller can reach these fallback paths.
 
 let _onboardingRetryTimer = null;
 
-function parseOnboardingExerciseIds(text) {
-  return String(text || '')
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((name) => window.resolveRegisteredExerciseId?.(name) || name)
-    .filter(Boolean);
-}
-
 function notifyOnboardingIsland() {
+  if (
+    typeof window.notifyOnboardingIsland === 'function' &&
+    window.notifyOnboardingIsland !== notifyOnboardingIsland
+  ) {
+    return window.notifyOnboardingIsland();
+  }
   window.dispatchEvent(new CustomEvent('ironforge:onboarding-updated'));
 }
 
 function closeOnboardingModal() {
-  document.getElementById('onboarding-modal')?.classList.remove('active');
+  if (
+    typeof window.closeOnboardingModal === 'function' &&
+    window.closeOnboardingModal !== closeOnboardingModal
+  ) {
+    return window.closeOnboardingModal();
+  }
 }
 
 function dismissOnboardingModal() {
-  closeOnboardingModal();
+  if (
+    typeof window.dismissOnboardingModal === 'function' &&
+    window.dismissOnboardingModal !== dismissOnboardingModal
+  ) {
+    return window.dismissOnboardingModal();
+  }
 }
 
 async function completeOnboarding(draft) {
-  const d =
-    draft || window.__IRONFORGE_APP_RUNTIME__?.getOnboardingDefaultDraft?.();
-  const recommendation =
-    window.__IRONFORGE_APP_RUNTIME__?.buildOnboardingRecommendation?.(d) ||
-    null;
-  if (!d || !recommendation) return;
-  const nextPreferences = normalizeTrainingPreferences({
-    preferences: {
-      ...(profile.preferences || getDefaultTrainingPreferences()),
-      goal: d.goal,
-      trainingDaysPerWeek: parseInt(d.trainingDaysPerWeek, 10) || 3,
-      sessionMinutes: parseInt(d.sessionMinutes, 10) || 60,
-      equipmentAccess: d.equipmentAccess,
-      detailedView: undefined,
-    },
-  });
-  const nextCoaching = normalizeCoachingProfile({
-    coaching: {
-      ...(profile.coaching || getDefaultCoachingProfile()),
-      experienceLevel: d.experienceLevel,
-      guidanceMode: d.guidanceMode,
-      sportProfile: {
-        name: String(d.sportName || '').trim(),
-        inSeason: d.inSeason === true,
-        sessionsPerWeek: parseInt(d.sportSessionsPerWeek, 10) || 0,
-      },
-      limitations: {
-        jointFlags: [...(d.jointFlags || [])],
-        avoidMovementTags: [...(d.avoidMovementTags || [])],
-        avoidExerciseIds: parseOnboardingExerciseIds(d.avoidExercisesText),
-      },
-      exercisePreferences: {
-        preferredExerciseIds: [],
-        excludedExerciseIds: parseOnboardingExerciseIds(d.avoidExercisesText),
-      },
-      onboardingCompleted: true,
-      onboardingSeen: true,
-    },
-  });
-  const nextPrograms = { ...(profile.programs || {}) };
-  const recommendedProgramInitialState =
-    typeof getProgramInitialState === 'function'
-      ? getProgramInitialState(recommendation.programId)
-      : null;
   if (
-    !nextPrograms[recommendation.programId] &&
-    recommendedProgramInitialState
+    typeof window.completeOnboarding === 'function' &&
+    window.completeOnboarding !== completeOnboarding
   ) {
-    nextPrograms[recommendation.programId] = recommendedProgramInitialState;
+    return window.completeOnboarding(draft);
   }
-  profile = setStoreOwnedProfile({
-    ...profile,
-    preferences: nextPreferences,
-    coaching: nextCoaching,
-    activeProgram: recommendation.programId,
-    programs: nextPrograms,
-  });
-  normalizeProfileProgramStateMap(profile);
-  profile = setStoreOwnedProfile({ ...profile });
-  if (String(d.sportName || '').trim())
-    schedule = updateStoreOwnedSchedule({
-      sportName: String(d.sportName || '').trim(),
-    });
-  closeOnboardingModal();
-  await saveProfileData({ docKeys: getAllProfileDocumentKeys(profile) });
-  await saveScheduleData();
-  initSettings();
-  if (!activeWorkout) resetNotStartedView();
-  updateProgramDisplay();
-  updateDashboard();
-  const msg =
-    window.I18N && I18N.t
-      ? I18N.t(
-          'onboarding.complete_toast',
-          null,
-          'Plan created and onboarding completed'
-        )
-      : 'Plan created and onboarding completed';
-  showToast(msg, 'var(--green)');
-  goToLog();
 }
 
 function maybeOpenOnboarding(options) {
-  const opts = options || {};
-  clearTimeout(_onboardingRetryTimer);
-  if (document.body.classList.contains('login-active')) return;
-  if (activeWorkout) return;
-  const coaching = normalizeCoachingProfile(profile);
   if (
-    !opts.force &&
-    (coaching.onboardingCompleted === true || coaching.onboardingSeen === true)
+    typeof window.maybeOpenOnboarding === 'function' &&
+    window.maybeOpenOnboarding !== maybeOpenOnboarding
   ) {
-    closeOnboardingModal();
-    return;
+    return window.maybeOpenOnboarding(options);
   }
-  if (typeof hasRegisteredPrograms === 'function' && !hasRegisteredPrograms()) {
-    _onboardingRetryTimer = setTimeout(() => maybeOpenOnboarding(opts), 120);
-    return;
-  }
-  if (!opts.force && coaching.onboardingSeen !== true) {
-    profile = setStoreOwnedProfile({
-      ...profile,
-      coaching: normalizeCoachingProfile({
-        ...profile,
-        coaching: {
-          ...coaching,
-          onboardingSeen: true,
-        },
-      }),
-    });
-    saveProfileData({ docKeys: ['profile_core'] });
-  }
-  document.getElementById('onboarding-modal')?.classList.add('active');
-  notifyOnboardingIsland();
 }
 
 function restartOnboarding() {
-  if (activeWorkout) {
-    showToast(
-      window.I18N && I18N.t
-        ? I18N.t(
-            'settings.preferences.restart_onboarding_active',
-            null,
-            'Finish or discard the active workout before reopening guided setup.'
-          )
-        : 'Finish or discard the active workout before reopening guided setup.',
-      'var(--muted)'
-    );
-    return;
+  if (
+    typeof window.restartOnboarding === 'function' &&
+    window.restartOnboarding !== restartOnboarding
+  ) {
+    return window.restartOnboarding();
   }
-  const modal = document.getElementById('onboarding-modal');
-  if (!modal) return;
-  modal.classList.add('active');
-  notifyOnboardingIsland();
 }
 function closeProgramSetupSheet(e) {
   if (!e || e.target.id === 'program-setup-sheet') {

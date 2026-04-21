@@ -430,7 +430,9 @@ declare global {
         options?: Record<string, unknown>,
         deps?: Record<string, unknown>
       ) => Promise<boolean>;
-      flushPendingCloudSync?: (deps?: Record<string, unknown>) => Promise<boolean>;
+      flushPendingCloudSync?: (
+        deps?: Record<string, unknown>
+      ) => Promise<boolean>;
       pullFromCloud?: (
         options?: Record<string, unknown>,
         deps?: Record<string, unknown>
@@ -775,9 +777,7 @@ declare global {
       clearWorkoutRestIntervalHost?: (
         deps?: IronforgeWorkoutRestHostDeps
       ) => void;
-      clearWorkoutRestHideHost?: (
-        deps?: IronforgeWorkoutRestHostDeps
-      ) => void;
+      clearWorkoutRestHideHost?: (deps?: IronforgeWorkoutRestHostDeps) => void;
       scheduleWorkoutRestIntervalHost?: (
         callback: () => void,
         deps?: IronforgeWorkoutRestHostDeps
@@ -947,7 +947,9 @@ declare global {
     clearExerciseCatalogFilters?: () => void;
     selectExerciseCatalogExercise?: (exerciseId: string) => void;
     closeNameModal?: () => void;
-    showSessionSummary?: (summaryData: Record<string, unknown>) => Promise<unknown> | unknown;
+    showSessionSummary?: (
+      summaryData: Record<string, unknown>
+    ) => Promise<unknown> | unknown;
     __IRONFORGE_STORES__?: {
       data?: {
         getState?: () => any;

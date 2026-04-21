@@ -342,7 +342,8 @@ export function showSessionSummary(
 }
 
 export function updateSummaryNotes(value: string) {
-  const prompt = useRuntimeStore.getState().workoutSession.session.summaryPrompt;
+  const prompt =
+    useRuntimeStore.getState().workoutSession.session.summaryPrompt;
   if (!prompt || typeof prompt !== 'object') return;
   setWorkoutSessionState({
     summaryPrompt: {
@@ -353,7 +354,8 @@ export function updateSummaryNotes(value: string) {
 }
 
 export function setSummaryFeedback(value: string) {
-  const prompt = useRuntimeStore.getState().workoutSession.session.summaryPrompt;
+  const prompt =
+    useRuntimeStore.getState().workoutSession.session.summaryPrompt;
   if (!prompt || typeof prompt !== 'object') return;
   setWorkoutSessionState({
     summaryPrompt: {
@@ -369,7 +371,8 @@ export function closeSummaryModal(goToNutrition?: boolean) {
   };
   if (typeof rw._summaryCleanup === 'function') rw._summaryCleanup();
   rw._summaryCleanup = null;
-  const prompt = useRuntimeStore.getState().workoutSession.session.summaryPrompt;
+  const prompt =
+    useRuntimeStore.getState().workoutSession.session.summaryPrompt;
   const feedback =
     prompt && typeof prompt === 'object'
       ? ((prompt as Record<string, unknown>).feedback as string | null) || null

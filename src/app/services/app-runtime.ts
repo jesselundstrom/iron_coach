@@ -73,6 +73,12 @@ type RuntimeApi = {
     draft?: Record<string, unknown>
   ) => Record<string, unknown> | null;
   updateLanguageDependentUI: () => void;
+  notifyOnboardingIsland: () => void;
+  closeOnboardingModal: () => void;
+  dismissOnboardingModal: () => void;
+  completeOnboarding: (draft?: Record<string, unknown>) => Promise<void>;
+  maybeOpenOnboarding: (options?: Record<string, unknown>) => void;
+  restartOnboarding: () => void;
 };
 
 type RuntimeWindow = Window & {
@@ -120,6 +126,12 @@ type RuntimeWindow = Window & {
   ) => void;
   syncSettingsBridge?: () => void;
   updateLanguageDependentUI?: () => void;
+  completeOnboarding?: (draft?: Record<string, unknown>) => Promise<void>;
+  maybeOpenOnboarding?: (options?: Record<string, unknown>) => void;
+  restartOnboarding?: () => void;
+  closeOnboardingModal?: () => void;
+  dismissOnboardingModal?: () => void;
+  notifyOnboardingIsland?: () => void;
 };
 
 function getRuntimeWindow(): RuntimeWindow | null {
@@ -1821,6 +1833,181 @@ function updateLanguageDependentUI() {
   }
 }
 
+// Onboarding orchestration — typed owner for completeOnboarding / maybeOpenOnboarding / restartOnboarding.
+
+let _onboardingRetryTimer: ReturnType<typeof setTimeout> | undefined;
+
+function notifyOnboardingIsland() {
+  window.dispatchEvent(new CustomEvent('ironforge:onboarding-updated'));
+}
+
+function closeOnboardingModal() {
+  document.getElementById('onboarding-modal')?.classList.remove('active');
+}
+
+function dismissOnboardingModal() {
+  closeOnboardingModal();
+}
+
+async function completeOnboarding(draft?: Record<string, unknown>) {
+  const d = draft || getOnboardingDefaultDraft();
+  const recommendation = buildOnboardingRecommendation(d) || null;
+  if (!d || !recommendation) return;
+
+  const currentProfile = getProfileRecord();
+  const nextPreferences = normalizeTrainingPreferences({
+    preferences: {
+      ...((currentProfile.preferences as MutableRecord | null) ||
+        (getDefaultTrainingPreferences() as unknown as MutableRecord)),
+      goal: d.goal,
+      trainingDaysPerWeek:
+        parseInt(String(d.trainingDaysPerWeek || 3), 10) || 3,
+      sessionMinutes: parseInt(String(d.sessionMinutes || 60), 10) || 60,
+      equipmentAccess: d.equipmentAccess,
+      detailedView: undefined,
+    },
+  });
+
+  const nextCoaching = normalizeCoachingProfile({
+    coaching: {
+      ...((currentProfile.coaching as MutableRecord | null) ||
+        (getDefaultCoachingProfile() as unknown as MutableRecord)),
+      experienceLevel: d.experienceLevel,
+      guidanceMode: d.guidanceMode,
+      sportProfile: {
+        name: String(d.sportName || '').trim(),
+        inSeason: d.inSeason === true,
+        sessionsPerWeek:
+          parseInt(String(d.sportSessionsPerWeek || 0), 10) || 0,
+      },
+      limitations: {
+        jointFlags: [...(((d.jointFlags as string[]) || []) as string[])],
+        avoidMovementTags: [
+          ...(((d.avoidMovementTags as string[]) || []) as string[]),
+        ],
+        avoidExerciseIds: parseOnboardingExerciseIds(d.avoidExercisesText),
+      },
+      exercisePreferences: {
+        preferredExerciseIds: [],
+        excludedExerciseIds: parseOnboardingExerciseIds(d.avoidExercisesText),
+      },
+      onboardingCompleted: true,
+      onboardingSeen: true,
+    },
+  });
+
+  const recommendedProgramId = String(
+    (recommendation as MutableRecord).programId || ''
+  );
+  const recommendedProgramInitialState =
+    callLegacyWindowFunction<Record<string, unknown> | null>(
+      'getProgramInitialState',
+      recommendedProgramId
+    );
+  const currentPrograms =
+    (currentProfile.programs as Record<string, unknown> | null) || {};
+  const nextPrograms = { ...currentPrograms };
+  if (!nextPrograms[recommendedProgramId] && recommendedProgramInitialState) {
+    nextPrograms[recommendedProgramId] = recommendedProgramInitialState;
+  }
+
+  profileStore.getState().setProfile({
+    ...currentProfile,
+    preferences: nextPreferences as unknown as MutableRecord,
+    coaching: nextCoaching as unknown as MutableRecord,
+    activeProgram: recommendedProgramId,
+    programs: nextPrograms,
+  });
+  callLegacyWindowFunction(
+    'normalizeProfileProgramStateMap',
+    profileStore.getState().profile
+  );
+  programStore.getState().syncFromLegacy();
+
+  if (String(d.sportName || '').trim()) {
+    profileStore.getState().setSchedule({
+      ...getScheduleRecord(),
+      sportName: String(d.sportName || '').trim(),
+    });
+  }
+
+  closeOnboardingModal();
+
+  const nextProfile = profileStore.getState().profile as MutableRecord;
+  await Promise.resolve(
+    callLegacyWindowFunction('saveProfileData', {
+      docKeys: getAllProfileDocumentKeys(nextProfile),
+    })
+  );
+  await Promise.resolve(callLegacyWindowFunction('saveScheduleData'));
+
+  syncSettingsBridge();
+  callLegacyWindowFunction('initSettings');
+  if (!getLegacyRuntimeState().activeWorkout) {
+    callLegacyWindowFunction('resetNotStartedView');
+  }
+  callLegacyWindowFunction('updateProgramDisplay');
+  callLegacyWindowFunction('updateDashboard');
+  callLegacyWindowFunction(
+    'showToast',
+    t('onboarding.complete_toast', 'Plan created and onboarding completed'),
+    'var(--green)'
+  );
+  callLegacyWindowFunction('goToLog');
+}
+
+function maybeOpenOnboarding(options?: Record<string, unknown>) {
+  const opts = options || {};
+  clearTimeout(_onboardingRetryTimer);
+  if (document.body.classList.contains('login-active')) return;
+  if (getLegacyRuntimeState().activeWorkout) return;
+  const currentProfile = getProfileRecord();
+  const coaching = normalizeCoachingProfile(currentProfile) as MutableRecord;
+  if (
+    !opts.force &&
+    (coaching.onboardingCompleted === true || coaching.onboardingSeen === true)
+  ) {
+    closeOnboardingModal();
+    return;
+  }
+  const hasRegs =
+    callLegacyWindowFunction<boolean>('hasRegisteredPrograms');
+  if (hasRegs === false) {
+    _onboardingRetryTimer = setTimeout(() => maybeOpenOnboarding(opts), 120);
+    return;
+  }
+  if (!opts.force && coaching.onboardingSeen !== true) {
+    profileStore.getState().setProfile({
+      ...currentProfile,
+      coaching: normalizeCoachingProfile({
+        ...currentProfile,
+        coaching: { ...(coaching as MutableRecord), onboardingSeen: true },
+      }) as unknown as MutableRecord,
+    });
+    callLegacyWindowFunction('saveProfileData', { docKeys: ['profile_core'] });
+  }
+  document.getElementById('onboarding-modal')?.classList.add('active');
+  notifyOnboardingIsland();
+}
+
+function restartOnboarding() {
+  if (getLegacyRuntimeState().activeWorkout) {
+    callLegacyWindowFunction(
+      'showToast',
+      t(
+        'settings.preferences.restart_onboarding_active',
+        'Finish or discard the active workout before reopening guided setup.'
+      ),
+      'var(--muted)'
+    );
+    return;
+  }
+  const modal = document.getElementById('onboarding-modal');
+  if (!modal) return;
+  modal.classList.add('active');
+  notifyOnboardingIsland();
+}
+
 export function installAppRuntimeBridge() {
   const runtimeWindow = getRuntimeWindow();
   if (!runtimeWindow) return null;
@@ -1860,6 +2047,12 @@ export function installAppRuntimeBridge() {
     getOnboardingDefaultDraft,
     buildOnboardingRecommendation,
     updateLanguageDependentUI,
+    notifyOnboardingIsland,
+    closeOnboardingModal,
+    dismissOnboardingModal,
+    completeOnboarding,
+    maybeOpenOnboarding,
+    restartOnboarding,
   };
 
   runtimeWindow.__IRONFORGE_APP_RUNTIME__ = api;
@@ -1872,6 +2065,12 @@ export function installAppRuntimeBridge() {
   runtimeWindow.getOnboardingDefaultDraft = getOnboardingDefaultDraft;
   runtimeWindow.buildOnboardingRecommendation = buildOnboardingRecommendation;
   runtimeWindow.updateLanguageDependentUI = updateLanguageDependentUI;
+  runtimeWindow.completeOnboarding = completeOnboarding;
+  runtimeWindow.maybeOpenOnboarding = maybeOpenOnboarding;
+  runtimeWindow.restartOnboarding = restartOnboarding;
+  runtimeWindow.closeOnboardingModal = closeOnboardingModal;
+  runtimeWindow.dismissOnboardingModal = dismissOnboardingModal;
+  runtimeWindow.notifyOnboardingIsland = notifyOnboardingIsland;
   syncSettingsBridge();
   return api;
 }
