@@ -365,6 +365,7 @@ declare global {
       saveLanguageSetting?: (
         nextLanguage?: string
       ) => Record<string, unknown> | null;
+      saveSimpleProgramSettings?: () => Record<string, unknown> | null;
       exportData?: () => void;
       importData?: (event?: Event | null) => void;
       clearAllData?: () => Promise<void>;

@@ -57,6 +57,7 @@ type RuntimeApi = {
   saveRestTimer: () => Profile | null;
   saveBodyMetrics: () => Profile | null;
   saveLanguageSetting: (nextLanguage?: string) => Profile | null;
+  saveSimpleProgramSettings: () => Record<string, unknown> | null;
   exportData: () => void;
   importData: (event?: Event | null) => void;
   clearAllData: () => Promise<void>;
@@ -1546,6 +1547,33 @@ function saveLanguageSetting(nextLanguage?: string) {
   return nextProfile;
 }
 
+function saveSimpleProgramSettings() {
+  const program = programStore.getState().activeProgram as
+    | (MutableRecord & {
+        id?: string;
+        saveSimpleSettings?: (state?: Record<string, unknown> | null) => Record<string, unknown> | null;
+      })
+    | null;
+  const state =
+    (programStore.getState().activeProgramState as Record<string, unknown> | null) ||
+    null;
+  if (!program || typeof program.saveSimpleSettings !== 'function') return null;
+
+  const nextState = program.saveSimpleSettings(state);
+  const savedState = profileStore
+    .getState()
+    .setProgramState(String(program.id || ''), nextState);
+  programStore.getState().syncFromLegacy();
+  callLegacyWindowFunction('saveProfileData', {
+    programIds: [String(program.id || '')],
+  });
+  syncSettingsBridge();
+  callLegacyWindowFunction('updateProgramDisplay');
+  callLegacyWindowFunction('updateDashboard');
+  showAutoSaveToast(t('program.setup_saved', 'Saved'), 'var(--purple)');
+  return savedState;
+}
+
 function exportData() {
   const payload = {
     version: 1,
@@ -1818,6 +1846,7 @@ export function installAppRuntimeBridge() {
     saveRestTimer,
     saveBodyMetrics,
     saveLanguageSetting,
+    saveSimpleProgramSettings,
     exportData,
     importData,
     clearAllData,

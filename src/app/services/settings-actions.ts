@@ -94,6 +94,10 @@ export function showDangerConfirm() {
 }
 
 export function saveSimpleProgramSettings() {
+  if (typeof getAppRuntime()?.saveSimpleProgramSettings === 'function') {
+    getAppRuntime()?.saveSimpleProgramSettings?.();
+    return;
+  }
   callLegacyWindowFunction('saveSimpleProgramSettings');
 }
 

@@ -1731,6 +1731,9 @@ function saveTrainingPreferences(options) {
   _showAutoSaveToast(tr('toast.preferences_saved', 'Saved'), 'var(--purple)');
 }
 function saveSimpleProgramSettings() {
+  if (typeof getAppRuntime()?.saveSimpleProgramSettings === 'function') {
+    return getAppRuntime().saveSimpleProgramSettings();
+  }
   const prog = getActiveProgram(),
     state = getActiveProgramState();
   if (!prog || !prog.saveSimpleSettings) return;
