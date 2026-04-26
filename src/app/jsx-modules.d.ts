@@ -369,7 +369,7 @@ declare global {
       exportData?: () => void;
       importData?: (event?: Event | null) => void;
       clearAllData?: () => Promise<void>;
-      saveSchedule?: (nextValues?: Record<string, unknown>) => void;
+      saveSchedule?: (nextValues?: Record<string, unknown>) => Promise<void>;
       syncSettingsBridge?: () => void;
       syncSettingsAccountView?: () => void;
       syncSettingsScheduleView?: () => void;
@@ -865,7 +865,7 @@ declare global {
     __IRONFORGE_SET_LEGACY_RUNTIME_STATE__?: (
       partial: Record<string, unknown>
     ) => void;
-    startWorkout?: () => void;
+    startWorkout?: () => Promise<unknown> | unknown;
     resumeActiveWorkoutUI?: (options?: Record<string, unknown>) => unknown;
     updateRestDuration?: (nextValue?: string | number | null) => void;
     startRestTimer?: () => void;
@@ -966,7 +966,7 @@ declare global {
       };
       workout?: {
         getState?: () => any;
-        startWorkout?: () => void;
+        startWorkout?: () => Promise<unknown> | unknown;
         resumeActiveWorkoutUI?: (options?: Record<string, unknown>) => unknown;
         updateRestDuration?: (nextValue?: string | number | null) => void;
         addExerciseByName?: (name: string) => void;

@@ -36,10 +36,9 @@ export function saveBodyMetrics() {
 
 export function saveSchedule(nextValues?: Record<string, unknown>) {
   if (typeof getAppRuntime()?.saveSchedule === 'function') {
-    getAppRuntime()?.saveSchedule?.(nextValues);
-    return;
+    return getAppRuntime()?.saveSchedule?.(nextValues);
   }
-  callLegacyWindowFunction('saveSchedule', nextValues);
+  return callLegacyWindowFunction('saveSchedule', nextValues);
 }
 
 export function saveLanguageSetting(nextLanguage: string) {

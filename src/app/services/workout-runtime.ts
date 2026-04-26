@@ -507,6 +507,13 @@ function readPositiveInt(value: unknown, fallback = 0) {
   return Math.max(0, Math.floor(readNumber(value, fallback)));
 }
 
+function readWorkoutClientId(workout?: Record<string, unknown> | null) {
+  if (!workout || typeof workout !== 'object') return '';
+  const raw = workout.id;
+  if (raw === undefined || raw === null) return '';
+  return String(raw);
+}
+
 function readTimerFunction<T extends (...args: any[]) => any>(
   deps: WorkoutRestHostDeps | undefined,
   key: keyof WorkoutRestHostDeps
@@ -1541,7 +1548,7 @@ export async function commitWorkoutFinishPersistence(
     (programId: string, state: Record<string, unknown>) => void
   >(deps, 'setProgramState');
   const saveProfileData = readFunction<
-    (input?: Record<string, unknown>) => void
+    (input?: Record<string, unknown>) => Promise<unknown> | unknown
   >(deps, 'saveProfileData');
   const upsertWorkoutRecord = readFunction<
     (workout: Record<string, unknown>) => Promise<unknown>
@@ -1564,9 +1571,29 @@ export async function commitWorkoutFinishPersistence(
     logWarn?.('getWorkoutMeta', finishPlan.programMetaError);
   }
 
-  if (workouts) {
+  const savedWorkoutId = readWorkoutClientId(finishPlan.savedWorkout);
+  const alreadySaved =
+    !!savedWorkoutId &&
+    !!workouts?.some(
+      (workout) => readWorkoutClientId(workout) === savedWorkoutId
+    );
+  if (workouts && !alreadySaved) {
     workouts.push(finishPlan.savedWorkout);
   }
+
+  const programId = String(prog.id || finishPlan.savedWorkout.program || '');
+  if (programId) {
+    setProgramState?.(programId, finishPlan.advancedState || {});
+    await Promise.resolve(saveProfileData?.({ programIds: [programId] }));
+  }
+
+  if (upsertWorkoutRecord) {
+    await upsertWorkoutRecord(finishPlan.savedWorkout);
+  }
+  if (saveWorkouts) {
+    await saveWorkouts();
+  }
+  buildExerciseIndex?.();
 
   if (finishPlan.progressionToast?.text) {
     const schedule =
@@ -1581,20 +1608,6 @@ export async function commitWorkoutFinishPersistence(
       parseInt(String(finishPlan.progressionToast.delay || 0), 10) || 0
     );
   }
-
-  const programId = String(prog.id || finishPlan.savedWorkout.program || '');
-  if (programId) {
-    setProgramState?.(programId, finishPlan.advancedState || {});
-    saveProfileData?.({ programIds: [programId] });
-  }
-
-  if (upsertWorkoutRecord) {
-    await upsertWorkoutRecord(finishPlan.savedWorkout);
-  }
-  if (saveWorkouts) {
-    await saveWorkouts();
-  }
-  buildExerciseIndex?.();
 
   if (finishPlan.programHookFailed) {
     showToast?.(

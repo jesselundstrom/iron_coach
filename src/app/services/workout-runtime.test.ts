@@ -577,7 +577,7 @@ describe('workout runtime mutation helpers', () => {
     });
   });
 
-  it('builds a typed finish plan with saved workout, summary data, and teardown', () => {
+  it('builds a typed finish plan with saved workout, progression summary, and teardown', () => {
     const finishPlan = buildWorkoutFinishPlan(
       {
         prog: {
@@ -659,7 +659,7 @@ describe('workout runtime mutation helpers', () => {
       completedSets: 1,
       totalSets: 1,
       prCount: 1,
-      coachNote: 'All sets done. Solid work.',
+      coachNote: 'Week 2 starts now. Build on it.',
     });
     expect(finishPlan?.finishTeardownPlan).toMatchObject({
       showNotStarted: true,
@@ -1089,8 +1089,10 @@ describe('workout runtime mutation helpers', () => {
         setProgramState: (programId: string) => {
           calls.push(`setProgramState:${programId}`);
         },
-        saveProfileData: () => {
-          calls.push('saveProfileData');
+        saveProfileData: async () => {
+          calls.push('saveProfileData:start');
+          await Promise.resolve();
+          calls.push('saveProfileData:end');
         },
         upsertWorkoutRecord: async () => {
           calls.push('upsertWorkoutRecord');
@@ -1108,12 +1110,13 @@ describe('workout runtime mutation helpers', () => {
     expect(workouts).toHaveLength(1);
     expect(workouts[0]?.id).toBe(123);
     expect(calls).toEqual([
-      'timer',
       'setProgramState:forge',
-      'saveProfileData',
+      'saveProfileData:start',
+      'saveProfileData:end',
       'upsertWorkoutRecord',
       'saveWorkouts',
       'buildExerciseIndex',
+      'timer',
     ]);
     expect(toasts).toEqual([
       {
@@ -1121,6 +1124,22 @@ describe('workout runtime mutation helpers', () => {
         color: 'var(--purple)',
       },
     ]);
+
+    await commitWorkoutFinishPersistence(
+      {
+        prog: { id: 'forge' },
+        finishPlan,
+        workouts,
+      },
+      {
+        setProgramState: () => {},
+        saveProfileData: async () => {},
+        upsertWorkoutRecord: async () => {},
+        saveWorkouts: async () => {},
+      }
+    );
+
+    expect(workouts).toHaveLength(1);
   });
 
   it('applies post-workout outcome effects through typed runtime helpers', async () => {

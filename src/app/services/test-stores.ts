@@ -26,7 +26,7 @@ type TestStoreBridge = {
   };
   workout: {
     getState: () => ReturnType<typeof workoutStore.getState>;
-    startWorkout: () => void;
+    startWorkout: () => Promise<unknown> | unknown;
     resumeActiveWorkoutUI: (options?: Record<string, unknown>) => unknown;
     updateRestDuration: (
       nextValue?: string | number | null

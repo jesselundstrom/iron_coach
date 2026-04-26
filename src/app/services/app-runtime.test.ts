@@ -210,4 +210,82 @@ describe('app-runtime ownership', () => {
     expect(getTestWindow().renderHistory).toHaveBeenCalled();
     expect(useRuntimeStore.getState().pages.settingsAccountView).not.toBeNull();
   });
+
+  it('waits for schedule persistence before refreshing dependent UI', async () => {
+    const runtime = installAppRuntimeBridge();
+    expect(runtime).toBeTruthy();
+
+    const runtimeWindow = getTestWindow();
+    const calls: string[] = [];
+    let resolveSave: unknown = null;
+    runtimeWindow.saveScheduleData = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          calls.push('save-start');
+          resolveSave = () => {
+            calls.push('save-done');
+            resolve();
+          };
+        })
+    );
+    runtimeWindow.updateProgramDisplay = vi.fn(() => calls.push('program'));
+    runtimeWindow.updateDashboard = vi.fn(() => calls.push('dashboard'));
+    runtimeWindow.renderSportStatusBar = vi.fn(() => calls.push('sport'));
+    runtimeWindow.showToast = vi.fn(() => calls.push('toast'));
+
+    const pendingSave = runtime?.saveSchedule({
+      sportName: 'Hockey',
+      sportDays: [1, 3],
+      sportIntensity: 'moderate',
+    });
+
+    expect(runtimeWindow.saveScheduleData).toHaveBeenCalled();
+    expect(runtimeWindow.updateProgramDisplay).not.toHaveBeenCalled();
+
+    expect(resolveSave).toBeTypeOf('function');
+    if (typeof resolveSave !== 'function') {
+      throw new Error('Expected pending schedule save');
+    }
+    resolveSave();
+    await pendingSave;
+
+    expect(useRuntimeStore.getState().pages.settingsScheduleView).not.toBeNull();
+    expect(calls).toEqual([
+      'save-start',
+      'save-done',
+      'program',
+      'dashboard',
+      'sport',
+      'toast',
+    ]);
+  });
+
+  it('handles schedule persistence failures before dependent UI refresh', async () => {
+    const runtime = installAppRuntimeBridge();
+    expect(runtime).toBeTruthy();
+
+    const runtimeWindow = getTestWindow();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    runtimeWindow.saveScheduleData = vi.fn(async () => {
+      throw new Error('offline');
+    });
+    runtimeWindow.updateProgramDisplay = vi.fn();
+    runtimeWindow.updateDashboard = vi.fn();
+    runtimeWindow.renderSportStatusBar = vi.fn();
+    runtimeWindow.showToast = vi.fn();
+
+    try {
+      await runtime?.saveSchedule({ sportName: 'Hockey' });
+    } finally {
+      warnSpy.mockRestore();
+    }
+
+    expect(runtimeWindow.updateProgramDisplay).not.toHaveBeenCalled();
+    expect(runtimeWindow.updateDashboard).not.toHaveBeenCalled();
+    expect(runtimeWindow.renderSportStatusBar).not.toHaveBeenCalled();
+    expect(runtimeWindow.showToast).toHaveBeenCalledWith(
+      'Could not save settings. Please try again.',
+      'var(--orange)'
+    );
+  });
 });

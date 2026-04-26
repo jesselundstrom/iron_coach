@@ -63,7 +63,7 @@ type RuntimeApi = {
   exportData: () => void;
   importData: (event?: Event | null) => void;
   clearAllData: () => Promise<void>;
-  saveSchedule: (nextValues?: Record<string, unknown>) => void;
+  saveSchedule: (nextValues?: Record<string, unknown>) => Promise<void>;
   syncSettingsBridge: () => void;
   syncSettingsAccountView: () => void;
   syncSettingsScheduleView: () => void;
@@ -1440,7 +1440,7 @@ function bootstrapProfileRuntime(input?: {
   return next;
 }
 
-function saveSchedule(nextValues?: Record<string, unknown>) {
+async function saveSchedule(nextValues?: Record<string, unknown>) {
   const currentSchedule = getScheduleRecord();
   const nextSchedule = {
     ...(currentSchedule || {}),
@@ -1476,7 +1476,17 @@ function saveSchedule(nextValues?: Record<string, unknown>) {
   if (!getLegacyRuntimeState().activeWorkout) {
     callLegacyWindowFunction('resetNotStartedView');
   }
-  callLegacyWindowFunction('saveScheduleData');
+  try {
+    await Promise.resolve(callLegacyWindowFunction('saveScheduleData'));
+  } catch (error) {
+    console.warn('[app-runtime] saveSchedule failed', error);
+    callLegacyWindowFunction(
+      'showToast',
+      t('settings.save_error', 'Could not save settings. Please try again.'),
+      'var(--orange)'
+    );
+    return;
+  }
   syncSettingsScheduleView();
   callLegacyWindowFunction('updateProgramDisplay');
   callLegacyWindowFunction('updateDashboard');

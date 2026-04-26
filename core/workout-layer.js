@@ -808,6 +808,12 @@ function persistCurrentWorkoutDraft() {
     persistActiveWorkoutDraft();
 }
 
+function getActiveWorkoutSession() {
+  return activeWorkout && Array.isArray(activeWorkout.exercises)
+    ? activeWorkout
+    : null;
+}
+
 function clearCurrentWorkoutDraft() {
   if (typeof clearActiveWorkoutDraft === 'function') clearActiveWorkoutDraft();
 }
@@ -3444,6 +3450,10 @@ function startWorkout() {
 }
 
 function beginWorkoutStart(sportContext) {
+  if (getActiveWorkoutSession()) {
+    resumeActiveWorkoutUI({ toast: true });
+    return;
+  }
   const prog = getActiveProgram();
   const state = getActiveProgramState();
   const selectedOption =
@@ -3517,8 +3527,10 @@ function beginWorkoutStart(sportContext) {
   const isReactActive = isLogActiveIslandActive();
   updateProgramDisplay();
   const startPresentation = startPlan?.startPresentation || null;
-  document.getElementById('workout-not-started').style.display = 'none';
-  document.getElementById('workout-active').style.display = 'block';
+  const notStartedEl = document.getElementById('workout-not-started');
+  const activeEl = document.getElementById('workout-active');
+  if (notStartedEl) notStartedEl.style.display = 'none';
+  if (activeEl) activeEl.style.display = 'block';
   restDuration =
       typeof getSelectedRestDuration === 'function'
         ? getSelectedRestDuration()
@@ -4445,7 +4457,9 @@ function parseLoggedRepCount(raw) {
 }
 
 function updateSet(ei, si, f, v) {
-  const exercise = activeWorkout.exercises[ei];
+  const workout = getActiveWorkoutSession();
+  if (!workout) return;
+  const exercise = workout.exercises[ei];
   const set = exercise?.sets?.[si];
   if (!set) return;
   const mutation =
@@ -4583,7 +4597,9 @@ function spawnForgeEmbers(checkEl, options) {
 }
 
 function toggleSet(ei, si) {
-  const exercise = activeWorkout.exercises[ei];
+  const workout = getActiveWorkoutSession();
+  if (!workout) return;
+  const exercise = workout.exercises[ei];
   const set = exercise?.sets?.[si];
   if (!exercise || !set) return;
   const exerciseUiKey = ensureExerciseUiKey(exercise);
@@ -4684,7 +4700,9 @@ function toggleSet(ei, si) {
 }
 
 function addSet(ei) {
-  const exercise = activeWorkout.exercises[ei];
+  const workout = getActiveWorkoutSession();
+  if (!workout) return;
+  const exercise = workout.exercises[ei];
   if (!exercise) return;
   const exerciseUiKey = ensureExerciseUiKey(exercise);
   delete collapsedExerciseCardState[exerciseUiKey];
@@ -4704,9 +4722,11 @@ function addSet(ei) {
 }
 
 function removeEx(ei) {
+  const workout = getActiveWorkoutSession();
+  if (!workout) return;
   const removal =
     window.__IRONFORGE_WORKOUT_RUNTIME__?.removeWorkoutExercise?.({
-      exercises: activeWorkout.exercises,
+      exercises: workout.exercises,
       exerciseIndex: ei,
     }) || null;
   if (!removal) return;
@@ -4726,7 +4746,9 @@ function removeEx(ei) {
       'var(--muted)',
       () => {
         ensureExerciseUiKey(removed);
-        activeWorkout.exercises.splice(ei, 0, removed);
+        const currentWorkout = getActiveWorkoutSession();
+        if (!currentWorkout) return;
+        currentWorkout.exercises.splice(ei, 0, removed);
         persistCurrentWorkoutDraft();
         insertExerciseCard(ei, removed);
         renderActiveWorkoutPlanPanel();
@@ -5199,57 +5221,11 @@ function applyWorkoutTeardownPlan(teardownPlan, options) {
   }
 }
 
+let finishWorkoutInProgress = false;
+
 async function finishWorkout() {
-  if (!activeWorkout.exercises.length) {
-    showToast(
-      i18nText('workout.add_at_least_one', 'Add at least one exercise!'),
-      'var(--orange)'
-    );
-    return;
-  }
-  activeWorkout.exercises = getWorkoutRuntime().sanitizeWorkoutExercisesForSave({
-    exercises: activeWorkout.exercises,
-    withResolvedExerciseId,
-  });
-
-  const sessionRPE = await new Promise((resolve) => {
-    showRPEPicker(i18nText('common.session', 'Session'), -1, (val) =>
-      resolve(val || 7)
-    );
-  });
-
-  const prog = getActiveProgram();
-  const programName =
-    window.I18N && I18N.t
-      ? I18N.t('program.' + prog.id + '.name', null, prog.name || 'Training')
-      : prog.name || 'Training';
-  const state = getActiveProgramState();
-  const workoutId = Date.now();
-  const workoutDate = new Date().toISOString();
-  ensureWorkoutCommentaryRecord(activeWorkout);
-  const sessionPrCount = getWorkoutPrCount(activeWorkout);
-  const finishPlan = getWorkoutRuntime().buildWorkoutFinishPlan(
-    {
-      prog,
-      workoutId,
-      workoutDate,
-      activeWorkout,
-      state,
-      workouts,
-      programName,
-      prCount: sessionPrCount,
-      duration: getWorkoutElapsedSeconds(),
-      sessionRPE,
-    },
-    {
-      cloneTrainingDecision,
-      stripWarmupSetsFromExercises,
-      getWeekStart,
-      parseLoggedRepCount,
-      t: i18nText,
-    }
-  );
-  if (!finishPlan) {
+  if (finishWorkoutInProgress) return;
+  if (!activeWorkout || !Array.isArray(activeWorkout.exercises)) {
     showToast(
       i18nText(
         'workout.finish_error',
@@ -5259,61 +5235,141 @@ async function finishWorkout() {
     );
     return;
   }
-  const savedWorkout = finishPlan.savedWorkout;
-  const summaryData = finishPlan.summaryData || {};
-  const finishTeardownPlan = finishPlan.finishTeardownPlan;
-  await getWorkoutRuntime().commitWorkoutFinishPersistence(
-    {
-      prog,
-      finishPlan,
-      workouts,
-    },
-    {
-      logWarn,
-      showToast,
-      setTimer: setTimeout,
-      t: i18nText,
-      setProgramState,
-      saveProfileData,
-      upsertWorkoutRecord,
-      saveWorkouts,
-      buildExerciseIndex,
+  if (!activeWorkout.exercises.length) {
+    showToast(
+      i18nText('workout.add_at_least_one', 'Add at least one exercise!'),
+      'var(--orange)'
+    );
+    return;
+  }
+
+  finishWorkoutInProgress = true;
+  try {
+    activeWorkout.exercises = getWorkoutRuntime().sanitizeWorkoutExercisesForSave({
+      exercises: activeWorkout.exercises,
+      withResolvedExerciseId,
+    });
+
+    const sessionRPE = await new Promise((resolve) => {
+      showRPEPicker(i18nText('common.session', 'Session'), -1, (val) =>
+        resolve(val || 7)
+      );
+    });
+
+    if (!activeWorkout || !Array.isArray(activeWorkout.exercises)) {
+      throw new Error('Active workout disappeared during finish flow.');
     }
-  );
-  applyWorkoutTeardownPlan(finishTeardownPlan, {
-    renderTimer: true,
-  });
-  const summaryResult = await window.showSessionSummary(summaryData);
-  const postWorkoutOutcome = getWorkoutRuntime().buildPostWorkoutOutcome(
-    {
-      savedWorkout,
-      summaryResult,
-      summaryData,
-    },
-    {
-      inferDurationSignal,
-      t: i18nText,
-      formatWorkoutWeight,
+
+    const prog = getActiveProgram();
+    const programName =
+      window.I18N && I18N.t
+        ? I18N.t('program.' + prog.id + '.name', null, prog.name || 'Training')
+        : prog.name || 'Training';
+    const state = getActiveProgramState();
+    activeWorkout.finishWorkoutId =
+      activeWorkout.finishWorkoutId || Date.now();
+    const workoutId = activeWorkout.finishWorkoutId;
+    const workoutDate = new Date().toISOString();
+    ensureWorkoutCommentaryRecord(activeWorkout);
+    const sessionPrCount = getWorkoutPrCount(activeWorkout);
+    const finishPlan = getWorkoutRuntime().buildWorkoutFinishPlan(
+      {
+        prog,
+        workoutId,
+        workoutDate,
+        activeWorkout,
+        state,
+        workouts,
+        programName,
+        prCount: sessionPrCount,
+        duration: getWorkoutElapsedSeconds(),
+        sessionRPE,
+      },
+      {
+        cloneTrainingDecision,
+        stripWarmupSetsFromExercises,
+        getWeekStart,
+        parseLoggedRepCount,
+        t: i18nText,
+      }
+    );
+    if (!finishPlan) {
+      showToast(
+        i18nText(
+          'workout.finish_error',
+          'Session could not be finalized. Please try again.'
+        ),
+        'var(--orange)'
+      );
+      return;
     }
-  );
-  await getWorkoutRuntime().applyPostWorkoutOutcomeEffects(
-    {
-      postWorkoutOutcome,
-      summaryData,
-    },
-    {
-      saveWorkouts,
-      showToast,
-      setTimer: setTimeout,
-      setNutritionSessionContext:
-        typeof window.setNutritionSessionContext === 'function'
-          ? window.setNutritionSessionContext
-          : null,
-      getRuntimeBridge:
-        typeof getRuntimeBridge === 'function' ? getRuntimeBridge : null,
-      showPage: typeof window.showPage === 'function' ? window.showPage : null,
-    }
-  );
+    const savedWorkout = finishPlan.savedWorkout;
+    const summaryData = finishPlan.summaryData || {};
+    const finishTeardownPlan = finishPlan.finishTeardownPlan;
+    await getWorkoutRuntime().commitWorkoutFinishPersistence(
+      {
+        prog,
+        finishPlan,
+        workouts,
+      },
+      {
+        logWarn,
+        showToast,
+        setTimer: setTimeout,
+        t: i18nText,
+        setProgramState,
+        saveProfileData,
+        upsertWorkoutRecord,
+        saveWorkouts,
+        buildExerciseIndex,
+      }
+    );
+    applyWorkoutTeardownPlan(finishTeardownPlan, {
+      renderTimer: true,
+    });
+    const summaryResult = await window.showSessionSummary(summaryData);
+    const postWorkoutOutcome = getWorkoutRuntime().buildPostWorkoutOutcome(
+      {
+        savedWorkout,
+        summaryResult,
+        summaryData,
+      },
+      {
+        inferDurationSignal,
+        t: i18nText,
+        formatWorkoutWeight,
+      }
+    );
+    await getWorkoutRuntime().applyPostWorkoutOutcomeEffects(
+      {
+        postWorkoutOutcome,
+        summaryData,
+      },
+      {
+        saveWorkouts,
+        showToast,
+        setTimer: setTimeout,
+        setNutritionSessionContext:
+          typeof window.setNutritionSessionContext === 'function'
+            ? window.setNutritionSessionContext
+            : null,
+        getRuntimeBridge:
+          typeof getRuntimeBridge === 'function' ? getRuntimeBridge : null,
+        showPage: typeof window.showPage === 'function' ? window.showPage : null,
+      }
+    );
+  } catch (error) {
+    logWarn('finishWorkout', error);
+    showToast(
+      i18nText(
+        'workout.finish_error',
+        'Session could not be finalized. Please try again.'
+      ),
+      'var(--orange)'
+    );
+  } finally {
+    finishWorkoutInProgress = false;
+  }
 }
 
 function cancelWorkout() {

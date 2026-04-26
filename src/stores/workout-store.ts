@@ -24,7 +24,7 @@ type LegacyWorkoutStoreState = {
   getStartSnapshot: (input?: Record<string, unknown>) => WorkoutStartSnapshot | null;
   getCachedStartSnapshot: () => WorkoutStartSnapshot | null;
   clearStartSnapshot: () => void;
-  startWorkout: () => void;
+  startWorkout: () => Promise<unknown> | unknown;
   resumeActiveWorkoutUI: (options?: Record<string, unknown>) => unknown;
   updateRestDuration: (nextValue?: string | number | null) => void;
   syncRestTimer: () => void;
@@ -78,12 +78,19 @@ type LegacyWorkoutSnapshot = Omit<
 type LegacyWorkoutWindow = Window & {
   activeWorkout?: Record<string, unknown> | null;
   profile?: Record<string, unknown> | null;
+  I18N?: {
+    t?: (
+      key: string,
+      params?: Record<string, unknown> | null,
+      fallback?: string
+    ) => string;
+  };
   getWorkoutStartSnapshot?: (
     input?: Record<string, unknown>
   ) => Record<string, unknown> | null;
   getCachedWorkoutStartSnapshot?: () => Record<string, unknown> | null;
   clearWorkoutStartSnapshot?: () => void;
-  startWorkout?: () => void;
+  startWorkout?: () => Promise<unknown> | unknown;
   resumeActiveWorkoutUI?: (options?: Record<string, unknown>) => unknown;
   updateRestDuration?: (nextValue?: string | number | null) => void;
   syncRestTimer?: () => void;
@@ -180,6 +187,15 @@ function writeLegacyRuntimeValue(name: string, value: unknown) {
 function getCapturedLegacyAction(
   name: DelegatedWorkoutActionName
 ): LegacyWorkoutAction | null {
+  const runtimeWindow = getLegacyWindow();
+  const target = runtimeWindow?.[name];
+  if (typeof target !== 'function') return null;
+  if (
+    !(target as unknown as Record<string, unknown>)[DELEGATOR_MARK] &&
+    legacyWorkoutActions[name] !== target
+  ) {
+    legacyWorkoutActions[name] = target as LegacyWorkoutAction;
+  }
   return legacyWorkoutActions[name] || captureLegacyAction(name) || null;
 }
 
@@ -188,12 +204,33 @@ function captureLegacyAction(
 ): LegacyWorkoutAction | null {
   const runtimeWindow = getLegacyWindow();
   const target = runtimeWindow?.[name];
-  if (typeof target !== "function") return null;
+  if (typeof target !== 'function') return null;
   if ((target as unknown as Record<string, unknown>)[DELEGATOR_MARK]) {
-    return getCapturedLegacyAction(name);
+    return legacyWorkoutActions[name] || null;
   }
   legacyWorkoutActions[name] = target as LegacyWorkoutAction;
   return legacyWorkoutActions[name] || null;
+}
+
+function translateLegacyText(key: string, fallback: string) {
+  try {
+    return getLegacyWindow()?.I18N?.t?.(key, null, fallback) || fallback;
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+function showWorkoutStartFailure(error?: unknown) {
+  if (error) {
+    console.warn('[workout-store] startWorkout failed', error);
+  }
+  getLegacyWindow()?.showToast?.(
+    translateLegacyText(
+      'workout.start_error',
+      'Workout could not be started. Please reload and try again.'
+    ),
+    'var(--orange)'
+  );
 }
 
 function readSessionNumber(value: unknown, fallback = 0) {
@@ -493,16 +530,41 @@ export const workoutStore: StoreApi<LegacyWorkoutStoreState> =
       syncStoreFromLegacy();
     },
     startWorkout: () => {
-      getCapturedLegacyAction('startWorkout')?.();
-      // If the legacy layer set up an active workout, run resumeActiveWorkoutUI to
-      // guarantee the React bridge views (logStartView, logActiveView) are updated.
-      // beginWorkoutStart may skip its own notify calls if isLogActiveIslandActive()
-      // returns false at the time it runs, or if an exception occurs before line 3638.
-      if (getLegacyWindow()?.activeWorkout) {
-        getCapturedLegacyAction('resumeActiveWorkoutUI')?.({ toast: false });
+      const startAction = getCapturedLegacyAction('startWorkout');
+      if (!startAction) {
+        syncStoreFromLegacy();
+        showWorkoutStartFailure();
+        return undefined;
       }
-      syncStoreFromLegacy();
-      navigateToPage('log');
+      const finalizeStart = () => {
+        const snapshot = syncStoreFromLegacy();
+        if (!snapshot.activeWorkout) return false;
+        // If the legacy layer set up an active workout, run resumeActiveWorkoutUI to
+        // guarantee the React bridge views (logStartView, logActiveView) are updated.
+        // beginWorkoutStart may skip its own notify calls if isLogActiveIslandActive()
+        // returns false at the time it runs, or if an exception occurs before line 3638.
+        getCapturedLegacyAction('resumeActiveWorkoutUI')?.({ toast: false });
+        syncStoreFromLegacy();
+        navigateToPage('log');
+        return true;
+      };
+      try {
+        const result = startAction();
+        if (isPromiseLike(result)) {
+          return result
+            .then(finalizeStart)
+            .catch((error) => {
+              syncStoreFromLegacy();
+              showWorkoutStartFailure(error);
+              return false;
+            });
+        }
+        return finalizeStart();
+      } catch (error) {
+        syncStoreFromLegacy();
+        showWorkoutStartFailure(error);
+        return false;
+      }
     },
     resumeActiveWorkoutUI: (options) => {
       const result = getCapturedLegacyAction('resumeActiveWorkoutUI')?.(options);
