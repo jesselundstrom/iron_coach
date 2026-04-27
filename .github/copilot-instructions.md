@@ -7,7 +7,7 @@
   - an existing legacy runtime in `app.js`, `core/*.js`, and `programs/*.js`
   - an active migration path from that legacy runtime to TypeScript + Zustand
 - Main runtime entry points are `index.html`, `app.js`, `src/app/main.tsx`, `src/styles/tailwind.css`, `manifest.json`, and `sw.js`.
-- The React shell already owns the visible app shell, page tree, and overlay host through `src/app/main.tsx` and `src/app/AppShell.jsx`.
+- The React shell already owns the visible app shell, page tree, and overlay host through `src/app/main.tsx` and `src/app/AppShell.tsx`.
 - `src/app/store/runtime-store.ts` is already part of the active runtime foundation for shell/navigation/UI state.
 - The legacy business/runtime layer still lives primarily in:
   - `core/workout-layer.js`

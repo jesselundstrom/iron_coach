@@ -5,6 +5,12 @@ import {
   normalizeActiveWorkout,
   normalizeWorkoutStartSnapshot,
 } from '../domain/workout-helpers';
+import {
+  appendWorkoutSet,
+  applySetUpdateMutation,
+  removeWorkoutExercise,
+  toggleWorkoutSetCompletion,
+} from '../app/services/workout-runtime';
 import type {
   WorkoutRestTimerResult,
   WorkoutRuntimeApi,
@@ -124,6 +130,57 @@ type LegacyWorkoutWindow = Window & {
     color?: string,
     undoAction?: (() => void) | null
   ) => void;
+  getActiveWorkoutSession?: () => Record<string, unknown> | null;
+  ensureExerciseUiKey?: (exercise: Record<string, unknown>) => string | null;
+  getExerciseByUiKey?: (uiKey: string) => Record<string, unknown> | null;
+  isExerciseComplete?: (exercise: Record<string, unknown>) => boolean;
+  setExerciseCardCollapsed?: (
+    exercise: Record<string, unknown>,
+    collapsed: boolean
+  ) => void;
+  rebuildActiveWorkoutRewardState?: () => Record<string, unknown> | null;
+  detectSetPr?: (
+    exercise: Record<string, unknown>,
+    set: Record<string, unknown>,
+    setIndex: number
+  ) => Record<string, unknown> | null;
+  clearSetPr?: (
+    exercise: Record<string, unknown>,
+    set: Record<string, unknown>,
+    setIndex: number
+  ) => void;
+  shouldPromptForSetRIR?: (
+    exercise: Record<string, unknown>,
+    setIndex: number
+  ) => boolean;
+  queueLogActiveFocusTarget?: (inputId: string) => void;
+  queueLogActiveSetSignal?: (
+    exerciseUiKey: string,
+    setIndex: number,
+    prEvent?: Record<string, unknown> | null
+  ) => void;
+  queueLogActiveCollapseSignal?: (exerciseUiKey: string) => void;
+  notifyLogActiveIsland?: () => void;
+  isLogActiveIslandActive?: () => boolean;
+  updateExerciseCard?: (uiKey: string) => Element | null;
+  renderActiveWorkoutPlanPanel?: () => void;
+  insertExerciseCard?: (
+    exerciseIndex: number,
+    exercise: Record<string, unknown>
+  ) => void;
+  removeExerciseCard?: (uiKey: string) => void;
+  getSetInputId?: (
+    exerciseUiKey: string,
+    setIndex: number,
+    field: string
+  ) => string;
+  displayExerciseName?: (input: unknown) => string;
+  formatWorkoutWeight?: (value: unknown) => string;
+  i18nText?: (
+    key: string,
+    fallback: string,
+    params?: Record<string, unknown>
+  ) => string;
   __IRONFORGE_WORKOUT_RUNTIME__?: WorkoutRuntimeApi;
   __IRONFORGE_LEGACY_RUNTIME_ACCESS__?: {
     read?: (name: string) => unknown;
@@ -140,10 +197,6 @@ const DELEGATED_WORKOUT_ACTIONS = [
   'selectExerciseCatalogExercise',
   'showSetRIRPrompt',
   'applySetRIR',
-  'toggleSet',
-  'updateSet',
-  'addSet',
-  'removeEx',
   'finishWorkout',
   'cancelWorkout',
 ] as const;
@@ -294,6 +347,291 @@ function syncLegacyWorkoutSessionBridge() {
 function persistActiveWorkoutDraftIfNeeded() {
   if (!readLegacyWorkoutSnapshot().activeWorkout) return;
   getLegacyWindow()?.persistActiveWorkoutDraft?.();
+}
+
+function persistCurrentWorkoutDraft() {
+  getLegacyWindow()?.persistActiveWorkoutDraft?.();
+}
+
+function getActiveWorkoutSession() {
+  return (
+    getLegacyWindow()?.getActiveWorkoutSession?.() ||
+    (readLegacyRuntimeValue<Record<string, unknown> | null>('activeWorkout') ??
+      null)
+  );
+}
+
+function getWorkoutExercise(
+  workout: Record<string, unknown> | null,
+  exerciseIndex: number
+) {
+  const exercises = Array.isArray(workout?.exercises)
+    ? (workout.exercises as Array<Record<string, unknown>>)
+    : [];
+  return exercises[exerciseIndex] || null;
+}
+
+function getWorkoutSet(
+  exercise: Record<string, unknown> | null,
+  setIndex: number
+) {
+  const sets = Array.isArray(exercise?.sets)
+    ? (exercise.sets as Array<Record<string, unknown>>)
+    : [];
+  return sets[setIndex] || null;
+}
+
+function ensureLegacyExerciseUiKey(exercise: Record<string, unknown>) {
+  const runtimeWindow = getLegacyWindow();
+  return (
+    runtimeWindow?.ensureExerciseUiKey?.(exercise) ||
+    String(exercise.uiKey || '')
+  );
+}
+
+function isReactLogActive() {
+  return getLegacyWindow()?.isLogActiveIslandActive?.() === true;
+}
+
+function refreshActiveWorkoutViews(exerciseUiKey?: string | null) {
+  const runtimeWindow = getLegacyWindow();
+  if (exerciseUiKey) {
+    runtimeWindow?.updateExerciseCard?.(exerciseUiKey);
+  }
+  runtimeWindow?.renderActiveWorkoutPlanPanel?.();
+  if (isReactLogActive()) {
+    runtimeWindow?.notifyLogActiveIsland?.();
+  }
+  syncLegacyWorkoutSessionBridge();
+  syncStoreFromLegacy();
+}
+
+function translateWorkoutText(
+  key: string,
+  fallback: string,
+  params?: Record<string, unknown>
+) {
+  const runtimeWindow = getLegacyWindow();
+  try {
+    return (
+      runtimeWindow?.i18nText?.(key, fallback, params) ||
+      runtimeWindow?.I18N?.t?.(key, params || null, fallback) ||
+      fallback
+    );
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+function formatWorkoutWeightForToast(value: unknown) {
+  return getLegacyWindow()?.formatWorkoutWeight?.(value) || String(value || 0);
+}
+
+function displayWorkoutExerciseName(value: unknown) {
+  return getLegacyWindow()?.displayExerciseName?.(value) || String(value || '');
+}
+
+function showPrToast(prEvent: Record<string, unknown>) {
+  getLegacyWindow()?.showToast?.(
+    translateWorkoutText(
+      'workout.pr_toast',
+      'New PR! {name} {weight}kg x {reps}',
+      {
+        name: prEvent.exerciseName,
+        weight: formatWorkoutWeightForToast(prEvent.weight),
+        reps: prEvent.reps,
+      }
+    ),
+    'var(--yellow)'
+  );
+}
+
+function scheduleCompletedExerciseCollapse(
+  exerciseUiKey: string,
+  prEvent: Record<string, unknown> | null
+) {
+  const runtimeWindow = getLegacyWindow();
+  window.setTimeout(
+    () => {
+      const currentExercise = runtimeWindow?.getExerciseByUiKey?.(exerciseUiKey);
+      if (!currentExercise || !runtimeWindow?.isExerciseComplete?.(currentExercise)) {
+        return;
+      }
+      runtimeWindow.setExerciseCardCollapsed?.(currentExercise, true);
+      runtimeWindow.queueLogActiveCollapseSignal?.(exerciseUiKey);
+      runtimeWindow.notifyLogActiveIsland?.();
+      syncStoreFromLegacy();
+    },
+    prEvent ? 950 : 500
+  );
+}
+
+function scheduleSetRirPrompt(
+  exercise: Record<string, unknown>,
+  exerciseIndex: number,
+  setIndex: number,
+  prEvent: Record<string, unknown> | null
+) {
+  const runtimeWindow = getLegacyWindow();
+  if (runtimeWindow?.shouldPromptForSetRIR?.(exercise, setIndex) !== true) {
+    return;
+  }
+  const isComplete = runtimeWindow?.isExerciseComplete?.(exercise) === true;
+  const rirDelay = isComplete ? (prEvent ? 1250 : 900) : prEvent ? 900 : 550;
+  window.setTimeout(() => {
+    getCapturedLegacyAction('showSetRIRPrompt')?.(exerciseIndex, setIndex);
+  }, rirDelay);
+}
+
+function updateActiveWorkoutSet(
+  exerciseIndex: number,
+  setIndex: number,
+  field: string,
+  value: string | number
+) {
+  const workout = getActiveWorkoutSession();
+  const exercise = getWorkoutExercise(workout, exerciseIndex);
+  const set = getWorkoutSet(exercise, setIndex);
+  if (!workout || !exercise || !set) return;
+  const mutation = applySetUpdateMutation({
+    exercise,
+    setIndex,
+    field,
+    rawValue: value,
+  });
+  if (!mutation) return;
+  if (mutation.shouldRefreshDoneSet === true) {
+    set.isPr = false;
+    getLegacyWindow()?.rebuildActiveWorkoutRewardState?.();
+    getLegacyWindow()?.detectSetPr?.(exercise, set, setIndex);
+  }
+  persistCurrentWorkoutDraft();
+  const exerciseUiKey = ensureLegacyExerciseUiKey(exercise);
+  if (isReactLogActive()) {
+    refreshActiveWorkoutViews();
+    return;
+  }
+  if (field === 'weight' && set.isWarmup !== true) {
+    const propagatedSetIndexes = Array.isArray(mutation.propagatedSetIndexes)
+      ? mutation.propagatedSetIndexes
+      : [];
+    propagatedSetIndexes.forEach((nextIndex) => {
+      const inputId = getLegacyWindow()?.getSetInputId?.(
+        exerciseUiKey,
+        nextIndex,
+        'weight'
+      );
+      const weightInput = inputId ? document.getElementById(inputId) : null;
+      if (weightInput instanceof HTMLInputElement) {
+        weightInput.value = String(mutation.sanitizedValue ?? '');
+      }
+    });
+  }
+  if (mutation.shouldRefreshDoneSet === true) {
+    refreshActiveWorkoutViews(exerciseUiKey);
+    return;
+  }
+  syncStoreFromLegacy();
+}
+
+function toggleActiveWorkoutSet(exerciseIndex: number, setIndex: number) {
+  const runtimeWindow = getLegacyWindow();
+  const workout = getActiveWorkoutSession();
+  const exercise = getWorkoutExercise(workout, exerciseIndex);
+  const set = getWorkoutSet(exercise, setIndex);
+  if (!workout || !exercise || !set) return;
+  const exerciseUiKey = ensureLegacyExerciseUiKey(exercise);
+  const toggleResult = toggleWorkoutSetCompletion({ exercise, setIndex });
+  if (!toggleResult) return;
+  const isNowDone = toggleResult.isNowDone === true;
+  if (isNowDone) {
+    const prEvent =
+      runtimeWindow?.detectSetPr?.(exercise, set, setIndex) || null;
+    if (isReactLogActive()) {
+      runtimeWindow?.queueLogActiveSetSignal?.(exerciseUiKey, setIndex, prEvent);
+      if (prEvent) showPrToast(prEvent);
+      if (runtimeWindow?.isExerciseComplete?.(exercise)) {
+        scheduleCompletedExerciseCollapse(exerciseUiKey, prEvent);
+      }
+      runtimeWindow?.notifyLogActiveIsland?.();
+    } else {
+      runtimeWindow?.updateExerciseCard?.(exerciseUiKey);
+      if (runtimeWindow?.isExerciseComplete?.(exercise)) {
+        runtimeWindow.setExerciseCardCollapsed?.(exercise, true);
+      }
+    }
+    workoutStore.getState().startRestTimer();
+    scheduleSetRirPrompt(exercise, exerciseIndex, setIndex, prEvent);
+  } else {
+    runtimeWindow?.clearSetPr?.(exercise, set, setIndex);
+    runtimeWindow?.setExerciseCardCollapsed?.(exercise, false);
+    persistCurrentWorkoutDraft();
+    refreshActiveWorkoutViews(exerciseUiKey);
+    return;
+  }
+  persistCurrentWorkoutDraft();
+  refreshActiveWorkoutViews(exerciseUiKey);
+}
+
+function addActiveWorkoutSet(exerciseIndex: number) {
+  const runtimeWindow = getLegacyWindow();
+  const workout = getActiveWorkoutSession();
+  const exercise = getWorkoutExercise(workout, exerciseIndex);
+  if (!workout || !exercise) return;
+  const exerciseUiKey = ensureLegacyExerciseUiKey(exercise);
+  runtimeWindow?.setExerciseCardCollapsed?.(exercise, false);
+  const appendResult = appendWorkoutSet({ exercise });
+  if (!appendResult) return;
+  persistCurrentWorkoutDraft();
+  const newSetIndex =
+    appendResult.newSetIndex ??
+    (Array.isArray(exercise.sets) ? exercise.sets.length - 1 : 0);
+  const newInputId =
+    runtimeWindow?.getSetInputId?.(exerciseUiKey, newSetIndex, 'weight') || '';
+  if (isReactLogActive() && newInputId) {
+    runtimeWindow?.queueLogActiveFocusTarget?.(newInputId);
+  }
+  refreshActiveWorkoutViews(exerciseUiKey);
+  if (!isReactLogActive() && newInputId) {
+    const weightInput = document.getElementById(newInputId);
+    if (weightInput instanceof HTMLInputElement) weightInput.focus();
+  }
+}
+
+function removeActiveWorkoutExercise(exerciseIndex: number) {
+  const runtimeWindow = getLegacyWindow();
+  const workout = getActiveWorkoutSession();
+  const exercises = Array.isArray(workout?.exercises)
+    ? (workout.exercises as Array<Record<string, unknown>>)
+    : [];
+  const removal = removeWorkoutExercise({ exercises, exerciseIndex });
+  if (!workout || !removal) return;
+  const removed = removal.removed;
+  const removedUiKey =
+    removed && typeof removed === 'object' ? String(removed.uiKey || '') : '';
+  if (removedUiKey) runtimeWindow?.removeExerciseCard?.(removedUiKey);
+  persistCurrentWorkoutDraft();
+  refreshActiveWorkoutViews();
+  if (removed) {
+    runtimeWindow?.showToast?.(
+      translateWorkoutText('workout.exercise_removed', '{name} removed', {
+        name: displayWorkoutExerciseName(removed.name),
+      }),
+      'var(--muted)',
+      () => {
+        ensureLegacyExerciseUiKey(removed);
+        const currentWorkout = getActiveWorkoutSession();
+        const currentExercises = Array.isArray(currentWorkout?.exercises)
+          ? (currentWorkout.exercises as Array<Record<string, unknown>>)
+          : null;
+        if (!currentExercises) return;
+        currentExercises.splice(exerciseIndex, 0, removed);
+        persistCurrentWorkoutDraft();
+        runtimeWindow?.insertExerciseCard?.(exerciseIndex, removed);
+        refreshActiveWorkoutViews();
+      }
+    );
+  }
 }
 
 function playWorkoutRestBeep() {
@@ -635,25 +973,16 @@ export const workoutStore: StoreApi<LegacyWorkoutStoreState> =
       syncStoreFromLegacy();
     },
     toggleSet: (exerciseIndex, setIndex) => {
-      getCapturedLegacyAction('toggleSet')?.(exerciseIndex, setIndex);
-      syncStoreFromLegacy();
+      toggleActiveWorkoutSet(exerciseIndex, setIndex);
     },
     updateSet: (exerciseIndex, setIndex, field, value) => {
-      getCapturedLegacyAction('updateSet')?.(
-        exerciseIndex,
-        setIndex,
-        field,
-        value
-      );
-      syncStoreFromLegacy();
+      updateActiveWorkoutSet(exerciseIndex, setIndex, field, value);
     },
     addSet: (exerciseIndex) => {
-      getCapturedLegacyAction('addSet')?.(exerciseIndex);
-      syncStoreFromLegacy();
+      addActiveWorkoutSet(exerciseIndex);
     },
     removeExercise: (exerciseIndex) => {
-      getCapturedLegacyAction('removeEx')?.(exerciseIndex);
-      syncStoreFromLegacy();
+      removeActiveWorkoutExercise(exerciseIndex);
     },
     finishWorkout: () => {
       const result = getCapturedLegacyAction('finishWorkout')?.();

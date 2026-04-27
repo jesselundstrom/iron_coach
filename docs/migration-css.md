@@ -30,12 +30,12 @@ Replace the monolithic `styles.css` (10,335 lines, 582 class names, 43 animation
 | className usages across islands | ~769 |
 
 **Biggest islands by className count:**
-- `dashboard-island/main.jsx` — 155 className usages
-- `history-island/main.jsx` — 126
-- `AppShell.jsx` — 125
-- `nutrition-island/main.jsx` — 104
-- `log-start-island/main.jsx` — 89
-- `log-active-island/main.jsx` — 74
+- `dashboard-island/main.tsx` — 155 className usages
+- `history-island/main.tsx` — 126
+- `AppShell.tsx` — 125
+- `nutrition-island/main.tsx` — 104
+- `log-start-island/main.tsx` — 89
+- `log-active-island/main.tsx` — 74
 
 ---
 
@@ -138,7 +138,7 @@ Lowest className counts. Good practice run. Five islands, all simple.
 **For each island:**
 1. Create `src/settings-*-island/settings-*.module.css`
 2. Move the CSS section(s) that belong to that island from `styles.css` into the module file
-3. Update the island's `main.jsx` to import the module and replace `className="foo"` with `className={styles.foo}`
+3. Update the island's `main.tsx` to import the module and replace `className="foo"` with `className={styles.foo}`
 4. For shared classes (`btn`, `card`, etc.), import from `src/styles/shared/`
 
 **After all five pass:** Delete those sections from `styles.css`.
@@ -149,7 +149,7 @@ Lowest className counts. Good practice run. Five islands, all simple.
 
 ### Phase 2 — Onboarding *(risk: low)*
 
-`src/app/OnboardingFlow.jsx` — 60 classNames, 611 lines.
+`src/app/OnboardingFlow.tsx` — 60 classNames, 611 lines.
 
 **Creates:** `src/app/onboarding.module.css`
 
@@ -223,7 +223,7 @@ Contains: `dashboard-*` prefix classes — hero, section, plan cards, nutrition 
 
 ### Phase 7 — AppShell *(risk: high)*
 
-`src/app/AppShell.jsx` — 125 classNames, 1000 lines.
+`src/app/AppShell.tsx` — 125 classNames, 1000 lines.
 
 AppShell owns: navigation bar, page containers, sheet modals, toast notifications, confirm modal, exercise guide overlay, authentication screen.
 

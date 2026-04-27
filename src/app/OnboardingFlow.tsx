@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef, useState } from 'react';
 import { cn } from './utils/cn.ts';
 import { programStore } from '../stores/program-store.ts';

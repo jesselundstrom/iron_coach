@@ -4457,52 +4457,9 @@ function parseLoggedRepCount(raw) {
 }
 
 function updateSet(ei, si, f, v) {
-  const workout = getActiveWorkoutSession();
-  if (!workout) return;
-  const exercise = workout.exercises[ei];
-  const set = exercise?.sets?.[si];
-  if (!set) return;
-  const mutation =
-    window.__IRONFORGE_WORKOUT_RUNTIME__?.applySetUpdateMutation?.({
-      exercise,
-      setIndex: si,
-      field: f,
-      rawValue: v,
-    }) || null;
-  if (!mutation) return;
-  const sanitizedValue = mutation.sanitizedValue;
-  const shouldRefreshDoneSet = mutation.shouldRefreshDoneSet === true;
-  if (shouldRefreshDoneSet) {
-    set.isPr = false;
-    rebuildActiveWorkoutRewardState();
-    detectSetPr(exercise, set, si);
-  }
-  persistCurrentWorkoutDraft();
-  const exerciseUiKey = ensureExerciseUiKey(exercise);
-  if (isLogActiveIslandActive()) {
-    notifyLogActiveIsland();
-    return;
-  }
-  if (f !== 'weight') {
-    if (shouldRefreshDoneSet) {
-      updateExerciseCard(exerciseUiKey);
-      renderActiveWorkoutPlanPanel();
-    }
-    return;
-  }
-  if (set.isWarmup) return;
-  const propagatedSetIndexes = Array.isArray(mutation.propagatedSetIndexes)
-    ? mutation.propagatedSetIndexes
-    : [];
-  for (const nextIndex of propagatedSetIndexes) {
-    const weightInput = document.getElementById(
-      getSetInputId(exerciseUiKey, nextIndex, 'weight')
-    );
-    if (weightInput) weightInput.value = sanitizedValue;
-  }
-  if (shouldRefreshDoneSet) {
-    updateExerciseCard(exerciseUiKey);
-    renderActiveWorkoutPlanPanel();
+  const delegate = window.updateSet;
+  if (typeof delegate === 'function' && delegate !== updateSet) {
+    return delegate(ei, si, f, v);
   }
 }
 
@@ -4597,163 +4554,23 @@ function spawnForgeEmbers(checkEl, options) {
 }
 
 function toggleSet(ei, si) {
-  const workout = getActiveWorkoutSession();
-  if (!workout) return;
-  const exercise = workout.exercises[ei];
-  const set = exercise?.sets?.[si];
-  if (!exercise || !set) return;
-  const exerciseUiKey = ensureExerciseUiKey(exercise);
-  const isReactActive = isLogActiveIslandActive();
-  const toggleResult =
-    window.__IRONFORGE_WORKOUT_RUNTIME__?.toggleWorkoutSetCompletion?.({
-      exercise,
-      setIndex: si,
-    }) || null;
-  if (!toggleResult) return;
-  const isNowDone = toggleResult.isNowDone === true;
-  if (isNowDone) {
-    const prEvent = detectSetPr(exercise, set, si);
-    tryHaptic(40);
-    if (isReactActive) {
-      queueLogActiveSetSignal(exerciseUiKey, si, prEvent);
-      if (prEvent) {
-        showToast(
-          i18nText('workout.pr_toast', 'New PR! {name} {weight}kg x {reps}', {
-            name: prEvent.exerciseName,
-            weight: formatWorkoutWeight(prEvent.weight),
-            reps: prEvent.reps,
-          }),
-          'var(--yellow)'
-        );
-      }
-      if (isExerciseComplete(exercise)) {
-        window.setTimeout(() => {
-          const currentExercise = getExerciseByUiKey(exerciseUiKey);
-          if (!currentExercise || !isExerciseComplete(currentExercise)) return;
-          setExerciseCardCollapsed(currentExercise, true);
-          queueLogActiveCollapseSignal(exerciseUiKey);
-          notifyLogActiveIsland();
-        }, prEvent ? 950 : 500);
-      }
-      notifyLogActiveIsland();
-    } else {
-      const row = getExerciseCardElement(exerciseUiKey)?.querySelector(
-        getSetRowSelector(si)
-      );
-      const check = row?.querySelector('.set-check');
-      if (row) row.classList.add('is-done', 'set-done-anim');
-      if (check) {
-        check.classList.add('done', 'set-done-anim');
-        check.addEventListener(
-          'animationend',
-          () => check.classList.remove('set-done-anim'),
-          { once: true }
-        );
-        spawnForgeEmbers(check);
-      }
-      if (row) {
-        row.addEventListener(
-          'animationend',
-          () => row.classList.remove('set-done-anim'),
-          { once: true }
-        );
-      }
-      if (prEvent && row && check) {
-        window.setTimeout(() => playSetPrCelebration(row, check, prEvent), 500);
-      }
-      if (isExerciseComplete(exercise)) {
-        setExerciseCardCollapsed(exercise, true);
-        const card = getExerciseCardElement(exerciseUiKey);
-        if (card) {
-          // Delay the collapse animation so the last set's forge strike plays first
-          window.setTimeout(
-            () => runForgeSealCollapse(card, exerciseUiKey),
-            prEvent ? 950 : 500
-          );
-        }
-      }
-    }
-    startRestTimer();
-    if (shouldPromptForSetRIR(exercise, si)) {
-      // Delay RIR prompt so forge strike + collapse animations finish first.
-      // Timing budget (CSS): forgeStrike 420ms + forgeSeal 300ms + seal-enter 320ms.
-      // With PR celebration (+500ms). Without collapse the strike alone needs ~550ms.
-      const rirDelay = isExerciseComplete(exercise)
-        ? prEvent
-          ? 1250
-          : 900
-        : prEvent
-          ? 900
-          : 550;
-      window.setTimeout(() => showSetRIRPrompt(ei, si), rirDelay);
-    }
-  } else {
-    clearSetPr(exercise, set, si);
-    delete collapsedExerciseCardState[exerciseUiKey];
-    persistCurrentWorkoutDraft();
-    updateExerciseCard(exerciseUiKey);
-    renderActiveWorkoutPlanPanel();
-    return;
+  const delegate = window.toggleSet;
+  if (typeof delegate === 'function' && delegate !== toggleSet) {
+    return delegate(ei, si);
   }
-  persistCurrentWorkoutDraft();
-  renderActiveWorkoutPlanPanel();
 }
 
 function addSet(ei) {
-  const workout = getActiveWorkoutSession();
-  if (!workout) return;
-  const exercise = workout.exercises[ei];
-  if (!exercise) return;
-  const exerciseUiKey = ensureExerciseUiKey(exercise);
-  delete collapsedExerciseCardState[exerciseUiKey];
-  const appendResult =
-    window.__IRONFORGE_WORKOUT_RUNTIME__?.appendWorkoutSet?.({
-      exercise,
-    }) || null;
-  if (!appendResult) return;
-  persistCurrentWorkoutDraft();
-  const newSetIndex = appendResult.newSetIndex ?? exercise.sets.length - 1;
-  const newInputId = getSetInputId(exerciseUiKey, newSetIndex, 'weight');
-  if (isLogActiveIslandActive()) queueLogActiveFocusTarget(newInputId);
-  updateExerciseCard(exerciseUiKey);
-  renderActiveWorkoutPlanPanel();
-  const weightInput = document.getElementById(newInputId);
-  if (weightInput && !isLogActiveIslandActive()) weightInput.focus();
+  const delegate = window.addSet;
+  if (typeof delegate === 'function' && delegate !== addSet) {
+    return delegate(ei);
+  }
 }
 
 function removeEx(ei) {
-  const workout = getActiveWorkoutSession();
-  if (!workout) return;
-  const removal =
-    window.__IRONFORGE_WORKOUT_RUNTIME__?.removeWorkoutExercise?.({
-      exercises: workout.exercises,
-      exerciseIndex: ei,
-    }) || null;
-  if (!removal) return;
-  const removed = removal.removed;
-  const removedUiKey = removed?.uiKey || null;
-  if (removedUiKey) delete collapsedExerciseCardState[removedUiKey];
-  if (removedUiKey) removeExerciseCard(removedUiKey);
-  persistCurrentWorkoutDraft();
-  renderActiveWorkoutPlanPanel();
-  if (removed) {
-    showToast(
-      escapeHtml(
-        i18nText('workout.exercise_removed', '{name} removed', {
-          name: displayExerciseName(removed.name),
-        })
-      ),
-      'var(--muted)',
-      () => {
-        ensureExerciseUiKey(removed);
-        const currentWorkout = getActiveWorkoutSession();
-        if (!currentWorkout) return;
-        currentWorkout.exercises.splice(ei, 0, removed);
-        persistCurrentWorkoutDraft();
-        insertExerciseCard(ei, removed);
-        renderActiveWorkoutPlanPanel();
-      }
-    );
+  const delegate = window.removeEx;
+  if (typeof delegate === 'function' && delegate !== removeEx) {
+    return delegate(ei);
   }
 }
 
@@ -4947,73 +4764,6 @@ function buildTmAdjustmentToast(adjustments) {
     formatWorkoutWeight,
   });
 }
-
-function buildSessionSummaryStats(summaryData) {
-  return getWorkoutRuntime().buildSessionSummaryStats(summaryData, {
-    t: i18nText,
-    formatDuration: formatWorkoutDuration,
-    formatTonnage: formatWorkoutTonnage,
-  });
-}
-
-function animateSessionSummaryStats(modal, stats) {
-  const runInstant = prefersReducedMotionUI();
-  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-  stats.forEach((stat, index) => {
-    const card = modal.querySelector(`.summary-stat-${stat.key}`);
-    const valueEl = modal.querySelector(`[data-stat-key="${stat.key}"]`);
-    if (!card || !valueEl) return;
-    const applyValue = (value) => {
-      valueEl.dataset.statValue = String(value);
-      valueEl.textContent = stat.formatter(value);
-    };
-    if (runInstant) {
-      card.classList.add('is-visible');
-      applyValue(stat.value);
-      return;
-    }
-    window.setTimeout(() => {
-      card.classList.add('is-visible');
-      const start = performance.now();
-      const duration = 800;
-      function frame(now) {
-        const progress = Math.min(1, (now - start) / duration);
-        const eased = easeOutCubic(progress);
-        applyValue(stat.value * eased);
-        if (progress < 1) {
-          requestAnimationFrame(frame);
-          return;
-        }
-        applyValue(stat.value);
-      }
-      requestAnimationFrame(frame);
-    }, index * 100);
-  });
-}
-
-function startSessionSummaryCelebration(modal, summaryData) {
-  const cleanup = window._summaryCleanup;
-  if (typeof cleanup === 'function') cleanup();
-  window._summaryCleanup = null;
-  if (!modal) return;
-  const canvas = modal.querySelector('.summary-burst-canvas');
-  if (
-    canvas &&
-    typeof window.playForgeBurst === 'function' &&
-    !prefersReducedMotionUI()
-  ) {
-    window._summaryCleanup = window.playForgeBurst(canvas, {
-      densityMultiplier: 2,
-      duration: 1100,
-      originY: 0.8,
-      glowFrom: 0.18,
-      glowTo: 0.4,
-    });
-    tryHaptic([40, 80, 40]);
-  }
-  animateSessionSummaryStats(modal, buildSessionSummaryStats(summaryData));
-}
-window.startSessionSummaryCelebration = startSessionSummaryCelebration;
 
 function applyQuickWorkoutAdjustment(mode) {
   if (mode === 'shorten') {

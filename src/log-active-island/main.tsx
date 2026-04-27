@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { showConfirm } from '../app/services/confirm-actions';

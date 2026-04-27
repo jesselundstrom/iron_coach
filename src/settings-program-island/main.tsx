@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { t } from '../app/services/i18n.ts';

@@ -1,19 +1,20 @@
+// @ts-nocheck
 import { Component, useEffect, useMemo, useRef } from 'react';
 import { useRuntimeStore } from './store/runtime-store.ts';
 import { t } from './services/i18n.ts';
-import LoginScreen from './LoginScreen.jsx';
+import LoginScreen from './LoginScreen';
 import { applyPendingPwaUpdate } from './services/pwa-update-runtime.ts';
-import OnboardingFlow from './OnboardingFlow.jsx';
-import { DashboardIsland } from '../dashboard-island/main.jsx';
-import { HistoryIsland } from '../history-island/main.jsx';
-import { NutritionIsland } from '../nutrition-island/main.jsx';
-import { LogStartIsland } from '../log-start-island/main.jsx';
-import { LogActiveIsland } from '../log-active-island/main.jsx';
-import { SettingsBodyIsland } from '../settings-body-island/main.jsx';
-import { SettingsAccountIsland } from '../settings-account-island/main.jsx';
-import { SettingsPreferencesIsland } from '../settings-preferences-island/main.jsx';
-import { SettingsProgramIsland } from '../settings-program-island/main.jsx';
-import { SettingsScheduleIsland } from '../settings-schedule-island/main.jsx';
+import OnboardingFlow from './OnboardingFlow';
+import { DashboardIsland } from '../dashboard-island/main';
+import { HistoryIsland } from '../history-island/main';
+import { NutritionIsland } from '../nutrition-island/main';
+import { LogStartIsland } from '../log-start-island/main';
+import { LogActiveIsland } from '../log-active-island/main';
+import { SettingsBodyIsland } from '../settings-body-island/main';
+import { SettingsAccountIsland } from '../settings-account-island/main';
+import { SettingsPreferencesIsland } from '../settings-preferences-island/main';
+import { SettingsProgramIsland } from '../settings-program-island/main';
+import { SettingsScheduleIsland } from '../settings-schedule-island/main';
 import {
   clearExerciseCatalogFilters,
   closeExerciseCatalog,

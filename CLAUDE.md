@@ -79,7 +79,7 @@ _Architecture decisions are logged here as they are made._
 - **UI contract**: New React-owned UI should expose stable `data-ui` / `data-state` hooks for tests and compatibility seams instead of relying on presentational class names as the long-term contract
 - **UI runtime**: React + Vite is the shipped visible-shell runtime
   - `src/app/main.tsx` boots the app
-  - `src/app/AppShell.jsx` owns the visible shell, navigation, overlays, and page tree
+  - `src/app/AppShell.tsx` owns the visible shell, navigation, overlays, and page tree
   - `src/app/store/runtime-store.ts` is already part of the active runtime foundation
   - Compatibility bridges and selected `window.*` globals still exist temporarily for untouched legacy logic and tests
 - **Auth runtime**: React-owned auth/session orchestration now lives in `src/app/services/auth-runtime.ts`; legacy auth globals remain temporary compatibility delegates and should not be restored as the primary login owner

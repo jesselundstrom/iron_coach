@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from 'react';
 import { useHistoryStore } from '../stores/history-store';
 import {

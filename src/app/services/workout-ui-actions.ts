@@ -3,6 +3,7 @@ import { useRuntimeStore } from '../store/runtime-store';
 import { buildSessionSummaryPromptState } from './workout-runtime';
 import { t } from './i18n';
 import { callLegacyWindowFunction, readLegacyWindowValue } from './legacy-call';
+import { playForgeBurst } from './forge-burst';
 
 type EventLike = Event | { nativeEvent?: Event } | null | undefined;
 
@@ -405,11 +406,67 @@ export function startSessionSummaryCelebration(
   modal: HTMLElement | null,
   summaryData: Record<string, unknown> | null
 ) {
-  callLegacyWindowFunction(
-    'startSessionSummaryCelebration',
-    modal,
-    summaryData
-  );
+  const canvas = modal?.querySelector('canvas');
+  const rw = window as Window & {
+    _summaryCleanup?: (() => void) | null;
+  };
+  if (typeof rw._summaryCleanup === 'function') rw._summaryCleanup();
+  rw._summaryCleanup = null;
+  if (!modal) return;
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  const totalSets = Number(summaryData?.totalSets || 0);
+  const prCount = Number(summaryData?.prCount || 0);
+  rw._summaryCleanup = playForgeBurst(canvas, {
+    densityMultiplier: Math.min(1.9, 1 + totalSets / 18 + prCount * 0.18),
+    duration: prCount ? 1250 : 980,
+    glowFrom: prCount ? 0.28 : 0.18,
+    glowTo: prCount ? 0.58 : 0.4,
+    palette: prCount
+      ? [
+          [255, 214, 94],
+          [255, 245, 184],
+        ]
+      : null,
+  });
+  animateSummaryStats(modal, summaryData || {});
+}
+
+function animateSummaryStats(
+  modal: HTMLElement,
+  summaryData: Record<string, unknown>
+) {
+  const formatDuration = (seconds: number) => {
+    const total = Math.max(0, Math.round(seconds) || 0);
+    const minutes = Math.floor(total / 60);
+    const rest = total % 60;
+    return minutes > 0 ? `${minutes}m${rest > 0 ? ` ${rest}s` : ''}` : `${rest}s`;
+  };
+  const formatTonnage = (tonnage: number) => {
+    const safe = Math.max(0, Number(tonnage) || 0);
+    return safe >= 1000 ? `${(safe / 1000).toFixed(1)} t` : `${Math.round(safe)} kg`;
+  };
+  const values: Record<string, string> = {
+    duration: formatDuration(Number(summaryData.duration || 0)),
+    sets: `${Math.round(Number(summaryData.completedSets || 0))}/${Math.round(
+      Number(summaryData.totalSets || 0)
+    )}`,
+    volume: formatTonnage(Number(summaryData.tonnage || 0)),
+    rpe:
+      Number(summaryData.rpe || 0) > 0
+        ? String(Math.round(Number(summaryData.rpe || 0) * 10) / 10)
+        : '--',
+    prs: String(Math.round(Number(summaryData.prCount || 0))),
+  };
+  Object.entries(values).forEach(([key, value], index) => {
+    const valueEl = modal.querySelector<HTMLElement>(`[data-stat-key="${key}"]`);
+    const card = valueEl?.closest<HTMLElement>('.summary-stat');
+    if (!valueEl || !card) return;
+    window.setTimeout(() => {
+      card.classList.add('is-visible');
+      valueEl.dataset.statValue = value;
+      valueEl.textContent = value;
+    }, index * 100);
+  });
 }
 
 export function startWorkout() {

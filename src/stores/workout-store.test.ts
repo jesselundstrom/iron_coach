@@ -7,13 +7,41 @@ type TestWindow = Window & {
   activeWorkout?: Record<string, unknown> | null;
   startWorkout?: () => unknown;
   resumeActiveWorkoutUI?: (options?: Record<string, unknown>) => unknown;
-  showToast?: (...args: unknown[]) => unknown;
+  showToast?: ReturnType<typeof vi.fn>;
   I18N?: {
     t?: (
       key: string,
       params?: Record<string, unknown> | null,
       fallback?: string
     ) => string;
+  };
+  setTimeout?: typeof setTimeout;
+  clearTimeout?: typeof clearTimeout;
+  addEventListener?: typeof vi.fn;
+  removeEventListener?: typeof vi.fn;
+  getActiveWorkoutSession?: () => Record<string, unknown> | null;
+  persistActiveWorkoutDraft?: ReturnType<typeof vi.fn>;
+  renderActiveWorkoutPlanPanel?: ReturnType<typeof vi.fn>;
+  ensureExerciseUiKey?: (exercise: Record<string, unknown>) => string | null;
+  getSetInputId?: (
+    uiKey: string,
+    setIndex: number,
+    field: string
+  ) => string;
+  isLogActiveIslandActive?: () => boolean;
+  updateExerciseCard?: ReturnType<typeof vi.fn>;
+  removeExerciseCard?: ReturnType<typeof vi.fn>;
+  insertExerciseCard?: ReturnType<typeof vi.fn>;
+  setExerciseCardCollapsed?: ReturnType<typeof vi.fn>;
+  isExerciseComplete?: (exercise: Record<string, unknown>) => boolean;
+  detectSetPr?: ReturnType<typeof vi.fn>;
+  clearSetPr?: ReturnType<typeof vi.fn>;
+  shouldPromptForSetRIR?: () => boolean;
+  i18nText?: (key: string, fallback: string) => string;
+  displayExerciseName?: (input: unknown) => string;
+  __IRONFORGE_LEGACY_RUNTIME_ACCESS__?: {
+    read?: (name: string) => unknown;
+    write?: ReturnType<typeof vi.fn>;
   };
 };
 
@@ -30,6 +58,61 @@ function installTestWindow(overrides: Partial<TestWindow> = {}) {
   } as TestWindow;
   (globalThis as Record<string, unknown>).window = testWindow;
   return testWindow;
+}
+
+function installWorkoutWindow(activeWorkout: Record<string, unknown>) {
+  const persistActiveWorkoutDraft = vi.fn();
+  const renderActiveWorkoutPlanPanel = vi.fn();
+  const showToast = vi.fn();
+  return installTestWindow({
+    activeWorkout,
+    setTimeout,
+    clearTimeout,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    getActiveWorkoutSession: () => activeWorkout,
+    persistActiveWorkoutDraft,
+    renderActiveWorkoutPlanPanel,
+    showToast,
+    ensureExerciseUiKey: (exercise: Record<string, unknown>) => {
+      exercise.uiKey = exercise.uiKey || `ui-${String(exercise.name || 'ex')}`;
+      return String(exercise.uiKey);
+    },
+    getSetInputId: (uiKey: string, setIndex: number, field: string) =>
+      `${uiKey}-${setIndex}-${field}`,
+    isLogActiveIslandActive: () => false,
+    updateExerciseCard: vi.fn(),
+    removeExerciseCard: vi.fn(),
+    insertExerciseCard: vi.fn(),
+    setExerciseCardCollapsed: vi.fn(),
+    isExerciseComplete: (exercise: Record<string, unknown>) =>
+      Array.isArray(exercise.sets) &&
+      exercise.sets.length > 0 &&
+      exercise.sets.every((set) => set.done === true),
+    detectSetPr: vi.fn(() => null),
+    clearSetPr: vi.fn((_exercise, set) => {
+      if (set) set.isPr = false;
+    }),
+    shouldPromptForSetRIR: () => false,
+    i18nText: (_key: string, fallback: string) => fallback,
+    displayExerciseName: (input: unknown) => String(input || ''),
+    __IRONFORGE_LEGACY_RUNTIME_ACCESS__: {
+      read: (name: string) =>
+        name === 'activeWorkout' ? activeWorkout : undefined,
+      write: vi.fn((_name: string, _value: unknown) => {}),
+    },
+  });
+}
+
+function installTestDocument() {
+  (globalThis as Record<string, unknown>).document = {
+    hidden: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    getElementById: vi.fn(() => null),
+  };
+  (globalThis as Record<string, unknown>).HTMLInputElement =
+    class HTMLInputElement {};
 }
 
 function resetStores() {
@@ -65,6 +148,11 @@ describe('workout store start boundary', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(globalThis as Record<string, unknown>, 'window');
+    Reflect.deleteProperty(globalThis as Record<string, unknown>, 'document');
+    Reflect.deleteProperty(
+      globalThis as Record<string, unknown>,
+      'HTMLInputElement'
+    );
     vi.restoreAllMocks();
   });
 
@@ -124,5 +212,58 @@ describe('workout store start boundary', () => {
       'var(--orange)'
     );
     expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('updates set values through typed mutation ownership', () => {
+    const activeWorkout = {
+      exercises: [
+        {
+          name: 'Bench',
+          sets: [
+            { weight: 60, reps: 5, done: false },
+            { weight: 60, reps: 5, done: false },
+          ],
+        },
+      ],
+    };
+    const runtimeWindow = installWorkoutWindow(activeWorkout);
+    installTestDocument();
+
+    workoutStore.getState().updateSet(0, 0, 'weight', '72.55');
+
+    const exercise = activeWorkout.exercises[0] as Record<string, unknown>;
+    const sets = exercise.sets as Array<Record<string, unknown>>;
+    expect(sets[0].weight).toBe(72.6);
+    expect(sets[1].weight).toBe(72.6);
+    expect(runtimeWindow.persistActiveWorkoutDraft).toHaveBeenCalled();
+  });
+
+  it('toggles set completion and removes exercises without legacy action delegates', () => {
+    const activeWorkout = {
+      exercises: [
+        { name: 'Bench', sets: [{ weight: 60, reps: 5, done: false }] },
+        { name: 'Row', sets: [{ weight: 40, reps: 8, done: false }] },
+      ],
+    };
+    const runtimeWindow = installWorkoutWindow(activeWorkout);
+    installTestDocument();
+
+    workoutStore.getState().toggleSet(0, 0);
+    expect(
+      ((activeWorkout.exercises[0] as Record<string, unknown>).sets as Array<
+        Record<string, unknown>
+      >)[0].done
+    ).toBe(true);
+
+    workoutStore.getState().removeExercise(1);
+    expect(activeWorkout.exercises).toHaveLength(1);
+    expect(runtimeWindow.showToast).toHaveBeenCalled();
+
+    const undo = runtimeWindow.showToast?.mock.calls[0][2] as () => void;
+    undo();
+    expect(activeWorkout.exercises).toHaveLength(2);
+    expect((activeWorkout.exercises[1] as Record<string, unknown>).name).toBe(
+      'Row'
+    );
   });
 });

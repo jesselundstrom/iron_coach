@@ -62,7 +62,7 @@ Gate status:
 
 ## Summary
 
-Ironforge's visible UI migration is complete. The shipped app shell already runs through React + Vite from `src/app/main.tsx` and `src/app/AppShell.jsx`, and the shared `src/app/store/runtime-store.ts` is already part of the live runtime.
+Ironforge's visible UI migration is complete. The shipped app shell already runs through React + Vite from `src/app/main.tsx` and `src/app/AppShell.tsx`, and the shared `src/app/store/runtime-store.ts` is already part of the live runtime.
 
 The remaining migration target is the legacy business/runtime layer in `app.js`, `core/*.js`, and `programs/*.js`. That work now centers on ownership cleanup: reducing multi-writer state, shrinking compatibility bridges, and moving the remaining business logic behind typed store/domain seams while preserving current behavior, current data formats, and the current Playwright suite.
 
@@ -152,7 +152,7 @@ Current migration sequencing for the remaining `core/data-layer.js` ownership wo
 src/
   app/
     main.tsx
-    AppShell.jsx
+    AppShell.tsx
     utils/
       env.ts
   domain/
