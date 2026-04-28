@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { t } from '../app/services/i18n.ts';
@@ -9,7 +8,63 @@ import {
 } from '../app/services/settings-actions.ts';
 import { runProgramSettingsInlineAction } from '../app/services/program-settings-actions.ts';
 
-function getSnapshot() {
+type ProgramLabels = {
+  statusBar: string;
+  basicsTitle: string;
+  trainingProgram: string;
+  advancedTitle: string;
+  advancedHelp: string;
+};
+
+type ProgramDifficulty = 'beginner' | 'intermediate' | 'advanced';
+type ProgramDifficultyFilter = ProgramDifficulty | 'all';
+
+type ProgramSwitcherCard = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  active: boolean;
+  activeLabel: string;
+  difficultyTone: ProgramDifficulty;
+  difficultyLabel: string;
+  fitTone: 'ok' | 'fallback';
+  fitLabel: string;
+};
+
+type ProgramSwitcherSnapshot = {
+  helper: string;
+  cards: ProgramSwitcherCard[];
+};
+
+type SettingsTreeNodeData =
+  | { type: 'text'; text: string }
+  | {
+      type: 'element';
+      tag: string;
+      attrs?: Record<string, unknown>;
+      children?: SettingsTreeNodeData[];
+    };
+
+type ProgramValues = {
+  programId: string;
+  simpleMode: boolean;
+  basicsVisible: boolean;
+  basicsSummary: string;
+  basicsTree: SettingsTreeNodeData[];
+  basicsRenderKey: string;
+  trainingProgramSummary: string;
+  switcher: ProgramSwitcherSnapshot;
+};
+
+type ProgramSnapshot = {
+  labels: ProgramLabels;
+  values: ProgramValues;
+};
+
+type ProgramInlineEvent = Parameters<typeof runProgramSettingsInlineAction>[1];
+
+function getSnapshot(): ProgramSnapshot {
   return {
     labels: {
       statusBar: '',
@@ -21,6 +76,7 @@ function getSnapshot() {
     },
     values: {
       programId: 'forge',
+      simpleMode: false,
       basicsVisible: false,
       basicsSummary: '',
       basicsTree: [],
@@ -34,18 +90,103 @@ function getSnapshot() {
   };
 }
 
-function runInlineHandler(code, event) {
-  runProgramSettingsInlineAction(code, event);
+function isProgramDifficulty(value: unknown): value is ProgramDifficulty {
+  return value === 'beginner' || value === 'intermediate' || value === 'advanced';
 }
 
-function SettingsTreeNode({ node }) {
+function toProgramCard(input: unknown): ProgramSwitcherCard | null {
+  if (!input || typeof input !== 'object') return null;
+  const card = input as Partial<ProgramSwitcherCard>;
+  const id = String(card.id || '').trim();
+  if (!id) return null;
+  return {
+    id,
+    name: String(card.name || id),
+    description: String(card.description || ''),
+    icon: String(card.icon || ''),
+    active: card.active === true,
+    activeLabel: String(card.activeLabel || ''),
+    difficultyTone: isProgramDifficulty(card.difficultyTone)
+      ? card.difficultyTone
+      : 'intermediate',
+    difficultyLabel: String(card.difficultyLabel || ''),
+    fitTone: card.fitTone === 'ok' ? 'ok' : 'fallback',
+    fitLabel: String(card.fitLabel || ''),
+  };
+}
+
+function toSettingsTreeNode(input: unknown): SettingsTreeNodeData | null {
+  if (!input || typeof input !== 'object') return null;
+  const node = input as Partial<SettingsTreeNodeData>;
+  if (node.type === 'text') return { type: 'text', text: String(node.text || '') };
+  if (node.type !== 'element') return null;
+  return {
+    type: 'element',
+    tag: String(node.tag || 'div'),
+    attrs:
+      node.attrs && typeof node.attrs === 'object'
+        ? (node.attrs as Record<string, unknown>)
+        : {},
+    children: Array.isArray(node.children)
+      ? node.children.map(toSettingsTreeNode).filter((child) => child !== null)
+      : [],
+  };
+}
+
+function toProgramSnapshot(input: unknown): ProgramSnapshot {
+  const fallback = getSnapshot();
+  if (!input || typeof input !== 'object') return fallback;
+  const candidate = input as {
+    labels?: Partial<ProgramLabels>;
+    values?: Partial<ProgramValues> & {
+      switcher?: Partial<ProgramSwitcherSnapshot>;
+    };
+  };
+  const values = candidate.values || {};
+  const switcher: Partial<ProgramSwitcherSnapshot> = values.switcher || {};
+  return {
+    labels: {
+      ...fallback.labels,
+      ...(candidate.labels || {}),
+    },
+    values: {
+      ...fallback.values,
+      ...values,
+      simpleMode: values.simpleMode === true,
+      basicsVisible: values.basicsVisible === true,
+      basicsTree: Array.isArray(values.basicsTree)
+        ? values.basicsTree
+            .map(toSettingsTreeNode)
+            .filter((node): node is SettingsTreeNodeData => node !== null)
+        : fallback.values.basicsTree,
+      switcher: {
+        helper: String(switcher.helper || ''),
+        cards: Array.isArray(switcher.cards)
+          ? switcher.cards
+              .map(toProgramCard)
+              .filter((card): card is ProgramSwitcherCard => card !== null)
+          : [],
+      },
+    },
+  };
+}
+
+function runInlineHandler(code: unknown, event: ProgramInlineEvent) {
+  runProgramSettingsInlineAction(typeof code === 'string' ? code : '', event);
+}
+
+function SettingsTreeNode({
+  node,
+}: {
+  node: SettingsTreeNodeData | null;
+}): React.ReactNode {
   if (!node) return null;
   if (node.type === 'text') {
     return node.text;
   }
 
   const { tag, attrs = {}, children = [] } = node;
-  const props = {};
+  const props: Record<string, unknown> = {};
 
   Object.entries(attrs).forEach(([key, value]) => {
     if (key === 'onClickCode' || key === 'onChangeCode') return;
@@ -57,7 +198,20 @@ function SettingsTreeNode({ node }) {
       props[key] = value;
       return;
     }
-    if (key === 'className' || key === 'id' || key === 'type' || key === 'min' || key === 'max' || key === 'step' || key === 'placeholder' || key === 'htmlFor' || key === 'style' || key === 'role' || key === 'hidden' || key === 'value') {
+    if (
+      key === 'className' ||
+      key === 'id' ||
+      key === 'type' ||
+      key === 'min' ||
+      key === 'max' ||
+      key === 'step' ||
+      key === 'placeholder' ||
+      key === 'htmlFor' ||
+      key === 'style' ||
+      key === 'role' ||
+      key === 'hidden' ||
+      key === 'value'
+    ) {
       props[key] = value;
     }
   });
@@ -70,8 +224,8 @@ function SettingsTreeNode({ node }) {
   }
 
   if (attrs.onClickCode) {
-    props.onClick = (event) => {
-      runInlineHandler(attrs.onClickCode, event);
+    props.onClick = (event: React.MouseEvent<HTMLElement>) => {
+      runInlineHandler(attrs.onClickCode, event as unknown as ProgramInlineEvent);
       if (String(attrs.className || '').includes('sl-basic-next-btn')) {
         saveSimpleProgramSettings();
       }
@@ -79,7 +233,7 @@ function SettingsTreeNode({ node }) {
   }
 
   if (tag === 'input' || tag === 'select' || tag === 'textarea') {
-    props.onChange = (event) => {
+    props.onChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       runInlineHandler(attrs.onChangeCode, event);
       saveSimpleProgramSettings();
     };
@@ -93,11 +247,15 @@ function SettingsTreeNode({ node }) {
   ));
   const voidTags = new Set(['input', 'img', 'br', 'hr', 'meta', 'link']);
   return voidTags.has(tag)
-    ? React.createElement(tag, props)
-    : React.createElement(tag, props, childNodes);
+    ? React.createElement(tag, props as React.HTMLAttributes<HTMLElement>)
+    : React.createElement(
+        tag,
+        props as React.HTMLAttributes<HTMLElement>,
+        childNodes
+      );
 }
 
-function ProgramSwitcher({ switcher }) {
+function ProgramSwitcher({ switcher }: { switcher: ProgramSwitcherSnapshot }) {
   return (
     <div id="program-switcher-container">
       {switcher.helper ? <div className="program-switcher-note">{switcher.helper}</div> : null}
@@ -153,11 +311,17 @@ function ProgramSwitcher({ switcher }) {
 
 function SettingsProgramIsland() {
   useRuntimeStore((state) => state.ui.languageVersion);
-  const [difficultyFilter, setDifficultyFilter] = React.useState('all');
-  const snapshot =
-    useRuntimeStore((state) => state.pages.settingsProgramView) || getSnapshot();
+  const [difficultyFilter, setDifficultyFilter] =
+    React.useState<ProgramDifficultyFilter>('all');
+  const snapshot = toProgramSnapshot(
+    useRuntimeStore((state) => state.pages.settingsProgramView)
+  );
   const cards = snapshot.values.switcher.cards || [];
-  const difficultyOptions = [
+  const difficultyOptions: Array<{
+    key: ProgramDifficultyFilter;
+    label: string;
+    count: number;
+  }> = [
     {
       key: 'all',
       label: t('program.filter.all', 'All'),

@@ -1,9 +1,52 @@
-// @ts-nocheck
-import { useEffect, useRef, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { saveBodyMetrics } from '../app/services/settings-actions.ts';
 
-function getSnapshot() {
+type SettingsBodyLabels = {
+  metricsTitle: string;
+  metricsHelp: string;
+  sex: string;
+  sexNone: string;
+  sexMale: string;
+  sexFemale: string;
+  activity: string;
+  activityNone: string;
+  activitySedentary: string;
+  activityLight: string;
+  activityModerate: string;
+  activityVery: string;
+  weight: string;
+  height: string;
+  age: string;
+  targetWeight: string;
+  goalTitle: string;
+  goalLabel: string;
+  goalNone: string;
+  goalLoseFat: string;
+  goalGainMuscle: string;
+  goalRecomp: string;
+  goalMaintain: string;
+  save: string;
+};
+
+type SettingsBodyValues = {
+  sex: string;
+  activityLevel: string;
+  weight: string | number;
+  height: string | number;
+  age: string | number;
+  targetWeight: string | number;
+  bodyGoal: string;
+};
+
+type SettingsBodySnapshot = {
+  labels: SettingsBodyLabels;
+  values: SettingsBodyValues;
+};
+
+type BodyField = keyof SettingsBodyValues;
+
+function getSnapshot(): SettingsBodySnapshot {
   return {
     labels: {
       metricsTitle: 'Body Metrics',
@@ -44,7 +87,26 @@ function getSnapshot() {
   };
 }
 
-function getFormValues(snapshot) {
+function toBodySnapshot(input: unknown): SettingsBodySnapshot {
+  const fallback = getSnapshot();
+  if (!input || typeof input !== 'object') return fallback;
+  const candidate = input as {
+    labels?: Partial<SettingsBodyLabels>;
+    values?: Partial<SettingsBodyValues>;
+  };
+  return {
+    labels: {
+      ...fallback.labels,
+      ...(candidate.labels || {}),
+    },
+    values: {
+      ...fallback.values,
+      ...(candidate.values || {}),
+    },
+  };
+}
+
+function getFormValues(snapshot: SettingsBodySnapshot): SettingsBodyValues {
   return {
     sex: snapshot.values.sex ?? '',
     activityLevel: snapshot.values.activityLevel ?? '',
@@ -56,9 +118,19 @@ function getFormValues(snapshot) {
   };
 }
 
+function resolveBodyField(id: string): BodyField {
+  if (id === 'body-sex') return 'sex';
+  if (id === 'body-activity') return 'activityLevel';
+  if (id === 'body-weight') return 'weight';
+  if (id === 'body-height') return 'height';
+  if (id === 'body-age') return 'age';
+  if (id === 'body-target-weight') return 'targetWeight';
+  return 'bodyGoal';
+}
+
 function SettingsBodyIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.pages.settingsBodyView) || getSnapshot();
+  const rawSnapshot = useRuntimeStore((state) => state.pages.settingsBodyView);
+  const snapshot = useMemo(() => toBodySnapshot(rawSnapshot), [rawSnapshot]);
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
   const lastSnapshotValuesRef = useRef(snapshot.values);
 
@@ -85,23 +157,13 @@ function SettingsBodyIsland() {
 
   const labels = snapshot.labels;
 
-  function handleFieldChange(event) {
+  function handleFieldChange(
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) {
     const { id, value } = event.target;
     setFormValues((current) => ({
       ...current,
-      [id === 'body-sex'
-        ? 'sex'
-        : id === 'body-activity'
-          ? 'activityLevel'
-          : id === 'body-weight'
-            ? 'weight'
-            : id === 'body-height'
-              ? 'height'
-              : id === 'body-age'
-                ? 'age'
-                : id === 'body-target-weight'
-                  ? 'targetWeight'
-                  : 'bodyGoal']: value,
+      [resolveBodyField(id)]: value,
     }));
   }
 

@@ -1,9 +1,44 @@
-// @ts-nocheck
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { saveSchedule } from '../app/services/settings-actions.ts';
 
-function getSnapshot() {
+type SettingsScheduleLabels = {
+  statusBar: string;
+  title: string;
+  subtitle: string;
+  activitySection: string;
+  activitySectionSub: string;
+  activityName: string;
+  activityPlaceholder: string;
+  profileSection: string;
+  profileSectionSub: string;
+  intensityLabel: string;
+  intensityEasy: string;
+  intensityModerate: string;
+  intensityHard: string;
+  legHeavy: string;
+  legHeavySub: string;
+  regularSportDays: string;
+};
+
+type SportIntensity = 'easy' | 'moderate' | 'hard';
+
+type SettingsScheduleValues = {
+  sportName: string;
+  sportIntensity: SportIntensity;
+  sportLegsHeavy: boolean;
+  sportDays: number[];
+  dayNames: string[];
+};
+
+type SettingsScheduleFormValues = Omit<SettingsScheduleValues, 'dayNames'>;
+
+type SettingsScheduleSnapshot = {
+  labels: SettingsScheduleLabels;
+  values: SettingsScheduleValues;
+};
+
+function getSnapshot(): SettingsScheduleSnapshot {
   return {
     labels: {
       statusBar: '',
@@ -35,7 +70,42 @@ function getSnapshot() {
   };
 }
 
-function getFormValues(snapshot) {
+function toSportIntensity(value: unknown): SportIntensity {
+  return value === 'easy' || value === 'moderate' || value === 'hard'
+    ? value
+    : 'hard';
+}
+
+function toScheduleSnapshot(input: unknown): SettingsScheduleSnapshot {
+  const fallback = getSnapshot();
+  if (!input || typeof input !== 'object') return fallback;
+  const candidate = input as {
+    labels?: Partial<SettingsScheduleLabels>;
+    values?: Partial<SettingsScheduleValues>;
+  };
+  const values = candidate.values || {};
+  return {
+    labels: {
+      ...fallback.labels,
+      ...(candidate.labels || {}),
+    },
+    values: {
+      ...fallback.values,
+      ...values,
+      sportIntensity: toSportIntensity(values.sportIntensity),
+      sportDays: Array.isArray(values.sportDays)
+        ? values.sportDays.map(Number).filter(Number.isFinite)
+        : fallback.values.sportDays,
+      dayNames: Array.isArray(values.dayNames)
+        ? values.dayNames.map((day) => String(day || ''))
+        : fallback.values.dayNames,
+    },
+  };
+}
+
+function getFormValues(
+  snapshot: SettingsScheduleSnapshot
+): SettingsScheduleFormValues {
   return {
     sportName: snapshot.values.sportName ?? '',
     sportIntensity: snapshot.values.sportIntensity ?? 'hard',
@@ -45,13 +115,16 @@ function getFormValues(snapshot) {
 }
 
 function SettingsScheduleIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.pages.settingsScheduleView) || getSnapshot();
+  const rawSnapshot = useRuntimeStore((state) => state.pages.settingsScheduleView);
+  const snapshot = useMemo(
+    () => toScheduleSnapshot(rawSnapshot),
+    [rawSnapshot]
+  );
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
-  const sportNameSaveTimerRef = useRef(null);
+  const sportNameSaveTimerRef = useRef<number | null>(null);
   const latestSportNameRef = useRef(formValues.sportName);
   const lastSavedSportNameRef = useRef(formValues.sportName);
-  const pendingSportNameRef = useRef(null);
+  const pendingSportNameRef = useRef<string | null>(null);
 
   useEffect(() => {
     const nextFormValues = getFormValues(snapshot);
@@ -66,7 +139,9 @@ function SettingsScheduleIsland() {
     ) {
       pendingSportNameRef.current = null;
     }
-    window.clearTimeout(sportNameSaveTimerRef.current);
+    if (sportNameSaveTimerRef.current !== null) {
+      window.clearTimeout(sportNameSaveTimerRef.current);
+    }
     latestSportNameRef.current = nextFormValues.sportName;
     lastSavedSportNameRef.current = nextFormValues.sportName;
     setFormValues((current) => ({
@@ -77,19 +152,25 @@ function SettingsScheduleIsland() {
 
   const labels = snapshot.labels;
 
-  function updateField(key, value) {
-    if (key === 'sportName') latestSportNameRef.current = value;
+  function updateField<K extends keyof SettingsScheduleFormValues>(
+    key: K,
+    value: SettingsScheduleFormValues[K]
+  ) {
+    if (key === 'sportName') latestSportNameRef.current = String(value);
     setFormValues((current) => ({ ...current, [key]: value }));
   }
 
-  function savePartial(nextValues) {
+  function savePartial(nextValues: Partial<SettingsScheduleFormValues>) {
     saveSchedule(nextValues);
   }
 
-  function flushSportName(nextValue) {
+  function flushSportName(nextValue?: string) {
     const resolvedValue =
       typeof nextValue === 'string' ? nextValue : latestSportNameRef.current;
-    window.clearTimeout(sportNameSaveTimerRef.current);
+    if (sportNameSaveTimerRef.current !== null) {
+      window.clearTimeout(sportNameSaveTimerRef.current);
+      sportNameSaveTimerRef.current = null;
+    }
     if (resolvedValue === lastSavedSportNameRef.current) return;
     lastSavedSportNameRef.current = resolvedValue;
     pendingSportNameRef.current = resolvedValue;
@@ -102,7 +183,12 @@ function SettingsScheduleIsland() {
     sportNameSaveTimerRef.current = window.setTimeout(() => {
       flushSportName(formValues.sportName);
     }, 350);
-    return () => window.clearTimeout(sportNameSaveTimerRef.current);
+    return () => {
+      if (sportNameSaveTimerRef.current !== null) {
+        window.clearTimeout(sportNameSaveTimerRef.current);
+        sportNameSaveTimerRef.current = null;
+      }
+    };
   }, [formValues.sportName]);
 
   useEffect(
@@ -156,9 +242,9 @@ function SettingsScheduleIsland() {
           <label>{labels.intensityLabel}</label>
           <div className="segment-control segment-control-equal" id="sport-intensity-btns">
             {[
-              ['easy', labels.intensityEasy],
-              ['moderate', labels.intensityModerate],
-              ['hard', labels.intensityHard],
+              ['easy', labels.intensityEasy] as const,
+              ['moderate', labels.intensityModerate] as const,
+              ['hard', labels.intensityHard] as const,
             ].map(([value, label]) => (
               <button
                 key={value}

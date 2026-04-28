@@ -1,4 +1,3 @@
-// @ts-nocheck
 type BurstPalette = [number, number, number][];
 
 type ForgeBurstOptions = {
@@ -44,10 +43,11 @@ export function playForgeBurst(
   canvas: HTMLCanvasElement | null,
   options?: ForgeBurstOptions
 ) {
-  const target = canvas instanceof HTMLCanvasElement ? canvas : null;
-  if (!target) return () => {};
+  if (!(canvas instanceof HTMLCanvasElement)) return () => {};
+  const target = canvas;
   const ctx = target.getContext('2d');
   if (!ctx) return () => {};
+  const context: CanvasRenderingContext2D = ctx;
 
   const prefersReducedMotion =
     window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
@@ -59,9 +59,9 @@ export function playForgeBurst(
     const dpr = clamp(window.devicePixelRatio || 1, 1, 1.75);
     target.width = Math.floor(width * dpr);
     target.height = Math.floor(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    return () => ctx.clearRect(0, 0, width, height);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, width, height);
+    return () => context.clearRect(0, 0, width, height);
   }
 
   const config = {
@@ -100,7 +100,7 @@ export function playForgeBurst(
     const dpr = clamp(window.devicePixelRatio || 1, 1, 1.75);
     target.width = Math.floor(width * dpr);
     target.height = Math.floor(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   function buildEmbers() {
@@ -136,7 +136,7 @@ export function playForgeBurst(
   function cleanup() {
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
-    ctx.clearRect(0, 0, width, height);
+    context.clearRect(0, 0, width, height);
   }
 
   function draw(ts: number) {
@@ -158,10 +158,10 @@ export function playForgeBurst(
       easeOutCubic(Math.min(1, elapsed / 600))
     );
 
-    ctx.clearRect(0, 0, width, height);
+    context.clearRect(0, 0, width, height);
     const originX = width * (parseFloat(String(config.originX)) || 0.5);
     const originY = height * (parseFloat(String(config.originY)) || 0.84);
-    const glow = ctx.createRadialGradient(
+    const glow = context.createRadialGradient(
       originX,
       originY,
       10,
@@ -178,9 +178,9 @@ export function playForgeBurst(
       `rgba(255,120,40,${(glowStrength * 0.52).toFixed(3)})`
     );
     glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
+    context.globalCompositeOperation = 'screen';
+    context.fillStyle = glow;
+    context.fillRect(0, 0, width, height);
 
     let alive = 0;
     for (const ember of embers) {
@@ -194,21 +194,21 @@ export function playForgeBurst(
       ember.y += ember.vy * dt;
       const alpha = ember.alpha * (1 - lifeProgress) * (1 - progress * 0.16);
       if (alpha <= 0.01) continue;
-      ctx.beginPath();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = emberColor(ember.t, alpha);
-      ctx.shadowColor = emberColor(ember.t, alpha * 0.8);
-      ctx.shadowBlur = 6;
-      ctx.arc(
+      context.beginPath();
+      context.globalCompositeOperation = 'lighter';
+      context.fillStyle = emberColor(ember.t, alpha);
+      context.shadowColor = emberColor(ember.t, alpha * 0.8);
+      context.shadowBlur = 6;
+      context.arc(
         ember.x,
         ember.y,
         ember.size * (1 - lifeProgress * 0.2),
         0,
         Math.PI * 2
       );
-      ctx.fill();
+      context.fill();
     }
-    ctx.shadowBlur = 0;
+    context.shadowBlur = 0;
 
     if (progress < 1 && alive > 0) {
       rafId = requestAnimationFrame(draw);

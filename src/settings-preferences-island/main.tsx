@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useEffect, useRef, useState } from 'react';
+import { MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import {
   restartOnboarding,
@@ -7,7 +6,69 @@ import {
   saveTrainingPreferences,
 } from '../app/services/settings-actions.ts';
 
-function getSnapshot() {
+type SettingsPreferencesLabels = {
+  statusBar: string;
+  title: string;
+  help: string;
+  goalsSection: string;
+  goalLabel: string;
+  goalStrength: string;
+  goalHypertrophy: string;
+  goalGeneralFitness: string;
+  goalSportSupport: string;
+  trainingDaysLabel: string;
+  trainingDays2: string;
+  trainingDays3: string;
+  trainingDays4: string;
+  trainingDays5: string;
+  trainingDays6: string;
+  sessionDurationLabel: string;
+  duration30: string;
+  duration45: string;
+  duration60: string;
+  duration75: string;
+  duration90: string;
+  equipmentSection: string;
+  equipmentLabel: string;
+  equipmentFullGym: string;
+  equipmentBasicGym: string;
+  equipmentHomeGym: string;
+  equipmentMinimal: string;
+  warmupTitle: string;
+  warmupHelp: string;
+  sportCheckTitle: string;
+  sportCheckHelp: string;
+  detailedViewTitle: string;
+  detailedViewHelp: string;
+  sessionSection: string;
+  restLabel: string;
+  off: string;
+  notesLabel: string;
+  notesPlaceholder: string;
+  restartOnboarding: string;
+};
+
+type SettingsPreferencesValues = {
+  summary: string;
+  goal: string;
+  trainingDaysPerWeek: string;
+  sessionMinutes: string;
+  equipmentAccess: string;
+  warmupSetsEnabled: boolean;
+  sportReadinessCheckEnabled: boolean;
+  detailedView: boolean;
+  defaultRest: string;
+  notes: string;
+};
+
+type SettingsPreferencesSnapshot = {
+  labels: SettingsPreferencesLabels;
+  values: SettingsPreferencesValues;
+};
+
+type PreferencesField = keyof Omit<SettingsPreferencesValues, 'summary'>;
+
+function getSnapshot(): SettingsPreferencesSnapshot {
   return {
     labels: {
       statusBar: '',
@@ -69,7 +130,32 @@ function getSnapshot() {
   };
 }
 
-function getFormValues(snapshot) {
+function toPreferencesSnapshot(input: unknown): SettingsPreferencesSnapshot {
+  const fallback = getSnapshot();
+  if (!input || typeof input !== 'object') return fallback;
+  const candidate = input as {
+    labels?: Partial<SettingsPreferencesLabels>;
+    values?: Partial<SettingsPreferencesValues>;
+  };
+  return {
+    labels: {
+      ...fallback.labels,
+      ...(candidate.labels || {}),
+    },
+    values: {
+      ...fallback.values,
+      ...(candidate.values || {}),
+      warmupSetsEnabled: candidate.values?.warmupSetsEnabled === true,
+      sportReadinessCheckEnabled:
+        candidate.values?.sportReadinessCheckEnabled === true,
+      detailedView: candidate.values?.detailedView === true,
+    },
+  };
+}
+
+function getFormValues(
+  snapshot: SettingsPreferencesSnapshot
+): Omit<SettingsPreferencesValues, 'summary'> {
   return {
     goal: snapshot.values.goal ?? 'strength',
     trainingDaysPerWeek: snapshot.values.trainingDaysPerWeek ?? '3',
@@ -84,11 +170,18 @@ function getFormValues(snapshot) {
 }
 
 function SettingsPreferencesIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.pages.settingsPreferencesView) ||
-    getSnapshot();
+  const rawSnapshot = useRuntimeStore(
+    (state) => state.pages.settingsPreferencesView
+  );
+  const snapshot = useMemo(
+    () => toPreferencesSnapshot(rawSnapshot),
+    [rawSnapshot]
+  );
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
-  const pendingToggleOverridesRef = useRef({
+  const pendingToggleOverridesRef = useRef<{
+    warmupSetsEnabled: boolean | null;
+    sportReadinessCheckEnabled: boolean | null;
+  }>({
     warmupSetsEnabled: null,
     sportReadinessCheckEnabled: null,
   });
@@ -98,7 +191,9 @@ function SettingsPreferencesIsland() {
     setFormValues((current) => {
       const next = { ...nextFormValues };
 
-      ['warmupSetsEnabled', 'sportReadinessCheckEnabled'].forEach((key) => {
+      (
+        ['warmupSetsEnabled', 'sportReadinessCheckEnabled'] as const
+      ).forEach((key) => {
         const pendingValue = pendingToggleOverridesRef.current[key];
         if (typeof pendingValue !== 'boolean') return;
         if (next[key] === pendingValue) {
@@ -114,16 +209,19 @@ function SettingsPreferencesIsland() {
 
   const labels = snapshot.labels;
 
-  function updateField(key, value) {
+  function updateField<K extends PreferencesField>(
+    key: K,
+    value: Omit<SettingsPreferencesValues, 'summary'>[K]
+  ) {
     setFormValues((current) => ({ ...current, [key]: value }));
   }
 
-  function getCheckboxValue(id, fallbackValue) {
+  function getCheckboxValue(id: string, fallbackValue: boolean) {
     const input = document.getElementById(id);
     return input instanceof HTMLInputElement ? input.checked : fallbackValue;
   }
 
-  function saveWarmupSetsEnabled(nextValue) {
+  function saveWarmupSetsEnabled(nextValue: boolean) {
     pendingToggleOverridesRef.current.warmupSetsEnabled = nextValue;
     updateField('warmupSetsEnabled', nextValue);
     saveTrainingPreferences({
@@ -135,7 +233,7 @@ function SettingsPreferencesIsland() {
     });
   }
 
-  function saveSportReadinessCheckEnabled(nextValue) {
+  function saveSportReadinessCheckEnabled(nextValue: boolean) {
     pendingToggleOverridesRef.current.sportReadinessCheckEnabled = nextValue;
     updateField('sportReadinessCheckEnabled', nextValue);
     saveTrainingPreferences({
@@ -147,8 +245,17 @@ function SettingsPreferencesIsland() {
     });
   }
 
-  function isCheckboxInputTarget(target) {
+  function isCheckboxInputTarget(target: EventTarget) {
     return target instanceof HTMLInputElement;
+  }
+
+  function handleToggleLabelClick(
+    event: MouseEvent<HTMLLabelElement>,
+    action: () => void
+  ) {
+    if (isCheckboxInputTarget(event.target)) return;
+    event.preventDefault();
+    action();
   }
 
   return (
@@ -243,11 +350,11 @@ function SettingsPreferencesIsland() {
             <label
               className="toggle-row toggle-row-spaced"
               htmlFor="training-warmup-sets"
-              onClick={(event) => {
-                if (isCheckboxInputTarget(event.target)) return;
-                event.preventDefault();
-                saveWarmupSetsEnabled(!formValues.warmupSetsEnabled);
-              }}
+              onClick={(event) =>
+                handleToggleLabelClick(event, () =>
+                  saveWarmupSetsEnabled(!formValues.warmupSetsEnabled)
+                )
+              }
             >
               <div>
                 <div className="toggle-row-title">{labels.warmupTitle}</div>
@@ -271,11 +378,13 @@ function SettingsPreferencesIsland() {
             <label
               className="toggle-row"
               htmlFor="training-sport-check"
-              onClick={(event) => {
-                if (isCheckboxInputTarget(event.target)) return;
-                event.preventDefault();
-                saveSportReadinessCheckEnabled(!formValues.sportReadinessCheckEnabled);
-              }}
+              onClick={(event) =>
+                handleToggleLabelClick(event, () =>
+                  saveSportReadinessCheckEnabled(
+                    !formValues.sportReadinessCheckEnabled
+                  )
+                )
+              }
             >
               <div>
                 <div className="toggle-row-title">{labels.sportCheckTitle}</div>
@@ -353,7 +462,7 @@ function SettingsPreferencesIsland() {
             </label>
             <textarea
               id="training-preferences-notes"
-              rows="4"
+              rows={4}
               placeholder={labels.notesPlaceholder}
               value={formValues.notes}
               onChange={(event) => {

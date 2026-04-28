@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useEffect, useRef, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import {
   checkDangerConfirm,
@@ -11,8 +10,53 @@ import {
   showDangerConfirm,
 } from '../app/services/settings-actions.ts';
 
-function getSnapshot() {
-  const appVersion = String(window.__IRONFORGE_APP_VERSION__ || '').trim();
+type SettingsAccountLabels = {
+  accountSection: string;
+  languageLabel: string;
+  optionEn: string;
+  optionFi: string;
+  signOut: string;
+  dataBackup: string;
+  export: string;
+  import: string;
+  backupHelp: string;
+  nutritionTitle: string;
+  nutritionHelp: string;
+  danger: string;
+  dangerDesc: string;
+  dangerTypeConfirm: string;
+  clearAll: string;
+  clearAllConfirm: string;
+};
+
+type SettingsAccountValues = {
+  email: string;
+  syncLabel: string;
+  syncClassName: string;
+  language: string;
+  backupContext: string;
+  nutritionReady: boolean;
+  appVersion: string;
+  dangerOpen: boolean;
+  dangerInput: string;
+  dangerDeleteDisabled: boolean;
+};
+
+type SettingsAccountSnapshot = {
+  labels: SettingsAccountLabels;
+  values: SettingsAccountValues;
+};
+
+type SettingsAccountFormValues = Pick<
+  SettingsAccountValues,
+  'language' | 'dangerInput'
+>;
+
+function getSnapshot(): SettingsAccountSnapshot {
+  const runtimeWindow = window as Window & {
+    __IRONFORGE_APP_VERSION__?: string;
+  };
+  const appVersion = String(runtimeWindow.__IRONFORGE_APP_VERSION__ || '').trim();
   return {
     labels: {
       accountSection: 'Account',
@@ -50,7 +94,31 @@ function getSnapshot() {
   };
 }
 
-function getFormValues(snapshot) {
+function toAccountSnapshot(input: unknown): SettingsAccountSnapshot {
+  const fallback = getSnapshot();
+  if (!input || typeof input !== 'object') return fallback;
+  const candidate = input as {
+    labels?: Partial<SettingsAccountLabels>;
+    values?: Partial<SettingsAccountValues>;
+  };
+  return {
+    labels: {
+      ...fallback.labels,
+      ...(candidate.labels || {}),
+    },
+    values: {
+      ...fallback.values,
+      ...(candidate.values || {}),
+      nutritionReady: candidate.values?.nutritionReady === true,
+      dangerOpen: candidate.values?.dangerOpen === true,
+      dangerDeleteDisabled: candidate.values?.dangerDeleteDisabled !== false,
+    },
+  };
+}
+
+function getFormValues(
+  snapshot: SettingsAccountSnapshot
+): SettingsAccountFormValues {
   return {
     language: snapshot.values.language ?? 'en',
     dangerInput: snapshot.values.dangerInput ?? '',
@@ -58,10 +126,10 @@ function getFormValues(snapshot) {
 }
 
 function SettingsAccountIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.pages.settingsAccountView) || getSnapshot();
+  const rawSnapshot = useRuntimeStore((state) => state.pages.settingsAccountView);
+  const snapshot = useMemo(() => toAccountSnapshot(rawSnapshot), [rawSnapshot]);
   const [formValues, setFormValues] = useState(() => getFormValues(snapshot));
-  const importRef = useRef(null);
+  const importRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setFormValues(getFormValues(snapshot));
@@ -70,8 +138,15 @@ function SettingsAccountIsland() {
   const labels = snapshot.labels;
   const values = snapshot.values;
 
-  function updateField(key, value) {
+  function updateField<K extends keyof SettingsAccountFormValues>(
+    key: K,
+    value: SettingsAccountFormValues[K]
+  ) {
     setFormValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function handleImportChange(event: ChangeEvent<HTMLInputElement>) {
+    importData(event.nativeEvent);
   }
 
   return (
@@ -129,7 +204,7 @@ function SettingsAccountIsland() {
               accept=".json"
               className="file-input-hidden"
               data-ui="settings-backup-import"
-              onChange={(event) => importData(event.nativeEvent)}
+              onChange={handleImportChange}
             />
           </label>
         </div>

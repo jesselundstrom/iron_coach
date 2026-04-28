@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from 'react';
+import type { FormEvent, MouseEvent, RefObject } from 'react';
 import { t } from './services/i18n.ts';
 import { useRuntimeStore } from './store/runtime-store.ts';
 import {
@@ -9,33 +9,59 @@ import {
 import loginHeroImage from '../../assets/ironforge_bg.webp';
 
 const START_RETRY_LIMIT = 24;
+type ColorTuple = [number, number, number];
+
+type Ember = {
+  size: number;
+  x: number;
+  y: number;
+  speed: number;
+  drift: number;
+  phase: number;
+  wiggle: number;
+  life: number;
+  alpha: number;
+  t: number;
+};
+
+type LoginRuntimeWindow = Window & {
+  __IRONFORGE_APP_VERSION__?: string;
+  __IRONFORGE_LOGIN_DEBUG__?: {
+    render?: () => void;
+  };
+};
 
 function getBuildLabel() {
   if (typeof window === 'undefined') return '';
-  return String(window.__IRONFORGE_APP_VERSION__ || '').trim();
+  return String((window as LoginRuntimeWindow).__IRONFORGE_APP_VERSION__ || '').trim();
 }
 
 const MIN_EMBERS = 18;
 const MAX_EMBERS = 34;
-const COLOR_A = [255, 122, 58];
-const COLOR_B = [255, 158, 82];
+const COLOR_A: ColorTuple = [255, 122, 58];
+const COLOR_B: ColorTuple = [255, 158, 82];
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function lerp(a, b, t) {
+function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-function emberColor(t, alpha) {
+function emberColor(t: number, alpha: number) {
   const r = Math.round(lerp(COLOR_A[0], COLOR_B[0], t));
   const g = Math.round(lerp(COLOR_A[1], COLOR_B[1], t));
   const b = Math.round(lerp(COLOR_A[2], COLOR_B[2], t));
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function resetEmber(ember, initial, width, height) {
+function resetEmber(
+  ember: Ember,
+  initial: boolean,
+  width: number,
+  height: number
+) {
   const fromForge = Math.random() < 0.82;
   const originX = width * 0.5;
   const spread = fromForge ? width * 0.32 : width * 0.72;
@@ -64,7 +90,7 @@ function resetEmber(ember, initial, width, height) {
   ember.t = Math.random();
 }
 
-function useForgeSparkEngine(canvasRef) {
+function useForgeSparkEngine(canvasRef: RefObject<HTMLCanvasElement | null>) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -77,11 +103,13 @@ function useForgeSparkEngine(canvasRef) {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    const drawingCanvas = canvas;
+    const context = ctx;
 
     let width = 0;
     let height = 0;
     let dpr = 1;
-    let embers = [];
+    let embers: Ember[] = [];
     let animationId = 0;
     let retryAnimationId = 0;
     let retryTimeoutId = 0;
@@ -91,24 +119,24 @@ function useForgeSparkEngine(canvasRef) {
     let isMounted = true;
 
     function resize() {
-      const rect = canvas.getBoundingClientRect();
+      const rect = drawingCanvas.getBoundingClientRect();
       width = Math.max(1, Math.floor(rect.width || window.innerWidth || 1));
       height = Math.max(1, Math.floor(rect.height || window.innerHeight || 1));
       dpr = clamp(window.devicePixelRatio || 1, 1, 1.75);
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawingCanvas.width = Math.floor(width * dpr);
+      drawingCanvas.height = Math.floor(height * dpr);
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (!embers.length) {
         const total = Math.floor(lerp(MIN_EMBERS, MAX_EMBERS, Math.random()));
         embers = Array.from({ length: total }, () => {
-          const ember = {};
+          const ember = {} as Ember;
           resetEmber(ember, true, width, height);
           return ember;
         });
       }
     }
 
-    function draw(ts) {
+    function draw(ts: number) {
       if (!isRunning || !ctx) return;
       if (!lastTs) lastTs = ts;
       const dt = Math.min((ts - lastTs) / 1000, 0.033);
@@ -182,7 +210,7 @@ function useForgeSparkEngine(canvasRef) {
     // Retry until canvas has real dimensions and layout has settled.
     function tryStart() {
       if (!isMounted || isRunning) return;
-      const rect = canvas.getBoundingClientRect();
+      const rect = drawingCanvas.getBoundingClientRect();
       if ((rect.width || 0) > 1 && (rect.height || 0) > 1) {
         clearPendingStartRetry();
         startAttempts = 0;
@@ -241,10 +269,10 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [buildLabel] = useState(() => getBuildLabel());
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    window.__IRONFORGE_LOGIN_DEBUG__?.render?.();
+    (window as LoginRuntimeWindow).__IRONFORGE_LOGIN_DEBUG__?.render?.();
   }, []);
 
   useForgeSparkEngine(canvasRef);
@@ -257,8 +285,12 @@ export default function LoginScreen() {
   // iOS autofill sometimes fills the DOM without triggering React's onChange.
   // Reading directly from the DOM ensures we catch autofilled values.
   function resolveCredentials() {
-    const emailEl = document.getElementById('login-email');
-    const passwordEl = document.getElementById('login-password');
+    const emailEl = document.getElementById('login-email') as
+      | HTMLInputElement
+      | null;
+    const passwordEl = document.getElementById('login-password') as
+      | HTMLInputElement
+      | null;
     return {
       resolvedEmail: (email || emailEl?.value || '').trim(),
       resolvedPassword: password || passwordEl?.value || '',
@@ -327,12 +359,12 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleSignIn(event) {
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await runSignIn();
   }
 
-  async function handleSignUp(event) {
+  async function handleSignUp(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     await runSignUp();
   }

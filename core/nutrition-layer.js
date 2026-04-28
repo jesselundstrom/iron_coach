@@ -1391,7 +1391,7 @@
     );
   }
 
-  // ─── Claude API call ──────────────────────────────────────────────────────────
+  // Nutrition coach edge-function call.
 
   // Auto-select model: Sonnet for photos (good vision), Haiku for text (fast + cheap)
   async function _callNutritionCoach(apiMessages, hasImage, trace) {
