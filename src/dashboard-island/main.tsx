@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { createElement, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useDashboardStore } from '../stores/dashboard-store';
 import {
   animateDashboardPlanMuscleBars,
@@ -7,7 +7,8 @@ import {
 } from '../app/services/dashboard-actions.ts';
 import { navigateToPage } from '../app/services/navigation-actions';
 
-const svgCache = new Map();
+type AnyRecord = Record<string, any>;
+const svgCache = new Map<string, ReactNode | null>();
 
 function getSnapshot() {
   return {
@@ -50,11 +51,11 @@ function getSnapshot() {
   };
 }
 
-function toCamelCase(value) {
+function toCamelCase(value: string) {
   return value.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
 }
 
-function mapSvgAttribute(name) {
+function mapSvgAttribute(name: string) {
   if (name === 'class') return 'className';
   if (name === 'stroke-width') return 'strokeWidth';
   if (name === 'stroke-linecap') return 'strokeLinecap';
@@ -66,7 +67,7 @@ function mapSvgAttribute(name) {
   return toCamelCase(name);
 }
 
-function parseTmValue(rawValue) {
+function parseTmValue(rawValue: unknown) {
   const raw = String(rawValue || '').trim();
   const match = raw.match(/^([0-9]+(?:[.,][0-9]+)?)(.*)$/);
   if (!match) return { main: raw, unit: '' };
@@ -76,29 +77,29 @@ function parseTmValue(rawValue) {
   };
 }
 
-function padTmChars(chars, length) {
+function padTmChars(chars: string[], length: number) {
   const safe = Array.isArray(chars) ? chars : [];
   if (safe.length >= length) return safe;
   return Array.from({ length: length - safe.length }, () => ' ').concat(safe);
 }
 
-function convertSvgNode(node, key) {
+function convertSvgNode(node: Node, key: string): ReactNode | null {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent || '';
     return text.trim() ? text : null;
   }
   if (node.nodeType !== Node.ELEMENT_NODE) return null;
-  const props = { key };
-  Array.from(node.attributes).forEach((attr) => {
+  const props: AnyRecord = { key };
+  Array.from((node as Element).attributes).forEach((attr) => {
     props[mapSvgAttribute(attr.name)] = attr.value;
   });
   const children = Array.from(node.childNodes)
     .map((child, index) => convertSvgNode(child, `${key}-${index}`))
     .filter(Boolean);
-  return createElement(node.tagName.toLowerCase(), props, ...children);
+  return createElement((node as Element).tagName.toLowerCase(), props, ...children);
 }
 
-function getSvgElement(markup, cacheKey) {
+function getSvgElement(markup: string, cacheKey: string) {
   if (!markup) return null;
   if (svgCache.has(cacheKey)) return svgCache.get(cacheKey);
   const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
@@ -108,7 +109,13 @@ function getSvgElement(markup, cacheKey) {
   return element;
 }
 
-function RichText({ text, className }) {
+function RichText({
+  text,
+  className = '',
+}: {
+  text: unknown;
+  className?: string;
+}) {
   const content = String(text || '');
   const parts = content.split(/(<strong>.*?<\/strong>)/gi).filter(Boolean);
   return (
@@ -122,7 +129,7 @@ function RichText({ text, className }) {
   );
 }
 
-function HeroCta({ cta }) {
+function HeroCta({ cta }: { cta: AnyRecord | null | undefined }) {
   if (!cta || cta.type === 'none') return null;
   if (cta.type === 'badge') {
     return (
@@ -138,7 +145,12 @@ function HeroCta({ cta }) {
       <button
         className="btn btn-primary cta-btn"
         type="button"
-        onClick={() => window[cta.action || 'goToLog']?.()}
+        onClick={() => {
+          const action = (window as unknown as Record<string, unknown>)[
+            String(cta.action || 'goToLog')
+          ];
+          if (typeof action === 'function') action();
+        }}
       >
         {cta.label}
       </button>
@@ -146,10 +158,10 @@ function HeroCta({ cta }) {
   );
 }
 
-function WeekStrip({ week }) {
+function WeekStrip({ week }: { week: AnyRecord }) {
   return (
     <div className="week-strip" id="week-strip">
-      {week.days.map((day) => (
+      {week.days.map((day: AnyRecord) => (
         <button
           key={day.key}
           className={`day-pill ${day.variant}${day.isActive ? ' active' : ''}`}
@@ -175,7 +187,7 @@ function WeekStrip({ week }) {
   );
 }
 
-function WeekLegend({ items }) {
+function WeekLegend({ items }: { items: AnyRecord[] }) {
   return (
     <div className="dashboard-week-legend" id="dashboard-week-legend">
       {items.map((item) => (
@@ -191,14 +203,14 @@ function WeekLegend({ items }) {
   );
 }
 
-function DayDetailPanel({ week }) {
+function DayDetailPanel({ week }: { week: AnyRecord }) {
   return (
     <div
       id="day-detail-panel"
       style={{ display: week.detailVisible ? 'block' : 'none' }}
       data-active={week.detailVisible ? String(week.activeDayIndex) : ''}
     >
-      {week.detail.items.map((item, index) => (
+      {week.detail.items.map((item: AnyRecord, index: number) => (
         <div
           key={`${item.kind}-${index}`}
           className={`day-detail-item${
@@ -216,7 +228,7 @@ function DayDetailPanel({ week }) {
   );
 }
 
-function SessionProgress({ progress }) {
+function SessionProgress({ progress }: { progress: AnyRecord }) {
   return (
     <div id="session-progress" className="dashboard-session-progress" aria-live="polite">
       <div className="dashboard-session-progress-card">
@@ -243,7 +255,7 @@ function SessionProgress({ progress }) {
   );
 }
 
-function CoachSection({ section }) {
+function CoachSection({ section }: { section: AnyRecord }) {
   return (
     <section className="dashboard-plan-section dashboard-plan-section-coach">
       <article className="dashboard-plan-card dashboard-plan-coach-card">
@@ -265,7 +277,7 @@ function CoachSection({ section }) {
         </div>
         {section.reasonLabels?.length ? (
           <div className="dashboard-plan-coach-reasons">
-            {section.reasonLabels.map((label) => (
+            {section.reasonLabels.map((label: string) => (
               <div key={label} className="dashboard-plan-coach-chip">
                 {label}
               </div>
@@ -285,7 +297,7 @@ function CoachSection({ section }) {
   );
 }
 
-function AdherenceGauge({ value, tone }) {
+function AdherenceGauge({ value, tone }: { value: string; tone: string }) {
   const pct = Math.max(0, Math.min(100, parseInt(value, 10) || 0));
   const radius = 40;
   const stroke = 5;
@@ -300,13 +312,20 @@ function AdherenceGauge({ value, tone }) {
     caution: { stroke: '#f59e0b', glow: 'rgba(245,158,11,0.35)' },
     neutral: { stroke: '#4a8fe8', glow: 'rgba(74,143,232,0.3)' },
   };
-  const colors = toneColors[tone] || toneColors.neutral;
+  const colors =
+    toneColors[tone as keyof typeof toneColors] || toneColors.neutral;
 
-  const polarToCartesian = (cx, cy, r, deg) => {
+  const polarToCartesian = (cx: number, cy: number, r: number, deg: number) => {
     const rad = ((deg - 90) * Math.PI) / 180;
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
   };
-  const describeArc = (cx, cy, r, start, end) => {
+  const describeArc = (
+    cx: number,
+    cy: number,
+    r: number,
+    start: number,
+    end: number
+  ) => {
     const s = polarToCartesian(cx, cy, r, start);
     const e = polarToCartesian(cx, cy, r, end);
     const large = end - start > 180 ? 1 : 0;
@@ -350,7 +369,7 @@ function AdherenceGauge({ value, tone }) {
   );
 }
 
-function StatsSection({ section }) {
+function StatsSection({ section }: { section: AnyRecord }) {
   return (
     <section className="dashboard-plan-section dashboard-plan-section-stats">
       <div className="dashboard-plan-section-label">{section.label}</div>
@@ -374,7 +393,7 @@ function StatsSection({ section }) {
         </div>
         {section.supportingMetrics?.length ? (
           <div className="dashboard-plan-supporting-grid">
-            {section.supportingMetrics.map((metric, index) => (
+            {section.supportingMetrics.map((metric: AnyRecord, index: number) => (
               <div
                 key={`${metric.label}-${index}`}
                 className={`dashboard-plan-support-chip is-${metric.tone}`}
@@ -387,7 +406,7 @@ function StatsSection({ section }) {
         ) : null}
         {section.insights?.length ? (
           <div className="dashboard-plan-insight-list">
-            {section.insights.map((item, index) => (
+            {section.insights.map((item: AnyRecord, index: number) => (
               <div
                 key={`${item.tone}-${index}`}
                 className={`dashboard-plan-insight-row is-${item.tone}${
@@ -404,7 +423,7 @@ function StatsSection({ section }) {
   );
 }
 
-function MuscleSection({ section }) {
+function MuscleSection({ section }: { section: AnyRecord }) {
   const [flipped, setFlipped] = useState(false);
 
   useEffect(() => {
@@ -452,7 +471,7 @@ function MuscleSection({ section }) {
               </span>
             </button>
             <div className="muscle-body-legend">
-              {data.legend.map((item) => (
+              {data.legend.map((item: AnyRecord) => (
                 <div key={item.group} className={`muscle-body-legend-item is-${item.level}`}>
                   <span className="muscle-body-legend-dot" />
                   <span className="muscle-body-legend-name">{item.name}</span>
@@ -467,10 +486,10 @@ function MuscleSection({ section }) {
   );
 }
 
-function PlanCard({ plan }) {
-  const coach = plan.sections.find((section) => section.id === 'coach');
-  const stats = plan.sections.find((section) => section.id === 'stats');
-  const muscle = plan.sections.find((section) => section.id === 'muscle');
+function PlanCard({ plan }: { plan: AnyRecord }) {
+  const coach = plan.sections.find((section: AnyRecord) => section.id === 'coach');
+  const stats = plan.sections.find((section: AnyRecord) => section.id === 'stats');
+  const muscle = plan.sections.find((section: AnyRecord) => section.id === 'muscle');
 
   return (
     <div className="dashboard-plan-stack" id="next-session-content">
@@ -481,7 +500,7 @@ function PlanCard({ plan }) {
   );
 }
 
-function RecoveryCard({ recovery }) {
+function RecoveryCard({ recovery }: { recovery: AnyRecord }) {
   return (
     <div className="card dashboard-card dashboard-recovery-card">
       <div className="dashboard-card-body">
@@ -507,7 +526,7 @@ function RecoveryCard({ recovery }) {
           </div>
         ) : null}
         {recovery.rows.length > 0
-          ? recovery.rows.map((row) => (
+          ? recovery.rows.map((row: AnyRecord) => (
               <div key={row.id} className="fatigue-row">
                 <div className="fatigue-label">{row.label}</div>
                 <div className="fatigue-bar-wrap">
@@ -534,7 +553,15 @@ function RecoveryCard({ recovery }) {
   );
 }
 
-function TrainingMaxDigits({ currentValue, previousValue, animate }) {
+function TrainingMaxDigits({
+  currentValue,
+  previousValue,
+  animate,
+}: {
+  currentValue: unknown;
+  previousValue: unknown;
+  animate: boolean;
+}) {
   const currentChars = String(currentValue || '').split('');
   const previousChars = String(previousValue ?? currentValue ?? '').split('');
   const width = Math.max(currentChars.length, previousChars.length);
@@ -582,7 +609,7 @@ function TrainingMaxDigits({ currentValue, previousValue, animate }) {
   });
 }
 
-function NutritionStatus({ nutrition }) {
+function NutritionStatus({ nutrition }: { nutrition: AnyRecord | null }) {
   if (!nutrition) return null;
 
   if (nutrition.state === 'empty') {
@@ -643,7 +670,7 @@ function NutritionStatus({ nutrition }) {
   );
 }
 
-function TrainingMaxes({ title, items }) {
+function TrainingMaxes({ title, items }: { title: string; items: AnyRecord[] }) {
   return (
     <>
       <div className="dashboard-section-label" id="tm-section-title">
@@ -683,7 +710,8 @@ function TrainingMaxes({ title, items }) {
 }
 
 function DashboardIsland() {
-  const snapshot = useDashboardStore((state) => state.view) || getSnapshot();
+  const snapshot = (useDashboardStore((state) => state.view) ||
+    getSnapshot()) as AnyRecord;
 
   useEffect(() => {
     window.requestAnimationFrame(() => animateDashboardPlanMuscleBars());

@@ -315,6 +315,12 @@ function isStoreBackedSettingsSurfaceActive() {
 }
 
 function setRestBarActiveState(nextActive) {
+  if (
+    typeof window.setRestBarActiveState === 'function' &&
+    window.setRestBarActiveState !== setRestBarActiveState
+  ) {
+    return window.setRestBarActiveState(nextActive === true);
+  }
   restBarActive = nextActive === true;
   window.restBarActive = restBarActive;
   if (typeof window.syncWorkoutSessionBridge === 'function') {

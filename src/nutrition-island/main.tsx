@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../app/services/i18n.ts';
 import { useNutritionStore } from '../stores/nutrition-store';
@@ -12,6 +12,8 @@ import {
   selectNutritionAction,
   submitNutritionTextMessage,
 } from '../app/services/nutrition-coach';
+
+type AnyRecord = Record<string, any>;
 
 const initialSnapshot = {
   values: {
@@ -43,12 +45,12 @@ function handleRetry() {
   retryLastNutritionMessage();
 }
 
-function handleActionSelect(actionId) {
+function handleActionSelect(actionId: string) {
   selectNutritionAction(actionId);
 }
 
-function formatInline(text, keyPrefix) {
-  const nodes = [];
+function formatInline(text: string, keyPrefix: string) {
+  const nodes: ReactNode[] = [];
   const pattern = /(\*\*.*?\*\*|`[^`]+`)/g;
   let lastIndex = 0;
   let match;
@@ -82,11 +84,11 @@ function formatInline(text, keyPrefix) {
   return nodes;
 }
 
-function renderFormattedText(text) {
+function renderFormattedText(text: unknown) {
   const lines = String(text || '').split('\n');
-  const blocks = [];
-  let listItems = [];
-  let listType = null;
+  const blocks: ReactNode[] = [];
+  let listItems: ReactNode[] = [];
+  let listType: 'ordered' | 'unordered' | null = null;
   let blockIndex = 0;
 
   const flushList = () => {
@@ -163,7 +165,7 @@ function renderFormattedText(text) {
   return blocks;
 }
 
-function NutritionHeader({ messagesState }) {
+function NutritionHeader({ messagesState }: { messagesState: string }) {
   return (
     <div className="nutrition-page-header">
       <div className="nutrition-page-heading">
@@ -202,7 +204,7 @@ function NutritionHeader({ messagesState }) {
   );
 }
 
-function ContextBanner({ banner }) {
+function ContextBanner({ banner }: { banner: AnyRecord | null | undefined }) {
   if (!banner) return null;
   return (
     <div className="nutrition-context-banner">
@@ -252,7 +254,7 @@ function ContextBanner({ banner }) {
   );
 }
 
-function TodayCard({ card }) {
+function TodayCard({ card }: { card: AnyRecord | null | undefined }) {
   if (!card) return null;
   const calorieText = card.calories.target
     ? `${card.calories.value} / ${card.calories.target} kcal`
@@ -379,7 +381,7 @@ function EmptyState() {
   );
 }
 
-function MacroCard({ macros }) {
+function MacroCard({ macros }: { macros: AnyRecord | null | undefined }) {
   if (!macros) return null;
   return (
     <div className="nutrition-macro-card">
@@ -417,7 +419,7 @@ function MacroCard({ macros }) {
   );
 }
 
-function MessageList({ snapshot }) {
+function MessageList({ snapshot }: { snapshot: AnyRecord }) {
   if (snapshot.values.messagesState === 'setup') {
     return <SetupCard />;
   }
@@ -426,7 +428,7 @@ function MessageList({ snapshot }) {
   }
 
   return [
-    ...snapshot.values.messages.map((message) => {
+    ...snapshot.values.messages.map((message: AnyRecord) => {
       if (message.kind === 'photo') {
         return (
           <div className="nutrition-msg-photo-tag" key={message.id}>
@@ -498,7 +500,7 @@ function MessageList({ snapshot }) {
   ];
 }
 
-function LoadingRow({ loading }) {
+function LoadingRow({ loading }: { loading: AnyRecord }) {
   return (
     <div
       className="nutrition-loading"
@@ -540,10 +542,18 @@ function NutritionTextSheet({
   placeholder,
   inputId,
   sendAriaLabel,
+}: {
+  open: boolean;
+  onClose?: () => void;
+  onSend?: (text: string) => void;
+  title: string;
+  placeholder: string;
+  inputId: string;
+  sendAriaLabel: string;
 }) {
   const [text, setText] = useState('');
-  const inputRef = useRef(null);
-  const sheetRef = useRef(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -681,7 +691,7 @@ function CorrectionRow() {
       <NutritionTextSheet
         open={open}
         onClose={() => setOpen(false)}
-        onSend={(trimmed) => submitNutritionTextMessage(trimmed, true)}
+        onSend={(trimmed: string) => submitNutritionTextMessage(trimmed, true)}
         title={t('nutrition.correction.label', 'Correct the food analysis')}
         placeholder={t(
           'nutrition.correction.placeholder',
@@ -697,7 +707,7 @@ function CorrectionRow() {
   );
 }
 
-const ACTION_ICONS = {
+const ACTION_ICONS: Record<string, ReactNode> = {
   plan_today: (
     <svg
       viewBox="0 0 24 24"
@@ -794,12 +804,12 @@ const ACTION_ICONS = {
   ),
 };
 
-function Composer({ snapshot }) {
+function Composer({ snapshot }: { snapshot: AnyRecord }) {
   const hidden = !snapshot.values.canUseNutrition;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [textEntryOpen, setTextEntryOpen] = useState(false);
-  const cameraInputRef = useRef(null);
-  const libraryInputRef = useRef(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const libraryInputRef = useRef<HTMLInputElement | null>(null);
 
   function openPicker() {
     setPickerOpen(true);
@@ -809,7 +819,7 @@ function Composer({ snapshot }) {
     setPickerOpen(false);
   }
 
-  function triggerPhotoInput(inputRef) {
+  function triggerPhotoInput(inputRef: React.RefObject<HTMLInputElement | null>) {
     inputRef.current?.click();
     setPickerOpen(false);
   }
@@ -837,7 +847,7 @@ function Composer({ snapshot }) {
         id="nutrition-photo-camera-input"
         accept="image/*"
         capture="environment"
-        onChange={(event) => handleNutritionPhoto(event)}
+        onChange={(event) => handleNutritionPhoto(event.nativeEvent)}
         className="file-input-hidden"
       />
       <input
@@ -845,11 +855,11 @@ function Composer({ snapshot }) {
         type="file"
         id="nutrition-photo-library-input"
         accept="image/*"
-        onChange={(event) => handleNutritionPhoto(event)}
+        onChange={(event) => handleNutritionPhoto(event.nativeEvent)}
         className="file-input-hidden"
       />
       <div className="nutrition-action-grid" id="nutrition-action-grid">
-        {snapshot.values.actions.map((action) => (
+        {snapshot.values.actions.map((action: AnyRecord) => (
           <button
             className="nutrition-prompt-chip nutrition-action-card"
             type="button"
@@ -929,7 +939,7 @@ function Composer({ snapshot }) {
       <NutritionTextSheet
         open={textEntryOpen}
         onClose={() => setTextEntryOpen(false)}
-        onSend={(trimmed) => submitNutritionTextMessage(trimmed)}
+        onSend={(trimmed: string) => submitNutritionTextMessage(trimmed)}
         title={t('nutrition.food_entry.label', 'Type the food')}
         placeholder={t(
           'nutrition.food_entry.placeholder',
@@ -943,7 +953,8 @@ function Composer({ snapshot }) {
 }
 
 function NutritionIsland() {
-  const snapshot = useNutritionStore((state) => state.view) || getSnapshot();
+  const snapshot = (useNutritionStore((state) => state.view) ||
+    getSnapshot()) as AnyRecord;
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {

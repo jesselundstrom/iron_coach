@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useHistoryStore } from '../stores/history-store';
 import {
   deleteWorkout,
@@ -8,6 +8,8 @@ import {
   toggleHeatmap,
 } from '../app/services/history-actions.ts';
 import { navigateToPage } from '../app/services/navigation-actions';
+
+type AnyRecord = Record<string, any>;
 
 function getSnapshot() {
   return {
@@ -29,10 +31,10 @@ function getSnapshot() {
 
 /* ── Heatmap ───────────────────────────────────────────────── */
 
-function Heatmap({ data }) {
+function Heatmap({ data }: { data: AnyRecord }) {
   const { cells, weekNums, dayLabels, stats, sportName, labels, isOpen } = data;
 
-  const cellClass = (c) => {
+  const cellClass = (c: AnyRecord) => {
     let cls = 'heatmap-cell';
     if (c.isFuture) cls += ' future';
     else if (c.lift && c.sport) cls += ' both';
@@ -68,13 +70,13 @@ function Heatmap({ data }) {
         <div className="heatmap-board">
           <div />
           <div className="heatmap-week-labels">
-            {weekNums.map((n, i) => <div key={i} className="heatmap-week-label">{n}</div>)}
+            {weekNums.map((n: string | number, i: number) => <div key={i} className="heatmap-week-label">{n}</div>)}
           </div>
           <div className="heatmap-day-labels">
-            {dayLabels.map((l, i) => <div key={i} className="heatmap-day-label">{l}</div>)}
+            {dayLabels.map((l: string, i: number) => <div key={i} className="heatmap-day-label">{l}</div>)}
           </div>
           <div className="heatmap-grid heatmap-grid-cells">
-            {cells.map((c) => <div key={c.key} className={cellClass(c)} />)}
+            {cells.map((c: AnyRecord) => <div key={c.key} className={cellClass(c)} />)}
           </div>
         </div>
         <div className="heatmap-foot">
@@ -91,7 +93,15 @@ function Heatmap({ data }) {
 
 /* ── Workout Card ──────────────────────────────────────────── */
 
-function WorkoutCard({ card, labels, style }) {
+function WorkoutCard({
+  card,
+  labels,
+  style,
+}: {
+  card: AnyRecord;
+  labels: AnyRecord;
+  style?: CSSProperties;
+}) {
   if (card.isSport) {
     return (
       <div className="hist-card hist-sport-card" data-wid={card.id} style={style}>
@@ -149,7 +159,7 @@ function WorkoutCard({ card, labels, style }) {
       </div>
       {card.exercises.length > 0 && (
         <div className="hist-exercises">
-          {card.exercises.map((ex, i) => (
+          {card.exercises.map((ex: AnyRecord, i: number) => (
             <div key={i} className="hist-exercise-row">
               <span>{ex.name}</span>
               <span className="hist-exercise-vol">
@@ -169,7 +179,7 @@ function WorkoutCard({ card, labels, style }) {
       ) : null}
       {card.tmAdjustments?.length ? (
         <div className="hist-tm-adjustments">
-          {card.tmAdjustments.map((adj) => (
+          {card.tmAdjustments.map((adj: AnyRecord) => (
             <span
               className={`hist-tm-adjust hist-tm-adjust-${adj.direction === 'up' ? 'up' : 'down'}`}
               key={adj.lift}
@@ -190,7 +200,15 @@ function WorkoutCard({ card, labels, style }) {
 
 /* ── Calendar Week Group ───────────────────────────────────── */
 
-function CalendarWeekGroup({ group, labels, isFirst }) {
+function CalendarWeekGroup({
+  group,
+  labels,
+  isFirst,
+}: {
+  group: AnyRecord;
+  labels: AnyRecord;
+  isFirst: boolean;
+}) {
   const countLabel = group.count !== 1 ? labels.sessions : labels.session;
 
   return (
@@ -205,7 +223,7 @@ function CalendarWeekGroup({ group, labels, isFirst }) {
         <span className="hist-week-count">{group.count} {countLabel}</span>
       </summary>
       <div className="hist-week-body">
-        {group.cards.map((card, i) => (
+        {group.cards.map((card: AnyRecord, i: number) => (
           <WorkoutCard key={card.id} card={card} labels={labels} style={{ '--i': Math.min(i, 10) }} />
         ))}
       </div>
@@ -215,7 +233,7 @@ function CalendarWeekGroup({ group, labels, isFirst }) {
 
 /* ── Empty State ───────────────────────────────────────────── */
 
-function EmptyState({ log }) {
+function EmptyState({ log }: { log: AnyRecord }) {
   const { labels, phase } = log;
 
   return (
@@ -242,7 +260,7 @@ function EmptyState({ log }) {
 
 /* ── Stats: Numbers Grid ───────────────────────────────────── */
 
-function StatsNumbers({ numbers }) {
+function StatsNumbers({ numbers }: { numbers: AnyRecord[] }) {
   return numbers.map((n, i) => (
     <div key={i} className="stats-num-card" style={{ '--c': n.color }}>
       <div className="stats-num-label">{n.label}</div>
@@ -253,8 +271,8 @@ function StatsNumbers({ numbers }) {
 
 /* ── Stats: Volume Chart ───────────────────────────────────── */
 
-function VolumeChart({ data }) {
-  const [activeBar, setActiveBar] = useState(null);
+function VolumeChart({ data }: { data: AnyRecord }) {
+  const [activeBar, setActiveBar] = useState<number | null>(null);
   if (!data.visible) return null;
   const { weeks, title } = data;
   const W = 300, H = 90, padX = 4, bottomH = 18, topPad = 12;
@@ -262,17 +280,17 @@ function VolumeChart({ data }) {
   const n = weeks.length;
   const gap = 2;
   const barW = Math.floor((W - padX * 2 - (n - 1) * gap) / n);
-  const maxVol = Math.max(...weeks.map(w => w.vol), 1);
+  const maxVol = Math.max(...weeks.map((w: AnyRecord) => w.vol), 1);
   const maxLabel = maxVol >= 1000 ? (maxVol / 1000).toFixed(0) + 't' : Math.round(maxVol) + 'kg';
 
-  const fmtVol = (v) => v >= 1000 ? (v / 1000).toFixed(1) + 't' : Math.round(v) + 'kg';
+  const fmtVol = (v: number) => v >= 1000 ? (v / 1000).toFixed(1) + 't' : Math.round(v) + 'kg';
 
   return (
     <>
       <div className="stats-chart-title">{title}</div>
       <svg viewBox={`0 0 ${W} ${H}`} className="stats-svg" onClick={() => setActiveBar(null)}>
         <text x={W - padX} y="9" textAnchor="end" className="stats-axis-top">{maxLabel}</text>
-        {weeks.map((wk, i) => {
+        {weeks.map((wk: AnyRecord, i: number) => {
           const x = padX + i * (barW + gap);
           const h = Math.max(2, Math.round((wk.vol / maxVol) * chartH));
           const y = topPad + chartH - h;
@@ -297,23 +315,23 @@ function VolumeChart({ data }) {
 
 /* ── Stats: Strength Chart ─────────────────────────────────── */
 
-function LineChart({ data }) {
-  const [activePt, setActivePt] = useState(null);
+function LineChart({ data }: { data: AnyRecord }) {
+  const [activePt, setActivePt] = useState<string | null>(null);
   if (!data.visible) return null;
   const { lifts, nWeeks, title } = data;
-  const active = lifts.filter(l => l.pts.length >= 1);
+  const active = lifts.filter((l: AnyRecord) => l.pts.length >= 1);
   if (!active.length) return null;
 
   const W = 300, H = 160, padX = 10, padY = 10;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const cutoff = new Date(today); cutoff.setDate(today.getDate() - nWeeks * 7);
   const xRange = today.getTime() - cutoff.getTime() || 1;
-  const allW = active.flatMap(l => l.pts.map(p => p.weight));
+  const allW = active.flatMap((l: AnyRecord) => l.pts.map((p: AnyRecord) => p.weight));
   const minW = Math.min(...allW) * 0.96, maxW = Math.max(...allW) * 1.02;
   const wRange = maxW - minW || 1;
   const chartW = W - padX * 2, chartH = H - padY * 2;
-  const tx = (d) => padX + Math.round(((new Date(d).getTime() - cutoff.getTime()) / xRange) * chartW);
-  const ty = (w) => padY + Math.round((1 - (w - minW) / wRange) * chartH);
+  const tx = (d: string | number | Date) => padX + Math.round(((new Date(d).getTime() - cutoff.getTime()) / xRange) * chartW);
+  const ty = (w: number) => padY + Math.round((1 - (w - minW) / wRange) * chartH);
 
   const rawStep = wRange / 6;
   const mag = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
@@ -323,8 +341,8 @@ function LineChart({ data }) {
   const gridLines = [];
   for (let kg = gridStart; kg <= maxW; kg += step) gridLines.push(kg);
 
-  const activeLegend = lifts.filter(l => l.pts.length > 0);
-  const ptKey = (li, pi) => `${li}-${pi}`;
+  const activeLegend = lifts.filter((l: AnyRecord) => l.pts.length > 0);
+  const ptKey = (li: number, pi: number) => `${li}-${pi}`;
 
   return (
     <>
@@ -339,7 +357,7 @@ function LineChart({ data }) {
             </g>
           );
         })}
-        {active.map((l, li) => {
+        {active.map((l: AnyRecord, li: number) => {
           if (l.pts.length === 1) {
             const p = l.pts[0];
             const key = ptKey(li, 0);
@@ -354,11 +372,11 @@ function LineChart({ data }) {
               </g>
             );
           }
-          const pts = l.pts.map(p => `${tx(p.date)},${ty(p.weight)}`).join(' ');
+          const pts = l.pts.map((p: AnyRecord) => `${tx(p.date)},${ty(p.weight)}`).join(' ');
           return (
             <g key={li}>
               <polyline points={pts} fill="none" stroke={l.color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />
-              {l.pts.map((p, pi) => {
+              {l.pts.map((p: AnyRecord, pi: number) => {
                 const key = ptKey(li, pi);
                 const isActive = activePt === key;
                 return (
@@ -377,7 +395,7 @@ function LineChart({ data }) {
         })}
       </svg>
       <div className="stats-chart-legend">
-        {activeLegend.map((l, i) => (
+        {activeLegend.map((l: AnyRecord, i: number) => (
           <span
             key={i}
             className="stats-legend-item"
@@ -393,11 +411,11 @@ function LineChart({ data }) {
   );
 }
 
-function StatsRangeSelector({ range }) {
+function StatsRangeSelector({ range }: { range: AnyRecord }) {
   if (!range?.options?.length) return null;
   return (
     <div className="stats-range-row">
-      {range.options.map((option) => {
+      {range.options.map((option: AnyRecord) => {
         const active = option.id === range.selected;
         return (
           <button
@@ -416,13 +434,19 @@ function StatsRangeSelector({ range }) {
   );
 }
 
-function Milestones({ data, labels }) {
+function Milestones({
+  data,
+  labels,
+}: {
+  data: AnyRecord;
+  labels: AnyRecord;
+}) {
   if (!data?.visible || !data.items?.length) return null;
   return (
     <div className="card stats-chart-card stats-milestones-card">
       <div className="stats-chart-title">{data.title}</div>
       <div className="stats-milestones-grid">
-        {data.items.map((item) => (
+        {data.items.map((item: AnyRecord) => (
           <div key={`${item.liftKey}-${item.milestone}-${item.date}`} className="stats-milestone-badge">
             <div className="stats-milestone-title">{item.milestone}</div>
             <div className="stats-milestone-weight">{item.weight}</div>
@@ -439,7 +463,8 @@ function Milestones({ data, labels }) {
 /* ── Main ──────────────────────────────────────────────────── */
 
 function HistoryIsland() {
-  const snapshot = useHistoryStore((state) => state.view) || getSnapshot();
+  const snapshot = (useHistoryStore((state) => state.view) ||
+    getSnapshot()) as AnyRecord;
   const isStatsTab = snapshot.tab === 'stats';
   const hasStatsContent =
     snapshot.stats.volume.visible ||
@@ -477,7 +502,7 @@ function HistoryIsland() {
         <div id="history-list">
           {snapshot.log.empty
             ? <EmptyState log={snapshot.log} />
-            : snapshot.log.groups.map((g, i) => <CalendarWeekGroup key={g.key} group={g} labels={snapshot.labels} isFirst={i === 0} />)
+            : snapshot.log.groups.map((g: AnyRecord, i: number) => <CalendarWeekGroup key={g.key} group={g} labels={snapshot.labels} isFirst={i === 0} />)
           }
         </div>
       </div>

@@ -477,6 +477,10 @@ export function updateRestDuration(nextValue?: string | number | null) {
   workoutStore.getState().updateRestDuration(nextValue);
 }
 
+export function skipRest() {
+  workoutStore.getState().skipRest();
+}
+
 export function addSet(exerciseIndex: number) {
   workoutStore.getState().addSet(exerciseIndex);
 }

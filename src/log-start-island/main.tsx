@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { workoutStore } from '../stores/workout-store.ts';
@@ -14,6 +13,129 @@ import {
   setSelectedBonusDuration,
   setSelectedWorkoutStartOption,
 } from '../app/services/workout-ui-actions.ts';
+
+type PreviewRow = {
+  id: string;
+  index: string | number;
+  name: string;
+  pattern?: string;
+  weight?: string;
+};
+
+type PreviewTag = {
+  name: string;
+  label: string;
+  level: string;
+};
+
+type WorkoutPreview = {
+  headerTitle: string;
+  chips: string[];
+  rows: PreviewRow[];
+};
+
+type WorkoutContext = {
+  focusCopy?: string;
+  copy?: string;
+  note?: string;
+  tags?: PreviewTag[];
+};
+
+type ToneOption = {
+  value: string;
+  label: string;
+  title?: string;
+  copy?: string;
+  tone?: string;
+  active?: boolean;
+};
+
+type SportReadinessSnapshot = {
+  title: string;
+  subtitle: string;
+  levelTitle: string;
+  timingTitle: string;
+  timingTone: string;
+  hint?: string;
+  showTimingStep?: boolean;
+  levels: ToneOption[];
+  timings: ToneOption[];
+};
+
+type EnergyAssessmentSnapshot = {
+  title: string;
+  options: ToneOption[];
+};
+
+type DecisionCardSnapshot = {
+  kicker?: string;
+  title: string;
+  copy: string;
+  reasons?: string[];
+  options?: ToneOption[];
+};
+
+type WarningCardSnapshot = {
+  kicker?: string;
+  title: string;
+  copy: string;
+  caution?: boolean;
+};
+
+type BonusPreview = {
+  rows: PreviewRow[];
+};
+
+type BonusSessionSnapshot = {
+  available?: boolean;
+  kicker: string;
+  label: string;
+  subtitle: string;
+  targetGroups?: string[];
+  durationOptions: ToneOption[];
+  previews?: Record<string, BonusPreview>;
+  startLabel?: string;
+};
+
+type StartOption = {
+  value: string;
+  selected?: boolean;
+  done?: boolean;
+  upcoming?: boolean;
+  dayNumber: string | number;
+  statusIcon?: string;
+  status: string;
+};
+
+type LogStartLabels = {
+  trainingSession: string;
+  startWorkout: string;
+  day?: string;
+  warningTitle?: string;
+};
+
+type LogStartSnapshot = {
+  labels: LogStartLabels;
+  values: {
+    visible: boolean;
+    quickLog: {
+      icon: string;
+      title: string;
+      subtitle: string;
+    };
+    selectedOption: string;
+    options: StartOption[];
+    preview: WorkoutPreview | null;
+    focusPanel: WorkoutContext | null;
+    decisionCard: DecisionCardSnapshot | null;
+    warningCard: WarningCardSnapshot | null;
+    sessionCharacter: unknown;
+    preSessionNote: string | null;
+    energyAssessment: EnergyAssessmentSnapshot | null;
+    sportReadiness: SportReadinessSnapshot | null;
+    bonusSession?: BonusSessionSnapshot | null;
+  };
+};
 
 const initialSnapshot = {
   labels: {
@@ -38,9 +160,15 @@ const initialSnapshot = {
     energyAssessment: null,
     sportReadiness: null,
   },
-};
+} satisfies LogStartSnapshot;
 
-function PreviewCard({ preview, context }) {
+function PreviewCard({
+  preview,
+  context,
+}: {
+  preview: WorkoutPreview | null;
+  context: WorkoutContext | null;
+}) {
   if (!preview) return null;
   const lead = context?.focusCopy || '';
   const note = context?.note || '';
@@ -114,7 +242,13 @@ function PreviewCard({ preview, context }) {
   );
 }
 
-function SportReadiness({ sportReadiness, embedded = false }) {
+function SportReadiness({
+  sportReadiness,
+  embedded = false,
+}: {
+  sportReadiness: SportReadinessSnapshot | null;
+  embedded?: boolean;
+}) {
   if (!sportReadiness) return null;
   return (
     <div className={`sport-readiness-inline${embedded ? ' is-embedded' : ''}`}>
@@ -183,7 +317,11 @@ function SportReadiness({ sportReadiness, embedded = false }) {
   );
 }
 
-function EnergyAssessment({ assessment }) {
+function EnergyAssessment({
+  assessment,
+}: {
+  assessment: EnergyAssessmentSnapshot | null;
+}) {
   if (!assessment) return null;
   return (
     <div className="energy-assessment is-embedded">
@@ -206,7 +344,10 @@ function EnergyAssessment({ assessment }) {
   );
 }
 
-function getSportLoadDecisionContext(sportReadiness, decisionCard) {
+function getSportLoadDecisionContext(
+  sportReadiness: SportReadinessSnapshot | null,
+  decisionCard: DecisionCardSnapshot | null
+) {
   if (!sportReadiness || !decisionCard?.reasons?.length) return null;
   const sportLoadLabel = t('training.reason.sport_load.label', 'Sport load');
   if (!decisionCard.reasons.includes(sportLoadLabel)) return null;
@@ -229,6 +370,11 @@ function SessionSetupCard({
   sportReadiness,
   decisionCard,
   warningCard,
+}: {
+  assessment: EnergyAssessmentSnapshot | null;
+  sportReadiness: SportReadinessSnapshot | null;
+  decisionCard: DecisionCardSnapshot | null;
+  warningCard: WarningCardSnapshot | null;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const activeMode = decisionCard?.options?.find((option) => option.active);
@@ -359,7 +505,15 @@ function SessionSetupCard({
   );
 }
 
-function BonusDurationChooser({ options, selected, onChange }) {
+function BonusDurationChooser({
+  options,
+  selected,
+  onChange,
+}: {
+  options: ToneOption[];
+  selected: string;
+  onChange: (value: string) => void;
+}) {
   if (!options?.length) return null;
   return (
     <div className="bonus-duration-chooser">
@@ -380,7 +534,19 @@ function BonusDurationChooser({ options, selected, onChange }) {
   );
 }
 
-function BonusSessionCard({ bonus, onSelect, selected, duration, onDurationChange }) {
+function BonusSessionCard({
+  bonus,
+  onSelect,
+  selected,
+  duration,
+  onDurationChange,
+}: {
+  bonus: BonusSessionSnapshot | null | undefined;
+  onSelect: () => void;
+  selected: boolean;
+  duration: string;
+  onDurationChange: (value: string) => void;
+}) {
   if (!bonus?.available) return null;
   const preview = selected ? bonus.previews?.[duration] : null;
   return (
@@ -453,9 +619,9 @@ function BonusSessionCard({ bonus, onSelect, selected, duration, onDurationChang
 }
 
 function LogStartIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.workoutSession.logStartView) ||
-    initialSnapshot;
+  const snapshot = (useRuntimeStore(
+    (state) => state.workoutSession.logStartView
+  ) || initialSnapshot) as LogStartSnapshot;
   const bonus = snapshot.values.bonusSession;
   const allDone =
     snapshot.values.options.length > 0 &&
@@ -489,12 +655,12 @@ function LogStartIsland() {
     setSelectedWorkoutStartOption('bonus');
   }
 
-  function selectDay(value) {
+  function selectDay(value: string) {
     setBonusSelected(false);
     setProgramDayOption(value);
   }
 
-  function changeBonusDuration(value) {
+  function changeBonusDuration(value: string) {
     setBonusDuration(value);
     setSelectedBonusDuration(value);
   }
@@ -585,7 +751,7 @@ function LogStartIsland() {
                 preview={snapshot.values.preview}
                 context={{
                   focusCopy: snapshot.values.focusPanel?.copy,
-                  note: snapshot.values.preSessionNote,
+                  note: snapshot.values.preSessionNote || '',
                   tags: snapshot.values.focusPanel?.tags || [],
                 }}
               />

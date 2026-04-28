@@ -36,6 +36,7 @@ type LegacyWorkoutStoreState = {
   syncRestTimer: () => void;
   startRestTimer: () => void;
   skipRest: () => void;
+  setRestBarActiveState: (active: boolean) => void;
   addExerciseByName: (name: string) => void;
   selectExerciseCatalogExercise: (exerciseId: string) => void;
   showSetRIRPrompt: (exerciseIndex: number, setIndex: number) => void;
@@ -69,6 +70,7 @@ type LegacyWorkoutSnapshot = Omit<
   | 'syncRestTimer'
   | 'startRestTimer'
   | 'skipRest'
+  | 'setRestBarActiveState'
   | 'addExerciseByName'
   | 'selectExerciseCatalogExercise'
   | 'showSetRIRPrompt'
@@ -102,6 +104,7 @@ type LegacyWorkoutWindow = Window & {
   syncRestTimer?: () => void;
   startRestTimer?: () => void;
   skipRest?: () => void;
+  setRestBarActiveState?: (active: boolean) => void;
   addExerciseByName?: (name: string) => void;
   selectExerciseCatalogExercise?: (exerciseId: string) => void;
   showSetRIRPrompt?: (exerciseIndex: number, setIndex: number) => void;
@@ -956,6 +959,11 @@ export const workoutStore: StoreApi<LegacyWorkoutStoreState> =
     skipRest: () => {
       skipRestTimerFromStore();
     },
+    setRestBarActiveState: (active) => {
+      writeLegacyRuntimeValue('restBarActive', active === true);
+      syncLegacyWorkoutSessionBridge();
+      syncStoreFromLegacy();
+    },
     addExerciseByName: (name) => {
       getCapturedLegacyAction('addExerciseByName')?.(name);
       syncStoreFromLegacy();
@@ -1061,6 +1069,9 @@ export function installLegacyWorkoutStoreBridge() {
     workoutStore.getState().startRestTimer()
   );
   installStoreDelegator('skipRest', () => workoutStore.getState().skipRest());
+  installStoreDelegator('setRestBarActiveState', (active) =>
+    workoutStore.getState().setRestBarActiveState(active === true)
+  );
   installStoreDelegator('addExerciseByName', (name) =>
     workoutStore.getState().addExerciseByName(String(name ?? ''))
   );

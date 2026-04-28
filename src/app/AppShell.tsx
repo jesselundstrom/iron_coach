@@ -1,5 +1,11 @@
-// @ts-nocheck
 import { Component, useEffect, useMemo, useRef } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+import type {
+  AppPage,
+  ExerciseCatalogView,
+  SessionSnapshot,
+  SettingsTab,
+} from './constants';
 import { useRuntimeStore } from './store/runtime-store.ts';
 import { t } from './services/i18n.ts';
 import LoginScreen from './LoginScreen';
@@ -37,12 +43,17 @@ import {
   selectRPE,
   selectSportReadiness,
   setSummaryFeedback,
+  skipRest,
   skipRPE,
   startSessionSummaryCelebration,
   updateSummaryNotes,
 } from './services/workout-ui-actions.ts';
 
-const PAGE_META = [
+const PAGE_META: Array<{
+  id: AppPage;
+  labelKey: string;
+  fallbackLabel: string;
+}> = [
   { id: 'dashboard', labelKey: 'nav.dashboard', fallbackLabel: 'Dashboard' },
   { id: 'log', labelKey: 'nav.train', fallbackLabel: 'Train' },
   { id: 'history', labelKey: 'nav.history', fallbackLabel: 'History' },
@@ -50,7 +61,11 @@ const PAGE_META = [
   { id: 'nutrition', labelKey: 'nav.nutrition', fallbackLabel: 'Nutrition' },
 ];
 
-const SETTINGS_TAB_META = [
+const SETTINGS_TAB_META: Array<{
+  id: SettingsTab;
+  labelKey: string;
+  fallbackLabel: string;
+}> = [
   {
     id: 'schedule',
     labelKey: 'settings.tabs.my_sport',
@@ -115,19 +130,30 @@ const NAV_ICONS = {
       <path d="M12 8c-4 0-7 2.5-7 6 0 4.5 3 8 7 8s7-3.5 7-8c0-3.5-3-6-7-6z" />
     </svg>
   ),
+} satisfies Record<AppPage, ReactNode>;
+
+type IslandErrorBoundaryProps = {
+  children: ReactNode;
 };
 
-class IslandErrorBoundary extends Component {
-  constructor(props) {
+type IslandErrorBoundaryState = {
+  error: Error | null;
+};
+
+class IslandErrorBoundary extends Component<
+  IslandErrorBoundaryProps,
+  IslandErrorBoundaryState
+> {
+  constructor(props: IslandErrorBoundaryProps) {
     super(props);
     this.state = { error: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error) {
     return { error };
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[Ironforge] Island render error:', error, info);
   }
 
@@ -152,14 +178,14 @@ class IslandErrorBoundary extends Component {
   }
 }
 
-function formatRestTimerText(totalSeconds) {
+function formatRestTimerText(totalSeconds: number) {
   const safe = Math.max(0, Number(totalSeconds || 0));
   const minutes = Math.floor(safe / 60);
   const seconds = safe % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function RestTimerBar({ session }) {
+function RestTimerBar({ session }: { session: SessionSnapshot }) {
   const total = Math.max(0, Number(session.restTotal || 0));
   const remaining = Math.max(0, Number(session.restSecondsLeft || 0));
   const ratio = total > 0 ? remaining / total : 0;
@@ -212,7 +238,7 @@ function RestTimerBar({ session }) {
       <button
         className="rest-skip-btn"
         type="button"
-        onClick={() => window.skipRest?.()}
+        onClick={() => skipRest()}
       >
         {t('common.skip', 'Skip')}
       </button>
@@ -220,7 +246,7 @@ function RestTimerBar({ session }) {
   );
 }
 
-function ExerciseCatalogModal({ view }) {
+function ExerciseCatalogModal({ view }: { view: ExerciseCatalogView | null }) {
   const filters = view?.filters || [];
   const sections = view?.sections || [];
   const firstResult = sections.flatMap((section) => section.items)[0] || null;
@@ -364,7 +390,15 @@ function ExerciseCatalogModal({ view }) {
   );
 }
 
-function PageShell({ id, active, children }) {
+function PageShell({
+  id,
+  active,
+  children,
+}: {
+  id: AppPage;
+  active: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className={`page${active ? ' active' : ''}`} id={`page-${id}`}>
       {children}
@@ -372,7 +406,13 @@ function PageShell({ id, active, children }) {
   );
 }
 
-function AppUpdateBanner({ updateReady, applyingUpdate }) {
+function AppUpdateBanner({
+  updateReady,
+  applyingUpdate,
+}: {
+  updateReady: boolean;
+  applyingUpdate: boolean;
+}) {
   if (!updateReady && !applyingUpdate) return null;
 
   return (
@@ -493,6 +533,8 @@ export default function AppShell() {
     previousPageRef.current = activePage;
     runPageActivationSideEffects(activePage);
   }, [activePage]);
+
+  const summaryPrompt = session.summaryPrompt;
 
   if (auth.phase !== 'signed_in' && auth.phase !== 'loading') {
     return (
@@ -659,22 +701,22 @@ export default function AppShell() {
         <div className="modal-sheet summary-sheet">
           <div className="modal-handle" />
           <div id="summary-modal-content" className="summary-modal-content">
-            {session.summaryPrompt ? (
+            {summaryPrompt ? (
               <div className="summary-celebration">
                 <canvas className="summary-burst-canvas" aria-hidden="true" />
                 <div className="summary-forge-glow" aria-hidden="true" />
                 <div className="summary-shell">
                   <div className="summary-kicker">
-                    {session.summaryPrompt.kicker}
+                    {summaryPrompt.kicker}
                   </div>
                   <div className="summary-title">
-                    {session.summaryPrompt.title}
+                    {summaryPrompt.title}
                   </div>
                   <div className="summary-program">
-                    {session.summaryPrompt.programLabel}
+                    {summaryPrompt.programLabel}
                   </div>
                   <div className="summary-stats">
-                    {session.summaryPrompt.stats.map((stat, index) => (
+                    {summaryPrompt.stats.map((stat, index) => (
                       <div
                         key={stat.key}
                         className={`summary-stat summary-stat-${stat.key}`}
@@ -691,9 +733,9 @@ export default function AppShell() {
                       </div>
                     ))}
                   </div>
-                  {session.summaryPrompt.coachNote ? (
+                  {summaryPrompt.coachNote ? (
                     <div className="summary-coach-note">
-                      {session.summaryPrompt.coachNote}
+                      {summaryPrompt.coachNote}
                     </div>
                   ) : null}
                   <div className="summary-notes-shell">
@@ -701,15 +743,15 @@ export default function AppShell() {
                       className="summary-notes-label"
                       htmlFor="summary-notes-textarea"
                     >
-                      {session.summaryPrompt.notesLabel}
+                      {summaryPrompt.notesLabel}
                     </label>
                     <textarea
                       id="summary-notes-textarea"
                       className="summary-notes-textarea"
-                      placeholder={session.summaryPrompt.notesPlaceholder}
+                      placeholder={summaryPrompt.notesPlaceholder}
                       maxLength={500}
                       rows={3}
-                      value={session.summaryPrompt.notes || ''}
+                      value={summaryPrompt.notes || ''}
                       onInput={(event) => {
                         const nextValue = event.currentTarget.value;
                         event.currentTarget.style.height = 'auto';
@@ -723,14 +765,14 @@ export default function AppShell() {
                   </div>
                   <div className="summary-feedback">
                     <div className="summary-feedback-label">
-                      {session.summaryPrompt.feedbackLabel}
+                      {summaryPrompt.feedbackLabel}
                     </div>
                     <div className="summary-feedback-options">
-                      {session.summaryPrompt.feedbackOptions.map((option) => (
+                      {summaryPrompt.feedbackOptions.map((option) => (
                         <button
                           key={option.value}
                           className={`summary-feedback-btn${
-                            session.summaryPrompt.feedback === option.value
+                            summaryPrompt.feedback === option.value
                               ? ' is-active'
                               : ''
                           }`}
@@ -743,13 +785,13 @@ export default function AppShell() {
                       ))}
                     </div>
                   </div>
-                  {session.summaryPrompt.canLogNutrition ? (
+                  {summaryPrompt.canLogNutrition ? (
                     <button
                       className="btn btn-ghost summary-nutrition-action"
                       type="button"
                       onClick={() => closeSummaryModal(true)}
                     >
-                      {session.summaryPrompt.nutritionLabel}
+                      {summaryPrompt.nutritionLabel}
                     </button>
                   ) : null}
                   <button
@@ -757,7 +799,7 @@ export default function AppShell() {
                     type="button"
                     onClick={() => closeSummaryModal()}
                   >
-                    {session.summaryPrompt.doneLabel}
+                    {summaryPrompt.doneLabel}
                   </button>
                 </div>
               </div>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRuntimeStore } from '../app/store/runtime-store.ts';
 import { showConfirm } from '../app/services/confirm-actions';
@@ -24,6 +23,123 @@ import {
   updateRestDuration,
   updateSet,
 } from '../app/services/workout-ui-actions.ts';
+
+type RestOption = {
+  value: string;
+  label: string;
+};
+
+type SetSignal = {
+  token: number;
+  exerciseUiKey: string;
+  setIndex: number;
+  isPr?: boolean;
+};
+
+type CollapseSignal = {
+  token: number;
+  exerciseUiKey: string;
+};
+
+type FocusTarget = {
+  token: number;
+  inputId: string;
+};
+
+type ExerciseSet = {
+  index: number;
+  label: string;
+  weight?: string | number | null;
+  reps?: string | number | null;
+  done?: boolean;
+  isWarmup?: boolean;
+  isAmrap?: boolean;
+  isPr?: boolean;
+  weightInputId: string;
+  repsInputId: string;
+};
+
+type ExerciseSnapshot = {
+  uiKey: string;
+  exerciseIndex: number;
+  isCollapsed?: boolean;
+  isComplete?: boolean;
+  isAux?: boolean;
+  isAccessory?: boolean;
+  previousText?: string;
+  displayName: string;
+  suggested?: string | number | null;
+  guideAvailable?: boolean;
+  setsId: string;
+  sets: ExerciseSet[];
+  collapsedSummary: {
+    name: string;
+    meta: string;
+    badge: string;
+  };
+};
+
+type PlanPanelSnapshot = {
+  kicker: string;
+  title: string;
+  copy: string;
+  progressPercent: number;
+  completedSetsText: string;
+  remainingSetsText: string;
+  elapsedText: string;
+  nextText: string;
+  finishPoint?: {
+    title?: string;
+    copy?: string;
+  } | null;
+  adjustments?: Array<{ label: string }>;
+  undoAvailable?: boolean;
+};
+
+type LogActiveLabels = {
+  addExercise: string;
+  restTimer: string;
+  finishSession: string;
+  cancelSession: string;
+  cancelConfirmTitle: string;
+  cancelConfirmMessage: string;
+  lastBest: string;
+  aux: string;
+  back: string;
+  swap: string;
+  swapBack: string;
+  addSet: string;
+  removeExercise: string;
+  collapse: string;
+  movementGuide: string;
+  weightPlaceholder: string;
+  repsPlaceholder: string;
+  repsHit: string;
+  prBadge: string;
+  shorten: string;
+  lighten: string;
+  undoAdjustment: string;
+  restOptions: RestOption[];
+};
+
+type LogActiveSnapshot = {
+  labels: LogActiveLabels;
+  values: {
+    visible: boolean;
+    title: string;
+    description: string;
+    descriptionVisible: boolean;
+    timer: { text: string; seed?: number };
+    rest: { duration: string };
+    planPanel: PlanPanelSnapshot | null;
+    ui: {
+      focusTarget: FocusTarget | null;
+      setSignal: SetSignal | null;
+      collapseSignal: CollapseSignal | null;
+    };
+    exercises: ExerciseSnapshot[];
+  };
+};
 
 const initialSnapshot = {
   labels: {
@@ -75,9 +191,11 @@ const initialSnapshot = {
     },
     exercises: [],
   },
-};
+} satisfies LogActiveSnapshot;
 
-function invokeLegacy(name, ...args) {
+type LegacyAction = 'applyQuickWorkoutAdjustment' | 'undoQuickWorkoutAdjustment' | 'expandCompletedExercise' | 'collapseCompletedExercise' | 'swapAuxExercise' | 'swapBackExercise' | 'openExerciseGuide';
+
+function invokeLegacy(name: LegacyAction, ...args: unknown[]) {
   const fn = {
     applyQuickWorkoutAdjustment,
     undoQuickWorkoutAdjustment,
@@ -87,11 +205,13 @@ function invokeLegacy(name, ...args) {
     swapBackExercise,
     openExerciseGuide,
   }[name];
-  if (typeof fn === 'function') return fn(...args);
+  if (typeof fn === 'function') return (fn as (...nextArgs: unknown[]) => unknown)(...args);
   return undefined;
 }
 
-function invokeWorkoutAction(name, ...args) {
+type WorkoutAction = 'updateSet' | 'toggleSet' | 'addSet' | 'removeExercise' | 'finishWorkout' | 'cancelWorkout' | 'updateRestDuration';
+
+function invokeWorkoutAction(name: WorkoutAction, ...args: unknown[]) {
   const action = {
     updateSet,
     toggleSet,
@@ -101,18 +221,24 @@ function invokeWorkoutAction(name, ...args) {
     cancelWorkout,
     updateRestDuration,
   }[name];
-  if (typeof action === 'function') return action(...args);
+  if (typeof action === 'function') return (action as (...nextArgs: unknown[]) => unknown)(...args);
   return undefined;
 }
 
-function formatTemplate(template, params) {
+function formatTemplate(template: string, params: Record<string, unknown>) {
   return Object.entries(params || {}).reduce(
     (value, [key, next]) => value.replace(`{${key}}`, String(next)),
     String(template || '')
   );
 }
 
-function PlanBanner({ labels, planPanel }) {
+function PlanBanner({
+  labels,
+  planPanel,
+}: {
+  labels: LogActiveLabels;
+  planPanel: PlanPanelSnapshot | null;
+}) {
   if (!planPanel) return <div id="active-session-plan" />;
 
   return (
@@ -205,8 +331,18 @@ function PlanBanner({ labels, planPanel }) {
   );
 }
 
-function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
-  const isSetSignalFor = (setIndex) =>
+function ExerciseCard({
+  exercise,
+  labels,
+  setSignal,
+  collapseSignal,
+}: {
+  exercise: ExerciseSnapshot;
+  labels: LogActiveLabels;
+  setSignal: SetSignal | null;
+  collapseSignal: CollapseSignal | null;
+}) {
+  const isSetSignalFor = (setIndex: number) =>
     setSignal &&
     setSignal.exerciseUiKey === exercise.uiKey &&
     setSignal.setIndex === setIndex;
@@ -385,7 +521,7 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
             className={`set-row${set.isWarmup ? ' set-warmup' : ''}${
               set.done ? ' is-done' : ''
             }${set.isAmrap ? ' set-amrap' : ''}${set.isPr ? ' has-pr' : ''}${
-              isSetSignalFor(set.index) && setSignal.isPr
+              isSetSignalFor(set.index) && setSignal?.isPr
                 ? ' set-pr-celebration'
                 : ''
             }${isSetSignalFor(set.index) ? ' set-done-anim' : ''}`}
@@ -473,7 +609,7 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
                 className={`set-check ${set.done ? 'done' : ''}${
                   set.isPr ? ' set-check-pr' : ''
                 }${isSetSignalFor(set.index) ? ' set-done-anim' : ''}${
-                  isSetSignalFor(set.index) && setSignal.isPr
+                  isSetSignalFor(set.index) && setSignal?.isPr
                     ? ' set-pr-highlight'
                     : ''
                 }`}
@@ -526,11 +662,13 @@ function ExerciseCard({ exercise, labels, setSignal, collapseSignal }) {
 }
 
 function LogActiveIsland() {
-  const snapshot =
-    useRuntimeStore((state) => state.workoutSession.logActiveView) ||
-    initialSnapshot;
-  const [setSignal, setSetSignal] = useState(null);
-  const [collapseSignal, setCollapseSignal] = useState(null);
+  const snapshot = (useRuntimeStore(
+    (state) => state.workoutSession.logActiveView
+  ) || initialSnapshot) as LogActiveSnapshot;
+  const [setSignal, setSetSignal] = useState<SetSignal | null>(null);
+  const [collapseSignal, setCollapseSignal] = useState<CollapseSignal | null>(
+    null
+  );
 
   useLayoutEffect(() => {
     const focusTarget = snapshot.values.ui?.focusTarget;

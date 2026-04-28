@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from 'react';
 import { cn } from './utils/cn.ts';
 import { programStore } from '../stores/program-store.ts';
@@ -8,6 +7,54 @@ import { t } from './services/i18n.ts';
 const ONBOARDING_EVENT = 'ironforge:onboarding-updated';
 const LANGUAGE_EVENT = 'ironforge:language-changed';
 const STEP_COUNT = 5;
+
+type OptionMeta = {
+  value: string;
+  key: string;
+  fallback: string;
+  descKey?: string;
+  descFallback?: string;
+};
+
+type OnboardingDraft = {
+  goal: string;
+  experienceLevel: string;
+  trainingDaysPerWeek: number;
+  sessionMinutes: number;
+  equipmentAccess: string;
+  sportName?: string;
+  sportSessionsPerWeek: number;
+  inSeason?: boolean;
+  jointFlags: string[];
+  avoidMovementTags: string[];
+  avoidExercisesText?: string;
+  guidanceMode: string;
+  [key: string]: unknown;
+};
+
+type OnboardingSetField = <K extends keyof OnboardingDraft>(
+  key: K,
+  value: OnboardingDraft[K]
+) => void;
+
+type OnboardingRecommendation = {
+  programId?: string;
+  weekTemplate?: Array<{
+    dayLabel: string;
+    type: string;
+    durationHint: string;
+  }>;
+  firstSessionOption?: string | number;
+  fitReasons?: string[];
+  why?: string[];
+  initialAdjustments?: string[];
+};
+
+type OnboardingRuntimeWindow = Window & {
+  getOnboardingDefaultDraft?: () => OnboardingDraft | null;
+  completeOnboarding?: (draft: OnboardingDraft) => void;
+  dismissOnboardingModal?: () => void;
+};
 
 const JOINT_FLAGS = [
   { value: 'shoulder', key: 'onboarding.joint.shoulder', fallback: 'Shoulder' },
@@ -68,7 +115,7 @@ const secondaryButtonClass =
 const primaryButtonClass =
   'inline-flex min-h-[54px] w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-[linear-gradient(180deg,#ff983d,#f5821f)] px-[18px] py-3 font-condensed text-base font-bold uppercase tracking-[0.04em] text-white shadow-[0_12px_30px_rgba(245,130,31,0.22)] transition-[transform,box-shadow,background-color] duration-150 hover:bg-[#ff922f] active:scale-[0.96] active:shadow-[0_4px_16px_rgba(245,130,31,0.3)]';
 
-function getStepTitle(step) {
+function getStepTitle(step: number) {
   const titles = [
     t('onboarding.step.0.title', 'Build your starting point'),
     t('onboarding.step.1.title', 'Set your training envelope'),
@@ -79,7 +126,7 @@ function getStepTitle(step) {
   return titles[step] || t('onboarding.kicker', 'Guided Setup');
 }
 
-function getStepSub(step) {
+function getStepSub(step: number) {
   const subs = [
     t('onboarding.step.0.sub', 'This gives the engine enough signal to recommend the right starting plan.'),
     t('onboarding.step.1.sub', 'These limits drive frequency, session trimming, and program fit.'),
@@ -90,7 +137,7 @@ function getStepSub(step) {
   return subs[step] || '';
 }
 
-function ProgressPills({ step }) {
+function ProgressPills({ step }: { step: number }) {
   return (
     <div className="flex gap-2" data-ui="onboarding-progress">
       {Array.from({ length: STEP_COUNT }, (_, idx) => (
@@ -107,7 +154,17 @@ function ProgressPills({ step }) {
   );
 }
 
-function OptionButton({ active, title, description, onClick }) {
+function OptionButton({
+  active,
+  title,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  title: string;
+  description?: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -125,7 +182,15 @@ function OptionButton({ active, title, description, onClick }) {
   );
 }
 
-function ChipRow({ items, selected, onToggle }) {
+function ChipRow({
+  items,
+  selected,
+  onToggle,
+}: {
+  items: OptionMeta[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
@@ -147,7 +212,13 @@ function ChipRow({ items, selected, onToggle }) {
   );
 }
 
-function StepGoalExperience({ draft, setField }) {
+function StepGoalExperience({
+  draft,
+  setField,
+}: {
+  draft: OnboardingDraft;
+  setField: OnboardingSetField;
+}) {
   return (
     <div className={onboardingGridClass}>
       <div>
@@ -182,7 +253,13 @@ function StepGoalExperience({ draft, setField }) {
   );
 }
 
-function StepTrainingEnvelope({ draft, setField }) {
+function StepTrainingEnvelope({
+  draft,
+  setField,
+}: {
+  draft: OnboardingDraft;
+  setField: OnboardingSetField;
+}) {
   return (
     <div className={onboardingGridClass}>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
@@ -236,7 +313,15 @@ function StepTrainingEnvelope({ draft, setField }) {
   );
 }
 
-function StepSportConstraints({ draft, setField, toggleArrayValue }) {
+function StepSportConstraints({
+  draft,
+  setField,
+  toggleArrayValue,
+}: {
+  draft: OnboardingDraft;
+  setField: OnboardingSetField;
+  toggleArrayValue: (key: 'jointFlags' | 'avoidMovementTags', value: string) => void;
+}) {
   return (
     <div className={onboardingGridClass}>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
@@ -249,7 +334,9 @@ function StepSportConstraints({ draft, setField, toggleArrayValue }) {
               'onboarding.field.sport_placeholder',
               'e.g. Hockey, Running, Soccer'
             )}
-            onInput={(event) => setField('sportName', event.target.value)}
+            onInput={(event) =>
+              setField('sportName', event.currentTarget.value)
+            }
           />
           <div className="mt-[-4px] text-[11px] leading-[1.5] text-muted">
             {t(
@@ -326,7 +413,9 @@ function StepSportConstraints({ draft, setField, toggleArrayValue }) {
             'Comma-separated exercise names'
           )}
           value={draft.avoidExercisesText || ''}
-          onInput={(event) => setField('avoidExercisesText', event.target.value)}
+          onInput={(event) =>
+            setField('avoidExercisesText', event.currentTarget.value)
+          }
         />
         <div className="mt-[-4px] text-[11px] leading-[1.5] text-muted">
           {t(
@@ -339,7 +428,13 @@ function StepSportConstraints({ draft, setField, toggleArrayValue }) {
   );
 }
 
-function StepGuidance({ draft, setField }) {
+function StepGuidance({
+  draft,
+  setField,
+}: {
+  draft: OnboardingDraft;
+  setField: OnboardingSetField;
+}) {
   return (
     <div className={onboardingGridClass}>
       <div className={onboardingOptionGridClass}>
@@ -357,8 +452,10 @@ function StepGuidance({ draft, setField }) {
   );
 }
 
-function StepRecommendation({ draft }) {
-  const recommendation = buildOnboardingRecommendation(draft);
+function StepRecommendation({ draft }: { draft: OnboardingDraft }) {
+  const recommendation = buildOnboardingRecommendation(
+    draft
+  ) as OnboardingRecommendation | null;
   const getProgramById = programStore.getState().getProgramById;
   const getProgramDifficultyMeta = programStore.getState().getProgramDifficultyMeta;
 
@@ -402,9 +499,11 @@ function StepRecommendation({ draft }) {
         'Start with {session} today. Follow the first week below as your starting map.',
         { session: firstSessionLabel }
       );
-  const fitReasons = (recommendation.fitReasons || []).slice(0, 3);
-  const whyItems = (recommendation.why || []).slice(0, 2);
-  const adjustments = (recommendation.initialAdjustments || []).slice(0, 2);
+  const fitReasons = (recommendation.fitReasons || []).map(String).slice(0, 3);
+  const whyItems = (recommendation.why || []).map(String).slice(0, 2);
+  const adjustments = (recommendation.initialAdjustments || [])
+    .map(String)
+    .slice(0, 2);
 
   return (
     <div className="onboarding-grid">
@@ -516,9 +615,9 @@ function StepRecommendation({ draft }) {
 
 export default function OnboardingFlow() {
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState(null);
+  const [draft, setDraft] = useState<OnboardingDraft | null>(null);
   const [, setLanguageTick] = useState(0);
-  const scrollRef = useRef(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onLanguage = () => setLanguageTick((value) => value + 1);
@@ -529,11 +628,12 @@ export default function OnboardingFlow() {
   useEffect(() => {
     const onEvent = () => {
       const snapshot =
-        typeof window.getOnboardingDefaultDraft === 'function'
-          ? window.getOnboardingDefaultDraft()
+        typeof (window as OnboardingRuntimeWindow).getOnboardingDefaultDraft ===
+        'function'
+          ? (window as OnboardingRuntimeWindow).getOnboardingDefaultDraft?.()
           : null;
       if (snapshot) {
-        setDraft({ ...snapshot });
+        setDraft({ ...snapshot } as OnboardingDraft);
         setStep(0);
       }
     };
@@ -545,12 +645,16 @@ export default function OnboardingFlow() {
 
   if (!draft) return null;
 
-  const setField = (key, value) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+  const setField: OnboardingSetField = (key, value) => {
+    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
-  const toggleArrayValue = (key, value) => {
+  const toggleArrayValue = (
+    key: 'jointFlags' | 'avoidMovementTags',
+    value: string
+  ) => {
     setDraft((prev) => {
+      if (!prev) return prev;
       const current = new Set(prev[key] || []);
       if (current.has(value)) current.delete(value);
       else current.add(value);
@@ -558,7 +662,7 @@ export default function OnboardingFlow() {
     });
   };
 
-  const goToStep = (nextStep) => {
+  const goToStep = (nextStep: number) => {
     const clamped = Math.max(0, Math.min(STEP_COUNT - 1, nextStep));
     setStep(clamped);
     scrollRef.current?.scrollTo({ top: 0 });
@@ -566,7 +670,7 @@ export default function OnboardingFlow() {
 
   const handlePrimary = () => {
     if (step === STEP_COUNT - 1) {
-      window.completeOnboarding?.(draft);
+      (window as OnboardingRuntimeWindow).completeOnboarding?.(draft);
       return;
     }
     goToStep(step + 1);
@@ -574,7 +678,7 @@ export default function OnboardingFlow() {
 
   const handleSecondary = () => {
     if (step === 0) {
-      window.dismissOnboardingModal?.();
+      (window as OnboardingRuntimeWindow).dismissOnboardingModal?.();
       return;
     }
     goToStep(step - 1);
